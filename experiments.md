@@ -486,7 +486,7 @@ Important notation for this section:
 | `lewm` | **89.4** |
 | `swm_mlp_bn_uniform_w_0p1_t_2_dim_192` | 65.6 |
 | `swm_mlp_bn_uniform_w_0p2_t_2_dim_192` | 74.4 |
-| `swm_mlp_bn_uniform_w_0p2_t_2_dim_64` | pending |
+| `swm_mlp_bn_uniform_w_0p2_t_2_dim_64` | 69.8 |
 | `swm_mlp_bn_uniform_w_0p1_t_2_cross_window_dim_192` | 74.4 |
 | `swm_mlp_bn_uniform_w_0p2_t_2_cross_window_dim_192` | 80.2 |
 | `swm_mlp_bn_uniform_w_0p2_t_2_cross_window_dim_64` | 82.2 |
@@ -495,18 +495,25 @@ Important notation for this section:
 | `swm_mlp_bn_uniform_w_0p2_t_1_temporal_masked_1_dim_64` | 64.6 |
 | `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_1_dim_64` | 81.2 |
 | `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64` | **89.8** |
+| `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_192` | 80.6 |
+| `swm_mlp_bn_uniform_w_0p3_t_2_temporal_masked_2_dim_64` | 85.2 |
+| `swm_mlp_bn_uniform_w_0p3_t_2_temporal_masked_2_dim_192` | 82.0 |
+| `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_3_dim_64` | 67.0 |
 
 ### Main takeaways
 
 1. Increasing `uniform_w` from `0.1` to `0.2` helps consistently.
 2. Changing pair sampling from `all_pairs` to `cross_window` or
    `temporal_masked` matters more than changing the base MLP+BN backbone alone.
-3. In the structured variants tested so far, `dim=64` is at least competitive
-   with and often better than `dim=192`.
-4. The biggest gain comes from raising `temporal_exclusion` from `1` to `2`
-   inside `temporal_masked`.
-5. The current best SWM run (`89.8`) is effectively on par with `lewm` (`89.4`)
-   under `num_eval=500`; this is a promising tie, not yet a decisive win.
+3. `dim=64` is **not** universally better. It hurts the plain `all_pairs`
+   baseline, but helps strongly once temporal structure is imposed.
+4. `temporal_exclusion=2` is the best setting at `dim=64`, but that gain does
+   not transfer cleanly to `dim=192`.
+5. `uniform_w=0.2` is better calibrated than `0.3` around the best branch.
+6. `temporal_exclusion=3` is too aggressive on PushT and collapses performance.
+7. The current best SWM run (`89.8`) is effectively on par with `lewm` (`89.4`)
+   on PushT, but the broader 4-task comparison now suggests SWM is slightly
+   stronger overall.
 
 ### Controlled comparisons
 
@@ -536,7 +543,8 @@ At fixed `uniform_w=0.2`, `t=2`, `dim=192`:
 Interpretation: the main benefit is not just stronger uniformity, but applying
 it with a more appropriate pair-selection structure. Both `cross_window` and
 `temporal_masked` avoid over-penalizing temporally related samples compared with
-plain `all_pairs`.
+plain `all_pairs`, and `temporal_masked` retains headroom for larger gains once
+`temporal_exclusion` is tuned.
 
 #### Effect of latent dimension
 
@@ -544,13 +552,16 @@ At fixed `uniform_w=0.2`, `t=2`:
 
 | Setting | `dim=192` | `dim=64` | Gain |
 |---|---:|---:|---:|
+| `all_pairs` | 74.4 | 69.8 | -4.6 |
 | `cross_window` | 80.2 | 82.2 | +2.0 |
 | `temporal_masked_1` | 80.0 | 81.2 | +1.2 |
+| `temporal_masked_2` | 80.6 | 89.8 | +9.2 |
 
-Interpretation: reducing latent dimension does not hurt the structured SWM
-variants here, and may slightly improve generalization. The plain
-`all_pairs, dim=64` baseline is still missing, so this should be treated as a
-trend rather than a fully isolated dimension conclusion.
+Interpretation: reducing latent dimension is not a standalone win. It hurts the
+plain `all_pairs` branch, mildly helps `cross_window` / `temporal_masked_1`,
+and helps **a lot** only for `temporal_masked_2`. This points to a strong
+interaction: `dim=64` becomes useful when the temporal masking policy is
+already well aligned with the task.
 
 #### Effect of temperature `t`
 
@@ -567,17 +578,45 @@ but it is still based on one architecture slice rather than a full sweep.
 
 #### Effect of temporal exclusion
 
+At fixed `uniform_w=0.2`, `t=2`:
+
+| Setting | `dim=192` | `dim=64` |
+|---|---:|
+| `temporal_masked_1` | 80.0 | 81.2 |
+| `temporal_masked_2` | 80.6 | **89.8** |
+
+Interpretation: increasing `temporal_exclusion` from `1` to `2` is the largest
+single improvement in this ablation, but only at `dim=64`. At `dim=192`, the
+gain is marginal (`80.0 -> 80.6`). So `temporal_exclusion=2` is not a universal
+rule; it is a strong choice specifically in the smaller latent setting.
+
+#### Effect of stronger uniformity weight near the best branch
+
+At fixed `t=2`, `temporal_exclusion=2`:
+
+| Setting | `uniform_w=0.2` | `uniform_w=0.3` | Gain |
+|---|---:|---:|---:|
+| `dim=64` | 89.8 | 85.2 | -4.6 |
+| `dim=192` | 80.6 | 82.0 | +1.4 |
+
+Interpretation: `uniform_w=0.3` is not a clean improvement and clearly hurts
+the best `dim=64` branch. The current evidence supports `uniform_w=0.2` as the
+best-calibrated value near the top-performing regime.
+
+#### Effect of larger temporal exclusion
+
 At fixed `uniform_w=0.2`, `t=2`, `dim=64`:
 
 | Setting | PushT eval |
 |---|---:|
 | `temporal_masked_1` | 81.2 |
 | `temporal_masked_2` | **89.8** |
+| `temporal_masked_3` | 67.0 |
 
-Interpretation: increasing `temporal_exclusion` from `1` to `2` is the largest
-single improvement in this ablation. The most plausible explanation is that
-excluding a wider near-temporal neighborhood makes the repulsive uniformity
-signal less likely to fight against genuinely similar adjacent states.
+Interpretation: the exclusion range has a clear optimum. `1` is too small, `3`
+is too large, and `2` is the sweet spot. Excluding too many nearby temporal
+pairs appears to remove too much useful contrastive pressure and weakens the
+uniformity objective substantially.
 
 ### Updated working interpretation for PushT
 
@@ -588,20 +627,48 @@ structure:
 - strong enough regularization (`uniform_w=0.2`)
 - pair selection that respects temporal locality
 - a moderate uniformity temperature (`t=2`)
-- larger temporal exclusion (`temporal_exclusion=2`)
+- a **moderate** temporal exclusion (`temporal_exclusion=2`, not `1` or `3`)
 - compact latent size (`dim=64`)
 
 This suggests that for PushT, regularizer geometry and temporal sampling policy
-matter more than simply scaling embedding dimension.
+matter more than simply scaling embedding dimension. It also suggests the
+best-performing region is a fairly narrow interaction regime rather than a
+single dominant scalar hyperparameter.
+
+### Updated benchmark view across four tasks
+
+We also evaluated the current best SWM setting on the four main downstream
+tasks.
+
+| Model | TwoRoom | Cube | PushT | Reacher |
+|---|---:|---:|---:|---:|
+| `lewm` | 93.0 | 69.2 | 89.4 | 62.2 |
+| `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64` | 90.8 | 74.0 | 89.8 | 66.0 |
+
+Task-wise comparison:
+- `TwoRoom`: SWM is slightly worse (`90.8` vs `93.0`)
+- `Cube`: SWM is clearly better (`74.0` vs `69.2`)
+- `PushT`: effectively tied, with a slight SWM edge (`89.8` vs `89.4`)
+- `Reacher`: SWM is clearly better (`66.0` vs `62.2`)
+
+Interpretation:
+- SWM is no longer just a PushT-specific improvement.
+- The current best configuration appears to trade a small amount of TwoRoom
+  performance for stronger 3D/control-task generalization.
+- On a simple unweighted 4-task average, SWM is now slightly ahead of LeWM.
+
+This makes the current SWM branch worth treating as a genuine alternative
+baseline rather than a task-specific ablation curiosity.
 
 ### Remaining gaps
 
-- `swm_mlp_bn_uniform_w_0p2_t_2_dim_64` is still pending, so the plain
-  `all_pairs` dimension effect is not fully isolated.
-- The current `89.8` vs `89.4` comparison against `lewm` is within plausible
-  evaluation noise for `num_eval=500`; multi-seed confirmation is still needed.
-- We still need `temporal_masked_2_dim_192` to separate the effect of
-  `temporal_exclusion=2` from any interaction with `dim=64`.
+- The best SWM setting now looks promising across four tasks, but it still
+  needs multi-seed confirmation before claiming a robust overall win.
+- TwoRoom remains the one task where the current SWM variant underperforms
+  LeWM, so the next dynamics-oriented improvements should be judged partly by
+  whether they recover that gap without giving back gains on Cube / Reacher.
+- The current sweep still leaves open whether improvements now come mainly from
+  better representation geometry, better action-conditioned dynamics, or both.
 
 ### Experiment record additions
 
@@ -619,12 +686,14 @@ Results:
 |---|---:|
 | `uniform_w=0.1, t=2, dim=192` | 65.6 |
 | `uniform_w=0.2, t=2, dim=192` | 74.4 |
-| `uniform_w=0.2, t=2, dim=64` | pending |
+| `uniform_w=0.2, t=2, dim=64` | 69.8 |
 
 Interpretation:
 - The plain `all_pairs` variant is clearly weaker than the best structured
   variants.
 - Even here, `uniform_w=0.2` provides a substantial gain over `0.1`.
+- Lowering `dim` to `64` **without** improving the pair-selection policy hurts,
+  so smaller latent size alone is not the source of the best result.
 
 #### Exp 13: PushT `cross_window` ablation
 
@@ -663,81 +732,96 @@ Results:
 | `uniform_w=0.2, t=1, temporal_exclusion=1, dim=64` | 64.6 |
 | `uniform_w=0.2, t=2, temporal_exclusion=1, dim=64` | 81.2 |
 | `uniform_w=0.2, t=2, temporal_exclusion=2, dim=64` | **89.8** |
+| `uniform_w=0.2, t=2, temporal_exclusion=2, dim=192` | 80.6 |
+| `uniform_w=0.3, t=2, temporal_exclusion=2, dim=64` | 85.2 |
+| `uniform_w=0.3, t=2, temporal_exclusion=2, dim=192` | 82.0 |
+| `uniform_w=0.2, t=2, temporal_exclusion=3, dim=64` | 67.0 |
 
 Interpretation:
 - `temporal_masked` is competitive with `cross_window` at
   `temporal_exclusion=1`.
 - `t=1` is too weak or poorly calibrated for this branch.
 - Increasing `temporal_exclusion` to `2` produces the best result in the whole
-  SWM PushT sweep and essentially matches the current `lewm` reference.
+  SWM PushT sweep, but specifically at `dim=64`.
+- Raising `uniform_w` to `0.3` does not improve the best branch.
+- Pushing `temporal_exclusion` to `3` over-shoots and degrades sharply.
 
 ### Next runs for PushT
 
-The current ablation is already enough to identify the most promising branch,
-but two comparisons are still missing before we can claim a clean causal story.
+The main single-task ablation ambiguities are now mostly resolved. The next
+phase should shift from "which regularizer hyperparameter wins on PushT?" to
+"how do we improve action-conditioned dynamics without losing the current
+representation gains?"
 
-#### Priority 1: isolate the plain `dim=64` effect
-
-Pending run:
-
-| Config | Purpose |
-|---|---|
-| `swm_mlp_bn_uniform_w_0p2_t_2_dim_64` | separate the benefit of lower dimension from the benefit of `cross_window` / `temporal_masked` |
-
-Why this matters:
-- Right now `dim=64` only looks better inside the structured variants.
-- Without the plain `all_pairs, dim=64` result, we cannot tell whether lower
-  dimension is broadly helpful or only helpful when combined with better pair
-  selection.
-
-#### Priority 2: isolate the `temporal_exclusion=2` effect
-
-Recommended run:
-
-| Config | Purpose |
-|---|---|
-| `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_192` | test whether the large gain from `temporal_exclusion=2` persists at higher latent dimension |
-
-Why this matters:
-- The current best run combines two changes at once: `temporal_exclusion=2` and
-  `dim=64`.
-- This leaves an unresolved interaction question: is `temporal_exclusion=2`
-  intrinsically strong, or is it especially strong only in the smaller latent
-  space?
-
-#### Priority 3: confirm temperature choice near the best branch
-
-Recommended run:
-
-| Config | Purpose |
-|---|---|
-| `swm_mlp_bn_uniform_w_0p2_t_1_temporal_masked_2_dim_64` | check whether the temperature sensitivity seen for `temporal_masked_1` also holds at `temporal_exclusion=2` |
-
-Why this matters:
-- The current evidence says `t=2` is much better than `t=1` for
-  `temporal_masked_1`.
-- We do not yet know whether the same conclusion holds for the strongest branch.
-
-#### Priority 4: move from best single run to stable best setting
+#### Priority 1: multi-seed confirmation of the current best setting
 
 Recommended protocol:
 - rerun `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64` with multiple
-  seeds
+  seeds on at least PushT and Cube
 - report mean and standard deviation instead of only the best single result
 
 Why this matters:
-- `89.8` vs `lewm 89.4` is too close to claim superiority from a single run.
-- The next real milestone is not a slightly higher point estimate, but showing
-  that the best SWM setting is reliably competitive with `lewm`.
+- The current 4-task picture is promising enough to justify a stronger claim,
+  but that claim should be based on stability, not a single lucky run.
+
+#### Priority 2: improve rollout training directly with multi-step prediction
+
+Recommended direction:
+- keep the current one-step latent prediction loss
+- add a low-weight multi-step rollout consistency loss over 2-4 future steps
+- compute it autoregressively in the same rollout space used at inference
+
+Why this matters:
+- Planning quality depends on repeated rollout, not only one-step accuracy.
+- The current SWM gains already suggest the representation is good enough to
+  make dynamics the next likely bottleneck.
+- A small-horizon multi-step loss is the most direct way to align training with
+  MPC usage.
+
+Main caveat:
+- start with a small weight and short horizon; large-horizon rollout losses can
+  destabilize optimization and hurt the strong one-step predictor.
+
+#### Priority 3: add a lightweight inverse-dynamics auxiliary loss
+
+Recommended direction:
+- predict action from `(z_t, z_{t+1})` or from `(context_t, z_{t+1})`
+- use it as an auxiliary loss with a modest weight, not as a primary objective
+
+Why this matters:
+- It can encourage the latent space to retain action-relevant information,
+  which is especially useful for PushT, Cube, and Reacher.
+- It is more likely to help in continuous-control settings where the same visual
+  state can support multiple future outcomes depending on action.
+
+Main caveat:
+- inverse dynamics is ill-posed when multiple actions induce near-identical
+  transitions, so it should remain an auxiliary bias rather than the main
+  training signal.
+
+#### Priority 4: combine both only after isolated tests
+
+Recommended sequence:
+1. baseline best SWM config with more seeds
+2. best SWM + short-horizon multi-step loss
+3. best SWM + inverse-dynamics auxiliary
+4. only then try the combined version
+
+Why this matters:
+- both additions target "action-conditioned future identifiability", so testing
+  them separately first makes it much easier to tell which one actually drives
+  gains or regressions.
 
 ### Current recommendation
 
 If compute budget is limited, the cleanest next sequence is:
 
-1. run `swm_mlp_bn_uniform_w_0p2_t_2_dim_64`
-2. run `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_192`
-3. rerun `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64` with multiple
-   seeds
+1. rerun `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64` with more
+   seeds on PushT and Cube
+2. add a small-weight 2-4 step latent rollout loss in the current rollout space
+3. if rollout metrics improve without harming TwoRoom, add a low-weight
+   inverse-dynamics auxiliary on top
 
-This sequence first resolves the two main ablation ambiguities, then shifts the
-goal from exploration to statistical confirmation.
+At this point, the regularizer ablation has done its job. The next gains are
+more likely to come from improving the learned dynamics than from continuing to
+search the same uniformity hyperparameter grid.

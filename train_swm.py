@@ -98,13 +98,76 @@ def get_context_tensor(output, *, space: str):
     raise ValueError(f"Unsupported loss.pred.context_space: {space}")
 
 
-def compute_pred_loss(pred: torch.Tensor, target: torch.Tensor, cfg) -> torch.Tensor:
-    pred_type = cfg.loss.pred.get("type", "cosine").lower()
-    if pred_type == "cosine":
+def get_embedding_tensor(output, *, space: str):
+    space = space.lower()
+    if space == "raw":
+        return output["emb_raw"]
+    if space in {"normalized", "sphere"}:
+        return output["emb"]
+    raise ValueError(f"Unsupported embedding space: {space}")
+
+
+def compute_embedding_loss(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    *,
+    loss_type: str,
+) -> torch.Tensor:
+    loss_type = loss_type.lower()
+    if loss_type == "cosine":
         return (1.0 - F.cosine_similarity(pred, target, dim=-1)).mean()
-    if pred_type == "mse":
+    if loss_type == "mse":
         return F.mse_loss(pred, target)
-    raise ValueError(f"Unsupported loss.pred.type: {pred_type}")
+    raise ValueError(f"Unsupported prediction loss type: {loss_type}")
+
+
+def compute_pred_loss(pred: torch.Tensor, target: torch.Tensor, cfg) -> torch.Tensor:
+    pred_type = cfg.loss.pred.get("type", "cosine")
+    return compute_embedding_loss(pred, target, loss_type=pred_type)
+
+
+def compute_multistep_rollout_loss(output, *, model, cfg):
+    rollout_cfg = cfg.loss.get("rollout", {})
+    horizon = int(rollout_cfg.get("horizon", 1))
+    if rollout_cfg.get("weight", 0.0) <= 0.0 or horizon <= 1:
+        return None
+
+    ctx_len = cfg.wm.history_size
+    available_future = output["emb"].size(1) - ctx_len
+    horizon = min(horizon, available_future)
+    if horizon <= 1:
+        return None
+
+    context_space = rollout_cfg.get("context_space", cfg.loss.pred.get("context_space", cfg.loss.pred.get("space", "normalized")))
+    target_space = rollout_cfg.get("space", cfg.loss.pred.get("space", "normalized"))
+    loss_type = rollout_cfg.get("type", cfg.loss.pred.get("type", "cosine"))
+
+    full_act_emb = output["act_emb"][:, : ctx_len + horizon]
+    rollout_raw = output["emb_raw"][:, :ctx_len].clone()
+    rollout_norm = output["emb"][:, :ctx_len].clone()
+    target = get_embedding_tensor(output, space=target_space)[:, ctx_len : ctx_len + horizon]
+
+    pred_steps = []
+    for step in range(horizon):
+        action_end = ctx_len + step
+        window = min(ctx_len, action_end)
+        rollout_ctx = get_embedding_tensor(
+            {"emb_raw": rollout_raw, "emb": rollout_norm},
+            space=context_space,
+        )[:, -window:]
+        act_trunc = full_act_emb[:, action_end - window : action_end]
+
+        pred_raw = model.predict_raw(rollout_ctx, act_trunc)[:, -1:]
+        pred_norm = model.normalize_embeddings(pred_raw)
+        pred_steps.append(
+            get_embedding_tensor({"emb_raw": pred_raw, "emb": pred_norm}, space=target_space)
+        )
+
+        rollout_raw = torch.cat([rollout_raw, pred_raw], dim=1)
+        rollout_norm = torch.cat([rollout_norm, pred_norm], dim=1)
+
+    pred = torch.cat(pred_steps, dim=1)
+    return compute_embedding_loss(pred, target, loss_type=loss_type)
 
 
 def swm_forward(self, batch, stage, cfg):
@@ -147,6 +210,11 @@ def swm_forward(self, batch, stage, cfg):
         space=pred_space,
     )
     output["pred_loss"] = compute_pred_loss(pred_source, tgt_source, cfg)
+    output["rollout_loss"] = compute_multistep_rollout_loss(
+        output,
+        model=self.model,
+        cfg=cfg,
+    )
 
     reg_emb = get_regularizer_tensor(output, space=reg_space)
     if reg_type == "spread":
@@ -169,8 +237,15 @@ def swm_forward(self, batch, stage, cfg):
         raise ValueError(f"Unsupported loss.regularizer.type: {reg_type}")
 
     output["loss"] = output["pred_loss"] + lambd * output["reg_loss"]
+    if output["rollout_loss"] is not None:
+        rollout_weight = cfg.loss.rollout.get("weight", 0.0)
+        output["loss"] = output["loss"] + rollout_weight * output["rollout_loss"]
 
-    losses_dict = {f"{stage}/{k}": v.detach() for k, v in output.items() if "loss" in k}
+    losses_dict = {
+        f"{stage}/{k}": v.detach()
+        for k, v in output.items()
+        if "loss" in k and torch.is_tensor(v)
+    }
     self.log_dict(losses_dict, on_step=True, sync_dist=True)
     return output
 

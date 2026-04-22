@@ -326,6 +326,7 @@ The short answer from the current runs is **yes**.
 | LeWM / SIGReg | raw MSE in Euclidean space | raw | raw MSE | **94** | Best global geometry and strongest action-driven latent motion |
 | SWM Exp A: BN + norm cosine + norm uniformity | normalized cosine | normalized | normalized cosine | **62** | Self-consistent rollout, but geometry is weaker than LeWM |
 | SWM Exp B2: BN + raw MSE + norm uniformity | raw MSE | normalized | raw MSE | **0** | Train / rollout mismatch; changing only final cost does not rescue planning |
+| SWM Exp C2: raw-consistent + norm uniformity | raw MSE | raw | raw MSE | poor / unstable | Space-consistent Euclidean control still does not reproduce the spherical branch |
 
 ### Representation evidence from PushT
 
@@ -353,6 +354,9 @@ Interpretation:
   planning still closes the autoregressive loop in `rollout_state_space=normalized`.
 - This shows that matching the **prediction-loss space** to the **rollout space**
   matters more than matching only the final planning cost.
+- Exp C2 matters for a different reason: even after restoring raw-space
+  consistency (`pred.space=raw`, `rollout_state_space=raw`, `cost_space=raw`),
+  the Euclidean control branch still fails to match the spherical branch.
 
 ### Additional raw-vs-normalized check
 
@@ -367,15 +371,20 @@ be almost identical. That means:
   preserve much extra amplitude information
 - with this architecture, switching only `cost_space` cannot rescue planning
 
-This points away from "cost mismatch only" and toward a stronger conclusion:
+This points away from "cost mismatch only" and toward two separate conclusions:
 
 > the prediction training space and the rollout state space should be the same
 > if we want stable multi-step planning.
 
+and
+
+> within the current `uniformity`-style recipe family, restoring Euclidean
+> space consistency is not sufficient to recover the best spherical result.
+
 ### Recommended consistent experiment lines
 
-The next comparison should therefore use two fully self-consistent branches
-rather than another hybrid.
+The key comparison is therefore not the hybrid B2 setup, but two fully
+self-consistent branches:
 
 ### Exp C1: spherical-consistent
 
@@ -446,8 +455,11 @@ Why this branch matters:
 - removing `BatchNorm1d` from the projector is important here, because the
   current BN-based raw run suggests `emb_raw` is already being compressed into a
   near-shell geometry before planning ever sees it
+- in practice, this branch still fails to produce a competitive model under the
+  current `uniformity`-style recipe, so it serves as a negative Euclidean
+  control rather than a promising alternative baseline
 
-### Working hypothesis after PushT
+### Updated interpretation after PushT
 
 Current evidence supports the following rule of thumb:
 
@@ -461,6 +473,26 @@ In other words, the important consistency is along the **dynamics path**:
 
 The current hybrid `raw pred + normalized rollout + raw cost` setup does not
 meet that requirement and should not be treated as the main raw-MSE baseline.
+
+What the current evidence **does** support:
+
+- for this family of `uniformity`-regularized objectives, a spherical-consistent
+  branch is substantially more effective than the tested Euclidean alternatives
+- rollout-space consistency is necessary
+- Euclidean consistency alone is not sufficient
+
+What the current evidence **does not yet** support:
+
+- a universal claim that spherical latent spaces are always better than
+  Euclidean latent spaces
+- a universal claim that any auxiliary loss or planner will work better just
+  because the latent space is spherical
+
+So the strongest defensible claim at this stage is narrower:
+
+> under the current `uniformity + temporal masking (+ rollout / inverse-dynamics
+> extensions)` recipe family, the spherical-consistent branch is the one that
+> trains and evaluates well, while the tested Euclidean controls do not.
 
 ---
 

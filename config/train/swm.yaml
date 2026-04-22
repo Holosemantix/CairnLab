@@ -84,13 +84,14 @@ loss:
     context_space: ${loss.pred.space} # predictor context space during training
   rollout:
     weight: 0.0 # set >0 to add short-horizon autoregressive rollout loss
-    horizon: 1 # number of rollout targets after the history window
+    steps: 1 # total autoregressive rollout steps after the history window
     type: ${loss.pred.type} # cosine or mse
     space: ${loss.pred.space} # normalized or raw target space
     context_space: ${loss.pred.context_space} # rollout context space during training
   regularizer:
     type: uniformity # spread, uniformity, or infonce
     space: normalized # normalized or raw
+    scope: full # full or pred_window
     weight: 0.1 # λ balancing pred_loss vs anti-collapse regularization
   spread:
     margin: 0.0 # m in max(0, mu_i^T mu_j - m)^2

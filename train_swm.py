@@ -129,27 +129,27 @@ def compute_pred_loss(pred: torch.Tensor, target: torch.Tensor, cfg) -> torch.Te
 
 def compute_multistep_rollout_loss(output, *, model, cfg):
     rollout_cfg = cfg.loss.get("rollout", {})
-    horizon = int(rollout_cfg.get("horizon", 1))
-    if rollout_cfg.get("weight", 0.0) <= 0.0 or horizon <= 1:
+    rollout_steps = int(rollout_cfg.get("steps", 1))
+    if rollout_cfg.get("weight", 0.0) <= 0.0 or rollout_steps <= 1:
         return None
 
     ctx_len = cfg.wm.history_size
     available_future = output["emb"].size(1) - ctx_len
-    horizon = min(horizon, available_future)
-    if horizon <= 1:
+    rollout_steps = min(rollout_steps, available_future)
+    if rollout_steps <= 1:
         return None
 
     context_space = rollout_cfg.get("context_space", cfg.loss.pred.get("context_space", cfg.loss.pred.get("space", "normalized")))
     target_space = rollout_cfg.get("space", cfg.loss.pred.get("space", "normalized"))
     loss_type = rollout_cfg.get("type", cfg.loss.pred.get("type", "cosine"))
 
-    full_act_emb = output["act_emb"][:, : ctx_len + horizon]
+    full_act_emb = output["act_emb"][:, : ctx_len + rollout_steps]
     rollout_raw = output["emb_raw"][:, :ctx_len].clone()
     rollout_norm = output["emb"][:, :ctx_len].clone()
-    target = get_embedding_tensor(output, space=target_space)[:, ctx_len : ctx_len + horizon]
+    target = get_embedding_tensor(output, space=target_space)[:, ctx_len : ctx_len + rollout_steps]
 
     pred_steps = []
-    for step in range(horizon):
+    for step in range(rollout_steps):
         action_end = ctx_len + step
         window = min(ctx_len, action_end)
         rollout_ctx = get_embedding_tensor(
@@ -224,6 +224,11 @@ def swm_forward(self, batch, stage, cfg):
     )
 
     reg_emb = get_regularizer_tensor(output, space=reg_space)
+    reg_scope = cfg.loss.regularizer.get("scope", "full").lower()
+    if reg_scope == "pred_window":
+        reg_emb = reg_emb[:, : ctx_len + n_preds]
+    elif reg_scope != "full":
+        raise ValueError(f"Unsupported loss.regularizer.scope: {reg_scope}")
     if reg_type == "spread":
         output["spread_loss"] = spread_loss(reg_emb, cfg.loss.spread.margin)
         output["reg_loss"] = output["spread_loss"]

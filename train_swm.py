@@ -72,11 +72,12 @@ def build_projection_head(input_dim: int, output_dim: int, cfg) -> nn.Module:
 
 
 def get_loss_space_tensors(output, *, pred_raw, pred_norm, n_preds: int, space: str):
+    pred_len = pred_raw.size(1)
     space = space.lower()
     if space == "raw":
-        return pred_raw, output["emb_raw"][:, n_preds:]
+        return pred_raw, output["emb_raw"][:, n_preds : n_preds + pred_len]
     if space in {"normalized", "sphere"}:
-        return pred_norm, output["emb"][:, n_preds:]
+        return pred_norm, output["emb"][:, n_preds : n_preds + pred_len]
     raise ValueError(f"Unsupported loss space: {space}")
 
 

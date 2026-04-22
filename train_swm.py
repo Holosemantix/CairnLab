@@ -167,7 +167,13 @@ def compute_multistep_rollout_loss(output, *, model, cfg):
         rollout_raw = torch.cat([rollout_raw, pred_raw], dim=1)
         rollout_norm = torch.cat([rollout_norm, pred_norm], dim=1)
 
-    pred = torch.cat(pred_steps, dim=1)
+    if len(pred_steps) <= 1:
+        return None
+
+    # Keep the first rollout step only as autoregressive context so this
+    # auxiliary term supervises strictly beyond the one-step pred_loss.
+    pred = torch.cat(pred_steps[1:], dim=1)
+    target = target[:, 1:]
     return compute_embedding_loss(pred, target, loss_type=loss_type)
 
 

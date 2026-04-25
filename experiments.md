@@ -1,10 +1,38 @@
 # SWM (Spherical World Model) Experiment Log
 
-## Summary
+## Document Map
+
+This log is organized by experiment phase:
+
+1. **Current Working Summary**: high-level state of the SWM direction.
+2. **Metric Scale References**: reference values for uniformity / spread losses.
+3. **Collapse-Avoidance Experiments**: early TwoRoom collapse and anti-collapse experiments.
+4. **Collapse Mechanism**: consolidated interpretation of why some losses fail.
+5. **PushT Rollout-Space Consistency**: raw-vs-normalized rollout analysis.
+6. **PushT Uniformity Ablation**: pair sampling, temporal masking, dimension, and temperature.
+7. **Four-Task Temporal Hinge Comparison**: latest `epoch=10`, `num_eval=500` comparison batch.
+8. **Appendix A**: raw PushT ablation records retained for traceability.
+9. **Next Directions**: recommended follow-up experiments.
+
+## 1. Current Working Summary
 
 Goal: spherical representations (S^{d-1}) + non-SIGReg anti-collapse for world models (plan.md / plan_v2.md V0).
 
 Base config: SphericalJEPA, ViT-Tiny, embed_dim=64, batch_size=128, T=4, Two-Room, lr=5e-5, spread weight=0.1.
+
+Current best SWM baseline:
+
+- `swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260415`
+- core recipe: MLP projector + BatchNorm, normalized spherical prediction, uniformity regularizer with `weight=0.2`, `t=2`, `mode=temporal_masked`, `temporal_exclusion=2`, `embed_dim=64`
+- benchmark at `epoch=10`, `num_eval=500`: TwoRoom `90.8`, Cube `74.0`, PushT `89.8`, Reacher `66.0`
+
+Current working conclusion:
+
+- temporal masking is a useful soft structural bias because it stops uniformity from pushing near-neighbor time steps apart
+- fixed temporal hinge is much riskier because it actively pulls every adjacent transition together, regardless of action magnitude, contact, or task phase
+- the next promising direction is action / transition-aware continuity rather than stronger global continuity
+
+## 2. Metric Scale References
 
 ### Uniformity_loss scale reference (t=2, N=512)
 
@@ -65,7 +93,7 @@ SIGReg succeeds because of **sorting + quantile matching** inside Epps-Pulley: p
 
 ---
 
-## Experiment Details
+## 3. Collapse-Avoidance Experiment Details
 
 ### Exp 1: V0 Baseline (Linear + mean cosine spread_loss)
 
@@ -266,7 +294,7 @@ Remaining caveat:
 
 ---
 
-## Key Insight: The Gradient Dead Zone
+## 4. Collapse Mechanism: The Gradient Dead Zone
 
 At exact collapse (all z_i identical), gradient is zero for ALL tested losses:
 
@@ -309,7 +337,7 @@ So the current picture is:
 
 ---
 
-## PushT Follow-up: Rollout-Space Consistency
+## 5. PushT Rollout-Space Consistency
 
 After the early collapse-focused Two-Room experiments, we ran a stricter PushT
 comparison to answer a different question:
@@ -496,7 +524,7 @@ So the strongest defensible claim at this stage is narrower:
 
 ---
 
-## PushT Ablation: Uniformity Weight, Pair Sampling, and Temporal Exclusion
+## 6. PushT Uniformity Ablation: Weight, Pair Sampling, and Temporal Exclusion
 
 To understand which part of the SWM regularizer stack actually matters on
 PushT, we ran a focused ablation with fixed evaluation settings:
@@ -702,9 +730,171 @@ baseline rather than a task-specific ablation curiosity.
 - The current sweep still leaves open whether improvements now come mainly from
   better representation geometry, better action-conditioned dynamics, or both.
 
-### Experiment record additions
+---
 
-#### Exp 12: PushT baseline sweep with MLP+BN + uniformity (`all_pairs`)
+## 7. Four-Task Temporal Hinge Comparison
+
+This section records the latest comparison batch provided in CSV form.
+
+Evaluation protocol:
+
+- checkpoint epoch: `10`
+- eval budget: `num_eval=500`
+- tasks: TwoRoom, Cube, PushT, Reacher
+
+Run names are preserved as recorded, including typos such as `tworroom` and
+`reache`, so the table can be traced back to the original experiment names.
+
+Naming convention:
+
+- `w01` = `loss.temporal_hinge.weight=0.1`
+- `w001` = `loss.temporal_hinge.weight=0.001`
+- `m01` = `loss.temporal_hinge.margin=0.1`
+- `m05` = `loss.temporal_hinge.margin=0.5`
+- `m1` = `loss.temporal_hinge.margin=1.0`
+- `uniform_w02_t2_temporal_masked_2` = `loss.regularizer.weight=0.2`, `loss.uniformity.t=2`, `loss.uniformity.mode=temporal_masked`, `loss.uniformity.temporal_exclusion=2`
+
+Important implementation detail:
+
+```text
+temporal_hinge_loss = max(0, distance(z_t, z_{t+1}) - margin)^2
+```
+
+Therefore smaller margins are stronger continuity constraints. `m01` forces
+adjacent embeddings to be very close, while `m05` / `m1` are weaker constraints.
+
+### Baseline four-task comparison
+
+| Model | TwoRoom | Cube | PushT | Reacher | Average |
+|---|---:|---:|---:|---:|---:|
+| `lewm` | 93.0 | 69.2 | 89.4 | 62.2 | 78.45 |
+| `swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260415` | 90.8 | 74.0 | 89.8 | 66.0 | 80.15 |
+
+Interpretation:
+
+- SWM is slightly worse on TwoRoom (`90.8` vs `93.0`).
+- SWM is better on Cube (`74.0` vs `69.2`) and Reacher (`66.0` vs `62.2`).
+- PushT is effectively tied, with a small SWM edge (`89.8` vs `89.4`).
+- On this single-seed four-task average, SWM is ahead by `+1.70`.
+
+### Latest no-hinge reruns
+
+| Model | TwoRoom | Cube | PushT | Reacher |
+|---|---:|---:|---:|---:|
+| `tworoom_lewm` | 93.0 |  |  |  |
+| `cube_lewm` |  | 70.0 |  |  |
+| `pusht_lewm` |  |  | 83.6 |  |
+| `reacher_lewm` |  |  |  | 58.8 |
+| `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260425` | 91.0 |  |  |  |
+| `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260425` |  |  | 82.4 |  |
+| `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260425` |  |  |  | 58.4 |
+
+Notes:
+
+- No `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260425` row was provided in this batch.
+- The 2026-04-25 no-hinge reruns are lower than the 2026-04-15 SWM baseline on PushT (`89.8 -> 82.4`) and Reacher (`66.0 -> 58.4`), while TwoRoom is similar (`90.8 -> 91.0`).
+- This reinforces the need for multi-seed / reproducibility checks before treating a single run as a stable task-level number.
+
+### LeWM temporal hinge runs
+
+| Model | weight | margin | TwoRoom | Cube | PushT | Reacher |
+|---|---:|---:|---:|---:|---:|---:|
+| `tworroom_lewm_temporal_hinge_w01_m01` | 0.1 | 0.1 | 32.0 |  |  |  |
+| `tworoom_lewm_temporal_hinge_w001_m01` | 0.001 | 0.1 | 87.2 |  |  |  |
+| `tworoom_lewm_temporal_hinge_w001_m05` | 0.001 | 0.5 | 100.0 |  |  |  |
+| `cube_lewm_temporal_hinge_w001_m01` | 0.001 | 0.1 |  | 69.2 |  |  |
+| `cube_lewm_temporal_hinge_w001_m05` | 0.001 | 0.5 |  | 70.2 |  |  |
+| `pusht_lewm_temporal_hinge_w01_m01` | 0.1 | 0.1 |  |  | 6.2 |  |
+| `pusht_lewm_temporal_hinge_w001_m01` | 0.001 | 0.1 |  |  | 13.4 |  |
+| `pusht_lewm_temporal_hinge_w001_m05` | 0.001 | 0.5 |  |  | 20.0 |  |
+| `reacher_lewm_temporal_hinge_w01_m01` | 0.1 | 0.1 |  |  |  | 43.6 |
+| `reacher_lewm_temporal_hinge_w001_m05` | 0.001 | 0.5 |  |  |  | 54.2 |
+
+Interpretation:
+
+- LeWM + fixed temporal hinge is highly unstable across tasks.
+- TwoRoom can benefit from weak hinge with a loose margin (`w=0.001,m=0.5` gives `100.0`), but strong hinge collapses performance (`w=0.1,m=0.1` gives `32.0`).
+- Cube is almost insensitive in the tested range (`69.2` / `70.2`).
+- PushT is severely damaged by all tested LeWM hinge settings (`6.2` to `20.0`).
+- Reacher also degrades relative to both `lewm` (`62.2`) and the latest `reacher_lewm` rerun (`58.8`).
+
+### SWM temporal hinge runs
+
+All SWM rows below use the same baseline family:
+
+```text
+swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64
+```
+
+with fixed temporal hinge added.
+
+| Model | weight | margin | TwoRoom | Cube | PushT | Reacher |
+|---|---:|---:|---:|---:|---:|---:|
+| `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.001 | 0.1 | 86.8 |  |  |  |
+| `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.001 | 0.5 | 88.6 |  |  |  |
+| `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.001 | 1.0 | 75.6 |  |  |  |
+| `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w01_m01_dim64` | 0.1 | 0.1 |  | 73.8 |  |  |
+| `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.001 | 0.1 |  | 73.4 |  |  |
+| `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.001 | 0.5 |  | 72.0 |  |  |
+| `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.001 | 1.0 |  | 71.4 |  |  |
+| `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w01_m01_dim64` | 0.1 | 0.1 |  |  | 72.0 |  |
+| `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.001 | 0.1 |  |  | 76.6 |  |
+| `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.001 | 0.5 |  |  | 76.0 |  |
+| `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.001 | 1.0 |  |  | 81.0 |  |
+| `reache_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w01_m01_dim64` | 0.1 | 0.1 |  |  |  | 58.8 |
+| `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.001 | 0.1 |  |  |  | 58.0 |
+| `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.001 | 0.5 |  |  |  | 57.6 |
+| `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.001 | 1.0 |  |  |  | 60.0 |
+
+Interpretation:
+
+- Relative to the best 2026-04-15 no-hinge SWM baseline, fixed temporal hinge does not improve any task in this batch.
+- Relative to the 2026-04-25 no-hinge SWM reruns, fixed hinge is still worse on TwoRoom (`91.0` to at best `88.6`) and PushT (`82.4` to at best `81.0`).
+- Reacher is the only latest-rerun comparison where a hinge row is slightly higher than the 2026-04-25 no-hinge rerun (`60.0` vs `58.4`), but it remains far below the 2026-04-15 SWM baseline (`66.0`).
+- Cube hinge rows stay close to the 2026-04-15 SWM baseline (`74.0`) but do not beat it.
+- The larger PushT / Reacher margins recover some performance, which supports the idea that stricter fixed continuity is the damaging component.
+
+### Consolidated interpretation
+
+The comparison separates three related but different mechanisms:
+
+| Mechanism | What it does | Current evidence |
+|---|---|---|
+| SIGReg in LeWM | globally regularizes the embedding distribution in Euclidean space | strong baseline, but does not explicitly respect temporal adjacency |
+| SWM uniformity + temporal mask | pushes representations apart while excluding nearby same-trajectory pairs from that repulsion | stable and currently best 4-task average in the 2026-04-15 baseline |
+| fixed temporal hinge | actively pulls every adjacent transition within a fixed margin | helps only in narrow cases and usually hurts, especially PushT / Reacher |
+
+Working hypothesis:
+
+- `temporal_masked` is a low-risk soft temporal prior because it says "do not
+  force nearby time steps apart."
+- fixed temporal hinge is a stronger prior because it says "force all adjacent
+  time steps to be close."
+- that stronger prior conflicts with tasks where adjacent time steps can have
+  different semantic or control significance, especially contact / manipulation
+  tasks such as PushT.
+- the next useful continuity prior should be action / transition-aware instead
+  of globally applied.
+
+Practical conclusion:
+
+- keep `swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64` as the main SWM
+  baseline family, but verify reproducibility because the 2026-04-25 no-hinge
+  reruns are lower on PushT / Reacher
+- do not continue broad fixed `weight,margin` sweeps for temporal hinge as the
+  main path
+- if continuity is revisited, make it gated or dynamic:
+
+```text
+gate_t * max(0, d(z_t, z_{t+1}) - margin_t)^2
+```
+
+where `gate_t` or `margin_t` depends on action, predicted transition scale, or
+a task-normalized transition proxy.
+
+## Appendix A. PushT Ablation Experiment Records
+
+### Exp 12: PushT baseline sweep with MLP+BN + uniformity (`all_pairs`)
 
 Setup:
 - checkpoint epoch: `10`
@@ -727,7 +917,7 @@ Interpretation:
 - Lowering `dim` to `64` **without** improving the pair-selection policy hurts,
   so smaller latent size alone is not the source of the best result.
 
-#### Exp 13: PushT `cross_window` ablation
+### Exp 13: PushT `cross_window` ablation
 
 Setup:
 - checkpoint epoch: `10`
@@ -748,7 +938,7 @@ Interpretation:
 - The gain from `uniform_w=0.2` remains.
 - `dim=64` is slightly stronger than `dim=192` in this structured setting.
 
-#### Exp 14: PushT `temporal_masked` ablation
+### Exp 14: PushT `temporal_masked` ablation
 
 Setup:
 - checkpoint epoch: `10`
@@ -778,14 +968,14 @@ Interpretation:
 - Raising `uniform_w` to `0.3` does not improve the best branch.
 - Pushing `temporal_exclusion` to `3` over-shoots and degrades sharply.
 
-### Next runs for PushT
+## 9. Next Directions
 
 The main single-task ablation ambiguities are now mostly resolved. The next
 phase should shift from "which regularizer hyperparameter wins on PushT?" to
-"how do we improve action-conditioned dynamics without losing the current
-representation gains?"
+"how do we improve action / transition-aware dynamics without losing the
+current representation gains?"
 
-#### Priority 1: multi-seed confirmation of the current best setting
+### Priority 1: multi-seed confirmation of the current best setting
 
 Recommended protocol:
 - rerun `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64` with multiple
@@ -796,7 +986,42 @@ Why this matters:
 - The current 4-task picture is promising enough to justify a stronger claim,
   but that claim should be based on stability, not a single lucky run.
 
-#### Priority 2: improve rollout training directly with multi-step prediction
+### Priority 2: test transition-aware continuity instead of fixed temporal hinge
+
+Recommended direction:
+- keep the current SWM baseline geometry
+- replace fixed temporal hinge with a gated or dynamic version
+- avoid using a single global margin for all adjacent transitions
+
+Candidate objective:
+
+```text
+gate_t * max(0, d(z_t, z_{t+1}) - margin_t)^2
+```
+
+Possible first versions:
+- `gate_t` from task-normalized transition magnitude as a diagnostic-only
+  experiment
+- `margin_t = base + softplus(h(stopgrad(z_t), a_t))` as a more general
+  action-conditioned version
+- add `beta * margin_t` if using learned margins, so the model cannot escape by
+  making every margin large
+
+Why this matters:
+- the latest four-task comparison shows fixed temporal hinge hurts PushT and
+  usually does not improve SWM over the no-hinge baseline
+- action magnitude and contact can make adjacent time steps represent very
+  different semantic transitions
+- the useful prior is not "all adjacent states should be close"; it is "small
+  transitions should stay close, large transitions may move farther"
+
+Main caveat:
+- low-dimensional state / proprio deltas are useful for diagnosing the
+  hypothesis, but they are not a universal final signal
+- the deployable version should rely on action / latent-conditioned margins or
+  another signal available in the visual world-model setting
+
+### Priority 3: improve rollout training directly with multi-step prediction
 
 Recommended direction:
 - keep the current one-step latent prediction loss
@@ -814,7 +1039,7 @@ Main caveat:
 - start with a small weight and short horizon; large-horizon rollout losses can
   destabilize optimization and hurt the strong one-step predictor.
 
-#### Priority 3: add a lightweight inverse-dynamics auxiliary loss
+### Priority 4: add a lightweight inverse-dynamics auxiliary loss
 
 Recommended direction:
 - predict action from `(z_t, z_{t+1})` or from `(context_t, z_{t+1})`
@@ -831,29 +1056,31 @@ Main caveat:
   transitions, so it should remain an auxiliary bias rather than the main
   training signal.
 
-#### Priority 4: combine both only after isolated tests
+### Priority 5: combine additions only after isolated tests
 
 Recommended sequence:
 1. baseline best SWM config with more seeds
-2. best SWM + short-horizon multi-step loss
-3. best SWM + inverse-dynamics auxiliary
-4. only then try the combined version
+2. best SWM + transition-aware continuity
+3. best SWM + short-horizon multi-step loss
+4. best SWM + inverse-dynamics auxiliary
+5. only then try combined versions
 
 Why this matters:
-- both additions target "action-conditioned future identifiability", so testing
-  them separately first makes it much easier to tell which one actually drives
-  gains or regressions.
+- these additions all target action-conditioned future identifiability from
+  different angles, so testing them separately first makes it much easier to
+  tell which one actually drives gains or regressions.
 
 ### Current recommendation
 
 If compute budget is limited, the cleanest next sequence is:
 
 1. rerun `swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64` with more
-   seeds on PushT and Cube
-2. add a small-weight 2-4 step latent rollout loss in the current rollout space
-3. if rollout metrics improve without harming TwoRoom, add a low-weight
+   seeds on all four tasks if possible, or at least PushT and Cube
+2. test transition-aware continuity against the no-hinge SWM baseline
+3. add a small-weight 2-4 step latent rollout loss in the current rollout space
+4. if rollout metrics improve without harming TwoRoom, add a low-weight
    inverse-dynamics auxiliary on top
 
 At this point, the regularizer ablation has done its job. The next gains are
-more likely to come from improving the learned dynamics than from continuing to
-search the same uniformity hyperparameter grid.
+more likely to come from action / transition-aware dynamics than from continuing
+to search the same uniformity or fixed temporal-hinge hyperparameter grids.

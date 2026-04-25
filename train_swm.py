@@ -24,7 +24,6 @@ from module import (
     MLP,
     infonce_loss,
     spread_loss,
-    temporal_hinge_loss,
     temporal_straightness,
     uniformity_loss,
 )
@@ -179,6 +178,59 @@ def compute_multistep_rollout_loss(output, *, model, cfg):
     return compute_embedding_loss(pred, target, loss_type=loss_type)
 
 
+def compute_temporal_hinge(output, *, model, cfg):
+    emb = output["emb"]
+    if emb.size(1) <= 1:
+        output["temporal_hinge_active_ratio"] = emb.new_tensor(0.0)
+        return emb.new_tensor(0.0)
+
+    hinge_cfg = cfg.loss.temporal_hinge
+    dynamic_cfg = hinge_cfg.get("dynamic", {})
+    z_t = emb[:, :-1]
+    z_tp1 = emb[:, 1:]
+
+    if not dynamic_cfg.get("enabled", False):
+        dist = 1.0 - (z_t * z_tp1).sum(dim=-1)
+        margin = hinge_cfg.margin
+        hinge = torch.clamp_min(dist - margin, 0.0)
+        output["temporal_hinge_active_ratio"] = (hinge > 0).float().mean()
+        if hinge_cfg.squared:
+            hinge = hinge.square()
+        return hinge.mean()
+
+    if not hasattr(model, "dynamic_margin_head"):
+        raise AttributeError(
+            "loss.temporal_hinge.dynamic.enabled=True requires "
+            "model.dynamic_margin_head to be initialized"
+        )
+
+    act_emb = output["act_emb"][:, :-1]
+    margin_input = torch.cat([z_t.detach(), act_emb.detach()], dim=-1)
+    raw_score = model.dynamic_margin_head(margin_input).squeeze(-1)
+    score = torch.sigmoid(raw_score)
+    score = score / score.detach().mean().clamp_min(1e-6)
+
+    margin = dynamic_cfg.get("base_margin", hinge_cfg.margin) * score
+    margin = margin.clamp(
+        min=dynamic_cfg.get("min_margin", 0.05),
+        max=dynamic_cfg.get("max_margin", 1.0),
+    )
+
+    dist = 1.0 - (z_t * z_tp1).sum(dim=-1)
+    hinge = torch.clamp_min(dist - margin, 0.0)
+    output["temporal_hinge_active_ratio"] = (hinge > 0).float().mean()
+    output["temporal_margin_mean"] = margin.mean()
+    output["temporal_margin_std"] = margin.std(unbiased=False)
+    margin_flat = margin.detach().flatten()
+    output["temporal_margin_p10"] = torch.quantile(margin_flat, 0.10)
+    output["temporal_margin_p50"] = torch.quantile(margin_flat, 0.50)
+    output["temporal_margin_p90"] = torch.quantile(margin_flat, 0.90)
+
+    if hinge_cfg.squared:
+        hinge = hinge.square()
+    return hinge.mean()
+
+
 def swm_forward(self, batch, stage, cfg):
     """Encode observations, predict next states, compute spherical losses.
 
@@ -260,16 +312,11 @@ def swm_forward(self, batch, stage, cfg):
     else:
         raise ValueError(f"Unsupported loss.regularizer.type: {reg_type}")
 
-    if emb.size(1) > 1:
-        output["temporal_hinge_loss"] = temporal_hinge_loss(
-            emb[:, :-1],
-            emb[:, 1:],
-            margin=hinge_cfg.margin,
-            metric="cosine",
-            squared=hinge_cfg.squared,
-        )
-    else:
-        output["temporal_hinge_loss"] = emb.new_tensor(0.0)
+    output["temporal_hinge_loss"] = compute_temporal_hinge(
+        output,
+        model=self.model,
+        cfg=cfg,
+    )
 
     output["loss"] = (
         output["pred_loss"]
@@ -289,7 +336,16 @@ def swm_forward(self, batch, stage, cfg):
         if "loss" in k and torch.is_tensor(v)
     }
     metrics_dict = {
-        f"{stage}/temporal_straightness": output["temporal_straightness"].detach()
+        f"{stage}/{k}": v.detach()
+        for k, v in output.items()
+        if (
+            torch.is_tensor(v)
+            and (
+                k == "temporal_straightness"
+                or k == "temporal_hinge_active_ratio"
+                or k.startswith("temporal_margin_")
+            )
+        )
     }
     self.log_dict({**losses_dict, **metrics_dict}, on_step=True, sync_dist=True)
     return output
@@ -380,6 +436,10 @@ def run(cfg):
         analysis_prediction_space=cfg.loss.pred.get("space", "normalized"),
         training_context_space=training_context_space,
     )
+    if cfg.loss.temporal_hinge.get("dynamic", {}).get("enabled", False):
+        world_model.dynamic_margin_head = nn.Linear(2 * embed_dim, 1)
+        nn.init.zeros_(world_model.dynamic_margin_head.weight)
+        nn.init.zeros_(world_model.dynamic_margin_head.bias)
 
     optimizers = {
         "model_opt": {

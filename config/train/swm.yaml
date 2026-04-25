@@ -97,6 +97,11 @@ loss:
     weight: 0.0 # disabled by default
     margin: 0.1
     squared: True
+    dynamic:
+      enabled: False # learn transition-wise margins with a linear head
+      base_margin: 0.5 # mean margin after score normalization
+      min_margin: 0.05 # numeric safety bound for cosine distance
+      max_margin: 1.0
   spread:
     margin: 0.0 # m in max(0, mu_i^T mu_j - m)^2
   uniformity:

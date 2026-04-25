@@ -221,7 +221,7 @@ def compute_temporal_hinge(output, *, model, cfg):
     output["temporal_hinge_active_ratio"] = (hinge > 0).float().mean()
     output["temporal_margin_mean"] = margin.mean()
     output["temporal_margin_std"] = margin.std(unbiased=False)
-    margin_flat = margin.detach().flatten()
+    margin_flat = margin.detach().float().flatten()
     output["temporal_margin_p10"] = torch.quantile(margin_flat, 0.10)
     output["temporal_margin_p50"] = torch.quantile(margin_flat, 0.50)
     output["temporal_margin_p90"] = torch.quantile(margin_flat, 0.90)

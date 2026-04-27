@@ -245,6 +245,73 @@ class MLP(nn.Module):
         return self.net(x)
 
 
+def transition_pair_features(
+    z_t: torch.Tensor,
+    z_tp1: torch.Tensor,
+    *,
+    detach: bool = False,
+) -> torch.Tensor:
+    """Concatenate consecutive latent pairs for transition-level heads."""
+    if z_t.shape != z_tp1.shape:
+        raise ValueError(
+            f"z_t and z_tp1 must have the same shape, got {z_t.shape} vs {z_tp1.shape}"
+        )
+    if detach:
+        z_t = z_t.detach()
+        z_tp1 = z_tp1.detach()
+    return torch.cat([z_t, z_tp1], dim=-1)
+
+
+def inverse_dynamics_loss(
+    z_t: torch.Tensor,
+    z_tp1: torch.Tensor,
+    action: torch.Tensor,
+    head: nn.Module,
+    *,
+    detach_input: bool = False,
+) -> torch.Tensor:
+    """Predict the action that connects consecutive latent states."""
+    if z_t.numel() == 0:
+        return z_t.new_tensor(0.0)
+    pred_action = head(transition_pair_features(z_t, z_tp1, detach=detach_input))
+    if pred_action.shape != action.shape:
+        raise ValueError(
+            "inverse dynamics prediction and action target must have the same "
+            f"shape, got {pred_action.shape} vs {action.shape}"
+        )
+    return F.mse_loss(pred_action, action.float())
+
+
+def transition_distance_prediction_loss(
+    z_t: torch.Tensor,
+    z_tp1: torch.Tensor,
+    head: nn.Module,
+    *,
+    metric: str,
+    detach_input: bool = True,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Predict consecutive-state latent distance as a diagnostic auxiliary."""
+    if z_t.numel() == 0:
+        empty = z_t.new_empty(z_t.shape[:-1])
+        return z_t.new_tensor(0.0), empty, empty
+
+    pred_dist = F.softplus(
+        head(transition_pair_features(z_t, z_tp1, detach=detach_input)).squeeze(-1)
+    )
+
+    if metric == "l2":
+        target_dist = torch.linalg.vector_norm(z_tp1 - z_t, dim=-1)
+    elif metric == "cosine":
+        z_t_norm = F.normalize(z_t, dim=-1, eps=1e-8)
+        z_tp1_norm = F.normalize(z_tp1, dim=-1, eps=1e-8)
+        target_dist = 1.0 - (z_t_norm * z_tp1_norm).sum(dim=-1)
+    else:
+        raise ValueError(f"Unsupported transition distance metric: {metric}")
+
+    loss = F.smooth_l1_loss(pred_dist, target_dist.detach())
+    return loss, pred_dist, target_dist
+
+
 def cosine_pred_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     """Prediction loss on the sphere: mean cosine distance.
 

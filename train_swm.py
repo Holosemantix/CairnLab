@@ -23,8 +23,10 @@ from module import (
     Embedder,
     MLP,
     infonce_loss,
+    inverse_dynamics_loss,
     spread_loss,
     temporal_straightness,
+    transition_distance_prediction_loss,
     uniformity_loss,
 )
 from utils import get_column_normalizer, get_img_preprocessor, ModelObjectCallBack
@@ -317,12 +319,71 @@ def swm_forward(self, batch, stage, cfg):
         model=self.model,
         cfg=cfg,
     )
+    inverse_cfg = cfg.loss.get("inverse_dynamics", {})
+    inverse_enabled = (
+        inverse_cfg.get("enabled", False)
+        or inverse_cfg.get("weight", 0.0) > 0.0
+    )
+    if inverse_enabled:
+        if not hasattr(self.model, "inverse_dynamics_head"):
+            raise AttributeError(
+                "loss.inverse_dynamics requires model.inverse_dynamics_head"
+            )
+        inverse_emb = get_embedding_tensor(
+            output,
+            space=inverse_cfg.get("space", "normalized"),
+        )
+        output["inverse_dynamics_loss"] = inverse_dynamics_loss(
+            inverse_emb[:, :-1],
+            inverse_emb[:, 1:],
+            output["action"][:, :-1],
+            self.model.inverse_dynamics_head,
+            detach_input=inverse_cfg.get("detach_input", False),
+        )
+
+    dist_cfg = cfg.loss.get("transition_distance", {})
+    dist_enabled = (
+        dist_cfg.get("enabled", False)
+        or dist_cfg.get("weight", 0.0) > 0.0
+    )
+    if dist_enabled:
+        if not hasattr(self.model, "transition_distance_head"):
+            raise AttributeError(
+                "loss.transition_distance requires model.transition_distance_head"
+            )
+        dist_space = dist_cfg.get("space", "normalized")
+        dist_emb = get_embedding_tensor(output, space=dist_space)
+        default_metric = "l2" if dist_space.lower() == "raw" else "cosine"
+        (
+            output["transition_distance_loss"],
+            pred_dist,
+            target_dist,
+        ) = transition_distance_prediction_loss(
+            dist_emb[:, :-1],
+            dist_emb[:, 1:],
+            self.model.transition_distance_head,
+            metric=dist_cfg.get("metric", default_metric),
+            detach_input=dist_cfg.get("detach_input", True),
+        )
+        output["transition_distance_pred_mean"] = pred_dist.mean()
+        output["transition_distance_target_mean"] = target_dist.mean()
+        output["transition_distance_target_std"] = target_dist.std(unbiased=False)
 
     output["loss"] = (
         output["pred_loss"]
         + reg_lambd * output["reg_loss"]
         + hinge_cfg.weight * output["temporal_hinge_loss"]
     )
+    if "inverse_dynamics_loss" in output:
+        output["loss"] = (
+            output["loss"]
+            + inverse_cfg.get("weight", 0.0) * output["inverse_dynamics_loss"]
+        )
+    if "transition_distance_loss" in output:
+        output["loss"] = (
+            output["loss"]
+            + dist_cfg.get("weight", 0.0) * output["transition_distance_loss"]
+        )
     if output["rollout_loss"] is not None:
         rollout_weight = cfg.loss.rollout.get("weight", 0.0)
         output["loss"] = output["loss"] + rollout_weight * output["rollout_loss"]
@@ -344,6 +405,10 @@ def swm_forward(self, batch, stage, cfg):
                 k == "temporal_straightness"
                 or k == "temporal_hinge_active_ratio"
                 or k.startswith("temporal_margin_")
+                or (
+                    k.startswith("transition_distance_")
+                    and not k.endswith("_loss")
+                )
             )
         )
     }
@@ -440,6 +505,22 @@ def run(cfg):
         world_model.dynamic_margin_head = nn.Linear(2 * embed_dim, 1)
         nn.init.zeros_(world_model.dynamic_margin_head.weight)
         nn.init.zeros_(world_model.dynamic_margin_head.bias)
+    inverse_cfg = cfg.loss.get("inverse_dynamics", {})
+    if inverse_cfg.get("enabled", False) or inverse_cfg.get("weight", 0.0) > 0.0:
+        world_model.inverse_dynamics_head = MLP(
+            input_dim=2 * embed_dim,
+            hidden_dim=inverse_cfg.get("hidden_dim", embed_dim),
+            output_dim=effective_act_dim,
+            norm_fn=None,
+        )
+    dist_cfg = cfg.loss.get("transition_distance", {})
+    if dist_cfg.get("enabled", False) or dist_cfg.get("weight", 0.0) > 0.0:
+        world_model.transition_distance_head = MLP(
+            input_dim=2 * embed_dim,
+            hidden_dim=dist_cfg.get("hidden_dim", embed_dim),
+            output_dim=1,
+            norm_fn=None,
+        )
 
     optimizers = {
         "model_opt": {

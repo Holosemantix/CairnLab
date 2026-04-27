@@ -82,3 +82,14 @@ loss:
       base_margin: 0.5 # mean margin after score normalization
       min_margin: 0.05 # numeric safety bound for L2 distance
       max_margin: 1.0
+  inverse_dynamics:
+    enabled: False
+    weight: 0.0 # predict action from consecutive latents
+    hidden_dim: ${wm.embed_dim}
+    detach_input: False
+  transition_distance:
+    enabled: False
+    weight: 0.0 # diagnostic auxiliary; default does not shape latents
+    hidden_dim: ${wm.embed_dim}
+    metric: l2
+    detach_input: True

@@ -22,8 +22,9 @@ from module import (
     Embedder,
     MLP,
     SIGReg,
-    temporal_hinge_loss,
+    inverse_dynamics_loss,
     temporal_straightness,
+    transition_distance_prediction_loss,
 )
 from utils import get_column_normalizer, get_img_preprocessor, ModelObjectCallBack
 
@@ -115,11 +116,64 @@ def lejepa_forward(self, batch, stage, cfg):
     output["temporal_hinge_loss"] = compute_temporal_hinge(
         output, model=self.model, cfg=cfg
     )
+    inverse_cfg = cfg.loss.get("inverse_dynamics", {})
+    inverse_enabled = (
+        inverse_cfg.get("enabled", False)
+        or inverse_cfg.get("weight", 0.0) > 0.0
+    )
+    if inverse_enabled:
+        if not hasattr(self.model, "inverse_dynamics_head"):
+            raise AttributeError(
+                "loss.inverse_dynamics requires model.inverse_dynamics_head"
+            )
+        output["inverse_dynamics_loss"] = inverse_dynamics_loss(
+            emb[:, :-1],
+            emb[:, 1:],
+            output["action"][:, :-1],
+            self.model.inverse_dynamics_head,
+            detach_input=inverse_cfg.get("detach_input", False),
+        )
+
+    dist_cfg = cfg.loss.get("transition_distance", {})
+    dist_enabled = (
+        dist_cfg.get("enabled", False)
+        or dist_cfg.get("weight", 0.0) > 0.0
+    )
+    if dist_enabled:
+        if not hasattr(self.model, "transition_distance_head"):
+            raise AttributeError(
+                "loss.transition_distance requires model.transition_distance_head"
+            )
+        (
+            output["transition_distance_loss"],
+            pred_dist,
+            target_dist,
+        ) = transition_distance_prediction_loss(
+            emb[:, :-1],
+            emb[:, 1:],
+            self.model.transition_distance_head,
+            metric=dist_cfg.get("metric", "l2"),
+            detach_input=dist_cfg.get("detach_input", True),
+        )
+        output["transition_distance_pred_mean"] = pred_dist.mean()
+        output["transition_distance_target_mean"] = target_dist.mean()
+        output["transition_distance_target_std"] = target_dist.std(unbiased=False)
+
     output["loss"] = (
         output["pred_loss"]
         + sigreg_lambd * output["sigreg_loss"]
         + hinge_cfg.weight * output["temporal_hinge_loss"]
     )
+    if "inverse_dynamics_loss" in output:
+        output["loss"] = (
+            output["loss"]
+            + inverse_cfg.get("weight", 0.0) * output["inverse_dynamics_loss"]
+        )
+    if "transition_distance_loss" in output:
+        output["loss"] = (
+            output["loss"]
+            + dist_cfg.get("weight", 0.0) * output["transition_distance_loss"]
+        )
     output["temporal_straightness"] = temporal_straightness(emb)
 
     losses_dict = {f"{stage}/{k}": v.detach() for k, v in output.items() if "loss" in k}
@@ -132,6 +186,10 @@ def lejepa_forward(self, batch, stage, cfg):
                 k == "temporal_straightness"
                 or k == "temporal_hinge_active_ratio"
                 or k.startswith("temporal_margin_")
+                or (
+                    k.startswith("transition_distance_")
+                    and not k.endswith("_loss")
+                )
             )
         )
     }
@@ -226,6 +284,22 @@ def run(cfg):
         world_model.dynamic_margin_head = nn.Linear(2 * embed_dim, 1)
         nn.init.zeros_(world_model.dynamic_margin_head.weight)
         nn.init.zeros_(world_model.dynamic_margin_head.bias)
+    inverse_cfg = cfg.loss.get("inverse_dynamics", {})
+    if inverse_cfg.get("enabled", False) or inverse_cfg.get("weight", 0.0) > 0.0:
+        world_model.inverse_dynamics_head = MLP(
+            input_dim=2 * embed_dim,
+            hidden_dim=inverse_cfg.get("hidden_dim", embed_dim),
+            output_dim=effective_act_dim,
+            norm_fn=None,
+        )
+    dist_cfg = cfg.loss.get("transition_distance", {})
+    if dist_cfg.get("enabled", False) or dist_cfg.get("weight", 0.0) > 0.0:
+        world_model.transition_distance_head = MLP(
+            input_dim=2 * embed_dim,
+            hidden_dim=dist_cfg.get("hidden_dim", embed_dim),
+            output_dim=1,
+            norm_fn=None,
+        )
 
     optimizers = {
         "model_opt": {

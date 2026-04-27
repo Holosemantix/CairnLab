@@ -117,11 +117,8 @@ def lejepa_forward(self, batch, stage, cfg):
         output, model=self.model, cfg=cfg
     )
     inverse_cfg = cfg.loss.get("inverse_dynamics", {})
-    inverse_enabled = (
-        inverse_cfg.get("enabled", False)
-        or inverse_cfg.get("weight", 0.0) > 0.0
-    )
-    if inverse_enabled:
+    inverse_weight = inverse_cfg.get("weight", 0.0)
+    if inverse_weight > 0.0:
         if not hasattr(self.model, "inverse_dynamics_head"):
             raise AttributeError(
                 "loss.inverse_dynamics requires model.inverse_dynamics_head"
@@ -135,11 +132,8 @@ def lejepa_forward(self, batch, stage, cfg):
         )
 
     dist_cfg = cfg.loss.get("transition_distance", {})
-    dist_enabled = (
-        dist_cfg.get("enabled", False)
-        or dist_cfg.get("weight", 0.0) > 0.0
-    )
-    if dist_enabled:
+    dist_weight = dist_cfg.get("weight", 0.0)
+    if dist_weight > 0.0:
         if not hasattr(self.model, "transition_distance_head"):
             raise AttributeError(
                 "loss.transition_distance requires model.transition_distance_head"
@@ -165,14 +159,11 @@ def lejepa_forward(self, batch, stage, cfg):
         + hinge_cfg.weight * output["temporal_hinge_loss"]
     )
     if "inverse_dynamics_loss" in output:
-        output["loss"] = (
-            output["loss"]
-            + inverse_cfg.get("weight", 0.0) * output["inverse_dynamics_loss"]
-        )
+        output["loss"] = output["loss"] + inverse_weight * output["inverse_dynamics_loss"]
     if "transition_distance_loss" in output:
         output["loss"] = (
             output["loss"]
-            + dist_cfg.get("weight", 0.0) * output["transition_distance_loss"]
+            + dist_weight * output["transition_distance_loss"]
         )
     output["temporal_straightness"] = temporal_straightness(emb)
 
@@ -285,7 +276,7 @@ def run(cfg):
         nn.init.zeros_(world_model.dynamic_margin_head.weight)
         nn.init.zeros_(world_model.dynamic_margin_head.bias)
     inverse_cfg = cfg.loss.get("inverse_dynamics", {})
-    if inverse_cfg.get("enabled", False) or inverse_cfg.get("weight", 0.0) > 0.0:
+    if inverse_cfg.get("weight", 0.0) > 0.0:
         world_model.inverse_dynamics_head = MLP(
             input_dim=2 * embed_dim,
             hidden_dim=inverse_cfg.get("hidden_dim", embed_dim),
@@ -293,7 +284,7 @@ def run(cfg):
             norm_fn=None,
         )
     dist_cfg = cfg.loss.get("transition_distance", {})
-    if dist_cfg.get("enabled", False) or dist_cfg.get("weight", 0.0) > 0.0:
+    if dist_cfg.get("weight", 0.0) > 0.0:
         world_model.transition_distance_head = MLP(
             input_dim=2 * embed_dim,
             hidden_dim=dist_cfg.get("hidden_dim", embed_dim),

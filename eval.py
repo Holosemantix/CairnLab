@@ -13,18 +13,36 @@ from omegaconf import DictConfig, OmegaConf
 from sklearn import preprocessing
 from torchvision.transforms import v2 as transforms
 import stable_worldmodel as swm
+from utils import AddNormalizedGaussianNoise
 
 
-def img_transform(cfg):
-    transform = transforms.Compose(
-        [
-            transforms.ToImage(),
-            transforms.ToDtype(torch.float32, scale=True),
-            transforms.Normalize(**spt.data.dataset_stats.ImageNet),
-            transforms.Resize(size=cfg.eval.img_size),
-        ]
-    )
-    return transform
+def _should_corrupt_target(cfg, target: str):
+    corruption = cfg.eval.get("corruption")
+    if corruption is None or not corruption.get("enabled", False):
+        return False
+
+    apply_to = corruption.get("apply_to", ["pixels", "goal"])
+    if isinstance(apply_to, str):
+        apply_to = [apply_to]
+    return target in apply_to
+
+
+def img_transform(cfg, target: str):
+    steps = [
+        transforms.ToImage(),
+        transforms.ToDtype(torch.float32, scale=True),
+        transforms.Normalize(**spt.data.dataset_stats.ImageNet),
+        transforms.Resize(size=cfg.eval.img_size),
+    ]
+
+    if _should_corrupt_target(cfg, target):
+        corruption = cfg.eval.corruption
+        corruption_type = corruption.get("type", "gaussian")
+        if corruption_type != "gaussian":
+            raise ValueError(f"Unsupported eval corruption type: {corruption_type}")
+        steps.append(AddNormalizedGaussianNoise(corruption.get("std", 0.0)))
+
+    return transforms.Compose(steps)
 
 
 def get_episodes_length(dataset, episodes):
@@ -61,8 +79,8 @@ def run(cfg: DictConfig):
 
     # create the transform
     transform = {
-        "pixels": img_transform(cfg),
-        "goal": img_transform(cfg),
+        "pixels": img_transform(cfg, "pixels"),
+        "goal": img_transform(cfg, "goal"),
     }
 
     dataset = get_dataset(cfg, cfg.eval.dataset_name)

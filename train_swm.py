@@ -29,7 +29,13 @@ from module import (
     transition_distance_prediction_loss,
     uniformity_loss,
 )
-from utils import get_column_normalizer, get_img_preprocessor, ModelObjectCallBack
+from utils import (
+    get_column_normalizer,
+    get_img_noise_transform,
+    get_img_preprocessor,
+    ModelObjectCallBack,
+    TransformDataset,
+)
 
 
 def resolve_norm_fn(norm_name: str):
@@ -435,6 +441,11 @@ def run(cfg):
     train_set, val_set = spt.data.random_split(
         dataset, lengths=[cfg.train_split, 1 - cfg.train_split], generator=rnd_gen
     )
+    img_noise = get_img_noise_transform(cfg.get("image_noise"))
+    if img_noise is not None:
+        train_set = TransformDataset(train_set, img_noise)
+        if cfg.image_noise.get("apply_to_val", False):
+            val_set = TransformDataset(val_set, img_noise)
 
     train = torch.utils.data.DataLoader(
         train_set, **cfg.loader, shuffle=True, drop_last=True, generator=rnd_gen

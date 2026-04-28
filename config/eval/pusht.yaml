@@ -32,6 +32,13 @@ eval:
   eval_budget: 50
   img_size: 224
   dataset_name: pusht_expert_train
+  corruption:
+    enabled: False
+    type: gaussian
+    std: 0.0 # pixel-space std; converted for ImageNet-normalized tensors
+    apply_to:
+      - pixels
+      - goal
   callables:
     # -- set state
     - method: _set_state

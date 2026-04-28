@@ -25,31 +25,23 @@ def _cfg_get(cfg, key: str, default=None):
     return getattr(cfg, key, default)
 
 
-def _is_std_range(std) -> bool:
-    return not isinstance(std, (str, bytes, int, float)) and hasattr(std, "__len__")
-
-
 class AddNormalizedGaussianNoise:
     """Add Gaussian noise to ImageNet-normalized tensors using pixel-space std.
 
-    `std` can be:
-    - a scalar: fixed pixel-space noise level
-    - a two-value sequence: sample uniformly from [low, high] on each call
+    Sampling rule:
+    - std_min == std_max: fixed pixel-space noise level
+    - std_min <  std_max: sample uniformly from [std_min, std_max] on each call
     """
 
-    def __init__(self, std):
-        if _is_std_range(std):
-            if len(std) != 2:
-                raise ValueError(f"noise std range must have two values, got {std}")
-            self.std_low = float(std[0])
-            self.std_high = float(std[1])
-        else:
-            self.std_low = self.std_high = float(std)
+    def __init__(self, std_min, std_max):
+        self.std_low = float(std_min)
+        self.std_high = float(std_max)
         if self.std_low < 0 or self.std_high < 0:
             raise ValueError("noise std must be non-negative")
         if self.std_low > self.std_high:
             raise ValueError(
-                f"noise std range must be ordered low <= high, got {std}"
+                f"noise std range must be ordered std_min <= std_max, "
+                f"got ({std_min}, {std_max})"
             )
         stats = dt.dataset_stats.ImageNet
         channel_std = stats["std"] if isinstance(stats, dict) else stats.std
@@ -93,8 +85,9 @@ def get_img_preprocessor(source: str, target: str, img_size: int = 224):
 
 def get_img_noise_transform(cfg, source: str = "pixels", target: str = "pixels"):
     noise_type = _cfg_get(cfg, "type", "gaussian")
-    std = _cfg_get(cfg, "std", 0.0)
-    noise = AddNormalizedGaussianNoise(std)
+    std_min = _cfg_get(cfg, "std_min", 0.0)
+    std_max = _cfg_get(cfg, "std_max", 0.0)
+    noise = AddNormalizedGaussianNoise(std_min, std_max)
 
     if noise.max_std <= 0:
         return None

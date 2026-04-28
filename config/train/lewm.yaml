@@ -16,7 +16,8 @@ dump_object: True
 
 image_noise:
   type: gaussian
-  std: 0.0 # 0 disables; scalar fixes std; [low, high] samples per item
+  std_min: 0.0 # 0 disables when std_max==0; equal min/max fixes std; min<max samples per item
+  std_max: 0.0
   apply_to_val: False
 
 trainer:

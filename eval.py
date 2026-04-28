@@ -18,7 +18,15 @@ from utils import AddNormalizedGaussianNoise
 
 def _should_corrupt_target(cfg, target: str):
     corruption = cfg.eval.get("corruption")
-    if corruption is None or not corruption.get("enabled", False):
+    if corruption is None:
+        return False
+
+    std = corruption.get("std", 0.0)
+    if not isinstance(std, (str, bytes, int, float)) and hasattr(std, "__len__"):
+        max_std = max(float(v) for v in std)
+    else:
+        max_std = float(std)
+    if max_std <= 0:
         return False
 
     apply_to = corruption.get("apply_to", ["pixels", "goal"])

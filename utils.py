@@ -25,29 +25,60 @@ def _cfg_get(cfg, key: str, default=None):
     return getattr(cfg, key, default)
 
 
-class AddNormalizedGaussianNoise:
-    """Add Gaussian noise to ImageNet-normalized tensors using pixel-space std."""
+def _is_std_range(std) -> bool:
+    return not isinstance(std, (str, bytes, int, float)) and hasattr(std, "__len__")
 
-    def __init__(self, std: float):
-        self.std = float(std)
+
+class AddNormalizedGaussianNoise:
+    """Add Gaussian noise to ImageNet-normalized tensors using pixel-space std.
+
+    `std` can be:
+    - a scalar: fixed pixel-space noise level
+    - a two-value sequence: sample uniformly from [low, high] on each call
+    """
+
+    def __init__(self, std):
+        if _is_std_range(std):
+            if len(std) != 2:
+                raise ValueError(f"noise std range must have two values, got {std}")
+            self.std_low = float(std[0])
+            self.std_high = float(std[1])
+        else:
+            self.std_low = self.std_high = float(std)
+        if self.std_low < 0 or self.std_high < 0:
+            raise ValueError("noise std must be non-negative")
+        if self.std_low > self.std_high:
+            raise ValueError(
+                f"noise std range must be ordered low <= high, got {std}"
+            )
         stats = dt.dataset_stats.ImageNet
         channel_std = stats["std"] if isinstance(stats, dict) else stats.std
         self.channel_std = torch.as_tensor(channel_std, dtype=torch.float32)
 
+    @property
+    def max_std(self) -> float:
+        return self.std_high
+
+    def _sample_std(self) -> float:
+        if self.std_low == self.std_high:
+            return self.std_high
+        return float(torch.empty(()).uniform_(self.std_low, self.std_high))
+
     def __call__(self, x):
-        if self.std <= 0:
+        std = self._sample_std()
+        if std <= 0:
             return x
 
         if not torch.is_tensor(x):
             return x
         if x.ndim < 3:
-            return x + torch.randn_like(x) * self.std
+            return x + torch.randn_like(x) * std
 
         channel_dim = -3
         if x.shape[channel_dim] != self.channel_std.numel():
-            return x + torch.randn_like(x) * self.std
+            return x + torch.randn_like(x) * std
 
-        scale = (self.std / self.channel_std.to(device=x.device, dtype=x.dtype)).view(
+        scale = (std / self.channel_std.to(device=x.device, dtype=x.dtype)).view(
             *([1] * (x.ndim - 3)), -1, 1, 1
         )
         return x + torch.randn_like(x) * scale
@@ -61,17 +92,17 @@ def get_img_preprocessor(source: str, target: str, img_size: int = 224):
 
 
 def get_img_noise_transform(cfg, source: str = "pixels", target: str = "pixels"):
-    enabled = bool(_cfg_get(cfg, "enabled", False))
     noise_type = _cfg_get(cfg, "type", "gaussian")
-    std = float(_cfg_get(cfg, "std", 0.0))
+    std = _cfg_get(cfg, "std", 0.0)
+    noise = AddNormalizedGaussianNoise(std)
 
-    if not enabled or std <= 0:
+    if noise.max_std <= 0:
         return None
     if noise_type != "gaussian":
         raise ValueError(f"Unsupported image noise type: {noise_type}")
 
     return dt.transforms.WrapTorchTransform(
-        AddNormalizedGaussianNoise(std), source=source, target=target
+        noise, source=source, target=target
     )
 
 

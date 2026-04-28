@@ -32,9 +32,8 @@ eval:
   img_size: 224
   dataset_name: tworoom
   corruption:
-    enabled: False
     type: gaussian
-    std: 0.0 # pixel-space std; converted for ImageNet-normalized tensors
+    std: 0.0 # 0 disables; pixel-space std converted for ImageNet-normalized tensors
     apply_to:
       - pixels
       - goal

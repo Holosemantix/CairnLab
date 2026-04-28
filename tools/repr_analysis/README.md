@@ -22,6 +22,8 @@ The goal is not just to ask "did the model avoid collapse?", but to answer:
   Draws side-by-side comparison plots from two analysis directories.
 - [repr_compare_template.ipynb](/home/ag/projects/le-wm/tools/repr_analysis/repr_compare_template.ipynb)
   Editable Jupyter notebook template that imports only `analyze_repr.py`.
+- [noise_sensitivity.py](noise_sensitivity.py)
+  Notebook-friendly clean-vs-noisy latent diagnostics for pixel corruption robustness.
 - [run_repr_batch_example.sh](/home/ag/projects/le-wm/tools/repr_analysis/run_repr_batch_example.sh)
   Editable shell example that wraps the batch script for multi-model comparison.
 
@@ -42,6 +44,11 @@ Use `repr_compare_template.ipynb` when:
 - you want to call `run_analysis()` directly from notebook cells instead of precomputing everything in bash
 - you want to edit the chosen metrics, eval scores, and model order inline
 - you want to save compact key-metric tables and plots for reports
+
+Use `noise_sensitivity.py` when:
+- eval-time image noise causes a score drop and you want to see whether latent shifts are large relative to clean state separation
+- you want to compare SWM spherical/cosine sensitivity against LeWM Euclidean/SIGReg sensitivity on the same sampled images
+- you want a compact notebook table for goal-only noise diagnostics before launching more training runs
 
 Notebook dependencies:
 
@@ -65,6 +72,29 @@ python tools/repr_analysis/analyze_repr.py \
   --future-steps 8 \
   --save-dir /tmp/repr_analysis_tworoom
 ```
+
+Noise sensitivity usage from a notebook:
+
+```python
+from tools.repr_analysis.noise_sensitivity import (
+    format_noise_table,
+    run_noise_sensitivity,
+)
+
+rows = run_noise_sensitivity(
+    models={
+        "swm": "/path/to/swm/model_object.ckpt",
+        "lewm": "/path/to/lewm/model_object.ckpt",
+    },
+    dataset="tworoom",
+    stds=[0.0, 0.005, 0.01, 0.02, 0.03, 0.05],
+    n_sequences=256,
+)
+
+format_noise_table(rows, frame_scope="goal")
+```
+
+The key column is `noise_to_nn_cos_ratio_median`: values near or above 1 mean the median noisy goal shift is as large as the median nearest-neighbor clean goal separation.
 
 With an optional external reference probe:
 

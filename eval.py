@@ -48,7 +48,8 @@ def img_transform(cfg, target: str):
         corruption_type = corruption.get("type", "gaussian")
         if corruption_type != "gaussian":
             raise ValueError(f"Unsupported eval corruption type: {corruption_type}")
-        steps.append(AddNormalizedGaussianNoise(corruption.get("std", 0.0)))
+        std = float(corruption.get("std", 0.0))
+        steps.append(AddNormalizedGaussianNoise(std, std))
 
     return transforms.Compose(steps)
 

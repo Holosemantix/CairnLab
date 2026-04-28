@@ -46,7 +46,7 @@ def _add_eval_noise(x: torch.Tensor, std: float, seed: int) -> torch.Tensor:
         return x.clone()
     with torch.random.fork_rng(devices=[x.device] if x.device.type == "cuda" else []):
         torch.manual_seed(seed)
-        return AddNormalizedGaussianNoise(std)(x)
+        return AddNormalizedGaussianNoise(std, std)(x)
 
 
 def _select_frames(z: torch.Tensor, frame_scope: str) -> torch.Tensor:

@@ -102,7 +102,7 @@ add_override "image_noise.noise_prob" "${image_noise_noise_prob:-}"
 add_override "image_noise.apply_to_val" "${image_noise_apply_to_val:-}"
 
 # ---------- 2. 训练 ----------
-swanlab login -k "${SWANLAB_API_KEY:-VIMvIgfMZuggMfW6ybXxG}"
+swanlab login -k "${SWANLAB_API_KEY}"
 export STABLEWM_HOME="${STABLEWM_HOME}/lewm-${dataset_dirname}"
 
 echo "==================================================="

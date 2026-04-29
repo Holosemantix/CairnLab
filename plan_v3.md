@@ -169,7 +169,7 @@ SWM 在 4-task 平均上略高，但 TwoRoom 仍差 2.2 分，且当前结论基
 
 ### 4.1 发现经过
 
-在完成上述表征消融后，我们引入了**输入噪声测试**：在 eval 时对观测图像添加 Gaussian pixel noise，测量模型性能的衰减程度（通过 `eval.corruption.enabled=True eval.corruption.std=X`）。
+在完成上述表征消融后，我们引入了**输入噪声测试**：在 eval 时对观测图像添加 Gaussian pixel noise，测量模型性能的衰减程度（通过 `eval.corruption.std=X`；`std=0` 表示关闭）。
 
 **Eval 测试结果（tworoom, std=0.03, num_eval=50）**：
 
@@ -393,15 +393,14 @@ python train.py data=pusht \
 | 变体 | cost_type | cost_space | 预期 |
 |---|---|---|---|
 | A（现有基线） | cosine | normalized | 70°+ 后失明 |
-| B | cosine | normalized | 同 A（对照） |
-| **C** | **mse** | **raw** | L2 cost 无饱和，若 SWM noisy 曲线大幅回升 → 证实 cost saturation |
+| **B** | **mse** | **raw** | L2 cost 无饱和，若 SWM noisy 曲线大幅回升 → 证实 cost saturation |
 
-C 不需要重新训练，只需在 eval 时加：
+B 不需要重新训练，只需在 eval 时加：
 
 ```bash
 python eval.py --config-name=tworoom.yaml policy=<swm_ckpt> \
-  eval.corruption.enabled=True eval.corruption.std=0.03 \
-  "wm.inference.cost_type=mse" "wm.inference.cost_space=raw"
+  eval.corruption.std=0.03 \
+  eval.inference.cost_type=mse eval.inference.cost_space=raw
 ```
 
 （注意：这和 Exp C2 的区别是不重新训练，只改 planning cost，是最干净的 ablation。）

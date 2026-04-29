@@ -1,140 +1,80 @@
 # 球面世界模型实验计划 V3
 
-> **阅读说明**：本文是项目的当前完整状态文档，适合初次接触的读者。它涵盖背景、已完成实验的关键结论、当前最佳配置，以及下一阶段的研究方向（noise robustness pivot）。原始设计见 `plan_v2.md`，完整实验记录见 `experiments.md`。
+> 当前定位：本文不是单纯记录“SWM 是否强于 LeWM”，而是整理一个更稳定的研究路线：**world model 的 latent geometry 如何匹配 planning 任务的状态分辨率需求**。  
+> 原始设计见 `plan_v2.md`，完整流水实验见 `experiments.md`。
 
 ---
 
-## 1. 项目背景
+## 0. 当前结论
 
-### 1.1 LeWorldModel (LeWM) 是什么
+最初问题是：把 LeWM 的 Euclidean embedding + SIGReg 换成 spherical embedding + uniformity，是否能稳定提升规划性能？
 
-LeWM 是一个从像素端到端训练的世界模型，基于 Joint-Embedding Predictive Architecture (JEPA)。给定一段历史观测序列，LeWM 学习一个 encoder 把每帧图像映射到隐空间，再用一个 transformer predictor 预测未来帧的隐向量，而不是预测原始像素。训练完成后配合 CEM (Cross-Entropy Method) 规划器做 model-predictive control，在多个视觉控制任务上达到竞争性能。
+目前更准确的判断是：
 
-LeWM 的训练目标只有两项：
+1. **SWM 不是全局优于 LeWM 的替代品。**  
+   在 clean eval 上，当前最佳 SWM 与 LeWM 接近，4-task single-seed 平均略高，但没有形成压倒性优势。
 
-```
-L_LeWM = ||pred(z_t, a_t) - z_{t+1}||²   (prediction loss)
-       + λ · SIGReg(Z)                     (anti-collapse regularizer)
-```
+2. **SWM 改变了表征的 invariance-resolution tradeoff。**  
+   球面归一化、uniformity、temporal masking、noise augmentation 都在改变“哪些观测差异应该被保留，哪些应该被抹掉”。
 
-- **Prediction loss**：让 predictor 学习动力学，即"知道现在的隐状态和动作，就能预测下一帧的隐状态"。
-- **SIGReg**：防止表征塌缩（所有帧映射到同一个点）。SIGReg 通过 Cramer-Wold 投影把"检验高维分布是否高斯"化归到一维的 Epps-Pulley 检验，强制嵌入边缘分布匹配**各向同性高斯**。
+3. **不同任务对这个 tradeoff 的偏好可能相反。**  
+   TwoRoom 低维、离散、视觉细节冗余，受益于更强 invariance / clustering；PushT 需要精细连续状态分辨率，同样配方会损害控制。
 
-LeWM 的表征空间是 **欧氏空间** ℝ^d（d=192），planning cost 是 **L2 distance**。
+4. **表征分析工具本身是通用贡献。**  
+   `noise_sensitivity.py`、robust radius、clean-neighbor distance、noise-induced angular shift 等指标可以在不大量 eval 的情况下诊断 latent geometry 的风险。
 
-### 1.2 SIGReg 的理论来源与潜在局限
+因此后续主线不应是“为每个任务手调一套 recipe”，而应是：
 
-LeJEPA 理论证明：在静态表征学习中，各向同性高斯是 JEPA 嵌入分布的最优形态（在固定 trace 约束下让线性 probe 的 bias+variance 最小，在固定二阶矩约束下让高斯成为最大熵分布）。
-
-这个证明有几个重要假设：
-- 下游任务是任意线性或核 probe（worst-case 意义上的最优）
-- 表征空间是 ℝ^d
-
-这些假设在**世界模型**场景下不一定成立：世界模型的下游是规划，规划有具体的几何结构（近邻状态应有近似表征），而不是"任意下游任务"。
-
-**具体观察到的弱点**：LeWM 在 Two-Room 任务上成功率只有 87%（后续重测约 93%），而更简单的 baseline 能达到 100%。Two-Room 是一个内在维度只有 2 维的环境（agent 位置 (x,y)），SIGReg 把表征强行展到 192 维各向同性高斯，可能稀释了状态空间的拓扑结构。
-
-### 1.3 球面表征是什么
-
-**球面表征**（Spherical Representations）是把每个嵌入向量 L2 归一化到单位球面 S^{d-1} 上：μ(o) = z / ‖z‖ ∈ S^{d-1}。
-
-这是自监督学习领域被广泛验证的成熟做法：SimCLR、MoCo、CLIP、DINO 都把表征归一化到球面，使用余弦相似度作为度量。其优点包括：
-- 避免高维空间的距离集中现象
-- 天然的尺度约束，无 magnitude 发散问题
-- 与 cosine 相似度几何自然兼容
-- 紧致空间让"覆盖"和"分散"有明确几何意义
-
-但球面表征**在世界模型规划场景下**的效果此前未被系统验证（LeWM 用欧氏空间，V-JEPA 2 也是欧氏空间）。
+> 建立一套可诊断、可预测、最好可自适应的 latent geometry 设计方法，让 world model 根据任务分辨率需求在 robustness 和 precision 之间取舍。
 
 ---
 
-## 2. SWM V0：我们做了什么
+## 1. 方法背景
 
-### 2.1 核心修改
+### 1.1 LeWM Baseline
 
-Spherical World Model (SWM) V0 对 LeWM 做了三处修改，其余全部保持不变：
+LeWorldModel (LeWM) 是像素端到端 JEPA world model。encoder 把图像映射到 latent，predictor 根据历史 latent 和 action 预测未来 latent，CEM planner 在 latent space 中用 model cost 做规划。
 
-| 组件 | LeWM | SWM V0 |
-|---|---|---|
-| Encoder projector | MLP + BN → ℝ^d | MLP + BN → L2 norm → S^{d-1} |
-| Predictor projector | MLP + BN → ℝ^d | MLP + BN → L2 norm → S^{d-1} |
-| Prediction loss | MSE: ‖pred − tgt‖² | Cosine distance: 1 − pred·tgt |
-| Anti-collapse | SIGReg | Uniformity loss |
-| Planning cost | L2 distance (raw) | Cosine distance (normalized) |
+LeWM 训练目标：
 
-保持不变的部分：ViT-Tiny encoder backbone、ARPredictor（ViT-S）、action embedder（AdaLN 注入）、CEM planner、数据管道。
+```text
+L_LeWM = ||pred(z_t, a_t) - z_{t+1}||^2
+       + lambda * SIGReg(Z)
+```
 
-`SphericalJEPA` 类只 override 了 `encode()`、`predict()`、`criterion()`，`rollout()` 和 `get_cost()` 继承自 `JEPA`，CEM planner 不需要修改。
+关键属性：
 
-### 2.2 Anti-collapse loss 的演化
-
-SWM 开发中最大的工程挑战是**防塌缩**。直接在球面上用 pairwise cosine 相似度作为 spread loss 完全失效：所有 z_i 相同时 (z_i − z_j)=0，梯度为零，模型无法逃离塌缩点（**梯度死区问题**）。
-
-我们依次测试了 11 种方案，最终找到可行路径：
-
-| 方案 | 结论 |
+| 组件 | LeWM |
 |---|---|
-| Linear projector + pairwise cosine | 塌缩，梯度死区 |
-| + detach target | 无改善 |
-| InfoNCE (τ=0.1) | 破塌缩但破坏时序结构，pred_loss 反弹 |
-| MLP+BN + pairwise cosine | 训练不塌缩但 eval 塌缩（BN masking） |
-| sliced Wasserstein | 有非零梯度但信号太弱 |
-| **MLP+BN + uniformity_loss** | **真正逃离塌缩**（但需要足够长训练让 BN running stats 对齐） |
+| Latent space | Euclidean, raw embedding |
+| Anti-collapse | SIGReg, approximate isotropic Gaussian |
+| Prediction loss | MSE |
+| Planning cost | raw-space L2 / MSE |
 
-SIGReg 能成功的原因是**sorting + quantile matching**：把嵌入投影到随机方向后，排序本身让相同值也获得不同 rank，从而有非零梯度。这是塌缩时唯一无死区的机制。BN+uniformity 的成功机制是：BN 在 training 时向 batch 内注入足够的跨样本变化，打破对称性；经过足够轮次训练后 running stats 对齐，eval 也稳定脱离塌缩。
+LeWM 的优点是稳定、简单、对 pixel noise 相对鲁棒。潜在问题是 SIGReg 强制高维各向同性 Gaussian，可能不适合 TwoRoom 这类低内在维度任务。
 
-### 2.3 Uniformity Loss 与 Temporal Masking
+### 1.2 SWM V0
 
-Wang & Isola 2020 的 uniformity loss：
+Spherical World Model (SWM) 把 LeWM 的 Euclidean 表征换成单位球面表征：
 
-```
-L_uniform = log E[exp(-t · ‖μ_i - μ_j‖²)]
+```text
+mu(o) = z / ||z||,  mu in S^{d-1}
 ```
 
-鼓励样本在球面上均匀分布。但在时序数据上，**时间相邻帧本来就应该相似**（pred_loss 就是为此设计的），uniformity 把所有 pair 都推开会制造矛盾。
+当前最佳 SWM 改动：
 
-解决方案是 **temporal masking**：计算 uniformity loss 时，排除同一 trajectory 窗口内时间距离 ≤ k 的 pair，只对时间距离更远的 pair 施加均匀化压力。
+| 组件 | LeWM | SWM |
+|---|---|---|
+| Encoder projector | MLP + BN -> R^d | MLP + BN -> L2 norm |
+| Predictor projector | MLP + BN -> R^d | MLP + BN -> L2 norm |
+| Prediction loss | MSE | cosine distance |
+| Anti-collapse | SIGReg | uniformity loss |
+| Planning cost | raw MSE | normalized cosine |
 
-```yaml
-loss:
-  uniformity:
-    mode: temporal_masked
-    temporal_exclusion: 2   # 排除 |Δt| <= 2 的 pair
-```
+保持不变：ViT-Tiny encoder、ARPredictor、action encoder、CEM planner、dataset pipeline。
 
-这是一个"软结构先验"：不强制近邻状态相似（不像 temporal hinge），只是不强制它们远离。
+### 1.3 当前最佳 SWM 配置
 
----
-
-## 3. 关键超参数消融结论
-
-在 PushT 任务上做了系统消融（epoch=10, num_eval=500），主要发现：
-
-**Uniformity 权重**：`weight=0.1` 太弱，`weight=0.2` 一致性改善，`weight=0.3` 在最优分支上反而下降。选 `0.2`。
-
-**Pair 选择策略的影响大于 backbone 改动**：
-
-| 策略 | PushT |
-|---:|---:|
-| all_pairs | 74.4 |
-| cross_window | 80.2 |
-| temporal_masked_1 | 80.0 |
-| **temporal_masked_2** | **89.8** |
-| temporal_masked_3 | 67.0 |
-
-Exclusion range 有明确最优值：1 太小，3 太大，2 刚好。
-
-**维度 dim=64 vs 192**：dim=64 在 `all_pairs` 下反而更差，但在 `temporal_masked_2` 下明显更好（+9.2）。维度压缩只有在时序结构对齐后才有益。
-
-**Temporal hinge（固定连续性约束）**：在几乎所有设置下都损害性能（尤其 PushT/Reacher），原因是强制所有相邻转移都接近，和接触/操作任务中的大幅度动作相冲突。已确认不是可行方向。
-
-### 当前最佳配置
-
-```
-swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64
-```
-
-核心参数：
 ```yaml
 wm:
   embed_dim: 64
@@ -151,251 +91,258 @@ loss:
     temporal_exclusion: 2
 ```
 
-**4-task benchmark（epoch=10, num_eval=500, single seed）**：
+主要经验：
 
-| Task | LeWM | SWM (best) | Delta |
-|---|---:|---:|---:|
-| TwoRoom | 93.0 | 90.8 | -2.2 |
-| Cube | 69.2 | 74.0 | **+4.8** |
-| PushT | 89.4 | 89.8 | +0.4 |
-| Reacher | 62.2 | 66.0 | **+3.8** |
-| **Average** | **78.5** | **80.2** | **+1.7** |
-
-SWM 在 4-task 平均上略高，但 TwoRoom 仍差 2.2 分，且当前结论基于 single seed，存在较大不确定性（2026-04-25 的重测 run 在 PushT/Reacher 上偏低，表明需要多 seed 验证）。
+- pairwise spread 在球面塌缩点有梯度死区，不可用。
+- MLP+BN+uniformity 可以逃离 collapse。
+- `temporal_masked_2` 明显优于 all-pairs / cross-window / temporal exclusion 过小或过大。
+- fixed temporal hinge 大多损害 PushT/Reacher，说明强制相邻状态接近不是通用解。
 
 ---
 
-## 4. Noise Robustness Pivot：新的研究方向
+## 2. Clean Benchmark 状态
 
-### 4.1 发现经过
+4-task benchmark，epoch=10，num_eval=500，single seed：
 
-在完成上述表征消融后，我们引入了**输入噪声测试**：在 eval 时对观测图像添加 Gaussian pixel noise，测量模型性能的衰减程度（通过 `eval.corruption.std=X`；`std=0` 表示关闭）。
+| Task | LeWM | SWM best | Delta |
+|---|---:|---:|---:|
+| TwoRoom | 93.0 | 90.8 | -2.2 |
+| Cube | 69.2 | 74.0 | +4.8 |
+| PushT | 89.4 | 89.8 | +0.4 |
+| Reacher | 62.2 | 66.0 | +3.8 |
+| Average | 78.5 | 80.2 | +1.7 |
 
-**Eval 测试结果（tworoom, std=0.03, num_eval=50）**：
+结论：
 
-| 噪声范围 | LeWM 成功率 | SWM 成功率 |
+- SWM clean performance 不差，甚至在平均上略高。
+- 但优势不够稳定，不能支撑“球面空间全局更好”的叙事。
+- 更有价值的方向是分析为什么某些任务受益、某些任务不受益。
+
+---
+
+## 3. Noise Robustness 发现
+
+### 3.1 Eval Noise 结果
+
+Eval corruption 语义：
+
+```bash
+eval.corruption.std=0.03        # std > 0 开启
+eval.corruption.std=0.0         # 关闭
+'eval.corruption.apply_to=[goal]'
+```
+
+TwoRoom, std=0.03, num_eval=50：
+
+| 噪声范围 | LeWM | SWM |
 |---|---:|---:|
-| 无噪声（参考） | 93 | 90.8 |
-| 全帧加噪 | 90 | **36** |
-| 仅 pixels 帧加噪 | 94 | **66** |
-| 仅 goal 帧加噪 | ≈93 | **42** |
+| clean | 93 | 90.8 |
+| pixels + goal | 90 | 36 |
+| pixels only | 94 | 66 |
+| goal only | ≈93 | 42 |
 
-SWM 在 std=0.03 时成功率崩至 36，而 LeWM 几乎不受影响。
-
-**LeWM noise sweep（仅全帧）**：
+LeWM noise sweep，全帧加噪：
 
 | std | 0.03 | 0.04 | 0.05 | 0.08 | 0.10 | 0.15 |
 |---|---:|---:|---:|---:|---:|---:|
 | LeWM eval | 90 | 82 | 78 | 48 | 46 | 30 |
 
-LeWM 在 std≥0.08 才出现明显衰减。SWM 在 std=0.03 就已经崩。
+解释：
 
-### 4.2 表征层 Noise Sensitivity 分析
+- LeWM 也会被 noise 打坏，但 break point 明显晚。
+- SWM 在 std=0.03 的损害大约接近 LeWM std=0.08~0.10。
+- goal noise 比 pixels noise 更致命，说明 planner target embedding 是主要脆弱点。
 
-对两个模型的 encoder 做了系统性的 noise 敏感度分析，核心指标表（goal frame, normalized space）：
+### 3.2 Noise Sensitivity 指标
 
-```
-model  std    noise_angle_deg_median  clean_nn_cos_dist_median  noise_to_nn_cos_ratio_median  risk
-lewm   0.000  0.0000                  0.0389                    0.0000                        low
-lewm   0.005  4.1832                  0.0389                    0.0685                        low
-lewm   0.010  8.7931                  0.0389                    0.3021                        low
-lewm   0.020  18.7491                 0.0389                    1.3640                        high
-lewm   0.030  31.9681                 0.0389                    3.8983                        high
-swm    0.000  0.0000                  0.0820                    0.0000                        low
-swm    0.005  11.9534                 0.0820                    0.2646                        low
-swm    0.010  25.9257                 0.0820                    1.2280                        high
-swm    0.020  54.0547                 0.0820                    5.0395                        high
-swm    0.030  69.6558                 0.0820                    7.9602                        high
-```
+`tools/repr_analysis/noise_sensitivity.py` 用同一批图像比较 clean/noisy embedding：
 
-**关键发现**：在 std=0.005（极小噪声）时，SWM 的 encoder 就产生了 12° 角度偏移，而 LeWM 只有 4°。这个 **~3 倍角向 Lipschitz 差距**在小 noise 区间几乎是常数，强烈提示是 encoder 端的结构性问题，而非非线性区偶发。
+| Metric | 含义 |
+|---|---|
+| `noise_angle_deg_median` | clean/noisy embedding 的角向偏移 |
+| `clean_nn_cos_dist_median` | clean embedding 最近邻间距 |
+| `noise_to_nn_cos_ratio_median` | noise shift / clean nearest-neighbor distance |
+| `robust_radius` | ratio 跨过 1 时的 std |
 
-还有一个反直觉的发现：SWM 的 `clean_nn_cos_dist_median`（0.082）比 LeWM（0.039）**更大**，即 SWM 的最近邻本来就更远。这说明 SWM 的脆弱不是因为嵌入太密集，而是 encoder 的输入-输出放大比就是高的。
+Goal frame, normalized space：
 
-### 4.3 两段串联的失败机制
+| model | std | noise angle median | clean NN cos dist | shift / NN | risk |
+|---|---:|---:|---:|---:|---|
+| LeWM | 0.005 | 4.18° | 0.0389 | 0.0685 | low |
+| LeWM | 0.010 | 8.79° | 0.0389 | 0.3021 | low |
+| LeWM | 0.020 | 18.75° | 0.0389 | 1.3640 | high |
+| LeWM | 0.030 | 31.97° | 0.0389 | 3.8983 | high |
+| SWM | 0.005 | 11.95° | 0.0820 | 0.2646 | low |
+| SWM | 0.010 | 25.93° | 0.0820 | 1.2280 | high |
+| SWM | 0.020 | 54.05° | 0.0820 | 5.0395 | high |
+| SWM | 0.030 | 69.66° | 0.0820 | 7.9602 | high |
 
-SWM 在噪声下的崩溃是**两段串联放大**的结果：
+关键点：
 
-**第一段：Encoder 角向 Lipschitz 偏高**
+- SWM 小噪声角向偏移约为 LeWM 的 3x。
+- SWM 的 clean nearest-neighbor distance 反而更大，不是“embedding 太密”导致脆弱。
+- 经验 robust radius：
+  - LeWM 约 `std=0.017`
+  - SWM 约 `std=0.008`
 
-SWM encoder 把 pixel-space 噪声放大到 ~3× 的角度扰动，可疑的三个原因：
-1. **BatchNorm in projector**：BN 把 std 归一到 1，本质上放大了小信号；
-2. **L2 normalize 在小范数处的奇点**：∂(x/‖x‖)/∂x = (I − μμᵀ)/‖x‖，如果 pre-norm 向量范数小，则角向梯度就大；
-3. **dim=64**：相同高斯扰动在 64 维球面上的方向扰动 ≈ √(192/64) ≈ 1.7× 大于 192 维，能解释部分差距。
+### 3.3 当前失败机制假设
 
-**第二段：Cosine cost 在大角度饱和**
+SWM 的 noise failure 是两段串联：
 
-LeWM 的 planning cost 是 L2 distance，无上界，方向梯度在任何角度下都有信息。SWM 的 cost 是 cosine distance：`1 − cos(z, z_goal)`，值域 [0, 2]。当 goal 被噪声推到 70° 时，cosine cost 已接近饱和区，规划器的梯度几乎为零——即使轨迹方向完全错误，cost 也不再提供修正信号。
+1. **Encoder angular sensitivity 高。**  
+   可疑因素：BN projector、L2 normalization 在小 norm 处放大、dim=64 比 dim=192 更容易产生方向扰动。
 
-这也解释了为什么 **goal 帧噪声比 pixels 帧噪声更具破坏性**：pixels 帧的扰动影响的是表征序列中的"历史"状态，对 CEM 规划的影响相对分散；goal 帧的扰动直接污染了规划目标，cosine cost 饱和后规划器完全失去方向。
+2. **Cosine planning cost 大角度下信息不足。**  
+   当 noisy goal 已经偏到 70° 左右，`1 - cos` 接近饱和，planner 对错误 goal direction 的修正能力下降。
 
-**这一发现把之前"调 regularizer"的路线转变为一个更清晰的诊断故事**：SWM 在 in-distribution 上和 LeWM 持平，但在观测噪声下显著更脆弱，机理明确可定位，修复路径也清晰。
-
-### 4.4 与现有文献的关系
-
-- **I-JEPA 鲁棒性**（Kulm 2023）：测试了 I-JEPA 对 PGD/FGSM 对抗攻击比 ViT 更鲁棒，但仅针对静态分类任务，不涉及 planning loop。
-- **V-JEPA 2**（Meta 2025）：论文未报告观测噪声/分布偏移下的 planning 性能。
-- **Distracting Control Suite**（Stone et al. 2021）：专门测试 RL policy 的视觉鲁棒性，但用的是 pixel-reconstruction WM，非 JEPA。
-- **Robustness Verification for Contrastive Learning**（Wang & Liu, ICML'22）：严格推导了 contrastive encoder 的鲁棒半径，可用于给 SWM/LeWM 做数值化的 certified robustness 分析。
-
-**空缺**：目前没有工作系统比较 Euclidean vs Spherical 世界模型在观测噪声下的规划鲁棒性，也没有对 JEPA-style WM 的 encoder Lipschitz 和 cost surface 饱和进行联合分析。这是我们可以填补的。
+P2 会检验第二点：同一 checkpoint eval-only 改成 `raw + mse` cost，看 noisy score 是否回升。
 
 ---
 
-## 5. 新实验计划
+## 4. Noise-Aware Training 结果
 
-### P1：Noise-Aware Training（第一优先级 — 已部分完成）
+### 4.1 P1 第一组：SWM noise training
 
-**目标**：验证 encoder Lipschitz 偏高是否是主因，以及 noise augmentation 训练是否能修复。
+TwoRoom SWM，noise augmentation，`std_min=0, std_max=0.05`。
 
-#### P1 第一组结果（swm_noise_train, std_min=0, std_max=0.05）
+Eval 结果：
 
-训练命令：
-
-```bash
-python train_swm.py data=tworoom \
-  image_noise.std_min=0.0 image_noise.std_max=0.05 \
-  subdir=ckpt/swm_noiseaug_0to05
-```
-
-**Eval 结果**：
-
-| 任务 | corruption | apply_to | score |
+| Task | corruption | apply_to | score |
 |---|---|---|---:|
-| TwoRoom | std=0 | — | **97.6** |
-| TwoRoom | std=0.05 | pixels+goal | **98.0** |
+| TwoRoom | std=0 | - | 97.6 |
+| TwoRoom | std=0.05 | pixels+goal | 98.0 |
 | TwoRoom | std=0.08 | pixels+goal | 88.0 |
 | TwoRoom | std=0.05 | pixels only | 56.0 |
 | TwoRoom | std=0.05 | goal only | 44.0 |
-| PushT | std=0 | — | 61.8 |
+| PushT | std=0 | - | 61.8 |
 | PushT | std=0.05 | pixels+goal | 60.0 |
 
-**Noise sensitivity 表对照（std=0.005 这一点）**：
+Noise sensitivity 对照，std=0.005：
 
-| 指标 | swm baseline | swm_noise_train | 变化 |
+| Metric | SWM baseline | SWM noise-train | 变化 |
 |---|---:|---:|---:|
-| `clean_nn_cos_dist_median` | 0.082 | **0.008** | 缩到 1/10 |
-| `clean_nn_l2_median` | 0.40 | **0.13** | 缩到 1/3 |
-| `noise_angle_deg_median` @ std=0.005 | 11.9° | **27.6°** | **变大** |
+| clean NN cos dist | 0.082 | 0.008 | 缩到 1/10 |
+| clean NN L2 dist | 0.40 | 0.13 | 缩到 1/3 |
+| noise angle median | 11.9° | 27.6° | 变大 |
 
-#### 关键发现：noise-aug 训练产生的是"聚簇化"而非"平滑化"
+### 4.2 解释：不是平滑化，而是聚簇化
 
-简单的 Lipschitz 假设被推翻。Noise-aug **没有降低** encoder 的角向 Lipschitz（小噪声角度反而更大），但把 clean 邻域距离压到 1/10。两个变化合起来表明：
+简单的 Lipschitz hypothesis 被推翻。Noise training 没有降低 encoder 的局部角向 sensitivity；它把 clean 状态压进更紧的等价类。
 
-> **encoder 学会把训练分布内的扰动聚集成紧凑等价类，而不是学一个全局平滑映射。**
+更准确的解释：
 
-clean 状态收缩到 ~0.5° 紧密簇，簇间通过陡峭边界分隔。小扰动一旦跨过边界就跳到下一个簇（27° 偏移）。这是 **discretized / clustered** 几何，不是 Lipschitz-smooth 几何。
-
-#### 三个关键现象的解释
-
-**(1) TwoRoom 训测一致下 eval 反而比 clean baseline 更高（97.6 vs 90.8，+6.8）**
-
-机理推测：TwoRoom 内在状态空间是 2 维。加噪训练强迫 encoder 抹掉与状态无关的视觉细节，最后留下的紧凑簇近似于"状态等价类"。这等价于**信息瓶颈**——把表征压到接近真实状态空间内在维度，CEM 不再被无关方向干扰。同样原理解释了 std=0.05 训测一致时 eval 是 98——这不是"困难测试"，而是"训练分布内的标准操作"，等价类边界已被精确校准到 std=0.05 半径。
-
-**(2) Asymmetric noise（仅 pixels 56 / 仅 goal 44）大幅崩**
-
-训练时所有帧统一加噪声，encoder 学到的是"统一噪声水平下的整体鲁棒性"，不是"单帧独立噪声鲁棒性"。当 history 帧 clean、goal 帧 noisy（或反过来），**帧间噪声分布一致性被打破**，CEM rollout 中的隐式协调被破坏。这是 train/test distribution mismatch。
-
-> **修复方向**：noise augmentation 应该**逐帧独立采样 std**（覆盖不同强度组合），并辅以 **noise_prob<1.0**（显式制造 clean 帧），让 encoder 真正学到"帧无关、部署可分离"的扰动鲁棒性，而不是"全序列噪声水平一致"。
-
-**(3) PushT 上反而下降（89.8 → 61.8 clean）**
-
-PushT 是接触操作任务，相邻状态之间存在小但有意义的差异（推动物块精细位置）。Noise-aug 的等价类聚簇把这些差异归并掉，规划时分辨不出"再推一点"和"已推到位"。
-
-这与 experiments.md §7 一致：fixed temporal_hinge 在 PushT 上同样严重损害（6.2~20）。两者**机制相同**——都是强行让相邻状态相似，在需要高分辨率状态区分的任务上必然损害。
-
-> **核心洞察**：noise-aug 是"基于分布扰动"的隐式连续性 prior，temporal_hinge 是"基于时间相邻"的显式连续性 prior。两者本质等价。**强度需要按任务调节**：TwoRoom 这类离散低维任务能从中受益，PushT/Reacher 这类连续控制任务需要更弱或自适应的强度。
-
-#### P1 后续实验
-
-**P1.1 — 逐帧独立 noise + noise_prob（修复 asymmetric mismatch）**
-
-已实现的设计（`utils.py:AddNormalizedGaussianNoise`）：
-
-```yaml
-image_noise:
-  type: gaussian
-  std_min: 0.0       # per-frame std lower bound
-  std_max: 0.0       # per-frame std upper bound; 0 disables
-  noise_prob: 1.0    # per-frame Bernoulli prob of applying noise
-  apply_to_val: False
+```text
+noise augmentation -> clustered / discretized geometry
+                   -> 对低维、冗余视觉任务有利
+                   -> 对高分辨率连续控制任务有害
 ```
 
-每次 forward 时，序列中每帧**独立**经过两步：
-1. Bernoulli(`noise_prob`) 决定该帧加不加噪
-2. 如加，std ~ Uniform(`std_min`, `std_max`)；如不加，保持 clean
+这解释了三件事：
 
-两个机制的分工：
+1. **TwoRoom 提升。**  
+   TwoRoom 内在状态低维，视觉细节大多冗余。聚簇化像信息瓶颈，帮助 planner 忽略无关变化。
 
-| 机制 | 解决的问题 | 推荐用法 |
-|---|---|---|
-| **per-frame 独立 std** | encoder 学"帧无关"鲁棒性，避免依赖"全序列噪声水平一致"这种隐式信号 | std_max>0 即开启 |
-| **noise_prob<1.0** | 让 encoder 显式见到 clean+noisy 混合，对应 deployment 中"goal 是 clean 参考图、history 帧带 sensor noise"场景 | 实际部署需要时设 `noise_prob=0.5` |
+2. **Asymmetric noise 仍崩。**  
+   如果训练 noise 是整段序列一致分布，模型可能学到“所有帧同噪声水平”的隐式 coupling。只给 goal 或 pixels 加噪会破坏这种分布。
 
-**第一组对照训练**（已有 baseline + 旧的 `swm_noise_train` 单 std；新加两组）：
+3. **PushT 下降。**  
+   PushT 需要保留“再推一点”和“已经到位”的细粒度差异。聚簇化合并了这些差异，降低 planning resolution。
 
-```bash
-# A. per-frame 独立 std，全帧加噪
-python train_swm.py data=tworoom \
-  image_noise.std_min=0.0 image_noise.std_max=0.05 \
-  image_noise.noise_prob=1.0 \
-  subdir=ckpt/swm_perframe_0to05_p1
+---
 
-# B. per-frame 独立 std + 50% 帧 clean
-python train_swm.py data=tworoom \
-  image_noise.std_min=0.0 image_noise.std_max=0.05 \
-  image_noise.noise_prob=0.5 \
-  subdir=ckpt/swm_perframe_0to05_p05
+## 5. 研究主线重构
+
+### 5.1 不再追求的主线
+
+不建议继续把目标表述为：
+
+```text
+证明 spherical representation 比 Euclidean representation 更好
 ```
 
-A vs 旧 `swm_noise_train` 对比：A 应在 asymmetric eval（pixels-only / goal-only）下显著好于旧版（>56/44），同时全帧 eval 维持在 ≈98。如果 A 仍崩溃，说明每帧 std 范围混合还不够，需要 B。
+原因：
 
-B 应该在 asymmetric eval 下进一步好转，且能反映 deployment 中 goal-clean / history-noisy 这种真实场景。
+- clean benchmark 优势不稳定；
+- noise robustness 暴露了 SWM 的明确弱点；
+- 每个任务单独调 recipe 没有方法论分量。
 
-**P1.2 — 较小 noise 强度（保护 PushT）**
+### 5.2 建议采用的主线
 
-```bash
-python train_swm.py data=pusht \
-  image_noise.std_min=0.0 image_noise.std_max=0.02 \
-  subdir=ckpt/swm_noiseaug_pusht_0to02
+建议把论文/项目主线改成：
 
-python train_swm.py data=pusht \
-  image_noise.std_min=0.0 image_noise.std_max=0.01 \
-  subdir=ckpt/swm_noiseaug_pusht_0to01
+> JEPA-style world model 的 latent geometry 需要匹配任务的状态分辨率需求。Spherical normalization、uniformity、temporal masking、noise augmentation 都不是单独的性能魔法，而是在调节 robustness 与 precision 的 tradeoff。我们提出诊断指标和实验协议来度量这个 tradeoff，并探索自适应机制来缓解固定配方的任务依赖。
+
+这条主线的支撑点：
+
+1. **诊断指标有预测价值。**  
+   robust radius、noise angle slope、clean NN distance 可以解释 eval drop。
+
+2. **任务偏好确实不同。**  
+   TwoRoom 和 PushT 对同样 noise augmentation 呈现相反趋势。
+
+3. **固定 recipe 不够。**  
+   统一的 spherical/noise/temporal prior 不能同时满足低维导航和高分辨率操作。
+
+4. **下一步自然指向 adaptive resolution。**  
+   不再手动按任务调配方，而是让模型或训练目标根据状态/transition 自动调 invariance 强度。
+
+---
+
+## 6. 下一步实验计划
+
+### P0：把诊断变成预测指标
+
+目标：证明 `noise_sensitivity` 不是事后解释，而能预测 robustness failure。
+
+要做：
+
+1. 对 LeWM / SWM / SWM-noise-train 跑 4-task noise_sensitivity。
+2. 对同一批 checkpoint 跑少量 noise eval。
+3. 画相关性：
+
+```text
+robust_radius vs eval degradation slope
+noise_angle_slope vs eval drop
+clean_nn_distance vs clean performance
 ```
 
-观察 PushT 上是否存在一个 std_max 使得 clean eval 不掉、noise eval 提升。如果存在，说明 PushT 的状态分辨率上限对应一个具体噪声水平；如果不存在，说明聚簇 prior 与 PushT 的连续性需求根本冲突。
+判断标准：
 
-**P1.3 — LeWM 同条件对照**
+- 如果 robust_radius 和 eval drop 强相关，诊断工具就是独立贡献。
+- 如果相关性弱，说明 planner/cost/action dynamics 还有额外因素，需要 P2/P3 补充。
 
-```bash
-python train.py data=tworoom \
-  image_noise.std_min=0.0 image_noise.std_max=0.05 \
-  subdir=ckpt/lewm_noiseaug_0to05
+### P1：Noise-Aware Training 补完
 
-python train.py data=pusht \
-  image_noise.std_min=0.0 image_noise.std_max=0.05 \
-  subdir=ckpt/lewm_noiseaug_pusht_0to05
-```
+目标：确认 noise augmentation 的收益/损害是否由 task resolution 决定。
 
-看 LeWM 是否也出现"聚簇化"现象。如果 LeWM 也表现出 clean nn distance 大幅缩小，说明这是 noise augmentation 的通用效应；如果只有 SWM 出现，说明球面表征 + uniformity 在噪声下特别容易聚簇。
+当前在补跑：
 
-**P1.4 — 多 std_max 扫**
+- P1.1：TwoRoom per-frame independent noise + `noise_prob`
+- P1.2：PushT 小强度 noise
+- P1.3：LeWM 同条件对照
 
-仅 SWM 上扫 std_max ∈ {0.01, 0.02, 0.03, 0.05, 0.08}，画出 TwoRoom / PushT 的 clean eval 曲线。预期是 TwoRoom 单调改善（直到压得太狠），PushT 单调下降（连续性破坏越早出现越好）。这条曲线本身就能成为论文的一个主图。
+建议整理结果时固定看三类输出：
 
-### P2：Cost Surface 解耦（机理验证）
+| 输出 | 用途 |
+|---|---|
+| clean eval | 是否损害原任务 |
+| noisy eval | 是否提升 robustness |
+| noise_sensitivity | 几何变化是 smoothing 还是 clustering |
 
-**目标**：区分"encoder 问题"和"cost 问题"。
+P1.4 可作为主图实验：SWM 上扫 `std_max ∈ {0.01, 0.02, 0.03, 0.05, 0.08}`，比较 TwoRoom / PushT clean eval 曲线。预期 TwoRoom 与 PushT 趋势相反。
 
-保持当前最佳 SWM checkpoint 不变，仅在 eval 时改变 planning cost 空间：
+### P2：Cost Surface 解耦
 
-| 变体 | cost_type | cost_space | 预期 |
+目标：区分 encoder noise sensitivity 和 cosine cost saturation。
+
+固定 SWM checkpoint，不重新训练，只在 eval 改 planning cost：
+
+| 变体 | cost type | cost space | 目的 |
 |---|---|---|---|
-| A（现有基线） | cosine | normalized | 70°+ 后失明 |
-| **B** | **mse** | **raw** | L2 cost 无饱和，若 SWM noisy 曲线大幅回升 → 证实 cost saturation |
+| A | cosine | normalized | 当前 SWM inference |
+| B | mse | raw | 检验 L2 cost 是否能缓解 noisy-goal failure |
 
-B 不需要重新训练，只需在 eval 时加：
+命令：
 
 ```bash
 python eval.py --config-name=tworoom.yaml policy=<swm_ckpt> \
@@ -403,72 +350,100 @@ python eval.py --config-name=tworoom.yaml policy=<swm_ckpt> \
   eval.inference.cost_type=mse eval.inference.cost_space=raw
 ```
 
-（注意：这和 Exp C2 的区别是不重新训练，只改 planning cost，是最干净的 ablation。）
+解释：
 
-### P3：Encoder Lipschitz 拆解（如果 P1 提示 encoder 是主因）
+- B 明显回升：cost saturation 是重要因素。
+- B 仍然低：encoder 已把 noisy goal 编到错误位置，cost swap 无法救。
 
-最小消融，每个 1 seed，在 noise_sensitivity 表里看 `noise_angle_deg_median @ std=0.005` 这一格就够了（不需要 eval，快速诊断）：
+### P3：Encoder Sensitivity 拆解
 
-| 变体 | 改动 | 预期 |
+目标：定位 SWM angular sensitivity 的来源。
+
+先做轻量训练或已有 checkpoint 的 `noise_sensitivity`，不急着完整 eval。
+
+| 变体 | 改动 | 观察指标 |
 |---|---|---|
-| SWM-noBN | `encoder.projection_head.norm_fn=none` | 角向 Lipschitz 降低？ |
-| SWM-LN | `encoder.projection_head.norm_fn=layernorm` | 对比 BN 的放大效应 |
-| SWM-dim128 | `wm.embed_dim=128` | 维度与 Lipschitz 的关系 |
-| SWM-dim192 | `wm.embed_dim=192` | 对齐 LeWM dim |
+| SWM-noBN | `norm_fn=none` | 是否降低 noise angle；是否 collapse |
+| SWM-LN | `norm_fn=layernorm` | BN 是否是放大源 |
+| SWM-dim128 | `embed_dim=128` | 维度对角向扰动的影响 |
+| SWM-dim192 | `embed_dim=192` | 与 LeWM dim 对齐 |
 
-去掉 BN 的风险：BN 是当前逃离 collapse 的关键机制，直接去掉可能让表征再次塌缩。可以先做 noise_sensitivity 诊断，看塌缩状态的 noise table，与 experiments.md Exp 11 结合分析，再决定是否继续。
+风险：BN 是当前逃离 collapse 的关键，去 BN 可能直接塌缩。因此 P3 主要是机制诊断，不作为主优化路线。
 
-### P4：Robust Radius 数值化（论文指标）
+### P4：Adaptive Resolution 方法
 
-参考 Wang & Liu (ICML'22) 的思路，给每个 checkpoint 计算**经验 robust radius**：令 noise_to_nn_cos_ratio_median = 1 时对应的 std 值（即"噪声大到让 embedding 跳出最近邻"时的输入噪声水平）。
+目标：避免“每个任务手调一套 noise recipe”。
 
-这个数值可以从 noise_sensitivity 表直接插值得到：
-- LeWM：robust radius ≈ std=0.017（ratio 在 0.010~0.020 之间跨越 1）
-- SWM：robust radius ≈ std=0.008（ratio 在 0.005~0.010 之间跨越 1）
+最小可行方向：
 
-**SWM 的 robust radius 约为 LeWM 的 50%**，这是一个简洁可比较的单一数值，比"eval 在某 std 下掉到 X"更便于跨模型比较和论文报告。
+```text
+L = pred_loss
+  + regularizer
+  + lambda_noise * consistency(enc(x), enc(noisy_x))
+  + lambda_guard * preserve_action/transition_resolution
+```
 
-如果 noise-aug 训练能把 SWM 的 robust radius 提高到接近 LeWM，就可以作为一个可量化的改进指标。
+核心不是简单加 noise consistency，而是加 guardrail，避免 PushT 这类任务被过度聚簇。
+
+可选 guardrail：
+
+| Guardrail | 目的 |
+|---|---|
+| action-effect preservation | 保留 action 对 latent transition 的影响 |
+| transition distance preservation | 防止相邻但关键的状态差异被抹掉 |
+| adaptive lambda | 根据 transition/action sensitivity 自动调 noise consistency 强度 |
+| vMF concentration `kappa` | 长线方案，让模型显式表示局部分辨率/不确定性 |
+
+短期优先级：先做 noise consistency + transition/action guardrail；vMF 作为后续 V1。
 
 ---
 
-## 6. 执行优先级与判断节点
+## 7. 决策节点
 
-```
-P1（noise-aug training）
-    ↓
-    发现 SWM 崩溃点延迟 → 继续 P1（多 seed）+ P3（定位 encoder 机制）
-    发现崩溃点不变      → P2（cost surface 解耦）
-    ↓
-    P4（robust radius，论文用）
-    ↓
-    多 seed 验证（P1 的 noise-aug 变体稳定后，在 4 个任务上跑 3-5 seeds）
-```
-
-此前的 temporal_hinge 和 regularizer sweep 方向**已结束**，得到的结论是：
-- `temporal_masked_2 + w=0.2 + dim=64` 是当前有效组合，进一步 sweep 边际效益低；
-- fixed temporal hinge 在大多数任务损害性能，不是可行方向；
-- noise robustness 是一个更能定位问题结构的探针，且与研究问题的 deployment 相关性更高。
+| 节点 | 如果结果是... | 下一步 |
+|---|---|---|
+| P0 | robust_radius 预测 eval drop | 把诊断作为主贡献之一 |
+| P0 | 诊断与 eval 不相关 | 优先查 planner/cost/action dynamics |
+| P1 | TwoRoom 升、PushT 降趋势稳定 | 支撑 task resolution tradeoff 主线 |
+| P1 | LeWM 也聚簇化 | noise augmentation effect 是通用 SSL/WM 现象 |
+| P1 | 只有 SWM 聚簇化 | 球面 + uniformity 特别易产生等价类 |
+| P2 | raw MSE 回升 | cost saturation 是重要失败环节 |
+| P2 | raw MSE 不回升 | encoder noisy goal 已经主导失败 |
+| P4 | adaptive guardrail 保住 PushT 且提升 TwoRoom | 形成真正方法贡献 |
 
 ---
 
-## 7. 整体论文叙事（V2，基于 P1 第一组结果更新）
+## 8. 论文叙事草案
 
-> 我们提出 SWM（Spherical World Model），用球面表征 + uniformity 正则化替换 LeWM 的欧氏表征 + SIGReg。在干净观测条件下，SWM 在 4-task 平均上略优于 LeWM（80.2 vs 78.5），在 Cube 和 Reacher 任务上有显著改善。
->
-> 进一步的 noise robustness 测试揭示了一组任务相关的现象：在 std=0.05 的逐帧像素噪声下，clean SWM 在 TwoRoom 上从 90.8% 崩至 36%，但用 std∈[0,0.05] 范围的 noise augmentation 重训后，TwoRoom clean eval 从 90.8% 提升到 97.6%、std=0.05 时维持在 98%。然而同样的 noise-aug 训练在 PushT 上反而把 clean eval 从 89.8% 降到 61.8%。
->
-> 表征几何分析表明 noise-aug 训练产生的是 **discretized / clustered geometry** 而非 Lipschitz-smooth geometry：clean 邻域距离缩到 1/10，但小噪声下角向偏移反而变大（11.9°→27.6°）。这与 fixed temporal_hinge 是同一性质的连续性先验，效果取决于任务的状态分辨率需求——TwoRoom 这类低内在维度任务从中受益（信息瓶颈效应），PushT 这类高分辨率连续控制任务因等价类合并而损害。
->
-> 我们的核心贡献是：(1) 将 spherical-vs-Euclidean WM 比较扩展到 robust evaluation 维度；(2) 揭示 noise augmentation 在 JEPA-style WM 中并非"普遍有益的正则化"，而是与任务内在维度强相关的 trade-off；(3) 给出 robust radius 等可量化的几何鲁棒性指标，让此类 trade-off 可被预先诊断而无需穷尽 eval。
+一句话版本：
 
-这个叙事的好处是把"SWM 是否优于 LeWM"这个开放问题，转化为更可控的"什么时候 SWM 优、什么时候 LeWM 优、为什么"的机理问题。即使最终结论是 SWM 没有全局优势，仍然是一个有价值的负面结果。
+> Spherical world models do not simply improve or degrade planning; they expose a task-dependent invariance-resolution tradeoff in latent geometry.
 
-### 后续可能的论文打分点
+中文版本：
 
-- **TwoRoom +6.8 分（90.8 → 97.6）通过 noise-aug** 是一个独立的、容易复现的、机理可解释的改善。即使 PushT 失败，这一点本身就值得报告。
-- **Asymmetric noise crashing**（pixels-only 56, goal-only 44）是一个新的失败模式，在 V-JEPA 2 等论文中没有被讨论过。它揭示了 latent WM 训练时的隐式 distribution coupling。
-- **Discretized geometry hypothesis**（clean nn distance 缩 10×，小 noise angle 变大）是关于 noise augmentation 在 SSL 中机理的新观察，可独立成文。
+> 球面世界模型不是 LeWM 的单向替代，而是改变了 latent space 的几何偏置。低维导航任务受益于更强 invariance 和聚簇化，高分辨率操作任务则需要保留连续状态差异。我们提出 noise sensitivity / robust radius 等诊断工具，量化这种 tradeoff，并进一步探索自适应 resolution 的训练机制。
+
+可能贡献：
+
+1. **方法与基线**：实现 SWM，证明 spherical + temporal-masked uniformity 可以稳定训练 JEPA-style world model。
+2. **诊断工具**：提出 latent noise sensitivity 和 empirical robust radius，连接 embedding geometry 与 planning robustness。
+3. **机制发现**：noise augmentation 在 WM 中不必然带来 smoothness，而可能诱导 clustered/discretized geometry。
+4. **任务规律**：TwoRoom 与 PushT 对同一 geometry prior 反向响应，说明 world model 表征需要匹配任务分辨率。
+5. **后续方法**：adaptive resolution / guarded noise consistency，尝试替代手工按任务调 recipe。
+
+---
+
+## 9. 维护说明
+
+后续补结果时优先放在对应 P 节：
+
+- `P0`：诊断指标、相关性图、robust radius 表。
+- `P1`：noise-aware training 的 eval 和 geometry 变化。
+- `P2`：eval-only cost ablation。
+- `P3`：BN/LN/dim 的 encoder sensitivity。
+- `P4`：adaptive resolution / guarded consistency 方法。
+
+避免把每次命令输出都塞进本文；完整流水仍放 `experiments.md`。本文只保留能够改变判断的结果。
 
 ---
 
@@ -476,10 +451,11 @@ P1（noise-aug training）
 
 | 文件 | 内容 |
 |---|---|
-| `plan_v2.md` | 原始设计文档（LeJEPA 理论、SWM 架构、三阶段计划） |
-| `experiments.md` | 完整实验记录（collapse 消融、PushT ablation、temporal hinge 对比） |
-| `config/train/swm.yaml` | 当前最佳 SWM 训练配置 |
+| `plan_v2.md` | 原始设计文档 |
+| `experiments.md` | 完整实验记录 |
+| `config/train/swm.yaml` | SWM 训练配置 |
 | `config/train/lewm.yaml` | LeWM 训练配置 |
 | `tools/repr_analysis/noise_sensitivity.py` | Noise sensitivity 诊断工具 |
+| `tools/repr_analysis/repr_compare_template.ipynb` | Notebook 对比模板 |
 | `jepa.py` | JEPA + SphericalJEPA 实现 |
-| `module.py` | 共享模块（cosine_pred_loss, spread_loss, uniformity_loss） |
+| `module.py` | loss 与共享模块 |

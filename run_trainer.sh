@@ -162,7 +162,6 @@ run_one_eval() {
         "output.filename=${results_dir}/${label}_metrics.txt"
     )
     if [ "$mode" != "none" ]; then
-        args+=("eval.corruption.enabled=True")
         args+=("eval.corruption.std=${std}")
         local apply_list="${mode//+/,}"
         args+=("eval.corruption.apply_to=[${apply_list}]")

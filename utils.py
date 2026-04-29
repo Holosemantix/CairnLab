@@ -28,14 +28,18 @@ def _cfg_get(cfg, key: str, default=None):
 class AddNormalizedGaussianNoise:
     """Add Gaussian noise to ImageNet-normalized tensors using pixel-space std.
 
-    Sampling rule:
-    - std_min == std_max: fixed pixel-space noise level
-    - std_min <  std_max: sample uniformly from [std_min, std_max] on each call
+    Per-frame independent sampling (frames = leading dims before C,H,W):
+    - Bernoulli(noise_prob) decides whether the frame gets noise
+    - if yes, std ~ Uniform(std_min, std_max) is sampled per frame
+
+    Backward compatible: std_min == std_max with noise_prob == 1.0 is the
+    same as a fixed std applied to every frame.
     """
 
-    def __init__(self, std_min, std_max):
+    def __init__(self, std_min, std_max, noise_prob: float = 1.0):
         self.std_low = float(std_min)
         self.std_high = float(std_max)
+        self.noise_prob = float(noise_prob)
         if self.std_low < 0 or self.std_high < 0:
             raise ValueError("noise std must be non-negative")
         if self.std_low > self.std_high:
@@ -43,36 +47,49 @@ class AddNormalizedGaussianNoise:
                 f"noise std range must be ordered std_min <= std_max, "
                 f"got ({std_min}, {std_max})"
             )
+        if not 0.0 <= self.noise_prob <= 1.0:
+            raise ValueError(
+                f"noise_prob must be in [0, 1], got {noise_prob}"
+            )
         stats = dt.dataset_stats.ImageNet
         channel_std = stats["std"] if isinstance(stats, dict) else stats.std
         self.channel_std = torch.as_tensor(channel_std, dtype=torch.float32)
 
     @property
     def max_std(self) -> float:
-        return self.std_high
+        return self.std_high if self.noise_prob > 0 else 0.0
 
-    def _sample_std(self) -> float:
-        if self.std_low == self.std_high:
-            return self.std_high
-        return float(torch.empty(()).uniform_(self.std_low, self.std_high))
+    def _sample_per_frame_std(self, leading_shape, device, dtype):
+        stds = torch.empty(leading_shape, device=device, dtype=dtype).uniform_(
+            self.std_low, self.std_high
+        )
+        if self.noise_prob < 1.0:
+            mask = (torch.rand(leading_shape, device=device) < self.noise_prob).to(dtype)
+            stds = stds * mask
+        return stds
 
     def __call__(self, x):
-        std = self._sample_std()
-        if std <= 0:
-            return x
-
         if not torch.is_tensor(x):
             return x
+        if self.std_high <= 0 or self.noise_prob <= 0:
+            return x
+
         if x.ndim < 3:
-            return x + torch.randn_like(x) * std
+            stds = self._sample_per_frame_std((), x.device, x.dtype)
+            return x + torch.randn_like(x) * stds
 
-        channel_dim = -3
-        if x.shape[channel_dim] != self.channel_std.numel():
-            return x + torch.randn_like(x) * std
+        leading_shape = x.shape[:-3]  # frame dims before (C, H, W); may be empty
+        stds = self._sample_per_frame_std(leading_shape, x.device, x.dtype)
+        per_frame_scale = stds.view(*leading_shape, 1, 1, 1)
 
-        scale = (std / self.channel_std.to(device=x.device, dtype=x.dtype)).view(
-            *([1] * (x.ndim - 3)), -1, 1, 1
-        )
+        if x.shape[-3] == self.channel_std.numel():
+            channel_factor = (1.0 / self.channel_std.to(device=x.device, dtype=x.dtype)).view(
+                *([1] * len(leading_shape)), -1, 1, 1
+            )
+            scale = per_frame_scale * channel_factor
+        else:
+            scale = per_frame_scale
+
         return x + torch.randn_like(x) * scale
 
 
@@ -87,7 +104,8 @@ def get_img_noise_transform(cfg, source: str = "pixels", target: str = "pixels")
     noise_type = _cfg_get(cfg, "type", "gaussian")
     std_min = _cfg_get(cfg, "std_min", 0.0)
     std_max = _cfg_get(cfg, "std_max", 0.0)
-    noise = AddNormalizedGaussianNoise(std_min, std_max)
+    noise_prob = _cfg_get(cfg, "noise_prob", 1.0)
+    noise = AddNormalizedGaussianNoise(std_min, std_max, noise_prob=noise_prob)
 
     if noise.max_std <= 0:
         return None

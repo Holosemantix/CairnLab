@@ -16,8 +16,9 @@ dump_object: True
 
 image_noise:
   type: gaussian
-  std_min: 0.0 # 0 disables when std_max==0; equal min/max fixes std; min<max samples per item
-  std_max: 0.0
+  std_min: 0.0 # per-frame std lower bound; 0 disables when std_max==0
+  std_max: 0.0 # per-frame std upper bound
+  noise_prob: 1.0 # per-frame Bernoulli prob of applying noise; <1 leaves some frames clean
   apply_to_val: False
 
 encoder:

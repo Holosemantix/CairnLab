@@ -296,7 +296,7 @@ clean 状态收缩到 ~0.5° 紧密簇，簇间通过陡峭边界分隔。小扰
 
 训练时所有帧统一加噪声，encoder 学到的是"统一噪声水平下的整体鲁棒性"，不是"单帧独立噪声鲁棒性"。当 history 帧 clean、goal 帧 noisy（或反过来），**帧间噪声分布一致性被打破**，CEM rollout 中的隐式协调被破坏。这是 train/test distribution mismatch。
 
-> **修复方向**：noise augmentation 应该**逐帧独立采样 std**，让 encoder 真正学到"帧无关的扰动鲁棒性"。
+> **修复方向**：noise augmentation 应该**逐帧独立采样 std**（覆盖不同强度组合），并辅以 **noise_prob<1.0**（显式制造 clean 帧），让 encoder 真正学到"帧无关、部署可分离"的扰动鲁棒性，而不是"全序列噪声水平一致"。
 
 **(3) PushT 上反而下降（89.8 → 61.8 clean）**
 
@@ -308,9 +308,49 @@ PushT 是接触操作任务，相邻状态之间存在小但有意义的差异�
 
 #### P1 后续实验
 
-**P1.1 — 逐帧独立 noise（修复 asymmetric mismatch）**
+**P1.1 — 逐帧独立 noise + noise_prob（修复 asymmetric mismatch）**
 
-修改 `AddNormalizedGaussianNoise.__call__`，让每个 frame 单独采样 std。这样训练时 encoder 同时见到"clean+clean"、"clean+noisy"、"noisy+clean"、"noisy+noisy"四种组合，asymmetric eval 时不再 OOD。
+已实现的设计（`utils.py:AddNormalizedGaussianNoise`）：
+
+```yaml
+image_noise:
+  type: gaussian
+  std_min: 0.0       # per-frame std lower bound
+  std_max: 0.0       # per-frame std upper bound; 0 disables
+  noise_prob: 1.0    # per-frame Bernoulli prob of applying noise
+  apply_to_val: False
+```
+
+每次 forward 时，序列中每帧**独立**经过两步：
+1. Bernoulli(`noise_prob`) 决定该帧加不加噪
+2. 如加，std ~ Uniform(`std_min`, `std_max`)；如不加，保持 clean
+
+两个机制的分工：
+
+| 机制 | 解决的问题 | 推荐用法 |
+|---|---|---|
+| **per-frame 独立 std** | encoder 学"帧无关"鲁棒性，避免依赖"全序列噪声水平一致"这种隐式信号 | std_max>0 即开启 |
+| **noise_prob<1.0** | 让 encoder 显式见到 clean+noisy 混合，对应 deployment 中"goal 是 clean 参考图、history 帧带 sensor noise"场景 | 实际部署需要时设 `noise_prob=0.5` |
+
+**第一组对照训练**（已有 baseline + 旧的 `swm_noise_train` 单 std；新加两组）：
+
+```bash
+# A. per-frame 独立 std，全帧加噪
+python train_swm.py data=tworoom \
+  image_noise.std_min=0.0 image_noise.std_max=0.05 \
+  image_noise.noise_prob=1.0 \
+  subdir=ckpt/swm_perframe_0to05_p1
+
+# B. per-frame 独立 std + 50% 帧 clean
+python train_swm.py data=tworoom \
+  image_noise.std_min=0.0 image_noise.std_max=0.05 \
+  image_noise.noise_prob=0.5 \
+  subdir=ckpt/swm_perframe_0to05_p05
+```
+
+A vs 旧 `swm_noise_train` 对比：A 应在 asymmetric eval（pixels-only / goal-only）下显著好于旧版（>56/44），同时全帧 eval 维持在 ≈98。如果 A 仍崩溃，说明每帧 std 范围混合还不够，需要 B。
+
+B 应该在 asymmetric eval 下进一步好转，且能反映 deployment 中 goal-clean / history-noisy 这种真实场景。
 
 **P1.2 — 较小 noise 强度（保护 PushT）**
 

@@ -244,33 +244,105 @@ LeWM 的 planning cost 是 L2 distance，无上界，方向梯度在任何角度
 
 ## 5. 新实验计划
 
-### P1：Noise-Aware Training（第一优先级）
+### P1：Noise-Aware Training（第一优先级 — 已部分完成）
 
 **目标**：验证 encoder Lipschitz 偏高是否是主因，以及 noise augmentation 训练是否能修复。
 
-训练四组（各一个 seed 先验测）：
+#### P1 第一组结果（swm_noise_train, std_min=0, std_max=0.05）
+
+训练命令：
 
 ```bash
-# 基线（已有）
-python train_swm.py data=tworoom
-python train.py    data=tworoom
-
-# Noise augmentation（新）
 python train_swm.py data=tworoom \
-  image_noise.std_min=0.0 image_noise.std_max=0.03 \
-  subdir=ckpt/swm_noiseaug_0to03
-
-python train.py data=tworoom \
-  image_noise.std_min=0.0 image_noise.std_max=0.03 \
-  subdir=ckpt/lewm_noiseaug_0to03
+  image_noise.std_min=0.0 image_noise.std_max=0.05 \
+  subdir=ckpt/swm_noiseaug_0to05
 ```
 
-**Eval 协议**：在 `corruption.std ∈ {0, 0.01, 0.02, 0.03, 0.05, 0.08}` 上各跑一次，得到 clean vs noisy 曲线（每个点用 num_eval=50 即可，快速验证趋势）。
+**Eval 结果**：
 
-**解读逻辑**：
-- 若 noise-aug 显著推迟 SWM 的崩溃点（例如 std=0.03 不再崩）→ **encoder Lipschitz 是主因**，可进一步用 spectral norm / 移除 BN / 增大 dim 继续压低 Lipschitz；
-- 若 noise-aug 让 SWM clean eval 保持但 noisy eval 仍崩 → **cost surface 饱和是主因**，见 P2；
-- 若 LeWM 的 noise-aug 版在 clean eval 上不损失，还有余力 → noise aug 是稳健有益的 data augmentation。
+| 任务 | corruption | apply_to | score |
+|---|---|---|---:|
+| TwoRoom | std=0 | — | **97.6** |
+| TwoRoom | std=0.05 | pixels+goal | **98.0** |
+| TwoRoom | std=0.08 | pixels+goal | 88.0 |
+| TwoRoom | std=0.05 | pixels only | 56.0 |
+| TwoRoom | std=0.05 | goal only | 44.0 |
+| PushT | std=0 | — | 61.8 |
+| PushT | std=0.05 | pixels+goal | 60.0 |
+
+**Noise sensitivity 表对照（std=0.005 这一点）**：
+
+| 指标 | swm baseline | swm_noise_train | 变化 |
+|---|---:|---:|---:|
+| `clean_nn_cos_dist_median` | 0.082 | **0.008** | 缩到 1/10 |
+| `clean_nn_l2_median` | 0.40 | **0.13** | 缩到 1/3 |
+| `noise_angle_deg_median` @ std=0.005 | 11.9° | **27.6°** | **变大** |
+
+#### 关键发现：noise-aug 训练产生的是"聚簇化"而非"平滑化"
+
+简单的 Lipschitz 假设被推翻。Noise-aug **没有降低** encoder 的角向 Lipschitz（小噪声角度反而更大），但把 clean 邻域距离压到 1/10。两个变化合起来表明：
+
+> **encoder 学会把训练分布内的扰动聚集成紧凑等价类，而不是学一个全局平滑映射。**
+
+clean 状态收缩到 ~0.5° 紧密簇，簇间通过陡峭边界分隔。小扰动一旦跨过边界就跳到下一个簇（27° 偏移）。这是 **discretized / clustered** 几何，不是 Lipschitz-smooth 几何。
+
+#### 三个关键现象的解释
+
+**(1) TwoRoom 训测一致下 eval 反而比 clean baseline 更高（97.6 vs 90.8，+6.8）**
+
+机理推测：TwoRoom 内在状态空间是 2 维。加噪训练强迫 encoder 抹掉与状态无关的视觉细节，最后留下的紧凑簇近似于"状态等价类"。这等价于**信息瓶颈**——把表征压到接近真实状态空间内在维度，CEM 不再被无关方向干扰。同样原理解释了 std=0.05 训测一致时 eval 是 98——这不是"困难测试"，而是"训练分布内的标准操作"，等价类边界已被精确校准到 std=0.05 半径。
+
+**(2) Asymmetric noise（仅 pixels 56 / 仅 goal 44）大幅崩**
+
+训练时所有帧统一加噪声，encoder 学到的是"统一噪声水平下的整体鲁棒性"，不是"单帧独立噪声鲁棒性"。当 history 帧 clean、goal 帧 noisy（或反过来），**帧间噪声分布一致性被打破**，CEM rollout 中的隐式协调被破坏。这是 train/test distribution mismatch。
+
+> **修复方向**：noise augmentation 应该**逐帧独立采样 std**，让 encoder 真正学到"帧无关的扰动鲁棒性"。
+
+**(3) PushT 上反而下降（89.8 → 61.8 clean）**
+
+PushT 是接触操作任务，相邻状态之间存在小但有意义的差异（推动物块精细位置）。Noise-aug 的等价类聚簇把这些差异归并掉，规划时分辨不出"再推一点"和"已推到位"。
+
+这与 experiments.md §7 一致：fixed temporal_hinge 在 PushT 上同样严重损害（6.2~20）。两者**机制相同**——都是强行让相邻状态相似，在需要高分辨率状态区分的任务上必然损害。
+
+> **核心洞察**：noise-aug 是"基于分布扰动"的隐式连续性 prior，temporal_hinge 是"基于时间相邻"的显式连续性 prior。两者本质等价。**强度需要按任务调节**：TwoRoom 这类离散低维任务能从中受益，PushT/Reacher 这类连续控制任务需要更弱或自适应的强度。
+
+#### P1 后续实验
+
+**P1.1 — 逐帧独立 noise（修复 asymmetric mismatch）**
+
+修改 `AddNormalizedGaussianNoise.__call__`，让每个 frame 单独采样 std。这样训练时 encoder 同时见到"clean+clean"、"clean+noisy"、"noisy+clean"、"noisy+noisy"四种组合，asymmetric eval 时不再 OOD。
+
+**P1.2 — 较小 noise 强度（保护 PushT）**
+
+```bash
+python train_swm.py data=pusht \
+  image_noise.std_min=0.0 image_noise.std_max=0.02 \
+  subdir=ckpt/swm_noiseaug_pusht_0to02
+
+python train_swm.py data=pusht \
+  image_noise.std_min=0.0 image_noise.std_max=0.01 \
+  subdir=ckpt/swm_noiseaug_pusht_0to01
+```
+
+观察 PushT 上是否存在一个 std_max 使得 clean eval 不掉、noise eval 提升。如果存在，说明 PushT 的状态分辨率上限对应一个具体噪声水平；如果不存在，说明聚簇 prior 与 PushT 的连续性需求根本冲突。
+
+**P1.3 — LeWM 同条件对照**
+
+```bash
+python train.py data=tworoom \
+  image_noise.std_min=0.0 image_noise.std_max=0.05 \
+  subdir=ckpt/lewm_noiseaug_0to05
+
+python train.py data=pusht \
+  image_noise.std_min=0.0 image_noise.std_max=0.05 \
+  subdir=ckpt/lewm_noiseaug_pusht_0to05
+```
+
+看 LeWM 是否也出现"聚簇化"现象。如果 LeWM 也表现出 clean nn distance 大幅缩小，说明这是 noise augmentation 的通用效应；如果只有 SWM 出现，说明球面表征 + uniformity 在噪声下特别容易聚簇。
+
+**P1.4 — 多 std_max 扫**
+
+仅 SWM 上扫 std_max ∈ {0.01, 0.02, 0.03, 0.05, 0.08}，画出 TwoRoom / PushT 的 clean eval 曲线。预期是 TwoRoom 单调改善（直到压得太狠），PushT 单调下降（连续性破坏越早出现越好）。这条曲线本身就能成为论文的一个主图。
 
 ### P2：Cost Surface 解耦（机理验证）
 
@@ -341,15 +413,23 @@ P1（noise-aug training）
 
 ---
 
-## 7. 整体论文叙事（当前版本）
+## 7. 整体论文叙事（V2，基于 P1 第一组结果更新）
 
 > 我们提出 SWM（Spherical World Model），用球面表征 + uniformity 正则化替换 LeWM 的欧氏表征 + SIGReg。在干净观测条件下，SWM 在 4-task 平均上略优于 LeWM（80.2 vs 78.5），在 Cube 和 Reacher 任务上有显著改善。
 >
-> 但 noise robustness 测试揭示了 SWM 的一个结构性弱点：在 std=0.03 的像素噪声下，SWM 成功率从 90.8% 崩至 36%，而 LeWM 仅从 93% 降至 90%。分析表明这源于两段串联的放大效应：(1) SWM encoder 的角向 Lipschitz 约为 LeWM 的 3 倍，将像素扰动放大为更大的方向偏移；(2) SWM 使用的 cosine planning cost 在大角度（>60°）下接近饱和，规划器失去梯度方向。
+> 进一步的 noise robustness 测试揭示了一组任务相关的现象：在 std=0.05 的逐帧像素噪声下，clean SWM 在 TwoRoom 上从 90.8% 崩至 36%，但用 std∈[0,0.05] 范围的 noise augmentation 重训后，TwoRoom clean eval 从 90.8% 提升到 97.6%、std=0.05 时维持在 98%。然而同样的 noise-aug 训练在 PushT 上反而把 clean eval 从 89.8% 降到 61.8%。
 >
-> 我们通过 noise augmentation 训练和 cost space 消融验证上述两个机制，提出对应的修复方案，并给出量化的 robust radius 指标用于跨模型比较。
+> 表征几何分析表明 noise-aug 训练产生的是 **discretized / clustered geometry** 而非 Lipschitz-smooth geometry：clean 邻域距离缩到 1/10，但小噪声下角向偏移反而变大（11.9°→27.6°）。这与 fixed temporal_hinge 是同一性质的连续性先验，效果取决于任务的状态分辨率需求——TwoRoom 这类低内在维度任务从中受益（信息瓶颈效应），PushT 这类高分辨率连续控制任务因等价类合并而损害。
+>
+> 我们的核心贡献是：(1) 将 spherical-vs-Euclidean WM 比较扩展到 robust evaluation 维度；(2) 揭示 noise augmentation 在 JEPA-style WM 中并非"普遍有益的正则化"，而是与任务内在维度强相关的 trade-off；(3) 给出 robust radius 等可量化的几何鲁棒性指标，让此类 trade-off 可被预先诊断而无需穷尽 eval。
 
-这个叙事中"清晰的失败 + 可定位的机理 + 可验证的修复"比"调了一堆超参数最后提升了 1.7 分"更具科学价值，也更对应审稿人会问的问题。
+这个叙事的好处是把"SWM 是否优于 LeWM"这个开放问题，转化为更可控的"什么时候 SWM 优、什么时候 LeWM 优、为什么"的机理问题。即使最终结论是 SWM 没有全局优势，仍然是一个有价值的负面结果。
+
+### 后续可能的论文打分点
+
+- **TwoRoom +6.8 分（90.8 → 97.6）通过 noise-aug** 是一个独立的、容易复现的、机理可解释的改善。即使 PushT 失败，这一点本身就值得报告。
+- **Asymmetric noise crashing**（pixels-only 56, goal-only 44）是一个新的失败模式，在 V-JEPA 2 等论文中没有被讨论过。它揭示了 latent WM 训练时的隐式 distribution coupling。
+- **Discretized geometry hypothesis**（clean nn distance 缩 10×，小 noise angle 变大）是关于 noise augmentation 在 SSL 中机理的新观察，可独立成文。
 
 ---
 

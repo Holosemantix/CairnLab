@@ -346,12 +346,6 @@ def run(cfg):
         dirpath=run_dir,
         filename=cfg.output_model_name,
         epoch_interval=1,
-        meta={
-            "frameskip": cfg.data.dataset.frameskip,
-            "history_size": cfg.wm.history_size,
-            "embed_dim": cfg.wm.embed_dim,
-            "dataset_name": cfg.data.dataset.name,
-        },
     )
 
     trainer = pl.Trainer(

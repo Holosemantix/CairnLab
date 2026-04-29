@@ -135,12 +135,11 @@ def get_column_normalizer(dataset, source: str, target: str):
 class ModelObjectCallBack(Callback):
     """Callback to pickle model object after each epoch."""
 
-    def __init__(self, dirpath, filename="model_object", epoch_interval: int = 1, meta=None):
+    def __init__(self, dirpath, filename="model_object", epoch_interval: int = 1):
         super().__init__()
         self.dirpath = Path(dirpath)
         self.filename = filename
         self.epoch_interval = epoch_interval
-        self.meta = meta or {}
 
     def on_train_epoch_end(self, trainer, pl_module):
         super().on_train_epoch_end(trainer, pl_module)
@@ -158,21 +157,8 @@ class ModelObjectCallBack(Callback):
             if (trainer.current_epoch + 1) == trainer.max_epochs:
                 self._dump_model(pl_module.model, output_path)
 
-            self._save_meta()
-
     def _dump_model(self, model, path):
         try:
             torch.save(model, path)
         except Exception as e:
             print(f"Error saving model object: {e}")
-
-    def _save_meta(self):
-        if not self.meta:
-            return
-        meta_path = self.dirpath / "training_meta.json"
-        try:
-            import json
-            with open(meta_path, "w") as f:
-                json.dump(self.meta, f, indent=2)
-        except Exception as e:
-            print(f"Error saving training meta: {e}")

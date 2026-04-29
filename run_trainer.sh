@@ -136,16 +136,6 @@ ckpt_abs="${STABLEWM_HOME}/${ckpt_rel}_object.ckpt"
 results_dir="${STABLEWM_HOME}/ckpt/${output_model_name}/eval_results"
 mkdir -p "${results_dir}"
 
-# 优先从训练输出的 training_meta.json 读取实际 frameskip
-_meta_json="${STABLEWM_HOME}/ckpt/${output_model_name}/training_meta.json"
-if [ -f "${_meta_json}" ]; then
-    _meta_frameskip=$(python3 -c "import json; print(json.load(open('${_meta_json}'))['frameskip'])" 2>/dev/null)
-    if [ -n "${_meta_frameskip:-}" ]; then
-        frameskip="${_meta_frameskip}"
-        echo "[frameskip] using actual value from training_meta.json: ${frameskip}"
-    fi
-fi
-
 if [ ! -f "${ckpt_abs}" ]; then
     echo "[eval] checkpoint not found: ${ckpt_abs}"
     echo "[eval] aborting downstream steps"

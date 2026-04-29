@@ -37,6 +37,9 @@ eval:
     apply_to:
       - pixels
       - goal
+  inference:
+    cost_type: null # null keeps checkpoint setting; options for SWM: cosine, mse
+    cost_space: null # null keeps checkpoint setting; options for SWM: normalized, raw
   callables:
     # -- set state
     - method: _set_state

@@ -75,6 +75,20 @@ def get_dataset(cfg, dataset_name):
     return dataset
 
 
+def apply_inference_overrides(model, cfg):
+    inference_cfg = cfg.eval.get("inference")
+    if inference_cfg is None:
+        return
+
+    cost_type = inference_cfg.get("cost_type")
+    if cost_type is not None:
+        model.inference_cost_type = str(cost_type).lower()
+
+    cost_space = inference_cfg.get("cost_space")
+    if cost_space is not None:
+        model.inference_cost_space = str(cost_space).lower()
+
+
 @hydra.main(version_base=None, config_path="./config/eval", config_name="pusht")
 def run(cfg: DictConfig):
     """Run evaluation of dinowm vs random policy."""
@@ -115,6 +129,7 @@ def run(cfg: DictConfig):
 
     if policy != "random":
         model = swm.policy.AutoCostModel(cfg.policy)
+        apply_inference_overrides(model, cfg)
         model = model.to("cuda")
         model = model.eval()
         model.requires_grad_(False)

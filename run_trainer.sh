@@ -47,8 +47,6 @@
 #   eval_results/summary.txt         所有 eval 的 metrics 一行摘要
 # ==========================================
 
-frameskip="${frameskip:-5}"
-
 set -u  # treat unset vars as errors after the unsets below
 set -o pipefail
 
@@ -70,9 +68,19 @@ case "${dataset_name}" in
     *) echo "错误: 未知的 dataset_name '${dataset_name}'"; exit 1 ;;
 esac
 
+# 从训练数据配置读取默认 frameskip，支持环境变量覆盖
+_dataset_cfg="config/train/data/${data}.yaml"
+if [ -f "${_dataset_cfg}" ]; then
+    _default_frameskip=$(grep -m1 '^[[:space:]]*frameskip:' "${_dataset_cfg}" | sed 's/.*:[[:space:]]*\([0-9]*\).*/\1/')
+    frameskip="${frameskip:-${_default_frameskip:-5}}"
+else
+    frameskip="${frameskip:-5}"
+fi
+
 output_model_name="${dataset_name}_${output_model_name}"
 
 add_override "data" "${data}"
+add_override "data.dataset.frameskip" "${frameskip}"
 add_override "output_model_name" "${output_model_name}"
 add_override "subdir" "ckpt/${output_model_name}"
 add_override "encoder.projection_head.type" "${encoder_projection_head_type:-}"

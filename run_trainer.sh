@@ -27,6 +27,7 @@
 #   eval_corruption_apply_to  eval sweep 加噪目标，逗号分隔；'+' 表示同一组里多目标
 #                              默认 "pixels+goal,pixels,goal"
 #                              （"pixels+goal" 表示同时加噪两端）
+#   frameskip                 数据加载 frameskip；默认 5（与训练 data config 一致）
 #   eval_gpus                 GPU id 列表，空格分隔；默认自动探测全部
 #   noise_table_stds          noise table 扫的 std；默认 0.0~0.10 一组
 #   skip_eval_sweep           设 1 跳过 eval sweep
@@ -45,6 +46,8 @@
 #   eval_results/noise_table/        noise sensitivity 的 csv/json
 #   eval_results/summary.txt         所有 eval 的 metrics 一行摘要
 # ==========================================
+
+frameskip="${frameskip:-5}"
 
 set -u  # treat unset vars as errors after the unsets below
 set -o pipefail
@@ -225,6 +228,7 @@ if [ "${skip_noise_table:-0}" != "1" ]; then
         --model "${output_model_name}=${ckpt_abs}" \
         --dataset "${dataset_name}" \
         --stds ${noise_table_stds} \
+        --frameskip ${frameskip} \
         --save-dir "${results_dir}/noise_table" \
         2>&1 | tee "${results_dir}/noise_table.log"
 else

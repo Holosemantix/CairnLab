@@ -215,7 +215,7 @@ def _summarize_noise_to_predictor_to_resolution(
                 for T in (8, 4, 2, 1):
                     key = f"rollout_T{T}_l2_median"
                     if r.get(key) is not None and r[key] == r[key]:
-                        summary[label][f"latent_predictor_rollout_T{T}_l2"] = float(r[key])
+                        summary[label][f"latent_predictor_rollout_T{T}_l2_history"] = float(r[key])
                         break
 
     # Drop bookkeeping fields

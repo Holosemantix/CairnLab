@@ -248,6 +248,69 @@ noise augmentation -> clustered / discretized geometry
 3. **PushT 下降。**  
    PushT 需要保留“再推一点”和“已经到位”的细粒度差异。聚簇化合并了这些差异，降低 planning resolution。
 
+### 4.3 P1 补完：per-frame 独立 std + noise_prob
+
+**实验设计**
+
+已实现 `utils.py:AddNormalizedGaussianNoise`：每帧独立经过 Bernoulli(`noise_prob`) 决定是否加噪，如加则 std ~ Uniform(`std_min`, `std_max`)。
+
+补跑完成：
+- P1.1：TwoRoom SWM/LeWM per-frame `std∈[0,0.05]`，`noise_prob=1.0 / 0.5`
+- P1.2：PushT SWM `std∈[0,0.01]`、`std∈[0,0.02]`，`noise_prob=1.0 / 0.5`
+- P1.3：PushT LeWM 同条件对照 `std∈[0,0.01]`、`std∈[0,0.02]`、`std∈[0,0.05]`
+
+**TwoRoom eval（num_eval=150）**
+
+| 模型 | clean | goal_0.05 | pix_0.05 | goal_0.08 | pix+goal_0.05 |
+|---|---:|---:|---:|---:|---:|
+| SWM baseline | 90.8 | — | 66* | — | 36* |
+| SWM 旧版固定 std | **97.6** | 44.0 | 56.0 | — | **98.0** |
+| SWM per-frame p1 | 86.7 | **87.3** | **87.3** | 89.3 | 87.3 |
+| SWM per-frame p05 | 87.3 | **88.7** | **86.7** | 86.0 | 85.3 |
+| LeWM per-frame p1 | **94.0** | **94.0** | **94.0** | 93.3 | 92.7 |
+| LeWM per-frame p05 | **94.0** | **94.0** | **94.0** | 94.7 | 94.7 |
+
+> *baseline 为 plan_v3.md §3.1 的 std=0.03 数据。
+
+**PushT eval（num_eval=150）**
+
+| 模型 | clean | goal_0.08 | pix+goal_0.08 | pix_0.08 |
+|---|---:|---:|---:|---:|
+| SWM baseline | 89.8 | — | — | — |
+| SWM 0to001 p1 | 87.3 | 27.3 | 6.0 | 6.7 |
+| SWM 0to002 p1 | 81.3 | **64.0** | **48.7** | **50.7** |
+| SWM 0to002 p05 | 78.7 | 41.3 | 12.0 | 22.7 |
+| LeWM 0to001 p1 | 87.3 | 64.7 | 40.7 | 48.7 |
+| LeWM 0to002 p1 | **89.3** | **82.0** | **74.0** | **76.0** |
+| LeWM 0to005 p1 | 82.0 | 80.7 | 78.0 | 76.0 |
+
+**Noise sensitivity 对照（std=0.005, goal frame）**
+
+| 模型 | clean_nn_cos_dist | noise_angle_deg | ratio | risk |
+|---|---:|---:|---:|---:|
+| SWM baseline | 0.082 | 11.95° | 0.2646 | low |
+| SWM 旧版固定 std | **0.008** | **27.6°** | — | — |
+| SWM per-frame p1 | 0.048 | **0.41°** | 0.0005 | low |
+| LeWM baseline | 0.039 | 4.18° | 0.0685 | low |
+| LeWM per-frame p1 | 0.036 | **0.44°** | 0.0008 | low |
+
+**更新后的解释**
+
+1. **per-frame 独立 std 彻底修复 asymmetric 崩溃。**  
+   SWM per-frame p1/p05 的 pixels-only / goal-only 均维持在 85–89%，相比旧版固定 std 的 56/44 是质的改善。帧间噪声分布不一致性是旧版崩溃的主因。
+
+2. **固定 std → 聚簇化；per-frame → 平滑化。两者互斥。**  
+   - 旧版固定 std：clean_nn_dist 缩到 1/10，noise angle 反而增大到 27.6°。TwoRoom clean 大幅提升（90.8→97.6），但 asymmetric 崩溃。
+   - 新版 per-frame：noise angle 从 11.9° 降到 0.41°（与 LeWM 同级），asymmetric 修复，但失去 clean 提升（86.7，甚至略低于 baseline 90.8）。
+
+   > 核心结论：noise augmentation 的实现方式决定几何形态。固定全帧噪声导致聚簇化（有益 clean、有害 asymmetric），per-frame 独立噪声导致平滑化（有益 asymmetric、无益 clean）。
+
+3. **LeWM 近乎完美，无聚簇化副作用。**  
+   LeWM per-frame 在 TwoRoom 上 clean=94.0，所有噪声条件保持 93–95%，noise angle 仅 0.44°，且 clean_nn_dist 几乎不压缩（0.039→0.036）。聚簇化是 SWM（球面+uniformity）特有的副作用。
+
+4. **PushT 存在 noise sweet spot，但 SWM 仍不如 LeWM。**  
+   SWM 最优为 0to002 p1（clean 81.3, goal_0.08=64.0）；LeWM 最优为 0to002 p1（clean **89.3**, goal_0.08=**82.0**）。即使最优强度下，SWM 的 clean 和 noise 鲁棒性均明显落后。
+
 ---
 
 ## 5. 研究主线重构
@@ -320,17 +383,18 @@ clean_nn_distance vs clean performance
 - 如果 robust_radius 和 eval drop 强相关，诊断工具就是独立贡献。
 - 如果相关性弱，说明 planner/cost/action dynamics 还有额外因素，需要 P2/P3 补充。
 
-### P1：Noise-Aware Training 补完
+### P1：Noise-Aware Training（已完成）
 
 目标：确认 noise augmentation 的收益/损害是否由 task resolution 决定。
 
-当前在补跑：
+状态：P1.1–P1.3 已完成，结果见 §4.3。核心结论：
 
-- P1.1：TwoRoom per-frame independent noise + `noise_prob`
-- P1.2：PushT 小强度 noise
-- P1.3：LeWM 同条件对照
+- per-frame 独立 std 修复 asymmetric noise 崩溃，但带来的是**平滑化**而非**聚簇化**。
+- 固定全帧 std 导致聚簇化（TwoRoom clean 提升、asymmetric 崩）；per-frame 独立 std 导致平滑化（asymmetric 修复、clean 不升）。
+- LeWM 在同等 noise augmentation 下表现近乎完美，无聚簇化副作用。
+- PushT 上 SWM 和 LeWM 均存在 sweet spot（SWM 约 0to002，LeWM 约 0to002），但 SWM 最优仍明显落后于 LeWM。
 
-建议整理结果时固定看三类输出：
+整理结果时固定看三类输出：
 
 | 输出 | 用途 |
 |---|---|
@@ -338,7 +402,7 @@ clean_nn_distance vs clean performance
 | noisy eval | 是否提升 robustness |
 | noise_sensitivity | 几何变化是 smoothing 还是 clustering |
 
-P1.4 可作为主图实验：SWM 上扫 `std_max ∈ {0.01, 0.02, 0.03, 0.05, 0.08}`，比较 TwoRoom / PushT clean eval 曲线。预期 TwoRoom 与 PushT 趋势相反。
+P1.4（可选）：若后续需要完整 clean-noise 曲线作图，可补扫 SWM `std_max ∈ {0.01, 0.02, 0.03, 0.08}`。当前 TwoRoom 仅有 0.05，PushT 仅有 0.01/0.02/0.05。
 
 ### P2：Cost Surface 解耦
 
@@ -415,9 +479,9 @@ L = pred_loss
 |---|---|---|
 | P0 | robust_radius 预测 eval drop | 把诊断作为主贡献之一 |
 | P0 | 诊断与 eval 不相关 | 优先查 planner/cost/action dynamics |
-| P1 | TwoRoom 升、PushT 降趋势稳定 | 支撑 task resolution tradeoff 主线 |
-| P1 | LeWM 也聚簇化 | noise augmentation effect 是通用 SSL/WM 现象 |
-| P1 | 只有 SWM 聚簇化 | 球面 + uniformity 特别易产生等价类 |
+| P1 | 固定 std 导致聚簇化（TwoRoom 升、PushT 降），per-frame 导致平滑化（asymmetric 修复、clean 不升） | 实现方式决定几何形态；task resolution tradeoff 成立 |
+| P1 | LeWM 无聚簇化且 noise robustness 全面优于 SWM | 聚簇化不是通用现象；球面 + uniformity 是诱因 |
+| P1 | PushT sweet spot 存在但 SWM 最优仍落后 LeWM | 球面表征的连续性 prior 与精细操作存在结构性冲突 |
 | P2 | raw MSE 回升 | cost saturation 是重要失败环节 |
 | P2 | raw MSE 不回升 | encoder noisy goal 已经主导失败 |
 | P4 | adaptive guardrail 保住 PushT 且提升 TwoRoom | 形成真正方法贡献 |

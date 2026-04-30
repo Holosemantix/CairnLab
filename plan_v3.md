@@ -288,6 +288,32 @@ noise augmentation -> clustered / discretized geometry
 | LeWM 0to002 p1 | **89.3** | 88.0 | **86.7** | **82.0** | 88.0 | **85.3** | **74.0** | 87.3 | **86.0** | **76.0** |
 | LeWM 0to005 p1 | 82.0 | 81.3 | 77.3 | 80.7 | 80.0 | 80.0 | 78.0 | 83.3 | 78.7 | 76.0 |
 
+**Eval drop（clean − noisy, num_eval=150）**
+
+TwoRoom：
+
+| 模型 | clean | goal_drop_005 | pix_drop_005 | pix+goal_drop_005 |
+|---|---:|---:|---:|---:|
+| SWM 旧版固定 std | 97.6 | −0.4 | **41.6** | −0.4 |
+| SWM per-frame p1 | 86.7 | −0.6 | −0.6 | −0.6 |
+| SWM per-frame p05 | 87.3 | 2.0 | 0.6 | 2.0 |
+| LeWM per-frame p1 | **94.0** | 1.3 | 0.0 | 1.3 |
+| LeWM per-frame p05 | **94.0** | −0.7 | 0.0 | −0.7 |
+
+PushT：
+
+| 模型 | clean | goal_drop_005 | pix_drop_005 | pix+goal_drop_005 |
+|---|---:|---:|---:|---:|
+| SWM 0to001 p1 | 87.3 | **28.0** | **18.0** | **28.0** |
+| SWM 0to001 p05 | 78.0 | **26.7** | **18.0** | **26.7** |
+| SWM 0to002 p1 | 81.3 | 3.3 | 0.6 | 3.3 |
+| SWM 0to002 p05 | 78.7 | 6.7 | 4.7 | 6.7 |
+| LeWM 0to001 p1 | 87.3 | 18.0 | 12.0 | 18.0 |
+| LeWM 0to002 p1 | **89.3** | 4.0 | 3.3 | 4.0 |
+| LeWM 0to005 p1 | 82.0 | 2.0 | 3.3 | 2.0 |
+
+> **统一口径**：`goal_drop = clean − goal_0.05`，`pix_drop = clean − pix_0.05`，`pix+goal_drop = clean − pix+goal_0.05`。负值表示 noisy 反而略高于 clean（采样波动）。PushT SWM 0to001 的 goal_drop ≈28 为全表最大，说明低强度 noise 在 SWM 上造成严重的 goal-only failure；LeWM 0to002 的 drop 仅 3–4，几乎免疫。TwoRoom 上 per-frame 模型的 drop 均 <2，说明 per-frame 独立 std 彻底修复了 asymmetric 崩溃。
+
 **Noise sensitivity 对照（std=0.005, goal frame, normalized space）**
 
 | 模型 | clean_nn_cos_dist | noise_angle_deg | noise_to_nn_cos_ratio | risk |
@@ -386,7 +412,8 @@ noise augmentation -> clustered / discretized geometry
 | Encoder 区分 | `effective_rank`、`frame_scope="history"` | ✅ | 区分 collapse vs clustering；history 帧对应 pixels-only failure |
 | Predictor side | `predictor_rollout_drift(T)`、`predictor_target_shift` | ✅ | encoder 之外，predictor 在 noisy history 下的累积漂移 |
 | Task resolution | `transition_resolution_ratio = d(z_t, z_{t+1}) / d(z_t, z_far)`、inverse-dynamics linear probe readout、LiDAR rank | ✅ | 量化任务所需状态分辨率，区分 TwoRoom 与 PushT 偏好 |
-| Latent-noise | `predictor_rollout_drift_z(T)`、`cost_surface_slope_z`、`robust_radius_z`、`predictor_{angle,l2}_slope_per_std_z` | ✅ | encoder-decoupled 的 predictor / cost smoothness（见 §6 P2/P5；实现 `latent_noise_sensitivity.py`） |
+| Latent-noise | `predictor_rollout_drift_z(T)`、`cost_surface_slope_z`、`robust_radius_z`、`predictor_{angle,l2}_slope_per_std_z` | ⚠️ 部分 | encoder-decoupled 的 predictor / cost smoothness（见 §6 P2/P5；实现 `latent_noise_sensitivity.py`） |
+| Latent-noise 备注 | `robust_radius_z` goal scope 恒为 0（predictor 不依赖 goal token 做单步预测），导致 `_interpolate_threshold` 返回 NaN；history/all scope 有值，待切口径 | ⚠️ | 见 P0.3 latent-noise 附注 |
 | 目标变量 | `eval_drop_pix+goal`, `eval_drop_goal_only`, `eval_drop_pix_only`（at std=0.03/0.05/0.08） | ✅ 已收 | 三种 noise mode 分别看，对应不同失败机制 |
 
 **报告口径**
@@ -493,6 +520,37 @@ PushT：
 | SWM-perframe-0to002-p1 | **19.6°** | **33.8°** | **18.7°** | **30.6°** | **18.8°** | **31.0°** | 0.47 |
 
 > **Tail failure（p90）**：TwoRoom 中 per-frame 的 p90 与 median 接近（差 <5°），说明分布集中；baseline 的 p90 比 median 高 15–20°，存在显著的 tail risk。PushT SWM-perframe-0to001 的 p90 远高于 median（73° vs 49°），说明该配置下仍有少数样本对 noise 极其敏感。`nn_l2_ratio` 在 per-frame 模型中普遍 <0.7（远低于 1.0 警戒线），而 fixed-std 模型 >2.8，说明 per-frame 的 noise 幅度被有效控制在 encoder 邻域内。
+
+**Noise sensitivity L2 口径（std=0.08, goal frame）**
+
+TwoRoom：
+
+| 模型 | clean_nn_l2 | noise_l2_med | noise_l2_p90 | nn_l2_ratio |
+|---|---:|---:|---:|---:|
+| LeWM-base | 0.058 | 0.297 | 0.502 | 5.12 |
+| LeWM-fixed-std | 0.037 | 0.346 | 0.553 | 9.34 |
+| LeWM-perframe-p05 | 0.054 | 0.036 | 0.050 | 0.67 |
+| LeWM-perframe-p1 | 0.052 | 0.027 | 0.038 | 0.51 |
+| SWM-base | 0.112 | 0.371 | 0.452 | 3.32 |
+| SWM-fixed-std | 0.042 | 0.423 | 0.498 | 10.08 |
+| SWM-perframe-p05 | 0.099 | 0.049 | 0.071 | 0.49 |
+| SWM-perframe-p1 | 0.101 | 0.041 | 0.056 | 0.41 |
+
+PushT：
+
+| 模型 | clean_nn_l2 | noise_l2_med | noise_l2_p90 | nn_l2_ratio |
+|---|---:|---:|---:|---:|
+| LeWM-fixed-std | 0.173 | 0.484 | 0.580 | 2.80 |
+| LeWM-perframe-0to001-p1 | 0.218 | 0.109 | 0.152 | 0.50 |
+| LeWM-perframe-0to002-p1 | 0.227 | 0.061 | 0.083 | 0.27 |
+| LeWM-perframe-0to005-p1 | 0.226 | 0.032 | 0.045 | 0.14 |
+| SWM-fixed-std | 0.161 | 0.462 | 0.561 | 2.87 |
+| SWM-perframe-0to001-p05 | 0.250 | 0.288 | 0.358 | 1.15 |
+| SWM-perframe-0to001-p1 | 0.267 | 0.350 | 0.477 | 1.31 |
+| SWM-perframe-0to002-p05 | 0.268 | 0.225 | 0.311 | 0.84 |
+| SWM-perframe-0to002-p1 | 0.261 | 0.123 | 0.197 | 0.47 |
+
+> **L2 口径验证**：`nn_l2_ratio`（noise_l2 / clean_nn_l2）与 cosine 口径的 `noise_to_nn_cos_ratio` 在定性上一致——per-frame 模型 ratio <1（noise 在邻域内），fixed-std ratio >2.8（noise 超出邻域）。PushT 的绝对 L2 值普遍大于 TwoRoom（clean_nn_l2 0.17–0.27 vs 0.04–0.11），说明 PushT latent 的 Euclidean 尺度更大，但 relative ratio 仍具可比性。
 
 **Predictor rollout drift 累积（history 加噪 @ std=0.005）**
 
@@ -625,8 +683,47 @@ PushT：
 > 1. **SWM predictor 天生对 latent perturbation 稳定 10–16×。** TwoRoom 5.8→0.6，PushT 11.0→0.7。这是因为 cosine/normalized predictor 内建了尺度不变性；LeWM 的 L2 predictor 对 latent scale 敏感。
 > 2. **LeWM cost surface 对 goal latent 扰动敏感约 2×。** TwoRoom 2.1 vs 1.0，PushT 3.8 vs 1.6。L2 cost 在 Euclidean space 的斜率更大，同样的 latent 偏移产生更大的 cost 变化。
 > 3. **Per-frame pixel-noise training 不改善 predictor 的 latent-noise 鲁棒性。** LeWM-perframe 的 T8 drift 与 baseline 几乎相同（5.9 vs 5.8），SWM-perframe 甚至略升（0.81 vs 0.67）。这说明三层归因中，瓶颈在 **Layer 1 (encoder)**，而非 Layer 2 (predictor) 或 Layer 3 (cost surface)。noise training 的收益集中在 pixel→latent 映射的平滑化，而不是 predictor 本身的 Lipschitz 改善。
+> 4. **`robust_radius_z` 在 goal scope 下为 NaN，需切换 scope。** 原因：单步 predictor `pred(z_t, a)` 不消费 goal token，因此仅 perturb goal latent 时 `target_to_nn_cos_ratio ≡ 0`，`_interpolate_threshold` 无法找到 ratio=1 的交叉点。history/all scope 下 ratio 非零，可正常计算 radius。latent-noise 表格中暂以 `hist_T8` 和 `cost_slope_goal` 为主指标，`robust_radius_z` 待改用 history scope 后补录。
 
 结果保存：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/latent_noise_diagnostics/`
+
+**Planning signal probe（CEM cost 是否能区分 expert vs random）**
+
+TwoRoom：
+
+| 模型 | cost_margin_mean | expert_beats_best_random | expert_beats_random |
+|---|---:|---:|---:|
+| LeWM-base | 365.8 | 0.891 | 1.000 |
+| LeWM-fixed-std | 379.4 | 0.875 | 1.000 |
+| LeWM-perframe-p05 | 365.5 | 0.844 | 1.000 |
+| LeWM-perframe-p1 | 365.5 | 0.844 | 1.000 |
+| SWM-base | 0.798 | 0.922 | 0.984 |
+| SWM-fixed-std | 0.891 | 0.922 | 1.000 |
+| SWM-perframe-p05 | 0.641 | 0.906 | 0.984 |
+| SWM-perframe-p1 | 0.637 | 0.875 | 0.984 |
+
+PushT：
+
+| 模型 | cost_margin_mean | expert_beats_best_random | expert_beats_random |
+|---|---:|---:|---:|
+| LeWM-fixed-std | 257.4 | 0.891 | 1.000 |
+| LeWM-perframe-0to001-p1 | 256.8 | 0.906 | 1.000 |
+| LeWM-perframe-0to002-p1 | 257.0 | 0.906 | 1.000 |
+| LeWM-perframe-0to005-p1 | 257.0 | 0.906 | 1.000 |
+| SWM-fixed-std | 0.899 | 0.906 | 1.000 |
+| SWM-perframe-0to001-p05 | 0.799 | 0.891 | 0.984 |
+| SWM-perframe-0to001-p1 | 0.792 | 0.891 | 0.984 |
+| SWM-perframe-0to002-p05 | 0.738 | 0.875 | 0.984 |
+| SWM-perframe-0to002-p1 | 0.724 | 0.891 | 0.984 |
+
+> **Cost 尺度差异**：LeWM 的 L2 cost margin 约 257–379（Euclidean 空间绝对距离），SWM 的 cosine cost margin 约 0.64–0.90（归一化空间，理论上界 2）。两者都满足 `expert_beats_best_random > 0.83`，说明 planning signal 在所有模型中都是有效的；差异不在 signal 有无，而在 cost 的绝对尺度和对 latent perturbation 的敏感度（latent-noise 中 SWM cost_slope 约 1.0–1.8，LeWM 约 2.0–3.8）。
+
+**Action effect probe（action perturbation → pred shift）**
+
+> ⚠️ **当前未成功**：`analyze_action_effect` 在 PushT 上报 `KeyError: 'emb'`，在 TwoRoom 上无报错但输出为空。原因待查：
+> 1. `get_embedding_space(outputs, rollout_space)` 返回的 dict 中缺少 `'emb'` 键；
+> 2. 或模型 `action_encoder` 的输出结构在 SWM/LeWM 间不一致。
+> 该 probe 的数据暂不进入主表，待修复后补录。
 
 **PushT 与 TwoRoom 的关键差异**
 

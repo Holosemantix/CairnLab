@@ -468,7 +468,7 @@ PushT：
 1. **聚簇化效应被量化**：SWM-fixed-std 的 `robust_radius=0.00036`（ baseline 的 1/50），`clean_nn_cos_dist=0.0082`（缩到 1/7），`geometry_flag` 明确标记 `fragile,high_angle_gain,clustered`。
 2. **per-frame 平滑化显著**：SWM-perframe 的 `noise_angle_slope` 从 962 降到 80（接近 LeWM-perframe 的 87），`clean_nn_cos_dist` 恢复到 0.048，与 baseline 同级。
 3. **LeWM 固定 std 也有聚簇化**：`clean_nn_cos_dist=0.013`（baseline 0.039 的 1/3），`robust_radius=0.007`（baseline 的 1/2），flag 为 `fragile,clustered`，但程度远轻于 SWM。
-4. **Predictor 稳定性意外提升**：per-frame 训练的 rollout drift（T=8 L2）比 baseline 降低一个数量级（LeWM: 18→0.8；SWM: 1.25→0.07），说明噪声训练同时改善了动力学预测的平滑性。
+4. **Predictor 稳定性意外提升**：per-frame 训练的 rollout drift（T=8 L2）在 max std=0.08 下比 baseline 降低一个数量级（TwoRoom LeWM: 18.07→0.78，降低 **23×**；SWM: 1.25→0.07，降低 **18×**；详见上方 `@ max std=0.08` 表），说明噪声训练同时改善了动力学预测的平滑性。
 
 **PushT（9 个 geometry rows 已完成；相关性可用 eval rows 仍不全）**
 
@@ -582,6 +582,19 @@ PushT：
 | SWM-perframe-0to002-p1 | **0.006** | **0.006** | **0.007** | **0.008** | 0.45° |
 
 > **Drift 累积模式**：TwoRoom LeWM 的 drift 在 T1 就很大（0.5–0.9），之后几乎不增长，说明 predictor 的单步误差是主导；SWM 的 drift 同样 T1 即饱和。PushT SWM-fixed-std 的 T8 angle 高达 70°，说明 predictor 在球面空间中发生了方向翻转。Per-frame training 把 LeWM T8 从 0.55→0.04（TwoRoom）和 0.55→0.07（PushT），把 SWM T8 从 0.51→0.005（TwoRoom）和 1.15→0.008（PushT），改善幅度与 T8-only 表一致。
+
+**Predictor rollout drift @ max std=0.08（summary 口径，与 `diagnostics_summary.json` 对齐）**
+
+TwoRoom：
+
+| 模型 | T8_l2 | T8_angle | 备注 |
+|---|---:|---:|---|
+| LeWM-base | **18.07** | 88.59° | baseline，无 noise 训练 |
+| LeWM-perframe-p1 | **0.78** | 3.54° | per-frame，降低 **23×** |
+| SWM-base | **1.25** | 77.33° | baseline，无 noise 训练 |
+| SWM-perframe-p1 | **0.07** | 4.18° | per-frame，降低 **18×** |
+
+> 该表是 `predictor_sensitivity.json` 中 `std=0.08` 的汇总，对应 P0.3 文字中 “18→0.8、1.25→0.07” 的出处。与上方 `std=0.005` 表口径不同：max std 下 baseline 的 drift 被噪声显著放大（LeWM 18×、SWM 16×），而 per-frame 模型仍保持在 <1 的低水平。这说明 per-frame noise training 不仅降低了低噪声下的 drift，更重要的是把 predictor 的 Lipschitz 常数压到足够低，使得大噪声输入也不会导致 rollout 发散。
 
 **补充诊断指标**
 

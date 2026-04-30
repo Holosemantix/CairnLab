@@ -156,14 +156,34 @@ def _summarize_noise_to_predictor_to_resolution(
 
     # Latent-noise (P5): encoder-decoupled robust radius / cost slope.
     if latent_noise_rows:
+        # Goal scope: cost surface slope (perturbing goal latent affects cost)
         try:
-            latent_geom = summarize_latent_noise_geometry(
+            latent_geom_goal = summarize_latent_noise_geometry(
                 latent_noise_rows, frame_scope="goal"
             )
         except Exception:
-            latent_geom = None
-        if latent_geom is not None and not latent_geom.empty:
-            for _, row in latent_geom.iterrows():
+            latent_geom_goal = None
+        if latent_geom_goal is not None and not latent_geom_goal.empty:
+            for _, row in latent_geom_goal.iterrows():
+                label = row["model"]
+                summary.setdefault(label, {"model": label})
+                summary[label].update({
+                    "latent_cost_surface_slope_z": float(
+                        row.get("cost_surface_slope_z", float("nan"))
+                    ),
+                    "latent_noise_geometry": str(row.get("noise_geometry", "")),
+                })
+        # History scope: robust radius and predictor slopes (rollout drift is
+        # meaningful when history tokens are perturbed; goal scope gives NaN
+        # because single-step predictor does not consume the goal token).
+        try:
+            latent_geom_hist = summarize_latent_noise_geometry(
+                latent_noise_rows, frame_scope="history"
+            )
+        except Exception:
+            latent_geom_hist = None
+        if latent_geom_hist is not None and not latent_geom_hist.empty:
+            for _, row in latent_geom_hist.iterrows():
                 label = row["model"]
                 summary.setdefault(label, {"model": label})
                 summary[label].update({
@@ -174,10 +194,12 @@ def _summarize_noise_to_predictor_to_resolution(
                     "latent_predictor_l2_slope_per_std_z": float(
                         row.get("predictor_l2_slope_per_std_z", float("nan"))
                     ),
-                    "latent_cost_surface_slope_z": float(
-                        row.get("cost_surface_slope_z", float("nan"))
+                    "latent_rollout_angle_slope_per_std_z": float(
+                        row.get("rollout_angle_slope_deg_per_std_z", float("nan"))
                     ),
-                    "latent_noise_geometry": str(row.get("noise_geometry", "")),
+                    "latent_rollout_l2_slope_per_std_z": float(
+                        row.get("rollout_l2_slope_per_std_z", float("nan"))
+                    ),
                 })
         # Pick predictor rollout drift @ T=8 from the largest std (worst-case
         # encoder-decoupled smoothness), parallel to predictor_sensitivity.

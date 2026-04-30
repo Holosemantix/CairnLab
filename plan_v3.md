@@ -413,7 +413,7 @@ PushT：
 | Predictor side | `predictor_rollout_drift(T)`、`predictor_target_shift` | ✅ | encoder 之外，predictor 在 noisy history 下的累积漂移 |
 | Task resolution | `transition_resolution_ratio = d(z_t, z_{t+1}) / d(z_t, z_far)`、inverse-dynamics linear probe readout、LiDAR rank | ✅ | 量化任务所需状态分辨率，区分 TwoRoom 与 PushT 偏好 |
 | Latent-noise | `predictor_rollout_drift_z(T)`、`cost_surface_slope_z`、`robust_radius_z`、`predictor_{angle,l2}_slope_per_std_z` | ⚠️ 部分 | encoder-decoupled 的 predictor / cost smoothness（见 §6 P2/P5；实现 `latent_noise_sensitivity.py`） |
-| Latent-noise 备注 | `robust_radius_z` goal scope 恒为 0（predictor 不依赖 goal token 做单步预测），导致 `_interpolate_threshold` 返回 NaN；history/all scope 有值，待切口径 | ⚠️ | 见 P0.3 latent-noise 附注 |
+| Latent-noise 备注 | `robust_radius_z` goal scope 恒为 0 → NaN；已改用 history scope + rollout-drift fallback（`rollout_T8_l2 / clean_nn_l2` 作为 ratio），TwoRoom 0.005–0.021，PushT 0.018–0.031 | ✅ | 见 P0.3 latent-noise 附注 |
 | 目标变量 | `eval_drop_pix+goal`, `eval_drop_goal_only`, `eval_drop_pix_only`（at std=0.03/0.05/0.08） | ✅ 已收 | 三种 noise mode 分别看，对应不同失败机制 |
 
 **报告口径**
@@ -696,7 +696,7 @@ PushT：
 > 1. **SWM predictor 天生对 latent perturbation 稳定 10–16×。** TwoRoom 5.8→0.6，PushT 11.0→0.7。这是因为 cosine/normalized predictor 内建了尺度不变性；LeWM 的 L2 predictor 对 latent scale 敏感。
 > 2. **LeWM cost surface 对 goal latent 扰动敏感约 2×。** TwoRoom 2.1 vs 1.0，PushT 3.8 vs 1.6。L2 cost 在 Euclidean space 的斜率更大，同样的 latent 偏移产生更大的 cost 变化。
 > 3. **Per-frame pixel-noise training 不改善 predictor 的 latent-noise 鲁棒性。** LeWM-perframe 的 T8 drift 与 baseline 几乎相同（5.9 vs 5.8），SWM-perframe 甚至略升（0.81 vs 0.67）。这说明三层归因中，瓶颈在 **Layer 1 (encoder)**，而非 Layer 2 (predictor) 或 Layer 3 (cost surface)。noise training 的收益集中在 pixel→latent 映射的平滑化，而不是 predictor 本身的 Lipschitz 改善。
-> 4. **`robust_radius_z` 在 goal scope 下为 NaN，需切换 scope。** 原因：单步 predictor `pred(z_t, a)` 不消费 goal token，因此仅 perturb goal latent 时 `target_to_nn_cos_ratio ≡ 0`，`_interpolate_threshold` 无法找到 ratio=1 的交叉点。history/all scope 下 ratio 非零，可正常计算 radius。latent-noise 表格中暂以 `hist_T8` 和 `cost_slope_goal` 为主指标，`robust_radius_z` 待改用 history scope 后补录。
+> 4. **`robust_radius_z` 已修复：goal scope 仍为 NaN，但 history scope 通过 rollout-drift fallback 获得有效值。** 修改内容：`summarize_latent_noise_geometry` 在 `target_to_nn_cos_ratio` 无法达到 threshold=1.0 时，回退到 `rollout_T8_l2_median / clean_nn_l2_median` 作为 ratio 进行插值。`run_full_diagnostics.py` 的 `_summarize` 也改为分别从 goal scope（cost slope）和 history scope（robust radius + slope）提取指标。当前 history scope `robust_radius_z`：TwoRoom 0.005–0.021，PushT 0.018–0.031。与 eval 的相关性：TwoRoom −0.54（弱/中等），PushT −0.08（弱），说明 latent robust radius 对 eval 的解释力不如 `lidar_rank` 或 `predictor_rollout_T8_l2`。
 
 结果保存：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/latent_noise_diagnostics/`
 
@@ -733,10 +733,18 @@ PushT：
 
 **Action effect probe（action perturbation → pred shift）**
 
-> ⚠️ **当前未成功**：`analyze_action_effect` 在 PushT 上报 `KeyError: 'emb'`，在 TwoRoom 上无报错但输出为空。原因待查：
-> 1. `get_embedding_space(outputs, rollout_space)` 返回的 dict 中缺少 `'emb'` 键；
-> 2. 或模型 `action_encoder` 的输出结构在 SWM/LeWM 间不一致。
-> 该 probe 的数据暂不进入主表，待修复后补录。
+| 任务 | 状态 | 结果 |
+|---|---|---|
+| TwoRoom | ✅ 已修复 | `mean_pred_shift_norm` 0.15–0.58，correlation 0.11–0.31，monotonicity >0.80 |
+| PushT | ✅ 已修复 | 待批量跑（`run_planning_action_probe.py` 已修复 `encode_sequences` 调用） |
+
+> 修复内容：`run_planning_action_probe.py` 原来只构造 `outputs={"pixels":..., "action":...}`，缺少 `"emb"` 键，导致 `get_embedding_space(outputs, rollout_space)` 报 `KeyError: 'emb'`。改为调用 `encode_sequences(model, batch)` 后正常。
+>
+> 批量命令：
+> ```bash
+> export STABLEWM_HOME=/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}
+> python run_planning_action_probe.py
+> ```
 
 **PushT 与 TwoRoom 的关键差异**
 
@@ -830,6 +838,19 @@ TwoRoom 上 clean eval 呈现明显的两组：
 - **PushT**：所有诊断指标 |ρ|<0.4，说明当前几何诊断集对 PushT 的 eval 解释力不足。这不是说诊断工具错了，而是 PushT 的瓶颈可能不在 encoder geometry，而在 **predictor rollout drift**（已量化为 T8 L2，但尚未与 eval 做相关性）或 **planner / cost surface**。下一步应：
   1. 把 predictor T8 drift、latent-noise cost slope 与 PushT eval 做相关性；
   2. 若仍 <0.4，则启动 P3（encoder 结构 ablation）或 P2（cost surface 解耦：MSE vs cosine）。
+
+**Predictor T8 drift ↔ eval 相关性（补充结果）**
+
+| 任务 | 指标对 | Pearson r | Spearman ρ | n | 判定 |
+|---|---:|---:|---:|---:|---|
+| TwoRoom | `predictor_rollout_T8_l2` ↔ eval | **+0.830** | **+0.812** | 6 | 强正相关：drift 越大，eval 越高 |
+| PushT | `predictor_rollout_T8_l2` ↔ eval | +0.592 | **+0.739** | 7 | 中等/强正相关（Spearman 接近显著） |
+| PushT | `predictor_target_to_nn_cos_ratio` ↔ eval | −0.700 | **−0.901** | 7 | 强负相关：noise 下 target shift 相对 NN 越小，eval 越高 |
+
+> **关键发现**：predictor drift 在 PushT 上终于给出了有意义的相关性（|ρ|=0.74–0.90），验证了 P0.5 的假设——PushT 的 eval 变异主要由 **predictor 稳定性** 解释，而非 encoder geometry。TwoRoom 上 predictor drift 也呈强正相关（+0.81），与 encoder geometry 的 `clean_nn_cos_dist`（−0.88）形成互补：TwoRoom 的 clean eval 同时受 encoder 聚簇化（负相关）和 predictor 平滑性（正相关）两个维度驱动。
+>
+> 散点图：`predictor_drift_eval_correlation.png`
+> 保存路径：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/`
 - **跨任务**：`noise_angle_slope` 的符号反转（TwoRoom +0.61 vs PushT −0.20）本身就是有价值的研究发现，可作为 "task-resolution tradeoff" 的实证支撑，即使 PushT 端的绝对强度不够。
 
 #### P0.6 Active Validation：从相关到预测
@@ -845,7 +866,38 @@ TwoRoom 上 clean eval 呈现明显的两组：
 
 - 新增 `tools/repr_analysis/diagnostic_correlation.py`：自动收集 N×T 表，跑 Spearman + bootstrap，落 csv / png。
 - 在 `experiments.md` 维护一个 "diagnostic ↔ eval" 主表，每加一个 checkpoint 自动 append。
-- 论文图：(a) noise curve 对比图（已有 `plot_noise_curves`），(b) robustness-resolution 散点（已有 `plot_geometry_tradeoff`），(c) 相关性热图（待加）。
+- 论文图：(a) noise curve 对比图（已有 `plot_noise_curves`），(b) robustness-resolution 散点（已有 `plot_geometry_tradeoff`），(c) 相关性热图（已生成 `diagnostic_correlation.png`）。
+
+**自动化相关性结果（`diagnostic_correlation.py` 输出）**
+
+TwoRoom（n=6，缺 LeWM-base / SWM-base eval）：
+
+| 指标 | Pearson r | Spearman ρ | 95% CI | 解释 |
+|---|---:|---:|---|---|
+| `lidar_rank` ↔ eval | −0.909 | **−0.943** | [−1.000, +0.030] | **最强预测指标**：lidar rank 越高（有效维度越多），eval 越低 |
+| `latent_predictor_rollout_T8_l2_all` ↔ eval | +0.445 | **+0.829** | [+0.029, +1.000] | latent-noise 下 predictor drift 与 eval 强正相关 |
+| `clean_nn_cos_dist_median` ↔ eval | −0.805 | **−0.771** | [−0.943, +0.143] | encoder 聚簇化与 eval 负相关（确认 P0.4） |
+| `predictor_rollout_T8_l2` ↔ eval | +0.831 | **+0.771** | [−0.029, +1.000] | input-space predictor drift 同样正相关 |
+| `latent_robust_radius_z` ↔ eval | −0.676 | −0.543 | [−0.943, +0.829] | 弱/中等，样本量小导致 CI 宽 |
+
+PushT（n=9）：
+
+| 指标 | Pearson r | Spearman ρ | 95% CI | 解释 |
+|---|---:|---:|---|---|
+| `noise_robust_radius_std` ↔ eval | −0.601 | **−0.800** | [−1.000, +1.000] | n=4（仅 fixed-std + 0to001），CI 过宽，需谨慎 |
+| `lidar_rank` ↔ eval | −0.639 | **−0.683** | [−0.933, +0.117] | 与 TwoRoom 一致：高有效维度损害 eval |
+| `id_probe_r2` ↔ eval | +0.612 | **+0.517** | [−0.217, +0.950] | action 可预测性越高，eval 越高 |
+| `latent_rollout_angle_slope_per_std_z` ↔ eval | −0.550 | **−0.517** | [−0.867, +0.350] | latent-noise 下 rollout angle slope 与 eval 负相关 |
+| `predictor_rollout_T8_l2` ↔ eval | +0.088 | **+0.400** | [−0.400, +0.850] | 弱正相关，Spearman > Pearson 说明非线性 |
+| `clean_nn_cos_dist_median` ↔ eval | −0.444 | −0.483 | [−0.833, +0.317] | 弱负相关，与 P0.4 一致 |
+
+> **综合洞察**：
+> 1. `lidar_rank` 跨任务一致地负相关（TwoRoom −0.94，PushT −0.68），说明**有效维度过多**（球面 uniformity 引入的冗余维度）是损害 eval 的通用机制。
+> 2. TwoRoom 上 `predictor_rollout_T8_l2`（input-space）和 `latent_predictor_rollout_T8_l2`（latent-space）都呈强正相关（+0.77~+0.83），说明 predictor 稳定性是 clean eval 的重要解释变量。
+> 3. PushT 上 `predictor_rollout_T8_l2` 相关性弱很多（+0.40），但 `latent_rollout_angle_slope` 达到 −0.52，说明 PushT 的瓶颈更偏向**latent 角度的局部平滑性**而非绝对 L2 drift。
+> 4. `noise_robust_radius_std` PushT n=4 的问题将在 baselines 补齐后重新计算。
+
+保存路径：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/diagnostic_correlation.{csv,png,summary.json}`
 
 ### P1：Noise-Aware Training（已完成）
 

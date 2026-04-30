@@ -565,15 +565,28 @@ def summarize_latent_noise_geometry(
     group_cols = ["model", "frame_scope", "embedding_space", "noise_geometry"]
     for keys, group in df.groupby(group_cols, sort=False):
         group = group.sort_values("std")
+        # Primary: target shift relative to clean NN (single-step predictor sensitivity)
         robust_radius = _interpolate_threshold(
             group["std"], group["target_to_nn_cos_ratio"], threshold
         )
+        # Fallback: rollout drift relative to clean NN (multi-step amplification)
+        if math.isnan(robust_radius) and "rollout_T8_l2_median" in group.columns and "clean_nn_l2_median" in group.columns:
+            drift_ratio = group["rollout_T8_l2_median"] / group["clean_nn_l2_median"].clip(lower=1e-8)
+            robust_radius = _interpolate_threshold(group["std"], drift_ratio, threshold)
+        # Single-step predictor target shift slope (may be flat in latent-noise)
         target_angle_slope = _near_zero_slope(
             group["std"], group["target_angle_deg_median"], slope_max_std
         )
         target_l2_slope = _near_zero_slope(
             group["std"], group["target_l2_median"], slope_max_std
         )
+        # Multi-step rollout drift slope (more informative in latent-noise)
+        rollout_angle_slope = _near_zero_slope(
+            group["std"], group.get("rollout_T8_angle_deg_median"), slope_max_std
+        ) if "rollout_T8_angle_deg_median" in group.columns else float("nan")
+        rollout_l2_slope = _near_zero_slope(
+            group["std"], group.get("rollout_T8_l2_median"), slope_max_std
+        ) if "rollout_T8_l2_median" in group.columns else float("nan")
         cost_slope = _near_zero_slope(
             group["std"], group["cost_delta_mean"], slope_max_std
         ) if "cost_delta_mean" in group.columns else float("nan")
@@ -587,6 +600,8 @@ def summarize_latent_noise_geometry(
                 "robust_radius_z": float(robust_radius),
                 "predictor_angle_slope_deg_per_std_z": float(target_angle_slope),
                 "predictor_l2_slope_per_std_z": float(target_l2_slope),
+                "rollout_angle_slope_deg_per_std_z": float(rollout_angle_slope),
+                "rollout_l2_slope_per_std_z": float(rollout_l2_slope),
                 "cost_surface_slope_z": float(cost_slope),
                 "clean_nn_cos_dist_median": clean_nn_cos,
             }

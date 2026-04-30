@@ -454,6 +454,37 @@ noise augmentation -> clustered / discretized geometry
 - **SWM-base (20260419)**：`lewm-pusht/ckpt/pusht_swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64_20260419/` **既无 ckpt 也无 eval**。
 - **SWM-base (20260425)**：`lewm-pusht/ckpt/pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260425/` 有 eval **82.4%**，但同样**无 ckpt**。
 
+**Predictor rollout drift（T=8 L2，history 加噪 @ max std）**
+
+TwoRoom：
+
+| 模型 | baseline / fixed-std | per-frame | 降幅 |
+|---|---:|---:|---:|
+| LeWM-base | **18.07** | — | — |
+| LeWM-fixed-std | 23.82 | — | — |
+| LeWM-perframe-p05 | — | **1.06** | **18×** |
+| LeWM-perframe-p1 | — | **0.78** | **23×** |
+| SWM-base | **1.25** | — | — |
+| SWM-fixed-std | 1.28 | — | — |
+| SWM-perframe-p05 | — | **0.098** | **13×** |
+| SWM-perframe-p1 | — | **0.073** | **17×** |
+
+PushT（无 baseline ckpt，用 fixed-std 作参照）：
+
+| 模型 | fixed-std | per-frame | 降幅 |
+|---|---:|---:|---:|
+| LeWM-fixed-std | **21.39** | — | — |
+| LeWM-perframe-0to001-p1 | — | **7.32** | **2.9×** |
+| LeWM-perframe-0to002-p1 | — | **3.21** | **6.7×** |
+| LeWM-perframe-0to005-p1 | — | **1.65** | **13×** |
+| SWM-fixed-std | **1.09** | — | — |
+| SWM-perframe-0to001-p05 | — | 1.09 | **1.0×** |
+| SWM-perframe-0to001-p1 | — | 1.24 | **0.9×**（升） |
+| SWM-perframe-0to002-p05 | — | 0.97 | **1.1×** |
+| SWM-perframe-0to002-p1 | — | **0.50** | **2.2×** |
+
+> 注：T=8 L2 drift 指在 history 帧注入噪声后， predictor 自回归 rollout 8 步的 L2 漂移中位数。TwoRoom 中 LeWM-perframe 从 18→0.8、SWM-perframe 从 1.25→0.07，均降低一个数量级以上；PushT 中 LeWM 随 noise 强度增加逐步降低，SWM 降幅有限。
+
 **PushT 与 TwoRoom 的关键差异**
 
 1. **LeWM-fixed-std 在 PushT 上是 robust，在 TwoRoom 上是 fragile,clustered。**  

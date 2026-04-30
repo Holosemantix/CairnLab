@@ -17,6 +17,10 @@ Layout (per --save-dir):
         geometry_tradeoff_goal.png  (if --plot)
         predictor_sensitivity.csv / .json
         task_resolution.csv / .json
+        latent_noise_sensitivity.csv / .json   (P5 — encoder-decoupled)
+        latent_geometry_summary.csv / .json     (P5)
+        latent_noise_ratio_curve_goal.png       (if --plot)
+        latent_noise_angle_curve_goal.png       (if --plot)
         diagnostics_summary.json   (one-line per-checkpoint roll-up)
 
 CLI mirrors `noise_sensitivity.py` for backwards compatibility:
@@ -55,6 +59,12 @@ from tools.repr_analysis.task_resolution import (
     format_resolution_table,
     run_task_resolution,
 )
+from tools.repr_analysis.latent_noise_sensitivity import (
+    format_latent_noise_table,
+    plot_latent_noise_curves,
+    run_latent_noise_sensitivity,
+    summarize_latent_noise_geometry,
+)
 
 
 def _parse_model_specs(specs: Sequence[str]) -> Dict[str, str]:
@@ -83,8 +93,9 @@ def _summarize_noise_to_predictor_to_resolution(
     noise_rows,
     predictor_rows,
     resolution_rows,
+    latent_noise_rows=None,
 ) -> list[Dict[str, Any]]:
-    """One-line per-checkpoint roll-up combining the three diagnostic families."""
+    """One-line per-checkpoint roll-up combining the diagnostic families."""
     summary: Dict[str, Dict[str, Any]] = {}
 
     geometry = summarize_noise_geometry(noise_rows, frame_scope="goal")
@@ -143,6 +154,48 @@ def _summarize_noise_to_predictor_to_resolution(
             "lidar_rank": float(r.get("lidar_rank", float("nan"))),
         })
 
+    # Latent-noise (P5): encoder-decoupled robust radius / cost slope.
+    if latent_noise_rows:
+        try:
+            latent_geom = summarize_latent_noise_geometry(
+                latent_noise_rows, frame_scope="goal"
+            )
+        except Exception:
+            latent_geom = None
+        if latent_geom is not None and not latent_geom.empty:
+            for _, row in latent_geom.iterrows():
+                label = row["model"]
+                summary.setdefault(label, {"model": label})
+                summary[label].update({
+                    "latent_robust_radius_z": float(row.get("robust_radius_z", float("nan"))),
+                    "latent_predictor_angle_slope_per_std_z": float(
+                        row.get("predictor_angle_slope_deg_per_std_z", float("nan"))
+                    ),
+                    "latent_predictor_l2_slope_per_std_z": float(
+                        row.get("predictor_l2_slope_per_std_z", float("nan"))
+                    ),
+                    "latent_cost_surface_slope_z": float(
+                        row.get("cost_surface_slope_z", float("nan"))
+                    ),
+                    "latent_noise_geometry": str(row.get("noise_geometry", "")),
+                })
+        # Pick predictor rollout drift @ T=8 from the largest std (worst-case
+        # encoder-decoupled smoothness), parallel to predictor_sensitivity.
+        for r in latent_noise_rows:
+            if r.get("frame_scope") != "history":
+                continue
+            label = r["model"]
+            summary.setdefault(label, {"model": label})
+            std = r["std"]
+            cur_max = summary[label].get("_lat_pred_max_std", -1.0)
+            if std > cur_max:
+                summary[label]["_lat_pred_max_std"] = float(std)
+                for T in (8, 4, 2, 1):
+                    key = f"rollout_T{T}_l2_median"
+                    if r.get(key) is not None and r[key] == r[key]:
+                        summary[label][f"latent_predictor_rollout_T{T}_l2"] = float(r[key])
+                        break
+
     # Drop bookkeeping fields
     for s in summary.values():
         for k in list(s.keys()):
@@ -171,7 +224,11 @@ def run_full_diagnostics(
     skip_noise: bool = False,
     skip_predictor: bool = False,
     skip_resolution: bool = False,
+    skip_latent_noise: bool = False,
     predictor_history_noise_only: bool = True,
+    latent_noise_geometry: str = "ambient",
+    latent_noise_std_mode: str = "relative",
+    latent_noise_n_samples: int = 1,
     log=print,
 ) -> Dict[str, Any]:
     """Run the full diagnostic suite from one Python entrypoint.
@@ -200,7 +257,9 @@ def run_full_diagnostics(
     noise_rows: list = []
     predictor_rows: list = []
     resolution_rows: list = []
+    latent_noise_rows: list = []
     geometry = None
+    latent_geometry = None
 
     if not skip_noise:
         if log is not None:
@@ -272,10 +331,61 @@ def run_full_diagnostics(
             if log is not None:
                 log(f"[diagnostics] resolution table format skipped: {e}")
 
+    if not skip_latent_noise:
+        if log is not None:
+            log("==[diagnostics] running latent_noise_sensitivity ==")
+        latent_noise_rows = run_latent_noise_sensitivity(
+            stds=stds,
+            rollout_steps=rollout_steps,
+            noise_geometry=latent_noise_geometry,
+            std_mode=latent_noise_std_mode,
+            n_noise_samples=latent_noise_n_samples,
+            **common,
+        )
+        if output_dir is not None:
+            _save_rows(output_dir, "latent_noise_sensitivity", latent_noise_rows)
+        try:
+            latent_geometry = summarize_latent_noise_geometry(
+                latent_noise_rows, frame_scope="goal"
+            )
+            if output_dir is not None and latent_geometry is not None:
+                latent_geometry.to_csv(
+                    output_dir / "latent_geometry_summary.csv", index=False
+                )
+                with (output_dir / "latent_geometry_summary.json").open("w") as f:
+                    json.dump(
+                        to_serializable(latent_geometry.to_dict(orient="records")),
+                        f, indent=2,
+                    )
+        except Exception as e:
+            if log is not None:
+                log(f"[diagnostics] latent geometry summary skipped: {e}")
+        try:
+            if log is not None:
+                log(format_latent_noise_table(latent_noise_rows, frame_scope="goal").to_string(index=False))
+        except Exception as e:
+            if log is not None:
+                log(f"[diagnostics] latent noise table format skipped: {e}")
+        if plot and output_dir is not None:
+            try:
+                fig = plot_latent_noise_curves(latent_noise_rows, frame_scope="goal")
+                fig.savefig(output_dir / "latent_noise_ratio_curve_goal.png",
+                            dpi=200, bbox_inches="tight")
+                fig = plot_latent_noise_curves(
+                    latent_noise_rows, frame_scope="goal",
+                    metric="target_angle_deg_median",
+                )
+                fig.savefig(output_dir / "latent_noise_angle_curve_goal.png",
+                            dpi=200, bbox_inches="tight")
+            except Exception as e:
+                if log is not None:
+                    log(f"[diagnostics] latent noise plotting skipped: {e}")
+
     rollup = _summarize_noise_to_predictor_to_resolution(
         noise_rows=noise_rows,
         predictor_rows=predictor_rows,
         resolution_rows=resolution_rows,
+        latent_noise_rows=latent_noise_rows,
     )
     if output_dir is not None:
         with (output_dir / "diagnostics_summary.json").open("w") as f:
@@ -293,6 +403,13 @@ def run_full_diagnostics(
         resolution_table = format_resolution_table(resolution_rows) if resolution_rows else None
     except Exception:
         resolution_table = None
+    try:
+        latent_noise_table = (
+            format_latent_noise_table(latent_noise_rows, frame_scope="goal")
+            if latent_noise_rows else None
+        )
+    except Exception:
+        latent_noise_table = None
 
     if log is not None and output_dir is not None:
         log(f"\n[diagnostics] saved unified output to: {output_dir}")
@@ -305,10 +422,13 @@ def run_full_diagnostics(
         "geometry_summary": geometry,
         "predictor_rows": predictor_rows,
         "resolution_rows": resolution_rows,
+        "latent_noise_rows": latent_noise_rows,
+        "latent_geometry_summary": latent_geometry,
         "diagnostics_summary": rollup,
         "noise_table": noise_table,
         "predictor_table": predictor_table,
         "resolution_table": resolution_table,
+        "latent_noise_table": latent_noise_table,
         "save_dir": output_dir,
     }
 
@@ -334,11 +454,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--skip-noise", action="store_true")
     p.add_argument("--skip-predictor", action="store_true")
     p.add_argument("--skip-resolution", action="store_true")
+    p.add_argument("--skip-latent-noise", action="store_true",
+                   help="Skip P5 latent-space noise probing.")
     p.add_argument("--predictor-history-noise-only", action="store_true", default=True,
                    help="Predictor diagnostic adds noise only to history frames (default).")
     p.add_argument("--predictor-full-noise",
                    dest="predictor_history_noise_only", action="store_false",
                    help="Predictor diagnostic adds noise to all frames including goal.")
+    p.add_argument("--latent-noise-geometry", default="ambient",
+                   choices=["ambient", "tangent"],
+                   help="Latent-noise injection geometry. `tangent` keeps SWM on the sphere.")
+    p.add_argument("--latent-noise-std-mode", default="relative",
+                   choices=["relative", "absolute"],
+                   help="`relative` scales std by per-token clean norm "
+                        "(comparable across LeWM/SWM).")
+    p.add_argument("--latent-noise-n-samples", type=int, default=1,
+                   help="Independent noise samples averaged per (std, scope).")
     return p
 
 
@@ -362,7 +493,11 @@ def main():
         skip_noise=args.skip_noise,
         skip_predictor=args.skip_predictor,
         skip_resolution=args.skip_resolution,
+        skip_latent_noise=args.skip_latent_noise,
         predictor_history_noise_only=args.predictor_history_noise_only,
+        latent_noise_geometry=args.latent_noise_geometry,
+        latent_noise_std_mode=args.latent_noise_std_mode,
+        latent_noise_n_samples=args.latent_noise_n_samples,
     )
 
 

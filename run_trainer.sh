@@ -78,13 +78,16 @@ case "${dataset_name}" in
     *) echo "错误: 未知的 dataset_name '${dataset_name}'"; exit 1 ;;
 esac
 
-# 从训练数据配置读取默认 frameskip，支持环境变量覆盖
+# 从训练数据配置读取默认 frameskip / 真实 HDF5 dataset name，支持环境变量覆盖
 _dataset_cfg="config/train/data/${data}.yaml"
 if [ -f "${_dataset_cfg}" ]; then
     _default_frameskip=$(grep -m1 '^[[:space:]]*frameskip:' "${_dataset_cfg}" | sed 's/.*:[[:space:]]*\([0-9]*\).*/\1/')
     frameskip="${frameskip:-${_default_frameskip:-5}}"
+    _default_h5_name=$(grep -m1 '^[[:space:]]*name:' "${_dataset_cfg}" | sed 's/.*:[[:space:]]*\([^[:space:]]*\).*/\1/')
+    diagnostic_dataset_name="${diagnostic_dataset_name:-${_default_h5_name:-${dataset_name}}}"
 else
     frameskip="${frameskip:-5}"
+    diagnostic_dataset_name="${diagnostic_dataset_name:-${dataset_name}}"
 fi
 
 output_model_name="${dataset_name}_${output_model_name}"
@@ -254,7 +257,7 @@ if [ "${skip_diagnostics:-${skip_noise_table:-0}}" != "1" ]; then
     diagnostic_rollout_steps="${diagnostic_rollout_steps:-1 2 4 8}"
     diag_args=(
         "--model" "${output_model_name}=${ckpt_abs}"
-        "--dataset" "${dataset_name}"
+        "--dataset" "${diagnostic_dataset_name}"
         "--stds" ${noise_table_stds}
         "--rollout-steps" ${diagnostic_rollout_steps}
         "--frameskip" "${frameskip}"

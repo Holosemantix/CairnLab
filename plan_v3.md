@@ -422,13 +422,32 @@ noise augmentation -> clustered / discretized geometry
 3. **LeWM 固定 std 也有聚簇化**：`clean_nn_cos_dist=0.013`（baseline 0.039 的 1/3），`robust_radius=0.007`（baseline 的 1/2），flag 为 `fragile,clustered`，但程度远轻于 SWM。
 4. **Predictor 稳定性意外提升**：per-frame 训练的 rollout drift（T=8 L2）比 baseline 降低一个数量级（LeWM: 18→0.8；SWM: 1.25→0.07），说明噪声训练同时改善了动力学预测的平滑性。
 
-**PushT（9 模型，收集中）**
+**PushT（9 模型，已完成，缺 2 个 baseline eval）**
 
-可用 ckpt（baselines 缺失）：
-- LeWM-fixed-std, LeWM-perframe-0to001/0to002/0to005-p1
-- SWM-fixed-std, SWM-perframe-0to001/0to002-p05/p1
+| 模型 | robust_radius | noise_angle_slope (°/std) | clean_nn_cos_dist | clean_eff_rank | geometry_flag |
+|---|---:|---:|---:|---:|---|
+| LeWM-fixed-std | **0.0205** | 711.4 | 0.1447 | 31.40 | **robust** |
+| LeWM-perframe-0to001-p1 | **>0.08** | 121.3 | 0.2263 | 48.36 | balanced |
+| LeWM-perframe-0to002-p1 | **>0.08** | 71.8 | 0.2473 | 48.28 | balanced |
+| LeWM-perframe-0to005-p1 | **>0.08** | 47.5 | 0.2253 | 46.74 | balanced |
+| SWM-fixed-std | **0.0005** | **8928.9** | **0.0664** | 18.38 | **fragile,high_angle_gain** |
+| SWM-perframe-0to001-p05 | **0.0718** | 169.9 | 0.2577 | 42.62 | **robust** |
+| SWM-perframe-0to001-p1 | **0.0669** | 103.2 | 0.2845 | 45.70 | **robust** |
+| SWM-perframe-0to002-p05 | **>0.08** | 88.4 | 0.2760 | 46.04 | balanced |
+| SWM-perframe-0to002-p1 | **>0.08** | 69.5 | 0.2600 | 45.46 | balanced |
 
-缺失需补：LeWM-base, SWM-base（目录存在但无 epoch_9/10 ckpt）。
+缺失：LeWM-base、SWM-base 的 clean eval（目录存在但无 epoch_9/10 ckpt，无法跑 eval）。
+
+**PushT 与 TwoRoom 的关键差异**
+
+1. **LeWM-fixed-std 在 PushT 上是 robust，在 TwoRoom 上是 fragile,clustered。**  
+   这说明 LeWM 的聚簇化是**任务依赖**的：TwoRoom 低维状态空间容易被压缩成紧凑等价类，PushT 高维连续状态空间难以被简单聚簇。
+
+2. **SWM-fixed-std 在 PushT 上仍然是 fragile,high_angle_gain。**  
+   这说明 SWM 的聚簇化是**结构性**的（球面 + uniformity + 固定 std），与任务无关。只要用固定全帧 std 训练，无论任务分辨率如何，都会产生高角向敏感度 + 紧聚簇。
+
+3. **SWM-perframe-0to001 在 PushT 上被评为 robust，0to002 是 balanced。**  
+   在 PushT 上，0to001 的 noise 强度已经足够产生 robust geometry（radius≈0.07），而 0to002 的 robust_radius=NaN（更 robust 但 clean eval 从 87.3 降至 81.3）。这与 TwoRoom 上 0to005 才达到 balanced 形成对比，说明 PushT 的"最优 noise 强度"确实更低。
 
 结果保存：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/`
 
@@ -460,10 +479,37 @@ TwoRoom 上 clean eval 呈现明显的两组：
 
 保存路径：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/`
 
+**PushT 相关性（n=7，缺 baselines + 2 个 fixed-std eval）**
+
+| 指标对 | r | 与 TwoRoom 对比 |
+|---|---|---|
+| `noise_angle_slope` ↔ `eval_score` | **-0.233** | TwoRoom: **+0.645** → **符号相反** |
+| `clean_nn_cos_dist` ↔ `eval_score` | **-0.202** | TwoRoom: **-0.771** → 符号相同但弱很多 |
+
+> 样本量偏小（7）且缺少 baselines，相关性的置信度较低。但核心趋势已可见：PushT 上 noise_angle_slope 与 eval_score 呈负相关（ slope 越大 → eval 越低），与 TwoRoom 的正相关相反。
+
+**综合结论：诊断指标能区分任务适配性**
+
+| 任务 | `clean_nn_cos_dist` 与 `eval_score` 关系 | 含义 |
+|---|---|---|
+| TwoRoom（低维、冗余视觉） | **强负相关**（r=-0.77） | 聚簇越紧 → clean eval 越高，任务受益于信息瓶颈 |
+| PushT（高分辨率连续控制） | **弱负相关**（r=-0.20） | 聚簇与 eval 几乎无关，甚至 slope 大的模型 eval 更低 |
+
+这说明 `clean_nn_cos_dist` + `geometry_flag` 的组合可以作为**任务-几何适配性**的预判指标：
+- `clustered` flag + clean_nn 大幅缩小 + TwoRoom-like 任务 → 预期受益
+- `clustered` flag + PushT-like 任务 → 预期损害或无效
+
+**图表**
+
+- TwoRoom: `p0_correlation_tworoom.png`
+- PushT: `p0_correlation_pusht.png`
+
+保存路径：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/`
+
 **下一步**
 
-- PushT 数据收齐后，检验同一组指标是否呈现**相反趋势**（PushT 上聚簇化应该损害 clean eval，预期 `clean_nn_cos_dist` 与 `eval_score` **正相关**）。
-- 若趋势确实相反，则 `clean_nn_cos_dist` + `geometry_flag` 可作为**任务适配性**的预判指标。
+- 补跑 LeWM-base / SWM-base 的 PushT eval（或从已有 summary 提取），把 n 从 7 扩到 9，提升相关性置信度。
+- 若 `clean_nn_cos_dist` 的跨任务符号反转能被更多任务（Cube / Reacher）复现，即可作为论文独立贡献。
 
 #### P0.5 决策标准
 

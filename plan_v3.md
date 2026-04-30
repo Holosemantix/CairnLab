@@ -276,6 +276,7 @@ noise augmentation -> clustered / discretized geometry
 
 | 模型 | clean | goal_0.03 | goal_0.05 | goal_0.08 | pix+goal_0.03 | pix+goal_0.05 | pix+goal_0.08 | pix_0.03 | pix_0.05 | pix_0.08 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| LeWM baseline | **83.6** | — | — | — | — | — | — | — | — | — |
 | SWM baseline | 89.8 | — | — | — | — | — | — | — | — | — |
 | SWM 0to001 p1 | 87.3 | 86.0 | 79.3 | 27.3 | 86.0 | 59.3 | 6.0 | 82.7 | 69.3 | 6.7 |
 | SWM 0to001 p05 | 78.0 | 71.3 | 58.0 | 28.0 | 73.3 | 51.3 | 10.0 | 72.7 | 60.0 | 13.3 |
@@ -422,7 +423,7 @@ noise augmentation -> clustered / discretized geometry
 3. **LeWM 固定 std 也有聚簇化**：`clean_nn_cos_dist=0.013`（baseline 0.039 的 1/3），`robust_radius=0.007`（baseline 的 1/2），flag 为 `fragile,clustered`，但程度远轻于 SWM。
 4. **Predictor 稳定性意外提升**：per-frame 训练的 rollout drift（T=8 L2）比 baseline 降低一个数量级（LeWM: 18→0.8；SWM: 1.25→0.07），说明噪声训练同时改善了动力学预测的平滑性。
 
-**PushT（9 模型，已完成，缺 2 个 baseline eval）**
+**PushT（9 模型，geometry 已完成；eval 补全：LeWM-base=83.6%，SWM-base 仍缺）**
 
 | 模型 | robust_radius | noise_angle_slope (°/std) | clean_nn_cos_dist | clean_eff_rank | geometry_flag |
 |---|---:|---:|---:|---:|---|
@@ -436,7 +437,10 @@ noise augmentation -> clustered / discretized geometry
 | SWM-perframe-0to002-p05 | **>0.08** | 88.4 | 0.2760 | 46.04 | balanced |
 | SWM-perframe-0to002-p1 | **>0.08** | 69.5 | 0.2600 | 45.46 | balanced |
 
-缺失：LeWM-base、SWM-base 的 clean eval（目录存在但无 epoch_9/10 ckpt，无法跑 eval）。
+缺失：
+- **LeWM-base**：`lewm-pusht/ckpt/pusht_lewm_20260424/` 有 eval **83.6%**（来自 `pusht_results.txt`），但**无 ckpt 文件**，无法跑 geometry diagnostics。
+- **SWM-base (20260419)**：`lewm-pusht/ckpt/pusht_swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64_20260419/` **既无 ckpt 也无 eval**。
+- **SWM-base (20260425)**：`lewm-pusht/ckpt/pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260425/` 有 eval **82.4%**，但同样**无 ckpt**。
 
 **PushT 与 TwoRoom 的关键差异**
 
@@ -479,14 +483,14 @@ TwoRoom 上 clean eval 呈现明显的两组：
 
 保存路径：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/`
 
-**PushT 相关性（n=7，缺 baselines + 2 个 fixed-std eval）**
+**PushT 相关性（n=7，缺 baselines geometry + 2 个 fixed-std eval）**
 
 | 指标对 | r | 与 TwoRoom 对比 |
 |---|---|---|
 | `noise_angle_slope` ↔ `eval_score` | **-0.233** | TwoRoom: **+0.645** → **符号相反** |
 | `clean_nn_cos_dist` ↔ `eval_score` | **-0.202** | TwoRoom: **-0.771** → 符号相同但弱很多 |
 
-> 样本量偏小（7）且缺少 baselines，相关性的置信度较低。但核心趋势已可见：PushT 上 noise_angle_slope 与 eval_score 呈负相关（ slope 越大 → eval 越低），与 TwoRoom 的正相关相反。
+> 样本量偏小（7）且缺少 baselines 的 geometry 数据（LeWM-base 有 eval 83.6% 但无 ckpt，SWM-base 既无 eval 也无 ckpt），相关性的置信度较低。但核心趋势已可见：PushT 上 noise_angle_slope 与 eval_score 呈负相关（ slope 越大 → eval 越低），与 TwoRoom 的正相关相反。
 
 **综合结论：诊断指标能区分任务适配性**
 
@@ -508,7 +512,7 @@ TwoRoom 上 clean eval 呈现明显的两组：
 
 **下一步**
 
-- 补跑 LeWM-base / SWM-base 的 PushT eval（或从已有 summary 提取），把 n 从 7 扩到 9，提升相关性置信度。
+- 补 LeWM-base / SWM-base 的 **ckpt 文件**（当前目录里只有 config.yaml 和/或 pusht_results.txt，没有 `.ckpt`），有了 ckpt 才能跑 geometry diagnostics，把 n 从 7 扩到 9，提升相关性置信度。
 - 若 `clean_nn_cos_dist` 的跨任务符号反转能被更多任务（Cube / Reacher）复现，即可作为论文独立贡献。
 
 #### P0.5 决策标准

@@ -1,6 +1,32 @@
 """
 noise_sensitivity.py - Noise robustness diagnostics for LeWM / SWM embeddings.
 
+References for the indicators emitted here:
+    - `clean_effective_rank`: matrix entropy of singular values.
+        Garrido et al., "RankMe: Assessing the downstream performance of
+        pretrained self-supervised representations by their rank", ICML 2023.
+    - `clean_pair_cos_dist_*`: aggregate pairwise distance is the same primitive
+        as Wang & Isola's `L_uniform` (sphere uniformity loss).
+        Wang & Isola, "Understanding Contrastive Representation Learning
+        through Alignment and Uniformity on the Hypersphere", ICML 2020.
+    - `clean_nn_cos_dist_*` / `clean_nn_l2_*`: latent nearest-neighbor distance
+        is the same primitive used in KNN-based OOD scoring.
+        Sun et al., "Out-of-Distribution Detection with Deep Nearest
+        Neighbors", NeurIPS 2022; Liu et al., "SNGP", NeurIPS 2020.
+    - `noise_l2_*` / `noise_cos_*` / `noise_angle_deg_*`: empirical input-noise
+        Jacobian / Lipschitz probing.
+        Virmaux & Scaman, "Lipschitz regularity of deep neural networks",
+        NeurIPS 2018; Hoffman et al., "Robust Learning with Jacobian
+        Regularization", arXiv:1908.02729 (2019); Cohen et al.,
+        "Certified Adversarial Robustness via Randomized Smoothing", ICML 2019.
+    - `cka_linear_clean_vs_noisy`: Centered Kernel Alignment between clean
+        and noisy embedding subspaces.
+        Kornblith et al., "Similarity of Neural Network Representations
+        Revisited", ICML 2019.
+    - `noise_to_nn_cos_ratio_*`, `robust_radius_std`,
+        `noise_angle_slope_deg_per_std`: composite ratios introduced by this
+        toolkit; see plan_v3.md §7.2 for novelty discussion.
+
 Notebook use:
 
     from tools.repr_analysis.noise_sensitivity import run_noise_sensitivity, format_noise_table
@@ -26,6 +52,7 @@ import torch
 import torch.nn.functional as F
 
 from tools.repr_analysis.analyze_repr import (
+    effective_rank,
     encode_sequences,
     get_embedding_space,
     get_model_spaces,
@@ -53,6 +80,9 @@ def _add_eval_noise(x: torch.Tensor, std: float, seed: int) -> torch.Tensor:
 def _select_frames(z: torch.Tensor, frame_scope: str) -> torch.Tensor:
     if frame_scope == "goal":
         return z[:, -1]
+    if frame_scope == "history":
+        # all frames except the last (predictor input scope; aligns with pixels-only failure)
+        return z[:, :-1].reshape(-1, z.size(-1))
     if frame_scope == "all":
         return z.reshape(-1, z.size(-1))
     raise ValueError(f"Unsupported frame_scope: {frame_scope}")
@@ -65,12 +95,16 @@ def _safe_quantile(x: torch.Tensor, q: float) -> float:
 
 
 def _pairwise_reference(z: torch.Tensor) -> Dict[str, float]:
+    # NN distance: KNN-OOD primitive (Sun et al., NeurIPS 2022; SNGP, Liu 2020).
+    # Pair distance median: discrete analogue of Wang & Isola L_uniform (ICML 2020).
+    # Effective rank (matrix entropy of SVs): RankMe (Garrido et al., ICML 2023).
     if z.size(0) < 2:
         return {
             "clean_nn_cos_dist_median": float("nan"),
             "clean_pair_cos_dist_median": float("nan"),
             "clean_nn_l2_median": float("nan"),
             "clean_pair_l2_median": float("nan"),
+            "clean_effective_rank": float("nan"),
         }
 
     z_norm = F.normalize(z, dim=-1, eps=1e-8)
@@ -88,10 +122,40 @@ def _pairwise_reference(z: torch.Tensor) -> Dict[str, float]:
         "clean_pair_cos_dist_median": _safe_quantile(cos_offdiag, 0.5),
         "clean_nn_l2_median": _safe_quantile(l2_nn, 0.5),
         "clean_pair_l2_median": _safe_quantile(l2_offdiag, 0.5),
+        # matrix entropy from singular values; disambiguates clustered vs collapsed
+        "clean_effective_rank": effective_rank(z),
     }
 
 
+def _linear_cka(X: torch.Tensor, Y: torch.Tensor) -> float:
+    """Linear CKA between two (N, D) feature matrices.
+
+    Centered Kernel Alignment, Kornblith et al. (ICML 2019). Captures global
+    subspace alignment between clean and noisy embeddings — complements
+    per-point shift metrics, which can miss the case where the cloud is
+    shifted/rotated as a whole but its internal geometry is preserved.
+
+    Returns 1.0 for identical, 0.0 for orthogonal subspaces.
+    """
+    if X.numel() == 0 or Y.numel() == 0 or X.size(0) < 2:
+        return float("nan")
+    Xc = X - X.mean(0, keepdim=True)
+    Yc = Y - Y.mean(0, keepdim=True)
+    XtY = Xc.T @ Yc
+    XtX = Xc.T @ Xc
+    YtY = Yc.T @ Yc
+    num = float((XtY * XtY).sum())
+    denom = float(torch.sqrt(((XtX * XtX).sum() * (YtY * YtY).sum()).clamp_min(1e-24)))
+    if denom < 1e-12:
+        return float("nan")
+    return num / denom
+
+
 def _shift_metrics(clean: torch.Tensor, noisy: torch.Tensor) -> Dict[str, float]:
+    # angle / l2 / cos shift: Monte-Carlo finite-difference Lipschitz probe at
+    # the data manifold; conceptually equivalent to Hoffman et al. (2019)
+    # Jacobian regularization probes and Virmaux & Scaman (NeurIPS 2018) local
+    # Lipschitz, restricted to Gaussian pixel noise (Cohen et al., ICML 2019).
     clean_norm = F.normalize(clean, dim=-1, eps=1e-8)
     noisy_norm = F.normalize(noisy, dim=-1, eps=1e-8)
     cos = (clean_norm * noisy_norm).sum(dim=-1).clamp(-1.0, 1.0)
@@ -109,6 +173,7 @@ def _shift_metrics(clean: torch.Tensor, noisy: torch.Tensor) -> Dict[str, float]
         "noise_l2_p90": _safe_quantile(l2_shift, 0.9),
         "clean_norm_mean": float(torch.linalg.vector_norm(clean, dim=-1).mean()),
         "noisy_norm_mean": float(torch.linalg.vector_norm(noisy, dim=-1).mean()),
+        "cka_linear_clean_vs_noisy": _linear_cka(clean, noisy),
     }
 
 
@@ -146,7 +211,7 @@ def analyze_model_noise(
         noisy_outputs = encode_sequences(model, noisy_batch)
         noisy_z = get_embedding_space(noisy_outputs, space).detach()
 
-        for frame_scope in ("goal", "all"):
+        for frame_scope in ("goal", "history", "all"):
             clean_frame = _select_frames(clean_z, frame_scope)
             noisy_frame = _select_frames(noisy_z, frame_scope)
             shift = _shift_metrics(clean_frame, noisy_frame)
@@ -254,16 +319,19 @@ def format_noise_table(rows: Sequence[Mapping[str, Any]], frame_scope: str = "go
         "noise_angle_deg_median",
         "noise_angle_deg_p90",
         "clean_nn_cos_dist_median",
+        "clean_effective_rank",
         "noise_to_nn_cos_ratio_median",
         "noise_to_nn_cos_ratio_p90",
         "noise_l2_median",
         "clean_nn_l2_median",
         "noise_to_nn_l2_ratio_median",
+        "cka_linear_clean_vs_noisy",
         "risk",
     ]
     df = pd.DataFrame(rows)
     df = df[df["frame_scope"] == frame_scope].copy()
-    df = df[columns].sort_values(["model", "std"]).reset_index(drop=True)
+    cols_present = [c for c in columns if c in df.columns]
+    df = df[cols_present].sort_values(["model", "std"]).reset_index(drop=True)
     numeric_cols = df.select_dtypes(include="number").columns
     df[numeric_cols] = df[numeric_cols].round(4)
     return df
@@ -285,6 +353,13 @@ def _require_matplotlib():
     return plt
 
 
+# `_interpolate_threshold` and `_near_zero_slope` underpin the empirical
+# `robust_radius_std` and `noise_angle_slope_deg_per_std` summary indicators.
+# These are composite ratios introduced by this toolkit (plan_v3.md §7.2);
+# the underlying idea echoes the certified radius framing of Cohen et al.
+# (Randomized Smoothing, ICML 2019), but here applied to a *planning latent*
+# rather than a classifier output, and produced empirically without
+# certification guarantees.
 def _interpolate_threshold(xs, ys, threshold: float) -> float:
     points = sorted(
         (float(x), float(y))
@@ -342,6 +417,7 @@ def _geometry_flags(
     angle_slope: float,
     clean_nn_cos: float,
     clean_nn_l2: float,
+    effective_rank_value: float = float("nan"),
 ) -> str:
     flags = []
     if not math.isnan(robust_radius) and robust_radius < 0.01:
@@ -352,17 +428,24 @@ def _geometry_flags(
     if not math.isnan(angle_slope) and angle_slope >= 1500:
         flags.append("high_angle_gain")
 
-    if (
+    nn_compact = (
         (not math.isnan(clean_nn_cos) and clean_nn_cos < 0.02)
         or (not math.isnan(clean_nn_l2) and clean_nn_l2 < 0.2)
-    ):
-        flags.append("clustered")
+    )
+    if nn_compact:
+        # Disambiguate: tight NN with low rank => collapse; tight NN with high rank => clustering
+        if not math.isnan(effective_rank_value) and effective_rank_value < 4.0:
+            flags.append("collapsed")
+        else:
+            flags.append("clustered")
 
     return ",".join(flags) if flags else "balanced"
 
 
 def _recommendation(flags: str) -> str:
     flag_set = set(flags.split(",")) if flags else set()
+    if "collapsed" in flag_set:
+        return "representation collapsed; strengthen anti-collapse regularizer before any robustness work"
     if "clustered" in flag_set and "fragile" in flag_set:
         return "avoid stronger invariance; add transition/action guardrail before more noise"
     if "clustered" in flag_set:
@@ -423,11 +506,13 @@ def summarize_noise_geometry(
         clean_row = group.iloc[0]
         clean_nn_cos = float(clean_row.get("clean_nn_cos_dist_median", float("nan")))
         clean_nn_l2 = float(clean_row.get("clean_nn_l2_median", float("nan")))
+        clean_eff_rank = float(clean_row.get("clean_effective_rank", float("nan")))
         flags = _geometry_flags(
             robust_radius=float(robust_radius),
             angle_slope=float(angle_slope),
             clean_nn_cos=clean_nn_cos,
             clean_nn_l2=clean_nn_l2,
+            effective_rank_value=clean_eff_rank,
         )
 
         summaries.append(
@@ -441,6 +526,7 @@ def summarize_noise_geometry(
                 "noise_ratio_slope_per_std": float(ratio_slope),
                 "clean_nn_cos_dist_median": clean_nn_cos,
                 "clean_nn_l2_median": clean_nn_l2,
+                "clean_effective_rank": clean_eff_rank,
                 "clean_norm_mean": float(clean_row.get("clean_norm_mean", float("nan"))),
                 "geometry_flag": flags,
                 "recommendation": _recommendation(flags),

@@ -29,9 +29,13 @@
 #                              （"pixels+goal" 表示同时加噪两端）
 #   frameskip                 数据加载 frameskip；默认 5（与训练 data config 一致）
 #   eval_gpus                 GPU id 列表，空格分隔；默认自动探测全部
-#   noise_table_stds          noise table 扫的 std；默认 0.0~0.10 一组
+#   noise_table_stds          诊断扫的 std；默认 0.0~0.10 一组（仍由本字段控制）
+#   diagnostic_rollout_steps  predictor 自回归 rollout 步数；默认 "1 2 4 8"
 #   skip_eval_sweep           设 1 跳过 eval sweep
-#   skip_noise_table          设 1 跳过 noise table
+#   skip_noise_table          legacy 名，等价于 skip_diagnostics
+#   skip_diagnostics          设 1 跳过整套诊断（noise/predictor/resolution）
+#   diagnostic_skip_predictor 设 1 仅跳过 predictor_sensitivity
+#   diagnostic_skip_resolution 设 1 仅跳过 task_resolution
 #
 # 用法示例：
 #   dataset_name=tworoom trainer_file=train_swm.py config=swm \
@@ -41,10 +45,16 @@
 #     bash run_trainer.sh
 #
 # 在结果目录会得到：
-#   eval_results/<label>.log         每个 eval 的完整 stdout
-#   eval_results/<label>_results.txt 该 eval 的 metrics 文本
-#   eval_results/noise_table/        noise sensitivity csv/json、geometry summary、PNG plots
-#   eval_results/summary.txt         所有 eval 的 metrics 一行摘要
+#   eval_results/<label>.log              每个 eval 的完整 stdout
+#   eval_results/<label>_results.txt      该 eval 的 metrics 文本
+#   eval_results/diagnostics/             noise + predictor + task_resolution
+#       noise_sensitivity.{csv,json}
+#       geometry_summary.{csv,json}
+#       predictor_sensitivity.{csv,json}
+#       task_resolution.{csv,json}
+#       diagnostics_summary.json          per-checkpoint 一行 roll-up
+#       *.png                             curves & geometry tradeoff plots
+#   eval_results/summary.txt              所有 eval + diagnostics 的摘要
 # ==========================================
 
 set -u  # treat unset vars as errors after the unsets below
@@ -225,22 +235,42 @@ else
     echo "[eval sweep] skipped (skip_eval_sweep=1)"
 fi
 
-# ---------- 5. Noise Sensitivity + Geometry Diagnostics ----------
-if [ "${skip_noise_table:-0}" != "1" ]; then
+# ---------- 5. Full Latent-Geometry Diagnostics ----------
+# Unified entry: noise_sensitivity + predictor_sensitivity + task_resolution.
+# Output dir: ${results_dir}/diagnostics/
+#   noise_sensitivity.{csv,json}, geometry_summary.{csv,json}, *.png
+#   predictor_sensitivity.{csv,json}
+#   task_resolution.{csv,json}
+#   diagnostics_summary.json   (per-checkpoint roll-up; consumed by P0.7)
+#
+# Backward-compat env vars:
+#   skip_noise_table=1         skips the entire diagnostics suite (legacy name)
+#   skip_diagnostics=1         same as above (preferred)
+#   noise_table_stds           still used; passed as --stds
+#   diagnostic_rollout_steps   default "1 2 4 8"
+#   diagnostic_skip_predictor=1 / diagnostic_skip_resolution=1   per-tool overrides
+if [ "${skip_diagnostics:-${skip_noise_table:-0}}" != "1" ]; then
     noise_table_stds="${noise_table_stds:-0.0 0.005 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1}"
+    diagnostic_rollout_steps="${diagnostic_rollout_steps:-1 2 4 8}"
+    diag_args=(
+        "--model" "${output_model_name}=${ckpt_abs}"
+        "--dataset" "${dataset_name}"
+        "--stds" ${noise_table_stds}
+        "--rollout-steps" ${diagnostic_rollout_steps}
+        "--frameskip" "${frameskip}"
+        "--save-dir" "${results_dir}/diagnostics"
+        "--plot"
+    )
+    [ "${diagnostic_skip_predictor:-0}" = "1" ] && diag_args+=("--skip-predictor")
+    [ "${diagnostic_skip_resolution:-0}" = "1" ] && diag_args+=("--skip-resolution")
+
     echo "==================================================="
-    echo "[noise geometry] running on ${ckpt_abs}"
+    echo "[diagnostics] running full suite on ${ckpt_abs}"
     echo "==================================================="
-    CUDA_VISIBLE_DEVICES=${gpu_array[0]} python -m tools.repr_analysis.noise_sensitivity \
-        --model "${output_model_name}=${ckpt_abs}" \
-        --dataset "${dataset_name}" \
-        --stds ${noise_table_stds} \
-        --frameskip ${frameskip} \
-        --save-dir "${results_dir}/noise_table" \
-        --plot \
-        2>&1 | tee "${results_dir}/noise_table.log"
+    CUDA_VISIBLE_DEVICES=${gpu_array[0]} python -m tools.repr_analysis.run_full_diagnostics \
+        "${diag_args[@]}" 2>&1 | tee "${results_dir}/diagnostics.log"
 else
-    echo "[noise geometry] skipped (skip_noise_table=1)"
+    echo "[diagnostics] skipped (skip_diagnostics=1)"
 fi
 
 # ---------- 6. Summary ----------
@@ -255,6 +285,7 @@ summary_file="${results_dir}/summary.txt"
         [ -e "$log" ] || continue
         base=$(basename "$log" .log)
         [ "$base" = "noise_table" ] && continue
+        [ "$base" = "diagnostics" ] && continue
         echo
         echo "== ${base} =="
         # 抓 metrics line（dict 形式）
@@ -264,10 +295,15 @@ summary_file="${results_dir}/summary.txt"
             grep -i "metrics\|success" "$log" | tail -3
         fi
     done
-    if [ -f "${results_dir}/noise_table/geometry_summary.csv" ]; then
+    if [ -f "${results_dir}/diagnostics/geometry_summary.csv" ]; then
         echo
         echo "----- geometry summary -----"
-        cat "${results_dir}/noise_table/geometry_summary.csv"
+        cat "${results_dir}/diagnostics/geometry_summary.csv"
+    fi
+    if [ -f "${results_dir}/diagnostics/diagnostics_summary.json" ]; then
+        echo
+        echo "----- diagnostics roll-up -----"
+        cat "${results_dir}/diagnostics/diagnostics_summary.json"
     fi
 } > "${summary_file}"
 
@@ -276,9 +312,12 @@ echo "[done] artifacts in:"
 echo "  ${results_dir}/"
 echo "  - per-eval logs:    *.log"
 echo "  - per-eval metrics: *_metrics.txt"
-echo "  - noise geometry:   noise_table/"
+echo "  - diagnostics:      diagnostics/"
 echo "      * noise_sensitivity.csv / .json"
 echo "      * geometry_summary.csv / .json"
+echo "      * predictor_sensitivity.csv / .json"
+echo "      * task_resolution.csv / .json"
+echo "      * diagnostics_summary.json"
 echo "      * noise_ratio_curve_goal.png"
 echo "      * noise_angle_curve_goal.png"
 echo "      * geometry_tradeoff_goal.png"

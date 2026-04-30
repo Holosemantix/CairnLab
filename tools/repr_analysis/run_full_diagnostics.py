@@ -1,0 +1,370 @@
+"""
+run_full_diagnostics.py — Single entry that runs noise sensitivity,
+predictor sensitivity, and task resolution diagnostics for one or more
+checkpoints, and saves a unified output directory.
+
+This is the script `run_trainer.sh` calls after training. It produces a
+self-contained diagnostic report per checkpoint that downstream
+correlation analysis (P0.4 / P0.7) consumes.
+
+Layout (per --save-dir):
+
+    <save_dir>/
+        noise_sensitivity.csv / .json
+        geometry_summary.csv  / .json
+        noise_ratio_curve_goal.png  (if --plot)
+        noise_angle_curve_goal.png  (if --plot)
+        geometry_tradeoff_goal.png  (if --plot)
+        predictor_sensitivity.csv / .json
+        task_resolution.csv / .json
+        diagnostics_summary.json   (one-line per-checkpoint roll-up)
+
+CLI mirrors `noise_sensitivity.py` for backwards compatibility:
+
+    python -m tools.repr_analysis.run_full_diagnostics \
+        --model swm=/path/to/model_object.ckpt \
+        --dataset tworoom \
+        --stds 0.0 0.005 0.01 0.02 0.03 0.05 \
+        --save-dir <results_dir>/diagnostics \
+        --plot
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+from pathlib import Path
+from typing import Any, Dict, Mapping, Sequence
+
+import torch
+
+from tools.repr_analysis.analyze_repr import to_serializable
+from tools.repr_analysis.noise_sensitivity import (
+    format_noise_table,
+    plot_geometry_tradeoff,
+    plot_noise_curves,
+    run_noise_sensitivity,
+    summarize_noise_geometry,
+)
+from tools.repr_analysis.predictor_sensitivity import (
+    format_predictor_table,
+    run_predictor_sensitivity,
+)
+from tools.repr_analysis.task_resolution import (
+    format_resolution_table,
+    run_task_resolution,
+)
+
+
+def _parse_model_specs(specs: Sequence[str]) -> Dict[str, str]:
+    models: Dict[str, str] = {}
+    for spec in specs:
+        if "=" not in spec:
+            raise ValueError(f"Model spec must be label=/path/to/ckpt, got: {spec}")
+        label, ckpt = spec.split("=", 1)
+        models[label.strip()] = ckpt.strip()
+    return models
+
+
+def _save_rows(save_dir: Path, name: str, rows: Sequence[Mapping[str, Any]]) -> None:
+    if not rows:
+        return
+    with (save_dir / f"{name}.json").open("w") as f:
+        json.dump(to_serializable(list(rows)), f, indent=2)
+    with (save_dir / f"{name}.csv").open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _summarize_noise_to_predictor_to_resolution(
+    *,
+    noise_rows,
+    predictor_rows,
+    resolution_rows,
+) -> list[Dict[str, Any]]:
+    """One-line per-checkpoint roll-up combining the three diagnostic families."""
+    summary: Dict[str, Dict[str, Any]] = {}
+
+    geometry = summarize_noise_geometry(noise_rows, frame_scope="goal")
+    if not geometry.empty:
+        for _, row in geometry.iterrows():
+            label = row["model"]
+            summary.setdefault(label, {"model": label})
+            summary[label].update({
+                "noise_robust_radius_std": float(row["robust_radius_std"]),
+                "noise_angle_slope_deg_per_std": float(row["noise_angle_slope_deg_per_std"]),
+                "clean_nn_cos_dist_median": float(row["clean_nn_cos_dist_median"]),
+                "clean_effective_rank": float(row.get("clean_effective_rank", float("nan"))),
+                "geometry_flag": str(row.get("geometry_flag", "")),
+                "recommendation": str(row.get("recommendation", "")),
+            })
+
+    # CKA at the largest std we measured (worst-case alignment loss)
+    for r in noise_rows:
+        if r["frame_scope"] != "goal":
+            continue
+        label = r["model"]
+        summary.setdefault(label, {"model": label})
+        cka = r.get("cka_linear_clean_vs_noisy", float("nan"))
+        std = r["std"]
+        cur_max = summary[label].get("_cka_max_std", -1.0)
+        if std > cur_max:
+            summary[label]["_cka_max_std"] = float(std)
+            summary[label]["cka_linear_at_max_std"] = float(cka)
+
+    # Predictor: rollout drift @ T=8 (or smallest available) with largest std
+    for r in predictor_rows:
+        label = r["model"]
+        summary.setdefault(label, {"model": label})
+        std = r["std"]
+        cur_max = summary[label].get("_pred_max_std", -1.0)
+        if std > cur_max:
+            summary[label]["_pred_max_std"] = float(std)
+            for T in (8, 4, 2, 1):
+                key = f"rollout_T{T}_l2_median"
+                if r.get(key) is not None and r[key] == r[key]:  # not NaN
+                    summary[label][f"predictor_rollout_T{T}_l2"] = float(r[key])
+                    summary[label]["predictor_target_to_nn_cos_ratio_at_max_std"] = float(
+                        r.get("target_to_nn_cos_ratio", float("nan"))
+                    )
+                    break
+
+    # Task resolution
+    for r in resolution_rows:
+        label = r["model"]
+        summary.setdefault(label, {"model": label})
+        summary[label].update({
+            "transition_resolution_ratio_cos": float(r.get("transition_resolution_ratio_cos", float("nan"))),
+            "transition_resolution_ratio_l2": float(r.get("transition_resolution_ratio_l2", float("nan"))),
+            "id_probe_r2": float(r.get("id_probe_r2", float("nan"))),
+            "id_probe_r2_min": float(r.get("id_probe_r2_min", float("nan"))),
+            "lidar_rank": float(r.get("lidar_rank", float("nan"))),
+        })
+
+    # Drop bookkeeping fields
+    for s in summary.values():
+        for k in list(s.keys()):
+            if k.startswith("_"):
+                s.pop(k)
+
+    return list(summary.values())
+
+
+def run_full_diagnostics(
+    *,
+    models: Mapping[str, str],
+    dataset: str = "tworoom",
+    stds: Sequence[float] = (0.0, 0.005, 0.01, 0.02, 0.03, 0.05, 0.08),
+    rollout_steps: Sequence[int] = (1, 2, 4, 8),
+    state_key: str | None = None,
+    n_sequences: int = 256,
+    future_steps: int = 8,
+    frameskip: int = 1,
+    img_size: int = 224,
+    embedding_space: str | None = None,
+    seed: int = 3072,
+    device: str = "cuda" if torch.cuda.is_available() else "cpu",
+    save_dir: str | Path | None = None,
+    plot: bool = False,
+    skip_noise: bool = False,
+    skip_predictor: bool = False,
+    skip_resolution: bool = False,
+    predictor_history_noise_only: bool = True,
+    log=print,
+) -> Dict[str, Any]:
+    """Run the full diagnostic suite from one Python entrypoint.
+
+    This is the notebook/API counterpart of the CLI. It returns all raw rows
+    plus formatted tables and the one-line roll-up used by P0 correlation work.
+    When `save_dir` is provided it also writes the same artifacts as the CLI.
+    """
+    output_dir = Path(save_dir) if save_dir is not None else None
+    if output_dir is not None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    common = dict(
+        models=models,
+        dataset=dataset,
+        state_key=state_key,
+        n_sequences=n_sequences,
+        future_steps=future_steps,
+        frameskip=frameskip,
+        img_size=img_size,
+        embedding_space=embedding_space,
+        seed=seed,
+        device=device,
+    )
+
+    noise_rows: list = []
+    predictor_rows: list = []
+    resolution_rows: list = []
+    geometry = None
+
+    if not skip_noise:
+        if log is not None:
+            log("==[diagnostics] running noise_sensitivity ==")
+        noise_rows = run_noise_sensitivity(stds=stds, **common)
+        if output_dir is not None:
+            _save_rows(output_dir, "noise_sensitivity", noise_rows)
+        try:
+            geometry = summarize_noise_geometry(noise_rows, frame_scope="goal")
+            if output_dir is not None:
+                geometry.to_csv(output_dir / "geometry_summary.csv", index=False)
+                with (output_dir / "geometry_summary.json").open("w") as f:
+                    json.dump(to_serializable(geometry.to_dict(orient="records")), f, indent=2)
+        except Exception as e:
+            if log is not None:
+                log(f"[diagnostics] geometry summary skipped: {e}")
+        try:
+            if log is not None:
+                log(format_noise_table(noise_rows, frame_scope="goal").to_string(index=False))
+        except Exception as e:
+            if log is not None:
+                log(f"[diagnostics] noise table format skipped: {e}")
+        if plot and output_dir is not None:
+            try:
+                fig = plot_noise_curves(noise_rows, frame_scope="goal")
+                fig.savefig(output_dir / "noise_ratio_curve_goal.png", dpi=200, bbox_inches="tight")
+                fig = plot_noise_curves(
+                    noise_rows,
+                    frame_scope="goal",
+                    metric="noise_angle_deg_median",
+                )
+                fig.savefig(output_dir / "noise_angle_curve_goal.png", dpi=200, bbox_inches="tight")
+                fig = plot_geometry_tradeoff(
+                    summarize_noise_geometry(noise_rows, frame_scope="goal")
+                )
+                fig.savefig(output_dir / "geometry_tradeoff_goal.png", dpi=200, bbox_inches="tight")
+            except Exception as e:
+                if log is not None:
+                    log(f"[diagnostics] plotting skipped: {e}")
+
+    if not skip_predictor:
+        if log is not None:
+            log("==[diagnostics] running predictor_sensitivity ==")
+        predictor_rows = run_predictor_sensitivity(
+            stds=stds,
+            rollout_steps=rollout_steps,
+            history_noise_only=predictor_history_noise_only,
+            **common,
+        )
+        if output_dir is not None:
+            _save_rows(output_dir, "predictor_sensitivity", predictor_rows)
+        try:
+            if log is not None:
+                log(format_predictor_table(predictor_rows).to_string(index=False))
+        except Exception as e:
+            if log is not None:
+                log(f"[diagnostics] predictor table format skipped: {e}")
+
+    if not skip_resolution:
+        if log is not None:
+            log("==[diagnostics] running task_resolution ==")
+        resolution_rows = run_task_resolution(**common)
+        if output_dir is not None:
+            _save_rows(output_dir, "task_resolution", resolution_rows)
+        try:
+            if log is not None:
+                log(format_resolution_table(resolution_rows).to_string(index=False))
+        except Exception as e:
+            if log is not None:
+                log(f"[diagnostics] resolution table format skipped: {e}")
+
+    rollup = _summarize_noise_to_predictor_to_resolution(
+        noise_rows=noise_rows,
+        predictor_rows=predictor_rows,
+        resolution_rows=resolution_rows,
+    )
+    if output_dir is not None:
+        with (output_dir / "diagnostics_summary.json").open("w") as f:
+            json.dump(to_serializable(rollup), f, indent=2)
+
+    try:
+        noise_table = format_noise_table(noise_rows, frame_scope="goal") if noise_rows else None
+    except Exception:
+        noise_table = None
+    try:
+        predictor_table = format_predictor_table(predictor_rows) if predictor_rows else None
+    except Exception:
+        predictor_table = None
+    try:
+        resolution_table = format_resolution_table(resolution_rows) if resolution_rows else None
+    except Exception:
+        resolution_table = None
+
+    if log is not None and output_dir is not None:
+        log(f"\n[diagnostics] saved unified output to: {output_dir}")
+        log("[diagnostics] per-checkpoint roll-up:")
+        for s in rollup:
+            log(json.dumps(s, indent=2, default=str))
+
+    return {
+        "noise_rows": noise_rows,
+        "geometry_summary": geometry,
+        "predictor_rows": predictor_rows,
+        "resolution_rows": resolution_rows,
+        "diagnostics_summary": rollup,
+        "noise_table": noise_table,
+        "predictor_table": predictor_table,
+        "resolution_table": resolution_table,
+        "save_dir": output_dir,
+    }
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description="Run full latent-geometry diagnostic suite.")
+    p.add_argument("--model", action="append", required=True,
+                   help="Model spec as label=/path/to/model_object.ckpt. Repeat for comparisons.")
+    p.add_argument("--dataset", default="tworoom")
+    p.add_argument("--stds", type=float, nargs="+",
+                   default=[0.0, 0.005, 0.01, 0.02, 0.03, 0.05, 0.08])
+    p.add_argument("--rollout-steps", type=int, nargs="+", default=[1, 2, 4, 8])
+    p.add_argument("--state-key", default=None)
+    p.add_argument("--n-sequences", type=int, default=256)
+    p.add_argument("--future-steps", type=int, default=8)
+    p.add_argument("--frameskip", type=int, default=1)
+    p.add_argument("--img-size", type=int, default=224)
+    p.add_argument("--embedding-space", default=None, choices=[None, "raw", "normalized"])
+    p.add_argument("--seed", type=int, default=3072)
+    p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    p.add_argument("--save-dir", required=True)
+    p.add_argument("--plot", action="store_true", help="Save diagnostic PNG plots.")
+    p.add_argument("--skip-noise", action="store_true")
+    p.add_argument("--skip-predictor", action="store_true")
+    p.add_argument("--skip-resolution", action="store_true")
+    p.add_argument("--predictor-history-noise-only", action="store_true", default=True,
+                   help="Predictor diagnostic adds noise only to history frames (default).")
+    p.add_argument("--predictor-full-noise",
+                   dest="predictor_history_noise_only", action="store_false",
+                   help="Predictor diagnostic adds noise to all frames including goal.")
+    return p
+
+
+def main():
+    args = build_parser().parse_args()
+    run_full_diagnostics(
+        models=_parse_model_specs(args.model),
+        dataset=args.dataset,
+        stds=args.stds,
+        rollout_steps=args.rollout_steps,
+        state_key=args.state_key,
+        n_sequences=args.n_sequences,
+        future_steps=args.future_steps,
+        frameskip=args.frameskip,
+        img_size=args.img_size,
+        embedding_space=args.embedding_space,
+        seed=args.seed,
+        device=args.device,
+        save_dir=args.save_dir,
+        plot=args.plot,
+        skip_noise=args.skip_noise,
+        skip_predictor=args.skip_predictor,
+        skip_resolution=args.skip_resolution,
+        predictor_history_noise_only=args.predictor_history_noise_only,
+    )
+
+
+if __name__ == "__main__":
+    main()

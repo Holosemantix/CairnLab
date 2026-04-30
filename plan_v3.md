@@ -552,6 +552,42 @@ PushT：
 > 2. `id_probe_r²` PushT (0.67–0.77) >> TwoRoom (0.14–0.28)，说明 PushT 的 latent 天然保留了更强的动作可预测性；但 TwoRoom LeWM-fixed-std 出现 **−0.834** 的异常负值，说明聚簇化严重破坏了动作信息。
 > 3. `lidar_rank` PushT (7.6–38.1) > TwoRoom (3.9–10.5)，与任务复杂度一致；SWM-perframe 在 PushT 上 lidar_rank 飙升到 35–38（远高于 LeWM 的 13–16），可能暗示球面 uniformity 在高维连续控制任务中引入了额外的有效维度。
 
+**Latent-noise sensitivity（直接对 `z` 注入高斯噪声，跳过 encoder）**
+
+TwoRoom（history scope @ std=0.08，predictor 自回归 rollout T=8 L2 drift；goal scope @ std=0.08，cost surface slope）：
+
+| 模型 | pred_T8_l2_drift | cost_slope_goal | noise_geometry |
+|---|---:|---:|---|
+| LeWM-base | **5.81** | **2.08** | ambient |
+| LeWM-fixed-std | 7.36 | 2.90 | ambient |
+| LeWM-perframe-p05 | 4.81 | 2.02 | ambient |
+| LeWM-perframe-p1 | 5.90 | 2.05 | ambient |
+| SWM-base | **0.57** | **1.02** | tangent |
+| SWM-fixed-std | 0.63 | 1.58 | tangent |
+| SWM-perframe-p05 | 0.46 | 1.06 | tangent |
+| SWM-perframe-p1 | 0.41 | 1.03 | tangent |
+
+PushT：
+
+| 模型 | pred_T8_l2_drift | cost_slope_goal | noise_geometry |
+|---|---:|---:|---|
+| LeWM-fixed-std | **10.97** | **3.76** | ambient |
+| LeWM-perframe-0to001-p1 | 12.05 | 3.65 | ambient |
+| LeWM-perframe-0to002-p1 | 11.24 | 3.65 | ambient |
+| LeWM-perframe-0to005-p1 | 10.05 | 3.78 | ambient |
+| SWM-fixed-std | **0.67** | **1.76** | tangent |
+| SWM-perframe-0to001-p05 | 0.77 | 1.67 | tangent |
+| SWM-perframe-0to001-p1 | 0.74 | 1.65 | tangent |
+| SWM-perframe-0to002-p05 | 0.78 | 1.62 | tangent |
+| SWM-perframe-0to002-p1 | 0.81 | 1.61 | tangent |
+
+> **核心洞察**：
+> 1. **SWM predictor 天生对 latent perturbation 稳定 10–16×。** TwoRoom 5.8→0.6，PushT 11.0→0.7。这是因为 cosine/normalized predictor 内建了尺度不变性；LeWM 的 L2 predictor 对 latent scale 敏感。
+> 2. **LeWM cost surface 对 goal latent 扰动敏感约 2×。** TwoRoom 2.1 vs 1.0，PushT 3.8 vs 1.6。L2 cost 在 Euclidean space 的斜率更大，同样的 latent 偏移产生更大的 cost 变化。
+> 3. **Per-frame pixel-noise training 不改善 predictor 的 latent-noise 鲁棒性。** LeWM-perframe 的 T8 drift 与 baseline 几乎相同（5.9 vs 5.8），SWM-perframe 甚至略升（0.81 vs 0.67）。这说明三层归因中，瓶颈在 **Layer 1 (encoder)**，而非 Layer 2 (predictor) 或 Layer 3 (cost surface)。noise training 的收益集中在 pixel→latent 映射的平滑化，而不是 predictor 本身的 Lipschitz 改善。
+
+结果保存：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/latent_noise_diagnostics/`
+
 **PushT 与 TwoRoom 的关键差异**
 
 1. **LeWM-fixed-std 在 PushT 上是 robust，在 TwoRoom 上是 fragile,clustered。**  

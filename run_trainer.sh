@@ -43,7 +43,7 @@
 # 在结果目录会得到：
 #   eval_results/<label>.log         每个 eval 的完整 stdout
 #   eval_results/<label>_results.txt 该 eval 的 metrics 文本
-#   eval_results/noise_table/        noise sensitivity 的 csv/json
+#   eval_results/noise_table/        noise sensitivity csv/json、geometry summary、PNG plots
 #   eval_results/summary.txt         所有 eval 的 metrics 一行摘要
 # ==========================================
 
@@ -225,11 +225,11 @@ else
     echo "[eval sweep] skipped (skip_eval_sweep=1)"
 fi
 
-# ---------- 5. Noise Sensitivity Table ----------
+# ---------- 5. Noise Sensitivity + Geometry Diagnostics ----------
 if [ "${skip_noise_table:-0}" != "1" ]; then
     noise_table_stds="${noise_table_stds:-0.0 0.005 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1}"
     echo "==================================================="
-    echo "[noise table] running on ${ckpt_abs}"
+    echo "[noise geometry] running on ${ckpt_abs}"
     echo "==================================================="
     CUDA_VISIBLE_DEVICES=${gpu_array[0]} python -m tools.repr_analysis.noise_sensitivity \
         --model "${output_model_name}=${ckpt_abs}" \
@@ -240,7 +240,7 @@ if [ "${skip_noise_table:-0}" != "1" ]; then
         --plot \
         2>&1 | tee "${results_dir}/noise_table.log"
 else
-    echo "[noise table] skipped (skip_noise_table=1)"
+    echo "[noise geometry] skipped (skip_noise_table=1)"
 fi
 
 # ---------- 6. Summary ----------
@@ -264,6 +264,11 @@ summary_file="${results_dir}/summary.txt"
             grep -i "metrics\|success" "$log" | tail -3
         fi
     done
+    if [ -f "${results_dir}/noise_table/geometry_summary.csv" ]; then
+        echo
+        echo "----- geometry summary -----"
+        cat "${results_dir}/noise_table/geometry_summary.csv"
+    fi
 } > "${summary_file}"
 
 echo "==================================================="
@@ -271,7 +276,12 @@ echo "[done] artifacts in:"
 echo "  ${results_dir}/"
 echo "  - per-eval logs:    *.log"
 echo "  - per-eval metrics: *_metrics.txt"
-echo "  - noise table:      noise_table/"
+echo "  - noise geometry:   noise_table/"
+echo "      * noise_sensitivity.csv / .json"
+echo "      * geometry_summary.csv / .json"
+echo "      * noise_ratio_curve_goal.png"
+echo "      * noise_angle_curve_goal.png"
+echo "      * geometry_tradeoff_goal.png"
 echo "  - summary:          summary.txt"
 echo "==================================================="
 

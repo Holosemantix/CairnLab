@@ -431,6 +431,20 @@ python eval.py --config-name=tworoom.yaml policy=<swm_ckpt> \
 - B 明显回升：cost saturation 是重要因素。
 - B 仍然低：encoder 已把 noisy goal 编到错误位置，cost swap 无法救。
 
+**当前结果（TwoRoom, std=0.03, pixels+goal, num_eval=50）**
+
+| 变体 | cost type | cost space | score |
+|---|---|---|---:|
+| A | cosine | normalized | 36.0 |
+| B | mse | raw | 42.0 |
+
+结论：
+
+- `raw + mse` 只带来小幅回升（+6），没有接近 clean SWM（90.8）或 LeWM std=0.03（90）。
+- cost saturation 可能贡献了一部分损害，但不是主因。
+- 主导失败仍然是 upstream encoder / noisy goal embedding corruption：目标 latent 已经偏到错误区域，eval-only cost swap 无法修复。
+- P2 因此不再作为主要修复方向；后续优先级应回到 P0/P1/P3/P4。
+
 ### P3：Encoder Sensitivity 拆解
 
 目标：定位 SWM angular sensitivity 的来源。

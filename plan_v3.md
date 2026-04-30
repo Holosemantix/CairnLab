@@ -485,6 +485,73 @@ PushT（无 baseline ckpt，用 fixed-std 作参照）：
 
 > 注：T=8 L2 drift 指在 history 帧注入噪声后， predictor 自回归 rollout 8 步的 L2 漂移中位数。TwoRoom 中 LeWM-perframe 从 18→0.8、SWM-perframe 从 1.25→0.07，均降低一个数量级以上；PushT 中 LeWM 随 noise 强度增加逐步降低，SWM 降幅有限。
 
+**补充诊断指标**
+
+*Noise robustness 补充（max std 条件下）*
+
+TwoRoom：
+
+| 模型 | CKA(clean, noisy) | pred_target/nn_cos_ratio |
+|---|---:|---:|
+| LeWM-base | **0.273** | 0.00016 |
+| LeWM-fixed-std | 0.931 | 0.00009 |
+| LeWM-perframe-p05 | **0.971** | **0.00003** |
+| LeWM-perframe-p1 | **0.983** | **0.00003** |
+| SWM-base | **0.385** | 0.00010 |
+| SWM-fixed-std | 0.878 | 0.00056 |
+| SWM-perframe-p05 | **0.977** | **0.00007** |
+| SWM-perframe-p1 | **0.987** | **0.00007** |
+
+PushT：
+
+| 模型 | CKA(clean, noisy) | pred_target/nn_cos_ratio |
+|---|---:|---:|
+| LeWM-fixed-std | 0.876 | **0.00001** |
+| LeWM-perframe-0to001-p1 | 0.909 | **0.00000** |
+| LeWM-perframe-0to002-p1 | **0.971** | **0.00000** |
+| LeWM-perframe-0to005-p1 | **0.993** | **0.00000** |
+| SWM-fixed-std | 0.886 | 0.00003 |
+| SWM-perframe-0to001-p05 | **0.578** | 0.00002 |
+| SWM-perframe-0to001-p1 | **0.520** | **0.00001** |
+| SWM-perframe-0to002-p05 | 0.748 | **0.00001** |
+| SWM-perframe-0to002-p1 | 0.894 | **0.00001** |
+
+> CKA：噪声 latent 与 clean latent 的 Centered Kernel Alignment。baseline 极低（TwoRoom LeWM 0.27 / SWM 0.38），noise training 后均跃升至 >0.87，说明 noise training 显著增强了 encoder 的表征稳定性。PushT SWM-perframe-0to001 反常地低（0.52–0.58），可能说明该配置下的 latent 对噪声过于敏感或发生了表征切换。
+
+*Task resolution & action predictability*
+
+TwoRoom：
+
+| 模型 | trans_res_cos | trans_res_l2 | id_probe_r² | lidar_rank |
+|---|---:|---:|---:|---:|
+| LeWM-base | 0.556 | 0.729 | **+0.276** | 4.75 |
+| LeWM-fixed-std | **0.252** | 0.500 | **−0.834** | 3.91 |
+| LeWM-perframe-p05 | 0.527 | 0.708 | +0.218 | 5.35 |
+| LeWM-perframe-p1 | 0.549 | 0.713 | +0.136 | 4.33 |
+| SWM-base | **0.734** | **0.857** | +0.263 | 8.27 |
+| SWM-fixed-std | **0.185** | 0.430 | +0.234 | 4.92 |
+| SWM-perframe-p05 | 0.657 | 0.810 | +0.255 | 8.58 |
+| SWM-perframe-p1 | 0.634 | 0.796 | +0.251 | **10.47** |
+
+PushT：
+
+| 模型 | trans_res_cos | trans_res_l2 | id_probe_r² | lidar_rank |
+|---|---:|---:|---:|---:|
+| LeWM-fixed-std | **0.059** | **0.248** | **+0.776** | 12.34 |
+| LeWM-perframe-0to001-p1 | 0.084 | 0.295 | +0.770 | 14.64 |
+| LeWM-perframe-0to002-p1 | 0.087 | 0.299 | +0.769 | 13.89 |
+| LeWM-perframe-0to005-p1 | 0.070 | 0.271 | +0.743 | 16.33 |
+| SWM-fixed-std | 0.079 | 0.281 | +0.767 | 7.62 |
+| SWM-perframe-0to001-p05 | 0.100 | 0.316 | +0.686 | 35.25 |
+| SWM-perframe-0to001-p1 | **0.122** | **0.349** | +0.674 | 37.25 |
+| SWM-perframe-0to002-p05 | 0.118 | 0.344 | +0.675 | 38.11 |
+| SWM-perframe-0to002-p1 | **0.121** | 0.348 | +0.695 | 36.38 |
+
+> **关键发现**：
+> 1. `transition_resolution_ratio` 完美区分任务类型：TwoRoom cos 0.18–0.73（离散状态转移，相邻帧差异大），PushT cos 0.06–0.12（连续控制，相邻帧极相似）。
+> 2. `id_probe_r²` PushT (0.67–0.77) >> TwoRoom (0.14–0.28)，说明 PushT 的 latent 天然保留了更强的动作可预测性；但 TwoRoom LeWM-fixed-std 出现 **−0.834** 的异常负值，说明聚簇化严重破坏了动作信息。
+> 3. `lidar_rank` PushT (7.6–38.1) > TwoRoom (3.9–10.5)，与任务复杂度一致；SWM-perframe 在 PushT 上 lidar_rank 飙升到 35–38（远高于 LeWM 的 13–16），可能暗示球面 uniformity 在高维连续控制任务中引入了额外的有效维度。
+
 **PushT 与 TwoRoom 的关键差异**
 
 1. **LeWM-fixed-std 在 PushT 上是 robust，在 TwoRoom 上是 fragile,clustered。**  

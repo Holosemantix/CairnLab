@@ -78,7 +78,10 @@ Noise sensitivity usage from a notebook:
 ```python
 from tools.repr_analysis.noise_sensitivity import (
     format_noise_table,
+    plot_geometry_tradeoff,
+    plot_noise_curves,
     run_noise_sensitivity,
+    summarize_noise_geometry,
 )
 
 rows = run_noise_sensitivity(
@@ -91,10 +94,39 @@ rows = run_noise_sensitivity(
     n_sequences=256,
 )
 
-format_noise_table(rows, frame_scope="goal")
+noise_table = format_noise_table(rows, frame_scope="goal")
+geometry_summary = summarize_noise_geometry(rows, frame_scope="goal")
+
+display(noise_table)
+display(geometry_summary)
+
+plot_noise_curves(rows, frame_scope="goal")
+plot_noise_curves(rows, frame_scope="goal", metric="noise_angle_deg_median")
+plot_geometry_tradeoff(geometry_summary)
 ```
 
 The key column is `noise_to_nn_cos_ratio_median`: values near or above 1 mean the median noisy goal shift is as large as the median nearest-neighbor clean goal separation.
+
+`summarize_noise_geometry()` turns the raw curve into design indicators:
+
+- `robust_radius_std`: interpolated std where `noise_to_nn_cos_ratio_median` reaches 1.
+- `noise_angle_slope_deg_per_std`: near-zero angular gain from pixel noise to latent direction shift.
+- `clean_nn_cos_dist_median`: clean-state separation, used as a rough resolution proxy.
+- `geometry_flag` / `recommendation`: compact rule-of-thumb labels for whether the model is fragile, clustered, or relatively balanced.
+
+CLI usage with saved plots:
+
+```bash
+python -m tools.repr_analysis.noise_sensitivity \
+  --model swm=/path/to/swm.ckpt \
+  --model lewm=/path/to/lewm.ckpt \
+  --dataset tworoom \
+  --stds 0 0.005 0.01 0.02 0.03 0.05 \
+  --save-dir /tmp/noise_geometry \
+  --plot
+```
+
+This writes `noise_sensitivity.csv`, `geometry_summary.csv`, and three PNGs: ratio curve, angle curve, and robustness/resolution tradeoff map.
 
 With an optional external reference probe:
 

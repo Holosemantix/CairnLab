@@ -237,6 +237,7 @@ if [ "${skip_noise_table:-0}" != "1" ]; then
         --stds ${noise_table_stds} \
         --frameskip ${frameskip} \
         --save-dir "${results_dir}/noise_table" \
+        --plot \
         2>&1 | tee "${results_dir}/noise_table.log"
 else
     echo "[noise table] skipped (skip_noise_table=1)"

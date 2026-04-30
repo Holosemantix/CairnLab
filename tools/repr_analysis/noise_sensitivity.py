@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 from pathlib import Path
 from typing import Any, Dict, Mapping, Sequence
 
@@ -268,6 +269,257 @@ def format_noise_table(rows: Sequence[Mapping[str, Any]], frame_scope: str = "go
     return df
 
 
+def _require_pandas():
+    try:
+        import pandas as pd
+    except ImportError as exc:
+        raise ImportError("This helper requires pandas.") from exc
+    return pd
+
+
+def _require_matplotlib():
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as exc:
+        raise ImportError("This helper requires matplotlib.") from exc
+    return plt
+
+
+def _interpolate_threshold(xs, ys, threshold: float) -> float:
+    points = sorted(
+        (float(x), float(y))
+        for x, y in zip(xs, ys)
+        if not math.isnan(float(x)) and not math.isnan(float(y))
+    )
+    if not points:
+        return float("nan")
+
+    prev_x, prev_y = points[0]
+    if prev_y >= threshold:
+        return prev_x
+
+    for x, y in points[1:]:
+        if y >= threshold:
+            if y == prev_y:
+                return x
+            alpha = (threshold - prev_y) / (y - prev_y)
+            return prev_x + alpha * (x - prev_x)
+        prev_x, prev_y = x, y
+    return float("nan")
+
+
+def _near_zero_slope(xs, ys, max_std: float) -> float:
+    pairs = [
+        (float(x), float(y))
+        for x, y in zip(xs, ys)
+        if 0.0 < float(x) <= max_std
+        and not math.isnan(float(x))
+        and not math.isnan(float(y))
+    ]
+    if not pairs:
+        return float("nan")
+    denom = sum(x * x for x, _ in pairs)
+    if denom <= 0:
+        return float("nan")
+    return sum(x * y for x, y in pairs) / denom
+
+
+def _first_crossing_std(xs, ys, threshold: float) -> float:
+    pairs = sorted(
+        (float(x), float(y))
+        for x, y in zip(xs, ys)
+        if not math.isnan(float(x)) and not math.isnan(float(y))
+    )
+    for x, y in pairs:
+        if y >= threshold:
+            return x
+    return float("nan")
+
+
+def _geometry_flags(
+    *,
+    robust_radius: float,
+    angle_slope: float,
+    clean_nn_cos: float,
+    clean_nn_l2: float,
+) -> str:
+    flags = []
+    if not math.isnan(robust_radius) and robust_radius < 0.01:
+        flags.append("fragile")
+    elif not math.isnan(robust_radius) and robust_radius >= 0.02:
+        flags.append("robust")
+
+    if not math.isnan(angle_slope) and angle_slope >= 1500:
+        flags.append("high_angle_gain")
+
+    if (
+        (not math.isnan(clean_nn_cos) and clean_nn_cos < 0.02)
+        or (not math.isnan(clean_nn_l2) and clean_nn_l2 < 0.2)
+    ):
+        flags.append("clustered")
+
+    return ",".join(flags) if flags else "balanced"
+
+
+def _recommendation(flags: str) -> str:
+    flag_set = set(flags.split(",")) if flags else set()
+    if "clustered" in flag_set and "fragile" in flag_set:
+        return "avoid stronger invariance; add transition/action guardrail before more noise"
+    if "clustered" in flag_set:
+        return "watch precision-sensitive tasks; reduce noise or add resolution guardrail"
+    if "fragile" in flag_set or "high_angle_gain" in flag_set:
+        return "try weak noise consistency or encoder-sensitivity ablation"
+    if "robust" in flag_set:
+        return "geometry is noise-robust; prioritize clean planning/action metrics"
+    return "collect eval correlation before changing training"
+
+
+def summarize_noise_geometry(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    frame_scope: str = "goal",
+    threshold: float = 1.0,
+    slope_max_std: float = 0.01,
+):
+    """Summarize noise rows into geometry design indicators.
+
+    Returns one row per `(model, frame_scope, embedding_space)` with:
+    - empirical robust radius: interpolated std where shift / clean NN reaches 1
+    - near-zero angular slope: degrees per pixel-space std near zero
+    - first high-risk std
+    - a compact rule-based geometry flag and recommendation
+    """
+    pd = _require_pandas()
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return pd.DataFrame()
+
+    df = df[df["frame_scope"] == frame_scope].copy()
+    summaries = []
+    group_cols = ["model", "frame_scope", "embedding_space"]
+    for keys, group in df.groupby(group_cols, sort=False):
+        group = group.sort_values("std")
+        robust_radius = _interpolate_threshold(
+            group["std"],
+            group["noise_to_nn_cos_ratio_median"],
+            threshold,
+        )
+        angle_slope = _near_zero_slope(
+            group["std"],
+            group["noise_angle_deg_median"],
+            slope_max_std,
+        )
+        ratio_slope = _near_zero_slope(
+            group["std"],
+            group["noise_to_nn_cos_ratio_median"],
+            slope_max_std,
+        )
+        first_high = _first_crossing_std(
+            group["std"],
+            group["noise_to_nn_cos_ratio_median"],
+            threshold,
+        )
+
+        clean_row = group.iloc[0]
+        clean_nn_cos = float(clean_row.get("clean_nn_cos_dist_median", float("nan")))
+        clean_nn_l2 = float(clean_row.get("clean_nn_l2_median", float("nan")))
+        flags = _geometry_flags(
+            robust_radius=float(robust_radius),
+            angle_slope=float(angle_slope),
+            clean_nn_cos=clean_nn_cos,
+            clean_nn_l2=clean_nn_l2,
+        )
+
+        summaries.append(
+            {
+                "model": keys[0],
+                "frame_scope": keys[1],
+                "embedding_space": keys[2],
+                "robust_radius_std": float(robust_radius),
+                "first_high_risk_std": float(first_high),
+                "noise_angle_slope_deg_per_std": float(angle_slope),
+                "noise_ratio_slope_per_std": float(ratio_slope),
+                "clean_nn_cos_dist_median": clean_nn_cos,
+                "clean_nn_l2_median": clean_nn_l2,
+                "clean_norm_mean": float(clean_row.get("clean_norm_mean", float("nan"))),
+                "geometry_flag": flags,
+                "recommendation": _recommendation(flags),
+            }
+        )
+
+    out = pd.DataFrame(summaries)
+    numeric_cols = out.select_dtypes(include="number").columns
+    out[numeric_cols] = out[numeric_cols].round(5)
+    return out
+
+
+def plot_noise_curves(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    frame_scope: str = "goal",
+    metric: str = "noise_to_nn_cos_ratio_median",
+    threshold: float = 1.0,
+    ax=None,
+):
+    """Plot noise curves for notebook/report use."""
+    pd = _require_pandas()
+    plt = _require_matplotlib()
+    df = pd.DataFrame(rows)
+    df = df[df["frame_scope"] == frame_scope].copy()
+    if ax is None:
+        _, ax = plt.subplots(figsize=(7, 4.5))
+
+    for label, group in df.groupby("model", sort=False):
+        group = group.sort_values("std")
+        ax.plot(group["std"], group[metric], marker="o", label=str(label))
+
+    if metric == "noise_to_nn_cos_ratio_median":
+        ax.axhline(threshold, color="black", linestyle="--", linewidth=1, alpha=0.7)
+        ax.text(
+            0.99,
+            threshold,
+            "NN crossing",
+            transform=ax.get_yaxis_transform(),
+            ha="right",
+            va="bottom",
+            fontsize=9,
+        )
+    ax.set_xlabel("pixel noise std")
+    ax.set_ylabel(metric)
+    ax.set_title(f"Noise sensitivity ({frame_scope})")
+    ax.grid(True, alpha=0.25)
+    ax.legend()
+    return ax.figure
+
+
+def plot_geometry_tradeoff(summary_rows, *, ax=None):
+    """Plot robustness vs clean resolution from `summarize_noise_geometry()`."""
+    plt = _require_matplotlib()
+    df = summary_rows.copy()
+    if ax is None:
+        _, ax = plt.subplots(figsize=(6.5, 4.8))
+
+    ax.scatter(
+        df["robust_radius_std"],
+        df["clean_nn_cos_dist_median"],
+        s=80,
+        alpha=0.85,
+    )
+    for _, row in df.iterrows():
+        ax.annotate(
+            str(row["model"]),
+            (row["robust_radius_std"], row["clean_nn_cos_dist_median"]),
+            textcoords="offset points",
+            xytext=(5, 5),
+            fontsize=9,
+        )
+    ax.set_xlabel("empirical robust radius (std at ratio=1)")
+    ax.set_ylabel("clean nearest-neighbor cosine distance")
+    ax.set_title("Robustness / resolution geometry map")
+    ax.grid(True, alpha=0.25)
+    return ax.figure
+
+
 def _parse_model_specs(specs: Sequence[str]) -> Dict[str, str]:
     models: Dict[str, str] = {}
     for spec in specs:
@@ -297,6 +549,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=3072)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--save-dir", default=None)
+    parser.add_argument("--plot", action="store_true", help="Save diagnostic PNG plots when --save-dir is set.")
     return parser
 
 
@@ -317,6 +570,9 @@ def main():
     )
 
     print(format_noise_table(rows, frame_scope="goal").to_string(index=False))
+    summary = summarize_noise_geometry(rows, frame_scope="goal")
+    print("\n=== GEOMETRY SUMMARY ===")
+    print(summary.to_string(index=False))
 
     if args.save_dir:
         save_dir = Path(args.save_dir)
@@ -327,6 +583,20 @@ def main():
             writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
             writer.writeheader()
             writer.writerows(rows)
+        summary.to_csv(save_dir / "geometry_summary.csv", index=False)
+        with (save_dir / "geometry_summary.json").open("w") as f:
+            json.dump(to_serializable(summary.to_dict(orient="records")), f, indent=2)
+        if args.plot:
+            fig = plot_noise_curves(rows, frame_scope="goal")
+            fig.savefig(save_dir / "noise_ratio_curve_goal.png", dpi=200, bbox_inches="tight")
+            fig = plot_noise_curves(
+                rows,
+                frame_scope="goal",
+                metric="noise_angle_deg_median",
+            )
+            fig.savefig(save_dir / "noise_angle_curve_goal.png", dpi=200, bbox_inches="tight")
+            fig = plot_geometry_tradeoff(summary)
+            fig.savefig(save_dir / "geometry_tradeoff_goal.png", dpi=200, bbox_inches="tight")
         print(f"\n[noise_sensitivity] saved outputs to: {save_dir}")
 
 

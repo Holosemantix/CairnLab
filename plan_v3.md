@@ -294,6 +294,15 @@ noise augmentation -> clustered / discretized geometry
 
 目标：证明 `noise_sensitivity` 不是事后解释，而能预测 robustness failure。
 
+当前实现入口：
+
+| 功能 | 入口 |
+|---|---|
+| 原始 clean/noisy 表 | `format_noise_table()` |
+| robust radius / slope / recommendation | `summarize_noise_geometry()` |
+| noise ratio / angle 曲线 | `plot_noise_curves()` |
+| robustness-resolution map | `plot_geometry_tradeoff()` |
+
 要做：
 
 1. 对 LeWM / SWM / SWM-noise-train 跑 4-task noise_sensitivity。
@@ -373,6 +382,8 @@ python eval.py --config-name=tworoom.yaml policy=<swm_ckpt> \
 ### P4：Adaptive Resolution 方法
 
 目标：避免“每个任务手调一套 noise recipe”。
+
+当前还没有真正的 adaptive training objective；已有的是诊断和可视化闭环，用来判断某个 checkpoint 更偏向 robustness、precision，还是过度 clustered。P4 的实现应建立在 P0/P1 的诊断结果上，而不是继续盲目扫配方。
 
 最小可行方向：
 

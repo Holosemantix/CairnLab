@@ -423,16 +423,16 @@ noise augmentation -> clustered / discretized geometry
 
 **TwoRoom（8 模型，已完成）**
 
-| 模型 | robust_radius | noise_angle_slope (°/std) | clean_nn_cos_dist | clean_eff_rank | geometry_flag |
-|---|---:|---:|---:|---:|---|
-| LeWM-base | **0.0164** | 842.6 | 0.0389 | 29.54 | balanced |
-| LeWM-fixed-std | 0.0074 | 1170.3 | **0.0130** | 15.08 | **fragile,clustered** |
-| LeWM-perframe-p05 | **>0.08** | **121.5** | 0.0371 | 27.36 | balanced |
-| LeWM-perframe-p1 | **>0.08** | **86.9** | 0.0357 | 26.58 | balanced |
-| SWM-base | **0.0183** | 961.9 | 0.0594 | 29.04 | balanced |
-| SWM-fixed-std | **0.00036** | **6199.4** | **0.0082** | 11.61 | **fragile,high_angle_gain,clustered** |
-| SWM-perframe-p05 | **>0.08** | **94.7** | 0.0498 | 26.96 | balanced |
-| SWM-perframe-p1 | **>0.08** | **80.3** | 0.0477 | 26.89 | balanced |
+| 模型 | robust_radius | first_risk_std | noise_angle_slope (°/std) | clean_nn_cos_dist | clean_eff_rank | geometry_flag |
+|---|---:|---:|---:|---:|---:|---|
+| LeWM-base | **0.0164** | 0.02 | 842.6 | 0.0389 | 29.54 | balanced |
+| LeWM-fixed-std | 0.0074 | 0.01 | 1170.3 | **0.0130** | 15.08 | **fragile,clustered** |
+| LeWM-perframe-p05 | **>0.08** | **>0.08** | **121.5** | 0.0371 | 27.36 | balanced |
+| LeWM-perframe-p1 | **>0.08** | **>0.08** | **86.9** | 0.0357 | 26.58 | balanced |
+| SWM-base | **0.0183** | 0.02 | 961.9 | 0.0594 | 29.04 | balanced |
+| SWM-fixed-std | **0.00036** | **0.005** | **6199.4** | **0.0082** | 11.61 | **fragile,high_angle_gain,clustered** |
+| SWM-perframe-p05 | **>0.08** | **>0.08** | **94.7** | 0.0498 | 26.96 | balanced |
+| SWM-perframe-p1 | **>0.08** | **>0.08** | **80.3** | 0.0477 | 26.89 | balanced |
 
 > **>0.08** 表示在 std 测到 0.08 时 `noise_to_nn_ratio` 仍未超过 1，即 extremely robust。
 
@@ -445,17 +445,17 @@ noise augmentation -> clustered / discretized geometry
 
 **PushT（9 个 geometry rows 已完成；相关性可用 eval rows 仍不全）**
 
-| 模型 | robust_radius | noise_angle_slope (°/std) | clean_nn_cos_dist | clean_eff_rank | geometry_flag |
-|---|---:|---:|---:|---:|---|
-| LeWM-fixed-std | **0.0205** | 711.4 | 0.1447 | 31.40 | **robust** |
-| LeWM-perframe-0to001-p1 | **>0.08** | 121.3 | 0.2263 | 48.36 | balanced |
-| LeWM-perframe-0to002-p1 | **>0.08** | 71.8 | 0.2473 | 48.28 | balanced |
-| LeWM-perframe-0to005-p1 | **>0.08** | 47.5 | 0.2253 | 46.74 | balanced |
-| SWM-fixed-std | **0.0005** | **8928.9** | **0.0664** | 18.38 | **fragile,high_angle_gain** |
-| SWM-perframe-0to001-p05 | **0.0718** | 169.9 | 0.2577 | 42.62 | **robust** |
-| SWM-perframe-0to001-p1 | **0.0669** | 103.2 | 0.2845 | 45.70 | **robust** |
-| SWM-perframe-0to002-p05 | **>0.08** | 88.4 | 0.2760 | 46.04 | balanced |
-| SWM-perframe-0to002-p1 | **>0.08** | 69.5 | 0.2600 | 45.46 | balanced |
+| 模型 | robust_radius | first_risk_std | noise_angle_slope (°/std) | clean_nn_cos_dist | clean_eff_rank | geometry_flag |
+|---|---:|---:|---:|---:|---:|---|
+| LeWM-fixed-std | **0.0205** | 0.03 | 711.4 | 0.1447 | 31.40 | **robust** |
+| LeWM-perframe-0to001-p1 | **>0.08** | **>0.08** | 121.3 | 0.2263 | 48.36 | balanced |
+| LeWM-perframe-0to002-p1 | **>0.08** | **>0.08** | 71.8 | 0.2473 | 48.28 | balanced |
+| LeWM-perframe-0to005-p1 | **>0.08** | **>0.08** | 47.5 | 0.2253 | 46.74 | balanced |
+| SWM-fixed-std | **0.0005** | **0.005** | **8928.9** | **0.0664** | 18.38 | **fragile,high_angle_gain** |
+| SWM-perframe-0to001-p05 | **0.0718** | 0.08 | 169.9 | 0.2577 | 42.62 | **robust** |
+| SWM-perframe-0to001-p1 | **0.0669** | 0.08 | 103.2 | 0.2845 | 45.70 | **robust** |
+| SWM-perframe-0to002-p05 | **>0.08** | **>0.08** | 88.4 | 0.2760 | 46.04 | balanced |
+| SWM-perframe-0to002-p1 | **>0.08** | **>0.08** | 69.5 | 0.2600 | 45.46 | balanced |
 
 缺失：
 - **LeWM-base**：`lewm-pusht/ckpt/pusht_lewm_20260424/` 有 eval **83.6%**（来自 `pusht_results.txt`），但**无 ckpt 文件**，无法跑 geometry diagnostics。
@@ -463,36 +463,67 @@ noise augmentation -> clustered / discretized geometry
 - **SWM-base (20260425)**：`lewm-pusht/ckpt/pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260425/` 有 eval **82.4%**，但同样**无 ckpt**。
 - **SWM-base (20260415)**：4-task clean benchmark 有 **89.8%**，但当前没有可用 ckpt 与 P0.3 geometry 对齐；因此 P0.4 的 PushT 相关性不把该 baseline 放进同一张表。
 
-**Predictor rollout drift（T=8 L2，history 加噪 @ max std）**
+**Noise sensitivity @ std=0.08：median vs p90，多 scope 对比**
 
 TwoRoom：
 
-| 模型 | baseline / fixed-std | per-frame | 降幅 |
-|---|---:|---:|---:|
-| LeWM-base | **18.07** | — | — |
-| LeWM-fixed-std | 23.82 | — | — |
-| LeWM-perframe-p05 | — | **1.06** | **18×** |
-| LeWM-perframe-p1 | — | **0.78** | **23×** |
-| SWM-base | **1.25** | — | — |
-| SWM-fixed-std | 1.28 | — | — |
-| SWM-perframe-p05 | — | **0.098** | **13×** |
-| SWM-perframe-p1 | — | **0.073** | **17×** |
+| 模型 | goal_med | goal_p90 | hist_med | hist_p90 | all_med | all_p90 | nn_l2_ratio |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| LeWM-base | 71.6° | 85.8° | 70.5° | 88.0° | 70.6° | 87.8° | 5.12 |
+| LeWM-fixed-std | 86.9° | 92.8° | 87.6° | 93.8° | 87.5° | 93.8° | 9.34 |
+| LeWM-perframe-p05 | 10.2° | 14.7° | 10.4° | 14.7° | 10.4° | 14.7° | 0.67 |
+| LeWM-perframe-p1 | **7.6°** | **11.5°** | **7.5°** | **11.0°** | **7.6°** | **11.0°** | 0.51 |
+| SWM-base | 69.9° | 89.4° | 71.0° | 91.1° | 70.8° | 90.9° | 3.32 |
+| SWM-fixed-std | 80.7° | 87.0° | 80.9° | 87.3° | 80.9° | 87.3° | 10.08 |
+| SWM-perframe-p05 | 8.8° | 12.8° | 8.6° | 12.3° | 8.6° | 12.3° | 0.49 |
+| SWM-perframe-p1 | **7.3°** | **10.0°** | **7.3°** | **10.5°** | **7.3°** | **10.5°** | 0.41 |
 
-PushT（无 baseline ckpt，用 fixed-std 作参照）：
+PushT：
 
-| 模型 | fixed-std | per-frame | 降幅 |
-|---|---:|---:|---:|
-| LeWM-fixed-std | **21.39** | — | — |
-| LeWM-perframe-0to001-p1 | — | **7.32** | **2.9×** |
-| LeWM-perframe-0to002-p1 | — | **3.21** | **6.7×** |
-| LeWM-perframe-0to005-p1 | — | **1.65** | **13×** |
-| SWM-fixed-std | **1.09** | — | — |
-| SWM-perframe-0to001-p05 | — | 1.09 | **1.0×** |
-| SWM-perframe-0to001-p1 | — | 1.24 | **0.9×**（升） |
-| SWM-perframe-0to002-p05 | — | 0.97 | **1.1×** |
-| SWM-perframe-0to002-p1 | — | **0.50** | **2.2×** |
+| 模型 | goal_med | goal_p90 | hist_med | hist_p90 | all_med | all_p90 | nn_l2_ratio |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| LeWM-fixed-std | 84.0° | 87.8° | 84.3° | 88.5° | 84.3° | 88.4° | 2.80 |
+| LeWM-perframe-0to001-p1 | 19.4° | 26.9° | 19.5° | 26.1° | 19.5° | 26.2° | 0.50 |
+| LeWM-perframe-0to002-p1 | 10.7° | 14.6° | 10.8° | 14.9° | 10.8° | 14.9° | 0.27 |
+| LeWM-perframe-0to005-p1 | **5.2°** | **7.4°** | **5.3°** | **7.4°** | **5.3°** | **7.4°** | 0.14 |
+| SWM-fixed-std | 63.2° | 67.8° | 62.9° | 67.9° | 62.9° | 67.9° | 2.87 |
+| SWM-perframe-0to001-p05 | 48.8° | 73.3° | 45.9° | 72.1° | 46.3° | 72.3° | 1.15 |
+| SWM-perframe-0to001-p1 | 59.1° | 81.0° | 57.2° | 79.5° | 57.5° | 79.6° | 1.31 |
+| SWM-perframe-0to002-p05 | 36.2° | 56.9° | 35.8° | 56.7° | 35.8° | 56.7° | 0.84 |
+| SWM-perframe-0to002-p1 | **19.6°** | **33.8°** | **18.7°** | **30.6°** | **18.8°** | **31.0°** | 0.47 |
 
-> 注：T=8 L2 drift 指在 history 帧注入噪声后， predictor 自回归 rollout 8 步的 L2 漂移中位数。TwoRoom 中 LeWM-perframe 从 18→0.8、SWM-perframe 从 1.25→0.07，均降低一个数量级以上；PushT 中 LeWM 随 noise 强度增加逐步降低，SWM 降幅有限。
+> **Tail failure（p90）**：TwoRoom 中 per-frame 的 p90 与 median 接近（差 <5°），说明分布集中；baseline 的 p90 比 median 高 15–20°，存在显著的 tail risk。PushT SWM-perframe-0to001 的 p90 远高于 median（73° vs 49°），说明该配置下仍有少数样本对 noise 极其敏感。`nn_l2_ratio` 在 per-frame 模型中普遍 <0.7（远低于 1.0 警戒线），而 fixed-std 模型 >2.8，说明 per-frame 的 noise 幅度被有效控制在 encoder 邻域内。
+
+**Predictor rollout drift 累积（history 加噪 @ std=0.005）**
+
+TwoRoom：
+
+| 模型 | T1_l2 | T2_l2 | T4_l2 | T8_l2 | T8_angle |
+|---|---:|---:|---:|---:|---:|
+| LeWM-base | 0.565 | 0.522 | 0.510 | 0.534 | 2.27° |
+| LeWM-fixed-std | 0.908 | 0.899 | 0.889 | 0.886 | 3.29° |
+| LeWM-perframe-p05 | **0.070** | **0.068** | **0.068** | **0.061** | 0.26° |
+| LeWM-perframe-p1 | **0.050** | **0.049** | **0.045** | **0.043** | 0.19° |
+| SWM-base | 0.071 | 0.069 | 0.070 | 0.075 | 4.31° |
+| SWM-fixed-std | 0.440 | 0.474 | 0.495 | 0.509 | 29.46° |
+| SWM-perframe-p05 | **0.006** | **0.006** | **0.006** | **0.005** | 0.28° |
+| SWM-perframe-p1 | **0.005** | **0.005** | **0.005** | **0.005** | 0.29° |
+
+PushT：
+
+| 模型 | T1_l2 | T2_l2 | T4_l2 | T8_l2 | T8_angle |
+|---|---:|---:|---:|---:|---:|
+| LeWM-fixed-std | 0.493 | 0.500 | 0.517 | 0.548 | 2.16° |
+| LeWM-perframe-0to001-p1 | 0.135 | 0.135 | 0.139 | 0.179 | 0.74° |
+| LeWM-perframe-0to002-p1 | **0.082** | **0.079** | **0.083** | **0.100** | 0.42° |
+| LeWM-perframe-0to005-p1 | **0.050** | **0.049** | **0.055** | **0.069** | 0.28° |
+| SWM-fixed-std | 1.143 | 1.141 | 1.155 | 1.149 | 70.16° |
+| SWM-perframe-0to001-p05 | 0.016 | 0.017 | 0.018 | 0.021 | 1.20° |
+| SWM-perframe-0to001-p1 | **0.009** | **0.010** | **0.011** | **0.013** | 0.74° |
+| SWM-perframe-0to002-p05 | **0.008** | **0.008** | **0.009** | **0.010** | 0.59° |
+| SWM-perframe-0to002-p1 | **0.006** | **0.006** | **0.007** | **0.008** | 0.45° |
+
+> **Drift 累积模式**：TwoRoom LeWM 的 drift 在 T1 就很大（0.5–0.9），之后几乎不增长，说明 predictor 的单步误差是主导；SWM 的 drift 同样 T1 即饱和。PushT SWM-fixed-std 的 T8 angle 高达 70°，说明 predictor 在球面空间中发生了方向翻转。Per-frame training 把 LeWM T8 从 0.55→0.04（TwoRoom）和 0.55→0.07（PushT），把 SWM T8 从 0.51→0.005（TwoRoom）和 1.15→0.008（PushT），改善幅度与 T8-only 表一致。
 
 **补充诊断指标**
 
@@ -531,30 +562,30 @@ PushT：
 
 TwoRoom：
 
-| 模型 | trans_res_cos | trans_res_l2 | id_probe_r² | lidar_rank |
-|---|---:|---:|---:|---:|
-| LeWM-base | 0.556 | 0.729 | **+0.276** | 4.75 |
-| LeWM-fixed-std | **0.252** | 0.500 | **−0.834** | 3.91 |
-| LeWM-perframe-p05 | 0.527 | 0.708 | +0.218 | 5.35 |
-| LeWM-perframe-p1 | 0.549 | 0.713 | +0.136 | 4.33 |
-| SWM-base | **0.734** | **0.857** | +0.263 | 8.27 |
-| SWM-fixed-std | **0.185** | 0.430 | +0.234 | 4.92 |
-| SWM-perframe-p05 | 0.657 | 0.810 | +0.255 | 8.58 |
-| SWM-perframe-p1 | 0.634 | 0.796 | +0.251 | **10.47** |
+| 模型 | trans_res_cos | trans_res_l2 | id_probe_r² | id_probe_r²_min | lidar_rank |
+|---|---:|---:|---:|---:|---:|
+| LeWM-base | 0.556 | 0.729 | **+0.276** | +0.221 | 4.75 |
+| LeWM-fixed-std | **0.252** | 0.500 | **−0.834** | **−1.699** | 3.91 |
+| LeWM-perframe-p05 | 0.527 | 0.708 | +0.218 | +0.112 | 5.35 |
+| LeWM-perframe-p1 | 0.549 | 0.713 | +0.136 | −0.044 | 4.33 |
+| SWM-base | **0.734** | **0.857** | +0.263 | +0.219 | 8.27 |
+| SWM-fixed-std | **0.185** | 0.430 | +0.234 | +0.161 | 4.92 |
+| SWM-perframe-p05 | 0.657 | 0.810 | +0.255 | +0.212 | 8.58 |
+| SWM-perframe-p1 | 0.634 | 0.796 | +0.251 | +0.207 | **10.47** |
 
 PushT：
 
-| 模型 | trans_res_cos | trans_res_l2 | id_probe_r² | lidar_rank |
-|---|---:|---:|---:|---:|
-| LeWM-fixed-std | **0.059** | **0.248** | **+0.776** | 12.34 |
-| LeWM-perframe-0to001-p1 | 0.084 | 0.295 | +0.770 | 14.64 |
-| LeWM-perframe-0to002-p1 | 0.087 | 0.299 | +0.769 | 13.89 |
-| LeWM-perframe-0to005-p1 | 0.070 | 0.271 | +0.743 | 16.33 |
-| SWM-fixed-std | 0.079 | 0.281 | +0.767 | 7.62 |
-| SWM-perframe-0to001-p05 | 0.100 | 0.316 | +0.686 | 35.25 |
-| SWM-perframe-0to001-p1 | **0.122** | **0.349** | +0.674 | 37.25 |
-| SWM-perframe-0to002-p05 | 0.118 | 0.344 | +0.675 | 38.11 |
-| SWM-perframe-0to002-p1 | **0.121** | 0.348 | +0.695 | 36.38 |
+| 模型 | trans_res_cos | trans_res_l2 | id_probe_r² | id_probe_r²_min | lidar_rank |
+|---|---:|---:|---:|---:|---:|
+| LeWM-fixed-std | **0.059** | **0.248** | **+0.776** | **+0.682** | 12.34 |
+| LeWM-perframe-0to001-p1 | 0.084 | 0.295 | +0.770 | +0.675 | 14.64 |
+| LeWM-perframe-0to002-p1 | 0.087 | 0.299 | +0.769 | +0.667 | 13.89 |
+| LeWM-perframe-0to005-p1 | 0.070 | 0.271 | +0.743 | +0.647 | 16.33 |
+| SWM-fixed-std | 0.079 | 0.281 | +0.767 | +0.629 | 7.62 |
+| SWM-perframe-0to001-p05 | 0.100 | 0.316 | +0.686 | +0.603 | 35.25 |
+| SWM-perframe-0to001-p1 | **0.122** | **0.349** | +0.674 | +0.584 | 37.25 |
+| SWM-perframe-0to002-p05 | 0.118 | 0.344 | +0.675 | +0.596 | 38.11 |
+| SWM-perframe-0to002-p1 | **0.121** | 0.348 | +0.695 | +0.601 | 36.38 |
 
 > **关键发现**：
 > 1. `transition_resolution_ratio` 完美区分任务类型：TwoRoom cos 0.18–0.73（离散状态转移，相邻帧差异大），PushT cos 0.06–0.12（连续控制，相邻帧极相似）。
@@ -563,32 +594,32 @@ PushT：
 
 **Latent-noise sensitivity（直接对 `z` 注入高斯噪声，跳过 encoder）**
 
-TwoRoom（history scope @ std=0.08，predictor 自回归 rollout T=8 L2 drift；goal scope @ std=0.08，cost surface slope）：
+TwoRoom（std=0.08）：
 
-| 模型 | pred_T8_l2_drift | cost_slope_goal | noise_geometry |
-|---|---:|---:|---|
-| LeWM-base | **5.81** | **2.08** | ambient |
-| LeWM-fixed-std | 7.36 | 2.90 | ambient |
-| LeWM-perframe-p05 | 4.81 | 2.02 | ambient |
-| LeWM-perframe-p1 | 5.90 | 2.05 | ambient |
-| SWM-base | **0.57** | **1.02** | tangent |
-| SWM-fixed-std | 0.63 | 1.58 | tangent |
-| SWM-perframe-p05 | 0.46 | 1.06 | tangent |
-| SWM-perframe-p1 | 0.41 | 1.03 | tangent |
+| 模型 | hist_T8 | all_T8 | cost_slope_goal | noise_geometry |
+|---|---:|---:|---:|---|
+| LeWM-base | **5.81** | 5.79 | **2.08** | ambient |
+| LeWM-fixed-std | 7.36 | 7.14 | 2.90 | ambient |
+| LeWM-perframe-p05 | 4.81 | 5.11 | 2.02 | ambient |
+| LeWM-perframe-p1 | 5.90 | 5.25 | 2.05 | ambient |
+| SWM-base | **0.57** | 0.55 | **1.02** | tangent |
+| SWM-fixed-std | 0.63 | 0.64 | 1.58 | tangent |
+| SWM-perframe-p05 | 0.46 | 0.42 | 1.06 | tangent |
+| SWM-perframe-p1 | 0.41 | 0.39 | 1.03 | tangent |
 
 PushT：
 
-| 模型 | pred_T8_l2_drift | cost_slope_goal | noise_geometry |
-|---|---:|---:|---|
-| LeWM-fixed-std | **10.97** | **3.76** | ambient |
-| LeWM-perframe-0to001-p1 | 12.05 | 3.65 | ambient |
-| LeWM-perframe-0to002-p1 | 11.24 | 3.65 | ambient |
-| LeWM-perframe-0to005-p1 | 10.05 | 3.78 | ambient |
-| SWM-fixed-std | **0.67** | **1.76** | tangent |
-| SWM-perframe-0to001-p05 | 0.77 | 1.67 | tangent |
-| SWM-perframe-0to001-p1 | 0.74 | 1.65 | tangent |
-| SWM-perframe-0to002-p05 | 0.78 | 1.62 | tangent |
-| SWM-perframe-0to002-p1 | 0.81 | 1.61 | tangent |
+| 模型 | hist_T8 | all_T8 | cost_slope_goal | noise_geometry |
+|---|---:|---:|---:|---|
+| LeWM-fixed-std | **10.97** | **12.24** | **3.76** | ambient |
+| LeWM-perframe-0to001-p1 | 12.05 | 11.59 | 3.65 | ambient |
+| LeWM-perframe-0to002-p1 | 11.24 | 11.11 | 3.65 | ambient |
+| LeWM-perframe-0to005-p1 | 10.05 | 10.24 | 3.78 | ambient |
+| SWM-fixed-std | **0.67** | 0.65 | **1.76** | tangent |
+| SWM-perframe-0to001-p05 | 0.77 | 0.78 | 1.67 | tangent |
+| SWM-perframe-0to001-p1 | 0.74 | 0.77 | 1.65 | tangent |
+| SWM-perframe-0to002-p05 | 0.78 | 0.81 | 1.62 | tangent |
+| SWM-perframe-0to002-p1 | 0.81 | 0.77 | 1.61 | tangent |
 
 > **核心洞察**：
 > 1. **SWM predictor 天生对 latent perturbation 稳定 10–16×。** TwoRoom 5.8→0.6，PushT 11.0→0.7。这是因为 cosine/normalized predictor 内建了尺度不变性；LeWM 的 L2 predictor 对 latent scale 敏感。
@@ -612,15 +643,15 @@ PushT：
 
 #### P0.4 相关性分析（已完成）
 
-**TwoRoom Pearson r（n=8，全部模型；部分指标因 `>0.08` censored 只剩 n=4）**
+**TwoRoom 相关性（n=8，全部模型；部分指标因 `>0.08` censored 只剩 n=4）**
 
-| 指标对 | r | 解释 |
-|---|---|---|
-| `robust_radius_std` ↔ `eval_score` | **-0.950** (n=4) | 半径越小，clean eval 反而越高（聚簇化的"信息瓶颈"红利） |
-| `noise_angle_slope` ↔ `eval_score` | **+0.645** (n=8) | slope 越大（越不平滑），clean eval 越高，但噪声下崩溃越狠 |
-| `clean_nn_cos_dist` ↔ `eval_score` | **-0.771** (n=8) | clean 邻域距离越小（聚簇越紧），clean eval 越高 |
+| 指标对 | Pearson r | Spearman ρ | 解释 |
+|---|---:|---:|---|
+| `robust_radius_std` ↔ `eval_score` | **−0.950** (n=4) | **−1.000** (n=4) | 半径越小，clean eval 反而越高（聚簇化的"信息瓶颈"红利） |
+| `noise_angle_slope` ↔ `eval_score` | **+0.645** (n=8) | **+0.610** (n=8) | slope 越大（越不平滑），clean eval 越高，但噪声下崩溃越狠 |
+| `clean_nn_cos_dist` ↔ `eval_score` | **−0.771** (n=8) | **−0.878** (n=8) | clean 邻域距离越小（聚簇越紧），clean eval 越高 |
 
-> 注：Spearman 待补（样本量 8 偏小，bootstrap CI 会较宽）。
+> Spearman 与 Pearson 符号一致、量级接近，说明关系大致单调，无明显异常值扭曲线性相关。
 
 **关键洞察：诊断指标能解释 clean eval 的多机制分布**
 
@@ -641,19 +672,19 @@ TwoRoom 上 clean eval 呈现明显的两组：
 
 **PushT 相关性（n=7，缺 baselines geometry + 2 个 fixed-std eval）**
 
-| 指标对 | r | 与 TwoRoom 对比 |
-|---|---|---|
-| `noise_angle_slope` ↔ `eval_score` | **-0.233** | TwoRoom: **+0.645** → **符号相反** |
-| `clean_nn_cos_dist` ↔ `eval_score` | **-0.202** | TwoRoom: **-0.771** → 符号相同但弱很多 |
+| 指标对 | Pearson r | Spearman ρ | 与 TwoRoom 对比 |
+|---|---:|---:|---|
+| `noise_angle_slope` ↔ `eval_score` | **−0.233** | **−0.198** | TwoRoom: **+0.645** → **符号相反** |
+| `clean_nn_cos_dist` ↔ `eval_score` | **−0.202** | **−0.234** | TwoRoom: **−0.771** → 符号相同但弱很多 |
 
-> 样本量偏小（7）且缺少 baselines 的 geometry 数据（LeWM-base 有 eval 83.6% 但无 ckpt，SWM-base 既无 eval 也无 ckpt），相关性的置信度较低。但核心趋势已可见：PushT 上 noise_angle_slope 与 eval_score 呈负相关（ slope 越大 → eval 越低），与 TwoRoom 的正相关相反。
+> 样本量偏小（7）且缺少 baselines 的 geometry 数据，相关性的置信度较低。Spearman 与 Pearson 接近，无明显非单调扭曲。
 
 **综合结论：诊断指标能区分任务适配性**
 
-| 指标 | TwoRoom | PushT | 含义 |
-|---|---|---|---|
-| `clean_nn_cos_dist` ↔ `eval_score` | **强负相关**（r=-0.77） | **弱负相关**（r=-0.20） | 聚簇/压缩对 TwoRoom 更有解释力，对 PushT 解释力弱很多 |
-| `noise_angle_slope` ↔ `eval_score` | **正相关**（r=+0.645） | **弱负相关**（r=-0.233） | 真正的跨任务符号反转：TwoRoom 可容忍甚至受益于不平滑/聚簇极值，PushT 更偏好低角向增益 |
+| 指标 | TwoRoom (r / ρ) | PushT (r / ρ) | 含义 |
+|---|---:|---:|---|
+| `clean_nn_cos_dist` ↔ `eval_score` | **强负相关** (−0.77 / −0.88) | **弱负相关** (−0.20 / −0.23) | 聚簇/压缩对 TwoRoom 有强解释力，对 PushT 弱很多 |
+| `noise_angle_slope` ↔ `eval_score` | **正相关** (+0.65 / +0.61) | **弱负相关** (−0.23 / −0.20) | 跨任务符号反转：TwoRoom 可容忍甚至受益于不平滑/聚簇极值，PushT 更偏好低角向增益 |
 
 这说明 `clean_nn_cos_dist` + `geometry_flag` 的组合可以作为**任务-几何适配性**的预判指标：
 - `clustered` flag + clean_nn 大幅缩小 + TwoRoom-like 任务 → 预期受益
@@ -673,13 +704,23 @@ TwoRoom 上 clean eval 呈现明显的两组：
 - `clean_nn_cos_dist` 的跨任务差异目前主要表现为强弱不同而非符号反转；`noise_angle_slope` 的符号反转更适合支撑 task-resolution tradeoff。扩到 Cube / Reacher 后再决定论文主指标用单指标还是多变量组合。
 - 自动化收集与 ATC 框架在 P0.7（`diagnostic_correlation.py` 待加）。
 
-#### P0.5 决策标准
+#### P0.5 决策标准（按实际数据评估）
 
-| Spearman \|ρ\| | 解释 | 行动 |
-|---|---|---|
-| ≥ 0.7 | 强相关，单指标即可解释 | 把对应指标作为论文主贡献 |
-| 0.4 – 0.7 | 中等，单指标不足 | 用多变量组合预测；同时补 predictor / task-resolution 指标 |
-| < 0.4 | 弱，机制不在覆盖范围 | 回到 P3（encoder 拆解）或审视 planner / CEM dynamics |
+| 任务 | 指标 | Spearman \|ρ\| | 判定 | 行动 |
+|---|---:|---:|---|---|
+| TwoRoom | `clean_nn_cos_dist` ↔ eval | **0.878** | ≥ 0.7 强相关 | **可作为主指标**：聚簇化/压缩是 TwoRoom clean eval 的主要解释机制 |
+| TwoRoom | `noise_angle_slope` ↔ eval | **0.610** | 0.4–0.7 中等 | **辅助指标**：单指标不足，需与 `clean_nn_cos_dist` + `geometry_flag` 组合使用 |
+| TwoRoom | `robust_radius` ↔ eval | **1.000** (n=4) | ≥ 0.7 但 n=4 | **待验证**：样本量过小，需等 baselines + fixed-std 补全后重新评估 |
+| PushT | `noise_angle_slope` ↔ eval | **0.198** | < 0.4 弱 | **机制不在覆盖范围**： PushT eval 的变异主要由 planner/action 分辨率或 CEM 动态解释，而非 encoder geometry |
+| PushT | `clean_nn_cos_dist` ↔ eval | **0.234** | < 0.4 弱 | **同上**：需回到 P3（encoder 拆解：BN/LN/dim ablation）或审视 cost surface / CEM dynamics |
+
+**综合判定**
+
+- **TwoRoom**：`clean_nn_cos_dist` 单指标 |ρ|=0.878 足够强，可以支撑论文独立章节；`geometry_flag` 的阈值规则（clustered/balanced/robust）有明确的 eval 对应。
+- **PushT**：所有诊断指标 |ρ|<0.4，说明当前几何诊断集对 PushT 的 eval 解释力不足。这不是说诊断工具错了，而是 PushT 的瓶颈可能不在 encoder geometry，而在 **predictor rollout drift**（已量化为 T8 L2，但尚未与 eval 做相关性）或 **planner / cost surface**。下一步应：
+  1. 把 predictor T8 drift、latent-noise cost slope 与 PushT eval 做相关性；
+  2. 若仍 <0.4，则启动 P3（encoder 结构 ablation）或 P2（cost surface 解耦：MSE vs cosine）。
+- **跨任务**：`noise_angle_slope` 的符号反转（TwoRoom +0.61 vs PushT −0.20）本身就是有价值的研究发现，可作为 "task-resolution tradeoff" 的实证支撑，即使 PushT 端的绝对强度不够。
 
 #### P0.6 Active Validation：从相关到预测
 

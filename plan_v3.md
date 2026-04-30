@@ -398,40 +398,72 @@ noise augmentation -> clustered / discretized geometry
    - inverse-dynamics linear probe（仅训 readout，不动主模型）做 action 可预测性代理。
    - 复用现有 `loss.transition_distance` / `loss.inverse_dynamics` 的 head 结构，只切到 eval-mode probe。
 
-#### P0.3 数据收集（用 §4.3 已有 ckpt）
+#### P0.3 数据收集（TwoRoom 已完成，PushT 进行中）
 
-固定 7 个 checkpoint（已有，不需重训）：
+**TwoRoom（8 模型，已完成）**
 
-```
-LeWM-base, LeWM-perframe-p1, LeWM-perframe-p05
-SWM-base, SWM-fixed-std (聚簇典型), SWM-perframe-p1, SWM-perframe-p05
-```
+| 模型 | robust_radius | noise_angle_slope (°/std) | clean_nn_cos_dist | clean_eff_rank | geometry_flag |
+|---|---:|---:|---:|---:|---|
+| LeWM-base | **0.0164** | 842.6 | 0.0389 | 29.54 | balanced |
+| LeWM-fixed-std | 0.0074 | 1170.3 | **0.0130** | 15.08 | **fragile,clustered** |
+| LeWM-perframe-p05 | **>0.08** | **121.5** | 0.0371 | 27.36 | balanced |
+| LeWM-perframe-p1 | **>0.08** | **86.9** | 0.0357 | 26.58 | balanced |
+| SWM-base | **0.0183** | 961.9 | 0.0594 | 29.04 | balanced |
+| SWM-fixed-std | **0.00036** | **6199.4** | **0.0082** | 11.61 | **fragile,high_angle_gain,clustered** |
+| SWM-perframe-p05 | **>0.08** | **94.7** | 0.0498 | 26.96 | balanced |
+| SWM-perframe-p1 | **>0.08** | **80.3** | 0.0477 | 26.89 | balanced |
 
-任务：`TwoRoom` + `PushT`（已有 eval matrix），可选扩 `Cube` + `Reacher`。
+> **>0.08** 表示在 std 测到 0.08 时 `noise_to_nn_ratio` 仍未超过 1，即 extremely robust。
 
-每个 (checkpoint × task) 收齐：
-- `noise_sensitivity`（goal / all / history × std grid）
-- `predictor_sensitivity`（T = 1, 2, 4, 8）
-- `task_resolution`
-- 对应 `eval_drop_{pix+goal, goal_only, pix_only}_std{0.03, 0.05, 0.08}`（已有）
+**关键发现**
 
-panel = (checkpoint × task) ≥ 14 行（7 × 2），扩到 4 任务则 28 行。
+1. **聚簇化效应被量化**：SWM-fixed-std 的 `robust_radius=0.00036`（ baseline 的 1/50），`clean_nn_cos_dist=0.0082`（缩到 1/7），`geometry_flag` 明确标记 `fragile,high_angle_gain,clustered`。
+2. **per-frame 平滑化显著**：SWM-perframe 的 `noise_angle_slope` 从 962 降到 80（接近 LeWM-perframe 的 87），`clean_nn_cos_dist` 恢复到 0.048，与 baseline 同级。
+3. **LeWM 固定 std 也有聚簇化**：`clean_nn_cos_dist=0.013`（baseline 0.039 的 1/3），`robust_radius=0.007`（baseline 的 1/2），flag 为 `fragile,clustered`，但程度远轻于 SWM。
+4. **Predictor 稳定性意外提升**：per-frame 训练的 rollout drift（T=8 L2）比 baseline 降低一个数量级（LeWM: 18→0.8；SWM: 1.25→0.07），说明噪声训练同时改善了动力学预测的平滑性。
 
-#### P0.4 相关性分析
+**PushT（9 模型，收集中）**
 
-- 主统计：**Spearman ρ + 1000-bootstrap 95% CI**（鲁棒于非线性、抗 outlier）。
-- 关键对：
+可用 ckpt（baselines 缺失）：
+- LeWM-fixed-std, LeWM-perframe-0to001/0to002/0to005-p1
+- SWM-fixed-std, SWM-perframe-0to001/0to002-p05/p1
 
-```text
-robust_radius_std         ↔ eval_drop_pix+goal
-noise_angle_slope         ↔ eval_drop_goal_only      (encoder Lipschitz → goal embedding 错位)
-clean_nn_cos_dist         ↔ clean_eval               (聚簇是否伤精度，PushT-like 任务尤甚)
-predictor_rollout_drift   ↔ eval_drop_pix_only       (history noise 是 predictor 主输入)
-transition_res_ratio      ↔ clean_eval on PushT      (任务分辨率 vs 性能)
-effective_rank            ↔ eval_drop_pix+goal       (collapse 早期信号)
-```
+缺失需补：LeWM-base, SWM-base（目录存在但无 epoch_9/10 ckpt）。
 
-- 多变量：把上述指标作为特征，对 eval drop 跑 leave-one-checkpoint-out ridge / random forest，看 R²。
+结果保存：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/`
+
+#### P0.4 相关性分析（TwoRoom 已完成）
+
+**Pearson r（n=8，全部模型）**
+
+| 指标对 | r | 解释 |
+|---|---|---|
+| `robust_radius_std` ↔ `eval_score` | **-0.950** (n=4) | 半径越小，clean eval 反而越高（聚簇化的"信息瓶颈"红利） |
+| `noise_angle_slope` ↔ `eval_score` | **+0.645** (n=8) | slope 越大（越不平滑），clean eval 越高，但噪声下崩溃越狠 |
+| `clean_nn_cos_dist` ↔ `eval_score` | **-0.771** (n=8) | clean 邻域距离越小（聚簇越紧），clean eval 越高 |
+
+> 注：Spearman 待补（样本量 8 偏小，bootstrap CI 会较宽）。
+
+**关键洞察：诊断指标能解释 clean eval 的双峰分布**
+
+TwoRoom 上 clean eval 呈现明显的两组：
+- **高 clean 组**（97.6, 94, 94）：固定 std 训练，靠聚簇化提升，但 `robust_radius` 极低（0.00036–0.007）。
+- **低 clean 组**（86–90.8）：baseline / per-frame，无聚簇化红利，但 `robust_radius` 高（0.016–>0.08）或 `noise_angle_slope` 低（80–962）。
+
+这说明 **clean eval 与 noise robustness 在 TwoRoom 上是 trade-off 而非正相关**，诊断指标恰好能定位这个 trade-off 的极值点。
+
+**图表**
+
+- `p0_correlation_tworoom.png`：robust_radius vs eval_score + noise_angle_slope vs eval_score 散点图
+- `noise_angle_curve_goal.png` / `noise_ratio_curve_goal.png`：8 模型的 noise 曲线
+- `geometry_tradeoff_goal.png`：robustness-resolution 散点
+
+保存路径：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/`
+
+**下一步**
+
+- PushT 数据收齐后，检验同一组指标是否呈现**相反趋势**（PushT 上聚簇化应该损害 clean eval，预期 `clean_nn_cos_dist` 与 `eval_score` **正相关**）。
+- 若趋势确实相反，则 `clean_nn_cos_dist` + `geometry_flag` 可作为**任务适配性**的预判指标。
 
 #### P0.5 决策标准
 

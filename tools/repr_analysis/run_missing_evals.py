@@ -55,6 +55,7 @@ def run_single_eval(task_name, label, policy_path, expected,
         sys.executable, "-u", "eval.py",
         f"--config-name={config_name}.yaml",
         f"policy={policy_path}",
+        "eval.num_eval=150",
     ]
     env = {
         **os.environ,

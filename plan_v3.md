@@ -1295,3 +1295,98 @@ L = pred_loss
 | `tools/repr_analysis/repr_compare_template.ipynb` | Notebook 对比模板 |
 | `jepa.py` | JEPA + SphericalJEPA 实现 |
 | `module.py` | loss 与共享模块 |
+
+---
+
+## 附录 B：CKPT→Eval→诊断完整溯源表（供人工核验）
+
+> **本附录存在的意义**：plan_v3.md §6 P0.4/P0.5/P0.7 的所有相关性数值均来自 `diagnostic_correlation.py` 对 `eval_scores.json` + `diagnostics_summary.json` 的自动计算。本附录逐条记录这 19 个模型对应的 ckpt 子目录、eval 分数来源、诊断指标来源，确保任何数值都可以从原始 ckpt 文件一路追溯到报告中的 ρ 值。
+
+### B.1 TwoRoom（8 模型，全 epoch_9）
+
+| 模型名 | CKPT 子目录 | 对象文件名 | Eval 分数 | Eval 来源 | `clean_nn_dist` | `eff_rank` | `geometry_flag` |
+|---|---|---|---|---:|---:|---:|---|
+| LeWM-base | `tworoom_lewm` | `tworoom_lewm_epoch_9_object.ckpt` | 93.0 | `tworoom_results.txt` | 0.03890 | 29.54 | balanced |
+| LeWM-fixed-std | `tworoom_lewm_noise_std_0_005` | `tworoom_lewm_noise_std_0_005_epoch_9_object.ckpt` | 96.6 | `tworoom_results.txt` | 0.01295 | 15.08 | fragile,clustered |
+| LeWM-perframe-p05 | `tworoom_lewm_noise_0to005_p05` | `tworoom_lewm_noise_0to005_p05_epoch_9_object.ckpt` | 94.0 | `eval_run.log`（run_missing_evals 重跑） | 0.03705 | 27.36 | balanced |
+| LeWM-perframe-p1 | `tworoom_lewm_noise_0to005_p1` | `tworoom_lewm_noise_0to005_p1_epoch_9_object.ckpt` | 96.0 | `eval_run.log`（run_missing_evals 重跑） | 0.03571 | 26.58 | balanced |
+| SWM-base | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260425` | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260425_epoch_9_object.ckpt` | 91.0 | `tworoom_results.txt` | 0.05943 | 29.04 | balanced |
+| SWM-fixed-std | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64` | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64_epoch_9_object.ckpt` | 97.6 | `tworoom_results.txt` | 0.00820 | 11.61 | fragile,high_angle_gain,clustered |
+| SWM-perframe-p05 | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64` | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64_epoch_9_object.ckpt` | 92.0 | `eval_run.log`（run_missing_evals 重跑） | 0.04984 | 26.96 | balanced |
+| SWM-perframe-p1 | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64` | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64_epoch_9_object.ckpt` | 92.0 | `eval_run.log`（run_missing_evals 重跑） | 0.04775 | 26.89 | balanced |
+
+### B.2 PushT（11 模型，base 为 epoch_10，其余 epoch_9）
+
+| 模型名 | CKPT 子目录 | 对象文件名 | Eval 分数 | Eval 来源 | `clean_nn_dist` | `eff_rank` | `geometry_flag` |
+|---|---|---|---|---:|---:|---:|---|
+| LeWM-base | `pusht_lewm_20260430` | `pusht_lewm_20260430_epoch_10_object.ckpt` | 86.67 | `pusht_results.txt` | 0.23599 | 47.48 | robust |
+| LeWM-fixed-std | `pusht_lewm_noise_std_0_005` | `pusht_lewm_noise_std_0_005_epoch_9_object.ckpt` | 83.0 | `pusht_results.txt` | 0.14473 | 31.40 | robust |
+| LeWM-perframe-0to001-p1 | `pusht_lewm_noise_0to001_p1` | `pusht_lewm_noise_0to001_p1_epoch_9_object.ckpt` | 92.0 | `eval_run.log`（run_missing_evals 重跑） | 0.22625 | 48.36 | balanced |
+| LeWM-perframe-0to002-p1 | `pusht_lewm_noise_0to002_p1` | `pusht_lewm_noise_0to002_p1_epoch_9_object.ckpt` | 86.0 | `eval_run.log`（run_missing_evals 重跑） | 0.24733 | 48.28 | balanced |
+| LeWM-perframe-0to005-p1 | `pusht_lewm_noise_0to005_p1` | `pusht_lewm_noise_0to005_p1_epoch_9_object.ckpt` | 82.0 | `eval_run.log`（run_missing_evals 重跑） | 0.22531 | 46.74 | balanced |
+| SWM-base | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430_epoch_10_object.ckpt` | 78.67 | `pusht_results.txt` | 0.26449 | 44.02 | robust |
+| SWM-fixed-std | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64_epoch_9_object.ckpt` | 61.8 | `pusht_results.txt` | 0.06639 | 18.38 | fragile,high_angle_gain |
+| SWM-perframe-0to001-p05 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p05_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p05_dim64_epoch_9_object.ckpt` | 82.0 | `eval_run.log`（run_missing_evals 重跑） | 0.25770 | 42.62 | robust |
+| SWM-perframe-0to001-p1 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64_epoch_9_object.ckpt` | 90.0 | `eval_run.log`（run_missing_evals 重跑） | 0.28448 | 45.70 | robust |
+| SWM-perframe-0to002-p05 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64_epoch_9_object.ckpt` | 80.0 | `eval_run.log`（run_missing_evals 重跑） | 0.27604 | 46.04 | balanced |
+| SWM-perframe-0to002-p1 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64_epoch_9_object.ckpt` | 88.0 | `eval_run.log`（run_missing_evals 重跑） | 0.26000 | 45.46 | balanced |
+
+### B.3 数据流与生成脚本
+
+| 层级 | 文件 | 生成脚本 | 输入依赖 |
+|---|---|---|---|
+| L1 原始 ckpt | `ckpt/<subdir>/*_object.ckpt` | `train.py` / `train_swm.py` | — |
+| L2 eval 分数 | `ckpt/<subdir>/*results.txt` / `eval_run.log` | `eval.py` | L1 ckpt + task config |
+| L3 诊断 CSV | `p03_diagnostics/*.csv` | `run_full_diagnostics.py`（由 `run_p03_tworoom.py` / `run_p03_pusht.py` 调用） | L1 ckpt + dataset |
+| L3b base 补做 | `p03_diagnostics_new_baselines/{LeWM-base,SWM-base}/*.csv` | 同上，单独补跑 | L1 ckpt |
+| L4 诊断汇总 | `diagnostics_summary.json` | `regen_summary.py`（合并 L3 + L3b） | L3 CSV |
+| L5 eval 汇总 | `eval_scores.json` | 手工维护 / `run_missing_evals.py` 自动更新 | L2 results.txt |
+| L6 相关性 | `diagnostic_correlation.csv/.png` | `diagnostic_correlation.py` | L4 + L5 |
+| L7 报告 | `plan_v3.md` P0.4/P0.5/P0.7 | 人工撰写（以 L6 为准） | L6 |
+
+### B.4 人工核验检查清单
+
+你可以按以下步骤独立复现任何数值：
+
+1. **核验 Eval 分数**
+   ```bash
+   # TwoRoom
+   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/<subdir>/tworoom_results.txt
+   # PushT
+   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/<subdir>/pusht_results.txt
+   # 若模型由 run_missing_evals.py 重跑，则查看 eval_run.log 中 'success_rate': <num>
+   ```
+
+2. **核验诊断指标（原始 CSV）**
+   ```bash
+   # TwoRoom
+   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/noise_sensitivity.csv | grep <model>
+   # PushT（含 base 补做）
+   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/repr_analysis/p03_diagnostics/noise_sensitivity.csv | grep <model>
+   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/repr_analysis/p03_diagnostics_new_baselines/<model>/noise_sensitivity.csv | grep <model>
+   ```
+
+3. **核验相关性数值**
+   ```bash
+   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/diagnostic_correlation.csv
+   # 或重新运行脚本
+   python -m tools.repr_analysis.diagnostic_correlation \
+       --diagnostics /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/diagnostics_summary.json \
+       --eval-scores /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/eval_scores.json \
+       --out-dir /tmp/tworoom_corr_check
+   ```
+
+4. **关键字段定义速查**
+   - `clean_nn_cos_dist_median`：clean embedding 最近邻 cosine 距离中位数（越小 = 聚簇越紧）
+   - `clean_effective_rank`：clean embedding 的有效维度（Wang & Isola uniformity 相关）
+   - `predictor_target_to_nn_cos_ratio_at_max_std`：最大噪声 std 下，predictor target 与 nearest neighbor 的 cosine ratio（越小 = target shift 控制越好）
+   - `geometry_flag`：`run_full_diagnostics.py` 自动标注的 noise geometry 类别（balanced / robust / fragile / clustered 等）
+
+### B.5 历史数据修正记录
+
+| 时间 | Commit | 修正内容 | 影响 |
+|---|---|---|---|
+| 2026-05-01 02:30 | `8605bf5` | SWM-fixed-std PushT eval 89.8→61.8；LeWM-fixed-std 83.6→83.0；TwoRoom SWM-base 90.8→91.0；LeWM-fixed-std 95.6→96.6 | PushT 主导指标从 `lidar_rank` 变为 `predictor_target_to_nn_cos_ratio` 和 `clean_effective_rank` |
+| 2026-05-01 04:16 | `620de01` | 运行 `run_missing_evals.py`，补齐 11 个缺失 eval（4 TwoRoom + 7 PushT），actual 与 expected 多处不符 | `eval_scores.json` 更新，但 plan_v3.md **未同步更新相关性数值** |
+| 2026-05-01 04:33 | `bf79a80` | 插入诊断可视化配图 | 仅新增图片引用，未修正数值 |
+| 2026-05-01 05:07 | `6c7bf90` | **本修正**：将 plan_v3.md 中所有 Spearman/Pearson 数值更新为与 `diagnostic_correlation.csv` 一致 | PushT 所有指标 \|ρ\| 降至 0.4–0.6，无 ≥0.7 强相关；TwoRoom `clean_nn_cos_dist` 升至 −1.000 |

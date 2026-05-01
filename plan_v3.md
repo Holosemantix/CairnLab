@@ -121,7 +121,11 @@ loss:
 | Task | LeWM best | SWM best | Delta | 说明 |
 |---|---:|---:|---:|:---|
 | TwoRoom | 96.0 (`lewm_noise_0to005_p1`) | 97.6 (`swm_fixed-std_noise0.005`) | +1.6 | LeWM per-frame 最佳；SWM fixed-std 聚簇化红利 |
-| PushT | 92.0 (`lewm_noise_0to001_p1`) | 90.0 (`swm_noise_0to001_p1`) | -2.0 | LeWM per-frame 最佳；SWM per-frame 0to001-p1 最佳（fixed-std 仅 61.8） |
+| PushT | 89.33 (`lewm_noise_0to002_p1`) | 81.33 (`swm_noise_0to002_p1`) | -8.0 | 基于 epoch_9, num_eval=150；fixed-std 仅 61.8 |
+| Reacher | 82.67 (`lewm_noise_0to005_p05`) | 78.0 (`swm_noise_0to002_p05` / `swm_noise_0to005_p1`) | -4.67 | LeWM per-frame 最佳；SWM 各配置接近 |
+| Cube | 90.0 (`lewm_base`, num_eval=10*) | 78.0 (`swm_base`) | -12.0 | LeWM-base num_eval=10 近似；其余 9 模型 num_eval=150 |
+
+> *Cube LeWM-base 的 num_eval=150 eval 因环境兼容性问题卡住，当前使用 num_eval=10 结果（90.0）作为近似值，待修复后补齐。
 
 结论：
 
@@ -774,23 +778,24 @@ PushT：
 
 **核心：诊断指标的任务特异性**
 
-| 指标 | TwoRoom (r / ρ) | PushT (r / ρ) | 含义 |
-|---|---:|---:|---|
-| `clean_nn_cos_dist_median` ↔ eval | **−0.80 / −0.91** | **+0.71 / +0.18** | TwoRoom 强负相关，PushT **几乎不相关**；聚簇化不是 PushT 瓶颈 |
-| `predictor_target_to_nn_cos_ratio_at_max_std` ↔ eval | +0.52 / +0.14 | **−0.86 / −0.79** | PushT **最强信号**：predictor target shift 控制与 eval 负相关，接近 ≥0.7 |
-| `predictor_rollout_T8_l2` ↔ eval | **+0.37 / +0.67** | **+0.28 / +0.64** | 两任务均呈强正相关：predictor drift 越大，eval 越高（**跨任务通用信号**） |
-| `clean_effective_rank` ↔ eval | **−0.62 / −0.60** | **+0.78 / +0.66** | **符号反转**：TwoRoom 需要低维，PushT 需要高维 |
-| `lidar_rank` ↔ eval | **−0.93 / −0.81** | **+0.25 / +0.13** | TwoRoom 强负相关，PushT **几乎不相关** |
-| `noise_angle_slope_deg_per_std` ↔ eval | **+0.54 / +0.67** | **−0.87 / −0.34** | **符号反转**：TwoRoom 可容忍高角向增益，PushT 惩罚高角向增益 |
+| 指标 | TwoRoom (r / ρ) | PushT (r / ρ) | Reacher (r / ρ) | 含义 |
+|---|---:|---:|---:|---|
+| `clean_nn_cos_dist_median` ↔ eval | **−0.80 / −0.91** | **+0.71 / +0.18** | −0.10 / −0.32 | TwoRoom 强负相关，PushT/Reacher **几乎不相关**；聚簇化不是高维连续控制任务的瓶颈 |
+| `predictor_target_to_nn_cos_ratio_at_max_std` ↔ eval | +0.52 / +0.14 | **−0.86 / −0.79** | **−0.86 / −0.68** | PushT/Reacher **最强信号**：predictor target shift 控制与 eval 负相关 |
+| `predictor_rollout_T8_l2` ↔ eval | **+0.37 / +0.67** | **+0.28 / +0.64** | −0.62 / −0.36 | TwoRoom/PushT 强正相关；Reacher 方向反转（弱负相关） |
+| `clean_effective_rank` ↔ eval | **−0.62 / −0.60** | **+0.78 / +0.66** | +0.04 / +0.27 | **符号反转**：TwoRoom 需要低维，PushT 需要高维；Reacher 几乎不相关 |
+| `lidar_rank` ↔ eval | **−0.93 / −0.81** | **+0.25 / +0.13** | −0.22 / −0.45 | TwoRoom 强负相关，PushT/Reacher 弱相关 |
+| `noise_angle_slope_deg_per_std` ↔ eval | **+0.54 / +0.67** | **−0.87 / −0.34** | **−0.91 / −0.52** | TwoRoom 可容忍高角向增益，PushT/Reacher 惩罚高角向增益 |
 
 > **重大修正记录**（commit 8605bf5 → bf79a80 → 4ce4931）：PushT 相关性经历三次修正。第一次（8605bf5）将 SWM-fixed-std eval 从误标 89.8 修正为 61.8。第二次（bf79a80）补齐 11 个缺失 eval 后发现 \|ρ\| 均不足。第三次（4ce4931）将 perframe 模型 eval 从 `num_eval=50` 重跑为 `num_eval=150` 后，PushT `predictor_target_to_nn_cos_ratio` 升至 ρ=−0.791，`predictor_rollout_T8_l2` 升至 ρ=+0.636，**接近强相关阈值**。当前 PushT 预测力已显著改善，但仍需 P0.6 holdout 盲测验证。
 
 结论：
 - **TwoRoom 瓶颈**：encoder geometry（聚簇化 / 维度控制）+ predictor 稳定性。
 - **PushT 瓶颈**：predictor 稳定性（target shift 控制、rollout drift）+ 有效维度（方向相反）。
-- **跨任务通用指标**：`predictor_rollout_T8_l2`（TwoRoom ρ=+0.667 / PushT ρ=+0.636）是**唯一跨任务强正相关信号**，可作为通用诊断工具。
-- **PushT 主导信号**：`predictor_target_to_nn_cos_ratio_at_max_std`（ρ=−0.791）接近 ≥0.7 强相关阈值，`clean_effective_rank`（ρ=+0.664）同样接近。
-- **不通用指标**：`lidar_rank`、`clean_nn_cos_dist`、`noise_angle_slope` 任务依赖性强。
+- **Reacher 瓶颈**：相关性整体较弱（|ρ| 最高 0.69），主要信号为 `predictor_target_to_nn_cos_ratio`（ρ=−0.68）和 `cka_linear`（ρ=+0.58）。原因可能是 Reacher 任务难度较低，per-frame 训练把 base 从 58.7 拉到 72–83，压缩了模型间 variance，导致诊断指标区分度下降。
+- **跨任务通用指标**：`predictor_target_to_nn_cos_ratio_at_max_std` 在 PushT（ρ=−0.79）和 Reacher（ρ=−0.68）均为最强信号，TwoRoom 上弱（ρ=+0.14）。`predictor_rollout_T8_l2` 在 TwoRoom（ρ=+0.67）和 PushT（ρ=+0.64）强正相关，但 Reacher 上方向反转（ρ=−0.36）。
+- **不通用指标**：`lidar_rank`、`clean_nn_cos_dist`、`noise_angle_slope`、`clean_effective_rank` 任务依赖性强。
+- **Cube**：base LeWM eval 待补齐（当前 num_eval=10 近似 90.0），diagnostics 仅 3/10 模型完成，暂不足以跑相关性。
 
 clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM fixed-std 走"聚簇化 clean bonus / noise fragile"路径，LeWM per-frame 走"平滑且 clean 不差"路径——两条路径必须用诊断指标分开归因（详 §4.2）。
 
@@ -844,6 +849,7 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM fixed-st
 
 ![TwoRoom 诊断相关性热图](assets/diagnostics/diagnostic_correlation_tworoom.png)
 ![PushT 诊断相关性热图](assets/diagnostics/diagnostic_correlation_pusht.png)
+![Reacher 诊断相关性热图](assets/diagnostics/diagnostic_correlation_reacher.png)
 
 **自动化相关性结果（`diagnostic_correlation.py` 输出）**
 
@@ -864,6 +870,23 @@ TwoRoom（n=8，baselines 已补齐）：
 | `id_probe_r2_min` ↔ eval | −0.442 | **−0.619** | [−0.857, +0.262] | ID probe min R² 越高，eval 越低 |
 | `latent_robust_radius_z` ↔ eval | −0.645 | **−0.619** | [−0.929, +0.192] | 中等负相关，但 CI 仍宽 |
 | `clean_effective_rank` ↔ eval | −0.624 | **−0.595** | [−0.929, +0.310] | 有效维度越多，eval 越低（PushT 方向几乎不相关） |
+
+Reacher（n=10，全 epoch_9，num_eval=150）：
+
+| 指标 | Pearson r | Spearman ρ | 95% CI | 解释 |
+|---|---:|---:|---|---|
+| `predictor_target_to_nn_cos_ratio_at_max_std` ↔ eval | −0.863 | **−0.685** | [−0.939, +0.128] | **最强信号**（与 PushT 一致）：predictor 稳定性越好，eval 越高 |
+| `cka_linear_at_max_std` ↔ eval | +0.952 | **+0.576** | [−0.261, +0.952] | noise 下 latent CKA 越高，eval 越高 |
+| `noise_angle_slope_deg_per_std` ↔ eval | −0.914 | **−0.515** | [−0.843, +0.309] | noise 角度 slope 与 eval 负相关 |
+| `lidar_rank` ↔ eval | −0.218 | −0.455 | [−0.794, +0.431] | 弱负相关 |
+| `latent_cost_surface_slope_z` ↔ eval | +0.126 | +0.382 | [−0.503, +0.879] | 弱正相关 |
+| `clean_nn_cos_dist_median` ↔ eval | −0.104 | −0.321 | [−0.806, +0.503] | 弱负相关 |
+| `predictor_rollout_T8_l2` ↔ eval | −0.616 | −0.358 | [−0.806, +0.516] | 负相关（与 TwoRoom/PushT 方向相反） |
+| `clean_effective_rank` ↔ eval | +0.037 | +0.273 | [−0.382, +0.770] | 几乎不相关 |
+| `id_probe_r2` ↔ eval | +0.371 | +0.285 | [−0.600, +0.830] | 弱正相关 |
+| `transition_resolution_ratio_cos` ↔ eval | +0.049 | −0.127 | [−0.794, +0.746] | 几乎不相关 |
+
+> Reacher 整体相关性弱于 TwoRoom/PushT，|ρ| 最高仅 0.69。可能原因：Reacher 任务本身难度较低（base 仅 58.67），per-frame 训练把分数拉到 72–83，压缩了模型间的 variance，导致诊断指标区分度下降。
 
 PushT（n=11，baselines 已补齐，SWM-fixed-std 真实 eval=61.8）：
 
@@ -1169,7 +1192,39 @@ L = pred_loss
 | SWM-perframe-0to002-p05 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64_epoch_9_object.ckpt` | 76.0 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.27604 | 46.04 | balanced |
 | SWM-perframe-0to002-p1 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64_epoch_9_object.ckpt` | 82.0 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.26000 | 45.46 | balanced |
 
-### A.3 数据流与生成脚本
+### A.3 Reacher（10 模型，全 epoch_9，num_eval=150）
+
+| 模型名 | CKPT 子目录 | 对象文件名 | Eval 分数 | Eval 来源 | `clean_nn_dist` | `eff_rank` | `geometry_flag` |
+|---|---|---|---|---:|---:|---:|---|
+| LeWM-base | `reacher_lewm_20260430` | `reacher_lewm_20260430_epoch_9_object.ckpt` | 58.67 | `summary.txt` | 0.05987 | 42.95 | balanced |
+| LeWM-perframe-0to002-p05 | `reacher_lewm_noise_0to002_p05` | `reacher_lewm_noise_0to002_p05_epoch_9_object.ckpt` | 79.33 | `summary.txt` | 0.07261 | 49.44 | balanced |
+| LeWM-perframe-0to002-p1 | `reacher_lewm_noise_0to002_p1` | `reacher_lewm_noise_0to002_p1_epoch_9_object.ckpt` | 72.67 | `summary.txt` | 0.07199 | 47.99 | balanced |
+| LeWM-perframe-0to005-p05 | `reacher_lewm_noise_0to005_p05` | `reacher_lewm_noise_0to005_p05_epoch_9_object.ckpt` | 82.67 | `summary.txt` | 0.06902 | 45.99 | balanced |
+| LeWM-perframe-0to005-p1 | `reacher_lewm_noise_0to005_p1` | `reacher_lewm_noise_0to005_p1_epoch_9_object.ckpt` | 78.00 | `summary.txt` | 0.05805 | 32.87 | balanced |
+| SWM-base | `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430` | `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430_epoch_9_object.ckpt` | 54.67 | `summary.txt` | 0.09940 | 44.17 | balanced |
+| SWM-perframe-0to002-p05 | `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64` | `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64_epoch_9_object.ckpt` | 78.00 | `summary.txt` | 0.09063 | 43.78 | balanced |
+| SWM-perframe-0to002-p1 | `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64` | `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64_epoch_9_object.ckpt` | 74.00 | `summary.txt` | 0.09335 | 42.87 | balanced |
+| SWM-perframe-0to005-p05 | `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64` | `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64_epoch_9_object.ckpt` | 76.00 | `summary.txt` | 0.09451 | 45.60 | balanced |
+| SWM-perframe-0to005-p1 | `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64` | `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64_epoch_9_object.ckpt` | 78.00 | `summary.txt` | 0.09647 | 44.48 | balanced |
+
+### A.4 Cube（10 模型，全 epoch_9；LeWM-base num_eval=10，其余 num_eval=150）
+
+| 模型名 | CKPT 子目录 | 对象文件名 | Eval 分数 | Eval 来源 | `clean_nn_dist` | `eff_rank` | `geometry_flag` |
+|---|---|---|---|---:|---:|---:|---|
+| LeWM-base | `cube_lewm_20260430` | `cube_lewm_20260430_epoch_9_object.ckpt` | 90.0 | `clean_10.log`（num_eval=10 近似） | — | — | diagnostics 缺失 |
+| LeWM-perframe-0to002-p05 | `cube_lewm_noise_0to002_p05` | `cube_lewm_noise_0to002_p05_epoch_9_object.ckpt` | 64.67 | `summary.txt` | — | — | diagnostics 缺失 |
+| LeWM-perframe-0to002-p1 | `cube_lewm_noise_0to002_p1` | `cube_lewm_noise_0to002_p1_epoch_9_object.ckpt` | 60.67 | `summary.txt` | — | — | diagnostics 缺失 |
+| LeWM-perframe-0to005-p05 | `cube_lewm_noise_0to005_p05` | `cube_lewm_noise_0to005_p05_epoch_9_object.ckpt` | 66.00 | `summary.txt` | — | — | diagnostics 缺失 |
+| LeWM-perframe-0to005-p1 | `cube_lewm_noise_0to005_p1` | `cube_lewm_noise_0to005_p1_epoch_9_object.ckpt` | 64.67 | `summary.txt` | — | — | diagnostics 缺失 |
+| SWM-base | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430_epoch_9_object.ckpt` | 78.00 | `summary.txt` | — | — | diagnostics 缺失 |
+| SWM-perframe-0to002-p05 | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64_epoch_9_object.ckpt` | 72.00 | `summary.txt` | — | — | diagnostics 缺失 |
+| SWM-perframe-0to002-p1 | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64_epoch_9_object.ckpt` | 74.00 | `summary.txt` | 0.25471 | 44.76 | balanced |
+| SWM-perframe-0to005-p05 | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64_epoch_9_object.ckpt` | 70.67 | `summary.txt` | 0.19656 | 43.68 | balanced |
+| SWM-perframe-0to005-p1 | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64_epoch_9_object.ckpt` | 64.00 | `summary.txt` | 0.16893 | 42.79 | balanced |
+
+> **注**：Cube 7/10 模型 diagnostics 缺失，待补齐后方可生成完整 correlation。
+
+### A.5 数据流与生成脚本
 
 | 层级 | 文件 | 生成脚本 | 输入依赖 |
 |---|---|---|---|

@@ -8,6 +8,8 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from tools.repr_analysis.run_full_diagnostics import _summarize_noise_to_predictor_to_resolution
+from tools.repr_analysis.latent_noise_sensitivity import summarize_latent_noise_geometry
+from tools.repr_analysis.analyze_repr import to_serializable
 
 
 def _csv_to_rows(path: Path) -> list[dict]:
@@ -80,6 +82,16 @@ def regen(task_dir: Path, out_path: Path | None = None):
     print(f"Wrote {out_path} ({len(summary)} models)")
     for s in summary:
         print(f"  - {s['model']}")
+
+    # Also regenerate latent_geometry_summary.csv/.json from the new data
+    for scope_name, frame_scope in [("goal", "goal"), ("history", "history")]:
+        geom = summarize_latent_noise_geometry(latent_noise_rows, frame_scope=frame_scope)
+        if geom is not None and not geom.empty:
+            csv_path = latent / f"latent_geometry_summary_{scope_name}.csv"
+            json_path = latent / f"latent_geometry_summary_{scope_name}.json"
+            geom.to_csv(csv_path, index=False)
+            json_path.write_text(json.dumps(to_serializable(geom.to_dict(orient="records")), indent=2))
+            print(f"  Wrote {csv_path} ({len(geom)} rows, scope={frame_scope})")
 
 
 if __name__ == "__main__":

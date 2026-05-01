@@ -816,6 +816,13 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM fixed-st
 **图表**：`p0_correlation_{tworoom,pusht}.png`、`predictor_drift_eval_correlation.png`、`noise_angle_curve_goal.png`、`noise_ratio_curve_goal.png`、`geometry_tradeoff_goal.png`。  
 保存路径：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/`。
 
+![TwoRoom P0 诊断指标与 eval 相关性](assets/diagnostics/p0_correlation_tworoom.png)
+![PushT P0 诊断指标与 eval 相关性](assets/diagnostics/p0_correlation_pusht.png)
+![Predictor Drift 与 Eval 相关性（双任务）](assets/diagnostics/predictor_drift_eval_correlation.png)
+![Noise Angle 曲线](assets/diagnostics/noise_angle_curve_goal.png)
+![Noise Ratio 曲线](assets/diagnostics/noise_ratio_curve_goal.png)
+![Geometry Tradeoff 散点](assets/diagnostics/geometry_tradeoff_goal.png)
+
 #### P0.5 决策标准（按实际数据评估）
 
 | 任务 | 指标 | Spearman \|ρ\| | 判定 | 行动 |
@@ -849,6 +856,9 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM fixed-st
 - 新增 `tools/repr_analysis/diagnostic_correlation.py`：自动收集 N×T 表，跑 Spearman + bootstrap，落 csv / png。
 - 在 `experiments.md` 维护一个 "diagnostic ↔ eval" 主表，每加一个 checkpoint 自动 append。
 - 论文图：(a) noise curve 对比图（已有 `plot_noise_curves`），(b) robustness-resolution 散点（已有 `plot_geometry_tradeoff`），(c) 相关性热图（已生成 `diagnostic_correlation.png`）。
+
+![TwoRoom 诊断相关性热图](assets/diagnostics/diagnostic_correlation_tworoom.png)
+![PushT 诊断相关性热图](assets/diagnostics/diagnostic_correlation_pusht.png)
 
 **自动化相关性结果（`diagnostic_correlation.py` 输出）**
 

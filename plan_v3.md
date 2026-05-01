@@ -1153,16 +1153,16 @@ L = pred_loss
 | SWM-perframe-p05 | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64` | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64_epoch_9_object.ckpt` | 87.33 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.04984 | 26.96 | balanced |
 | SWM-perframe-p1 | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64` | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64_epoch_9_object.ckpt` | 86.67 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.04775 | 26.89 | balanced |
 
-### A.2 PushT（11 模型，base 为 epoch_10，其余 epoch_9）
+### A.2 PushT（11 模型，全 epoch_9）
 
 | 模型名 | CKPT 子目录 | 对象文件名 | Eval 分数 | Eval 来源 | `clean_nn_dist` | `eff_rank` | `geometry_flag` |
 |---|---|---|---|---:|---:|---:|---|
-| LeWM-base | `pusht_lewm_20260430` | `pusht_lewm_20260430_epoch_10_object.ckpt` | 86.67 | `pusht_results.txt` | 0.23599 | 47.48 | robust |
+| LeWM-base | `pusht_lewm_20260430` | `pusht_lewm_20260430_epoch_9_object.ckpt` | 80.67 | `pusht_results.txt` | 0.23599 | 47.48 | robust |
 | LeWM-fixed-std | `pusht_lewm_noise_std_0_005` | `pusht_lewm_noise_std_0_005_epoch_9_object.ckpt` | 83.0 | `pusht_results.txt` | 0.14473 | 31.40 | robust |
 | LeWM-perframe-0to001-p1 | `pusht_lewm_noise_0to001_p1` | `pusht_lewm_noise_0to001_p1_epoch_9_object.ckpt` | 92.0 | `eval_run.log`（run_missing_evals 重跑） | 0.22625 | 48.36 | balanced |
 | LeWM-perframe-0to002-p1 | `pusht_lewm_noise_0to002_p1` | `pusht_lewm_noise_0to002_p1_epoch_9_object.ckpt` | 88.0 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.24733 | 48.28 | balanced |
 | LeWM-perframe-0to005-p1 | `pusht_lewm_noise_0to005_p1` | `pusht_lewm_noise_0to005_p1_epoch_9_object.ckpt` | 82.67 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.22531 | 46.74 | balanced |
-| SWM-base | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430_epoch_10_object.ckpt` | 78.67 | `pusht_results.txt` | 0.26449 | 44.02 | robust |
+| SWM-base | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430_epoch_9_object.ckpt` | 77.33 | `pusht_results.txt` | 0.26449 | 44.02 | robust |
 | SWM-fixed-std | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64_epoch_9_object.ckpt` | 61.8 | `pusht_results.txt` | 0.06639 | 18.38 | fragile,high_angle_gain |
 | SWM-perframe-0to001-p05 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p05_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p05_dim64_epoch_9_object.ckpt` | 82.0 | `eval_run.log`（run_missing_evals 重跑） | 0.25770 | 42.62 | robust |
 | SWM-perframe-0to001-p1 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64_epoch_9_object.ckpt` | 90.0 | `eval_run.log`（run_missing_evals 重跑） | 0.28448 | 45.70 | robust |

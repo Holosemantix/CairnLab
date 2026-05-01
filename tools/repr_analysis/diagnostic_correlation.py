@@ -5,6 +5,31 @@ Compute Spearman + Pearson correlations between diagnostic metrics and eval
 scores, with bootstrap confidence intervals. Produces a CSV table and a
 heatmap PNG.
 
+This is the automation backbone of the diagnostic ↔ eval correlation
+workflow described in plan_v3.md §6 P0.4 / P0.7. The intent is to take a
+fixed set of label-free diagnostic indicators (from `run_full_diagnostics`)
+and rank them by predictive value against measured eval scores, so that
+strong indicators can be promoted to "main metric" status (P0.5) and weak
+ones can be discarded.
+
+References:
+    - Spearman rank correlation as a label-free performance predictor for
+      pretrained models: Garg et al., "Leveraging Unlabeled Data to Predict
+      Out-of-Distribution Performance" (ATC), ICLR 2022; Deng & Zheng,
+      "Are Labels Always Necessary for Classifier Accuracy Evaluation?",
+      CVPR 2021.
+    - Bootstrap percentile confidence interval for correlation:
+      Efron & Tibshirani, "An Introduction to the Bootstrap", 1993,
+      Ch. 13 (BCa / percentile method).
+    - Active validation on holdout checkpoints (P0.6 protocol): Kossen
+      et al., "Active Testing", ICML 2021.
+
+Spearman ρ implementation note:
+    `_rank` uses `argsort(argsort(.))` which gives ordinal ranks (does not
+    average ranks at ties). For continuous, real-valued diagnostic indicators
+    ties are negligibly rare; if exact tied-rank averaging is needed, use
+    scipy.stats.rankdata(..., method="average").
+
 Usage::
 
     python -m tools.repr_analysis.diagnostic_correlation \
@@ -51,18 +76,28 @@ def _spearman_bootstrap(
     n_bootstrap: int = 1000,
     rng: np.random.Generator | None = None,
 ) -> Tuple[float, float, float]:
-    """Return (rho, ci_low, ci_high) using bootstrap percentile method."""
+    """Return (rho, ci_low, ci_high) using bootstrap percentile method.
+
+    Bootstrap CI: percentile method (Efron & Tibshirani 1993). For each
+    bootstrap sample we resample (x, y) pairs with replacement and recompute
+    ρ; the 2.5 / 97.5 percentiles of the resulting distribution are the
+    CI bounds. With n=8–11 (our typical N) the CI is wide and should be
+    interpreted as "is the sign reliable" rather than a precise estimate.
+    """
     if rng is None:
         rng = np.random.default_rng(42)
     n = len(x)
     if n < 4:
         return float("nan"), float("nan"), float("nan")
 
-    # scipy may not be available; implement simple Spearman rank correlation
+    # scipy may not be available; implement simple Spearman rank correlation.
+    # NB: _rank uses ordinal rank (no tie averaging) — see module docstring.
     def _rank(a: np.ndarray) -> np.ndarray:
         return np.argsort(np.argsort(a)).astype(float)
 
     def _rho(a: np.ndarray, b: np.ndarray) -> float:
+        # Spearman ρ = 1 - 6·Σd²/(n(n²-1)). Exact only without ties; for our
+        # continuous diagnostic indicators ties are practically nonexistent.
         ra = _rank(a)
         rb = _rank(b)
         d = ra - rb

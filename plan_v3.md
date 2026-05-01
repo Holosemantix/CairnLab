@@ -5,22 +5,6 @@
 
 ---
 
-## ⚠️ 待用户排查的数据 / 状态问题
-
-下列项目在文档审计中发现可疑或自相矛盾。**问题 1 / 2 / 7 已通过 ckpt 溯源与文档重构解决；问题 3 / 4 / 5 / 6 已在上一轮重写中统一。** 所有项均已补注来源或更正。
-
-| # | 状态 | 位置 | 问题 |
-|---|---|---|---|
-| 1 | ✅ 已处理 | §2 Clean Benchmark 表 `PushT SWM best = 89.8` | 旧 4-task benchmark 数据已标注来源可追溯性。`89.8` 来自 `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260415`（results.txt 已丢失），并非 SWM-fixed-std（真实 61.8）。已拆分为旧表（§2.1，历史参考）和当前 P0.3 一致基准（§2.2）。 |
-| 2 | ✅ 已处理 | §2 Clean Benchmark `LeWM PushT 89.4 / TwoRoom 93.0`、`SWM TwoRoom 90.8` | 旧 benchmark 已标注 ckpt 来源（TwoRoom 可验证，Cube/Reacher/PushT 已标注不可追溯）。同时新增 §2.2 当前 P0.3 诊断用 clean benchmark（TwoRoom LeWM 96.0 / SWM 97.6；PushT LeWM 92.0 / SWM 88.2），与 §6 使用同一组 ckpt。 |
-| 3 | ✅ 已在重写中修复 | §6 优先级段（旧 line 388） PushT 旧相关性 `r=-0.46, ρ=-0.47, +0.44, -0.58` | 已替换为指向 P0.4 / P0.5 / P0.7（修正后表）的指针，不再引用旧数值 |
-| 4 | ✅ 已在重写中修复 | §6 P0.1 latent-noise 状态 | 已统一为 ✅ |
-| 5 | ✅ 已在重写中修复 | §6 P0.2 `diagnostic_correlation.py` 状态 | 已统一为 ✅（commit 13dda0f） |
-| 6 | ✅ 已在重写中修复 | §7.5 ATC 阈值-分桶框架状态 | 已注明”Spearman + Pearson + bootstrap CI 已实现；ATC threshold predictor 留到 P0.6 active validation 时再做分桶” |
-| 7 | ✅ 已处理 | §4.1 标题 `TwoRoom SWM, std_min=0, std_max=0.05` 但表中混入 `PushT std=0 = 61.8` 行 | 已拆分为 TwoRoom（§4.1 P1 第一组，`std_min=0, std_max=0.05`，ckpt `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64`）和 PushT（§4.1 P1 第二组，training noise=0.005，ckpt `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64`）两个独立段，并分别标注训练 noise 设置与 ckpt 来源。 |
-
----
-
 ## 0. 当前结论
 
 最初问题是：把 LeWM 的 Euclidean embedding + SIGReg 换成 spherical embedding + uniformity，是否能稳定提升规划性能？
@@ -116,15 +100,15 @@ loss:
 
 ---
 
-## 2. Clean Benchmark 状态
+## 2. Clean Benchmark
 
 ### 2.1 旧 4-task benchmark（来源可追溯性说明）
 
 > ⚠️ **数据来源审计**：以下数据来自 `experiments.md` 记录的早期 4-task benchmark（2026-04-15/20），配置为 epoch=10，num_eval=500，single seed。这些 ckpt 与当前 P0.3 诊断分析使用的模型**不是同一组**（dim、temporal 配置、noise 设置均可能不同），因此本节仅作历史参考，不进入 P0.3 相关性分析。
 >
-> | Task | LeWM | SWM best | Delta | 来源 ckpt（已验证 / 不可追溯） |
+> | Task | LeWM | SWM best | Delta | 来源 ckpt |
 > |---|---:|---:|---:|:---|
-> | TwoRoom | 93.0 | 90.8 | -2.2 | LeWM: `tworoom_lewm` ✅；SWM: `tworoom_swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64_20260420` ✅ |
+> | TwoRoom | 93.0 | 90.8 | -2.2 | LeWM: `tworoom_lewm`；SWM: `tworoom_swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64_20260420` |
 > | Cube | 69.2 | 74.0 | +4.8 | 旧 benchmark，ckpt 已不在当前目录，不可追溯 |
 > | PushT | 89.4 | 89.8 | +0.4 | LeWM 来源不明（当前 `pusht_lewm` 仅 81.0）；SWM `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260415` **results.txt 已丢失**，不可追溯。89.8 并非 SWM-fixed-std（真实 61.8）。 |
 > | Reacher | 62.2 | 66.0 | +3.8 | 旧 benchmark，ckpt 已不在当前目录，不可追溯 |
@@ -400,7 +384,7 @@ PushT：
 
 ## 6. 下一步实验计划
 
-> **当前优先级：P0.6 ≥ P3 > P4**。P0.3 数据矩阵已就位（TwoRoom 8 模型，PushT 11 模型，n=8 / n=11 进入相关性分析）；P0.4 相关性、P0.5 决策标准、P0.7 自动化均已完成（详见 §6 P0.4 / P0.5 / P0.7）。P1 noise-aware training 已完成（§4），P2.1 cost swap 已结论（cost saturation 非主因），P2.2 / P5 latent-noise probing 已落地。下一步：P0.6 holdout 盲分桶；若失败再回 P3（encoder 拆解）。
+> **当前优先级：P0.6 ≥ P3 > P4**。下一步是 P0.6 holdout 盲分桶；若失败再回 P3（encoder 拆解），若诊断可稳定分桶再进入 P4 adaptive guardrail。
 
 ### P0：把诊断变成预测指标
 
@@ -418,18 +402,17 @@ PushT：
 
 #### P0.1 诊断指标分层
 
-| 层 | 指标 | 状态 | 用途 |
-|---|---|---|---|
-| Encoder shift | `noise_angle_deg_median/p90`, `noise_l2_median/p90`, `noise_cos_dist_median/p90` | ✅ | encoder 直接 angular / L2 sensitivity |
-| Encoder geometry | `clean_nn_cos_dist`, `clean_pair_cos_dist`, `clean_norm_mean` | ✅ | clustering / scale |
-| 派生比例 | `noise_to_nn_cos_ratio_median/p90`, `robust_radius_std`, `noise_angle_slope_deg_per_std` | ✅ | 跨模型可比的鲁棒性界 |
-| 几何标签 | `geometry_flag` (`clustered/fragile/robust/balanced`) + `recommendation` | ✅ | 经验阈值规则 |
-| Encoder 区分 | `effective_rank`、`frame_scope="history"` | ✅ | 区分 collapse vs clustering；history 帧对应 pixels-only failure |
-| Predictor side | `predictor_rollout_drift(T)`、`predictor_target_shift` | ✅ | encoder 之外，predictor 在 noisy history 下的累积漂移 |
-| Task resolution | `transition_resolution_ratio = d(z_t, z_{t+1}) / d(z_t, z_far)`、inverse-dynamics linear probe readout、LiDAR rank | ✅ | 量化任务所需状态分辨率，区分 TwoRoom 与 PushT 偏好 |
-| Latent-noise | `predictor_rollout_drift_z(T)`、`cost_surface_slope_z`、`robust_radius_z`、`predictor_{angle,l2}_slope_per_std_z`、`rollout_{angle,l2}_slope_per_std_z` | ✅ | encoder-decoupled 的 predictor / cost smoothness（见 §6 P2/P5；实现 `latent_noise_sensitivity.py`） |
-| Latent-noise 备注 | `robust_radius_z` goal scope 恒为 0 → NaN；已改用 history scope + rollout-drift fallback（`rollout_T8_l2 / clean_nn_l2` 作为 ratio，commit 13dda0f），TwoRoom 0.005–0.021，PushT 0.018–0.031 | ✅ | 见 P0.3 latent-noise 附注 |
-| 目标变量 | `eval_drop_pix+goal`, `eval_drop_goal_only`, `eval_drop_pix_only`（at std=0.03/0.05/0.08） | ✅ 已收 | 三种 noise mode 分别看，对应不同失败机制 |
+| 层 | 指标 | 用途 |
+|---|---|---|
+| Encoder shift | `noise_angle_deg_median/p90`, `noise_l2_median/p90`, `noise_cos_dist_median/p90` | encoder 直接 angular / L2 sensitivity |
+| Encoder geometry | `clean_nn_cos_dist`, `clean_pair_cos_dist`, `clean_norm_mean` | clustering / scale |
+| 派生比例 | `noise_to_nn_cos_ratio_median/p90`, `robust_radius_std`, `noise_angle_slope_deg_per_std` | 跨模型可比的鲁棒性界 |
+| 几何标签 | `geometry_flag` (`clustered/fragile/robust/balanced`) + `recommendation` | 经验阈值规则 |
+| Encoder 区分 | `effective_rank`、`frame_scope="history"` | 区分 collapse vs clustering；history 帧对应 pixels-only failure |
+| Predictor side | `predictor_rollout_drift(T)`、`predictor_target_shift` | encoder 之外，predictor 在 noisy history 下的累积漂移 |
+| Task resolution | `transition_resolution_ratio = d(z_t, z_{t+1}) / d(z_t, z_far)`、inverse-dynamics linear probe readout、LiDAR rank | 量化任务所需状态分辨率，区分 TwoRoom 与 PushT 偏好 |
+| Latent-noise | `predictor_rollout_drift_z(T)`、`cost_surface_slope_z`、`robust_radius_z`、`predictor_{angle,l2}_slope_per_std_z`、`rollout_{angle,l2}_slope_per_std_z` | encoder-decoupled 的 predictor / cost smoothness（见 §6 P2/P5；实现 `latent_noise_sensitivity.py`） |
+| 目标变量 | `eval_drop_pix+goal`, `eval_drop_goal_only`, `eval_drop_pix_only`（at std=0.03/0.05/0.08） | 三种 noise mode 分别看，对应不同失败机制 |
 
 **报告口径**
 
@@ -437,33 +420,32 @@ PushT：
 - 附表必须保留 `p90` / L2 / scope 信息：`noise_angle_deg_p90`、`noise_to_nn_cos_ratio_p90`、`noise_to_nn_l2_ratio_median`、`frame_scope ∈ {goal, history, all}`。其中 history scope 对应 pixels-only failure，不能只看 goal scope。
 - latent-noise 附表单独保留：`latent_robust_radius_z`、`latent_predictor_rollout_T8_l2_history`、`latent_cost_surface_slope_z`。这些字段已经在 `diagnostics_summary.json` roll-up 里，但当前还缺跨模型实际结果表。
 
-#### P0.2 诊断实现现状（已落地）
+#### P0.2 诊断实现现状
 
 1. `tools/repr_analysis/noise_sensitivity.py`：
    - 支持 `frame_scope="history" / "goal" / "all"`，与 pixels-only / goal-only / 全帧 failure 对齐。
    - 输出 `effective_rank`（迁自 `analyze_repr.py`），区分 collapse 与 clustering。
-   - 含 `_linear_cka` 子空间对齐（§7.5 借用 Kornblith 2019）。
+   - 含 `_linear_cka` 子空间对齐（§7.1 借用 Kornblith 2019）。
 2. `tools/repr_analysis/predictor_sensitivity.py`：
    - 同一 batch 在 history 子段加噪，跑 predictor 多步 rollout，与 clean rollout 比较。
    - 输出 `predictor_rollout_drift_median(T)`（T=1..rollout_steps）和 single-step `predictor_target_shift`。
 3. `tools/repr_analysis/task_resolution.py`：
    - `transition_resolution_ratio`：相邻帧距离 / 跨序列随机帧距离的中位数比。
    - inverse-dynamics linear probe（仅训 readout，不动主模型）做 action 可预测性代理。
-   - LiDAR rank（temporal 正样本对版本，§7.5 借用 Thilak 2024）。
+   - LiDAR rank（temporal 正样本对版本，§7.1 借用 Thilak 2024）。
 4. `tools/repr_analysis/run_full_diagnostics.py` 把以上三套统一调度，落 `diagnostics_summary.json` 一行 roll-up。
 
-5. `tools/repr_analysis/latent_noise_sensitivity.py`（**P2/P5**，已落地）：
+5. `tools/repr_analysis/latent_noise_sensitivity.py`（**P2/P5**）：
    - 直接对 encoded `z` 注入高斯噪声，跳过 encoder。
    - 支持 `frame_scopes ∈ {history, goal, all}` 与 input-space 工具镜像。
    - 支持 `noise_geometry ∈ {ambient, tangent}`（tangent 用于 SWM 切空间扰动）与 `std_mode ∈ {relative, absolute}`（默认 relative，按 per-token clean norm 缩放，跨 LeWM/SWM 可比）。
    - 输出 `predictor_target_shift_z`、`predictor_rollout_drift_z(T)`、`cost_surface_slope_z`、`robust_radius_z`，roll-up 字段已并入 `diagnostics_summary.json`。
 
-已落地（commit 13dda0f）：
 - `tools/repr_analysis/diagnostic_correlation.py`：诊断 ↔ eval 自动相关性（Spearman + Pearson + bootstrap CI），结果见 P0.7。
 
-#### P0.3 数据收集（已完成）
+#### P0.3 数据矩阵
 
-**TwoRoom（8 模型，已完成）**
+**TwoRoom（8 模型）**
 
 | 模型 | robust_radius | first_risk_std | noise_angle_slope (°/std) | clean_nn_cos_dist | clean_eff_rank | geometry_flag |
 |---|---:|---:|---:|---:|---:|---|
@@ -485,7 +467,7 @@ PushT：
 3. **LeWM 固定 std 也有聚簇化**：`clean_nn_cos_dist=0.013`（baseline 0.039 的 1/3），`robust_radius=0.007`（baseline 的 1/2），flag 为 `fragile,clustered`，但程度远轻于 SWM。
 4. **Predictor 稳定性意外提升**：per-frame 训练的 rollout drift（T=8 L2）在 max std=0.08 下比 baseline 降低一个数量级（TwoRoom LeWM: 18.07→0.78，降低 **23×**；SWM: 1.25→0.07，降低 **18×**；详见上方 `@ max std=0.08` 表），说明噪声训练同时改善了动力学预测的平滑性。
 
-**PushT（11 个 geometry rows 已完成，n=11 可进相关性分析）**
+**PushT（11 个 geometry rows，n=11 可进相关性分析）**
 
 | 模型 | robust_radius | first_risk_std | noise_angle_slope (°/std) | clean_nn_cos_dist | clean_eff_rank | geometry_flag |
 |---|---:|---:|---:|---:|---:|---|
@@ -760,10 +742,10 @@ PushT：
 
 **Action effect probe（action perturbation → pred shift）**
 
-| 任务 | 状态 | 结果 |
-|---|---|---|
-| TwoRoom | ✅ 已修复 | `mean_pred_shift_norm` 0.15–0.58，correlation 0.11–0.31，monotonicity >0.80 |
-| PushT | ✅ 已修复 | 待批量跑（`run_planning_action_probe.py` 已修复 `encode_sequences` 调用） |
+| 任务 | 结果 |
+|---|---|
+| TwoRoom | `mean_pred_shift_norm` 0.15–0.58，correlation 0.11–0.31，monotonicity >0.80 |
+| PushT | 待批量跑；`run_planning_action_probe.py` 已改为调用 `encode_sequences(model, batch)` |
 
 > 修复内容：`run_planning_action_probe.py` 原来只构造 `outputs={"pixels":..., "action":...}`，缺少 `"emb"` 键，导致 `get_embedding_space(outputs, rollout_space)` 报 `KeyError: 'emb'`。改为调用 `encode_sequences(model, batch)` 后正常。
 >
@@ -786,7 +768,7 @@ PushT：
 
 结果保存：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/`
 
-#### P0.4 相关性分析（已完成 — 跨任务对比结论）
+#### P0.4 相关性分析（跨任务对比结论）
 
 > 完整自动化相关性表见 P0.7（来自 `diagnostic_correlation.py`，n=8 / n=11，含 95% bootstrap CI）。本节只给跨任务对比与高层结论，不重复列指标。
 
@@ -906,7 +888,7 @@ PushT（n=11，baselines 已补齐，SWM-fixed-std 真实 eval=61.8）：
 
 保存路径：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/diagnostic_correlation.{csv,png,summary.json}`
 
-### P1：Noise-Aware Training（已完成 — 见 §4）
+### P1：Noise-Aware Training（结论见 §4）
 
 P1.1–P1.3 完整 eval / geometry 数据见 §4；机制结论（fixed-std → 聚簇化、per-frame → 平滑化、两者互斥）见 §4.2；与 P0 诊断指标的对应关系见 §6 P0.3 / P0.4。本节不重复。
 
@@ -922,7 +904,7 @@ P1.4（可选，未做）：补扫 SWM `std_max ∈ {0.01, 0.02, 0.03, 0.08}` �
 | Predictor | `predictor_sensitivity.py` / `latent_noise_sensitivity.py` | noisy history 或 noisy z 是否被 predictor 放大 |
 | Cost | eval cost swap / `cost_surface_slope_z` | planning cost 是否在大角度或 latent perturbation 下饱和/失去梯度 |
 
-#### P2.1 Eval-only cost swap（已完成）
+#### P2.1 Eval-only cost swap
 
 固定 SWM checkpoint，不重新训练，只在 eval 改 planning cost：
 
@@ -952,7 +934,7 @@ python eval.py --config-name=tworoom.yaml policy=<swm_ckpt> \
 - cost saturation 可能贡献了一部分损害，但不是主因。
 - 主导失败仍然是 upstream encoder / noisy goal embedding corruption：目标 latent 已经偏到错误区域，eval-only cost swap 无法修复。
 
-#### P2.2 Latent-noise probing（已落地 — 数据见 §6 P0.3 latent-noise 表，相关性见 P0.4 / P0.7）
+#### P2.2 Latent-noise probing（数据见 §6 P0.3 latent-noise 表，相关性见 P0.4 / P0.7）
 
 P5 原本单列为一个诊断实验；这里并入 P2，因为它和 cost swap 都是在做 encoder / predictor / cost 的机制解耦。区别是：P2.1 从 eval 端替换 cost，P2.2 直接在 encoded `z` 上加噪，跳过 encoder。
 
@@ -976,7 +958,7 @@ P5 原本单列为一个诊断实验；这里并入 P2，因为它和 cost swap 
 | `cost_surface_slope_z` | 固定 prediction，扰动 goal latent 后的 mean cost delta / std | cost 对 goal latent perturbation 的局部斜率 |
 | `robust_radius_z` | `target_to_nn_cos_ratio` 跨过 1 时的 std | predictor target shift 相对 clean NN 尺度的 empirical latent radius |
 
-注意：早期草稿把 `robust_radius_z` 写成 rollout drift crossing，这是概念上可选的定义，但**当前代码实现用的是 `target_to_nn_cos_ratio` crossing**。`latent_lipschitz_est` 也还没有作为独立字段输出；不要在结果表里把它当成已落地指标。
+注意：早期草稿把 `robust_radius_z` 写成 rollout drift crossing，这是概念上可选的定义，但**当前代码实现用的是 `target_to_nn_cos_ratio` crossing**。`latent_lipschitz_est` 还不是独立输出字段；不要在结果表里把它当成可用指标。
 
 实现入口：`tools/repr_analysis/latent_noise_sensitivity.py`
 
@@ -1041,24 +1023,30 @@ L = pred_loss
 
 为了把诊断工具放到论文里要严谨，本节把 P0 用到的每一个指标对照已有工作，标清楚"哪个是借用 / 哪个是组合 / 哪个是真新东西"。这影响 §8 的贡献条目和 Related Work 该怎么写。
 
-### 7.1 单指标的 prior art
+### 7.1 诊断指标速查：含义、来源、代码位置
 
-| 我们的指标 | 已有最接近的命名 / 工作 | 关系 |
-|---|---|---|
-| `effective_rank` | **RankMe** (Garrido et al., ICML 2023)；LiDAR (Thilak et al., ICLR 2024)；matrix entropy / spectral entropy | 直接借用，用作 collapse 区分；引用 RankMe，不主张 novelty |
-| `clean_pair_cos_dist` (median) | **Wang & Isola alignment/uniformity** (ICML 2020)；anisotropy (Ethayarajh, EMNLP 2019) | `L_uniform` 是聚合版；我们用作几何参考量，引用 Wang & Isola |
-| `clean_nn_cos_dist` | NN-distance OOD (Sun et al., NeurIPS 2022)；SNGP distance-aware features (Liu et al., NeurIPS 2020) | 同样是 latent NN 距离原语；我们用作 noise shift 的归一化分母 |
-| `noise_l2`, `noise_angle_deg` | empirical Jacobian probing (Hoffman et al., 2019)；randomized smoothing (Cohen et al., ICML 2019) | 概念等价于"沿数据流形的局部 Jacobian 范数"，引用为 inspiration |
-| `noise_angle_slope` (deg per std) | 局部 Lipschitz / spectral norm (Virmaux & Scaman, NeurIPS 2018; LipSDP 2019) | 球面几何下的角度变体；与 certified bounds 不是同一目的 |
-| `noise_to_nn_cos_ratio` | 无完全对应；概念上是 signal-to-noise / Mahalanobis-style ratio | **Composite，可主张为 novel** |
-| `robust_radius` (interpolated crossing) | certified radius in randomized smoothing (Cohen et al., 2019) | label-free / planning-latent 的 empirical 版本，主张为 novel |
-| `predictor_target_shift` (single-step) | rollout MSE in Dreamer / TD-MPC / TD-MPC2 | 标准做法，引用即可 |
-| `predictor_rollout_drift(T)` | 文献里没有同名指标；最近 surprise-recognition (arXiv 2512.01119) 用 single-step 误差做 runtime filter | **多步 latent drift between noisy/clean conditioning，主张为 novel** |
-| `predictor_rollout_drift_z(T)`, `cost_surface_slope_z`, `robust_radius_z` | randomized smoothing (Cohen et al., ICML 2019) 平移到 latent；Lipschitz estimation (Fazlyab et al., NeurIPS 2019) | ✅ P2/P5（`latent_noise_sensitivity.py`）；framework 直接借用，组合后给 encoder-decoupled 鲁棒性边界 |
-| `transition_resolution_ratio` | 检索领域 intra/inter-class gap；ID gap (Brandfonbrener 2023) | 时间近邻版本；主张为 novel naming |
-| Inverse-dynamics linear probe | **Brandfonbrener et al.** (NeurIPS 2023) "Inverse Dynamics Pretraining Learns Good Representations"；ICM (Pathak et al., ICML 2017) | 直接引用；novelty 在用 noise-induced drop 作 failure predictor |
-| Spearman ρ + bootstrap CI workflow | **ATC** (Garg et al., ICLR 2022)；Deng & Zheng (CVPR 2021) | 标准 label-free performance prediction 做法；引用为 method；`PROXIMA (2026)` 待核对后再决定是否保留 |
-| Active validation on holdout checkpoints | active testing (Kossen et al., ICML 2021) | 框架不新；新颖在应用到 world-model robustness |
+本表替代原附录里的指标手册，只保留写论文和人工审查最需要的信息。具体字段的完整 CSV 仍以 `diagnostics_summary.json` 和各模块输出为准。
+
+| 指标 / 维度 | 简洁含义 | 参考来源与归属 | 代码逻辑位置 |
+|---|---|---|---|
+| `noise_l2`, `noise_cos_dist`, `noise_angle_deg` | 同一 observation 加 pixel noise 前后的 encoder shift；球面模型重点看 angle | empirical Jacobian / local Lipschitz probe；Hoffman 2019, Virmaux & Scaman 2018 | `tools/repr_analysis/noise_sensitivity.py::_shift_metrics` |
+| `clean_nn_cos_dist`, `clean_nn_l2` | clean latent 的最近邻尺度，作为“噪声是否推出局部邻域”的分母 | KNN-OOD / distance-aware feature primitive；Sun 2022, Liu 2020 | `noise_sensitivity.py::_pairwise_reference`; `predictor_sensitivity.py::_clean_nn_dist` |
+| `clean_pair_cos_dist`, `clean_pair_l2` | clean latent 的全配对距离，用作 uniformity / anisotropy 参考 | Wang & Isola uniformity；Ethayarajh anisotropy | `noise_sensitivity.py::_pairwise_reference` |
+| `clean_effective_rank` | latent 协方差谱的有效维度，用来区分 collapse、clustered、balanced | RankMe / matrix entropy；Garrido 2023；LiDAR 相关但不主张新颖性 | `analyze_repr.effective_rank`; `task_resolution.py` roll-up |
+| `cka_linear_clean_vs_noisy` | clean/noisy 表征子空间对齐；补充 per-point shift | CKA；Kornblith 2019 | `noise_sensitivity.py::_linear_cka` |
+| `noise_to_nn_*_ratio` | encoder shift 除以 clean NN 尺度；ratio ≥ 1 表示噪声跨过局部邻域 | composite 指标，可作为 planning-latent robustness ratio 主张 | `noise_sensitivity.py::analyze_model_noise` |
+| `robust_radius_std`, `first_high_risk_std` | `noise_to_nn_cos_ratio` 跨过 1 的插值 / 首次离散 std | randomized smoothing 的 empirical planning-latent 版本；Cohen 2019 是来源，不是同一 certified setting | `noise_sensitivity.py::summarize_noise_geometry` |
+| `noise_angle_slope_deg_per_std`, `noise_ratio_slope_per_std` | 小 std 附近的 angular gain / ratio gain | local Lipschitz / spectral norm 思路的球面诊断版本 | `noise_sensitivity.py::_near_zero_slope` |
+| `geometry_flag`, `recommendation` | 按 radius、angle gain、NN distance、effective rank 给出的经验几何标签和建议 | 工程规则；不是论文 novelty 单独主张 | `noise_sensitivity.py::_geometry_flags`; `_recommendation` |
+| `predictor_target_shift`, `target_to_nn_*_ratio` | noisy history 经过 predictor 后的 single-step target shift；ratio 版本跨模型可比 | single-step rollout error 来自 Dreamer / TD-MPC family；ratio 是本文 composite | `tools/repr_analysis/predictor_sensitivity.py::_open_loop_target_shift`; `analyze_model_predictor_noise` |
+| `predictor_rollout_drift(T)` | noisy vs clean history 自回归 T 步后的 latent drift | multi-step noise-vs-clean conditioning，文献无直接对应，可主张 novelty；不同于 Dreamer/TD-MPC 对 ground-truth latent 的 rollout MSE | `predictor_sensitivity.py::_autoregressive_rollout` |
+| `transition_resolution_ratio` | 相邻帧距离 / 跨序列随机帧距离；衡量 latent 是否保留任务分辨率 | temporal-neighbor 版本的 intra/inter gap；命名和 planning 用法可主张新颖 | `tools/repr_analysis/task_resolution.py::_transition_metrics` |
+| `id_probe_r2`, `id_probe_r2_min` | 只训练 linear readout，用 `(z_t,z_{t+1})` 预测 action，代理 action-relevant state information | inverse-dynamics representation probe；Brandfonbrener 2023, Pathak 2017, Alain & Bengio 2017 | `task_resolution.py::_ridge_probe`; `_build_id_probe_data` |
+| `lidar_rank` | 用相邻帧作 positive pair 的 LiDAR rank | LiDAR；Thilak 2024，本文只是迁移到 temporal pair | `task_resolution.py::_lidar_rank` |
+| `predictor_rollout_drift_z(T)`, `target_to_nn_*_ratio_z` | 直接在 encoded `z` 加噪，剥离 encoder 后测 predictor smoothness | latent randomized smoothing / RobustZero 相关；本文用于 post-hoc encoder-decoupled diagnostic | `tools/repr_analysis/latent_noise_sensitivity.py::_open_loop_target_shift`; `_autoregressive_rollout` |
+| `cost_surface_slope_z`, `robust_radius_z` | latent 噪声下 planning cost / predictor 边界的经验斜率与半径 | Cohen 2019 / Lipschitz estimation 思路迁移到 latent cost；不是 certified bound | `latent_noise_sensitivity.py::analyze_model_latent_noise`; `summarize_latent_noise_geometry` |
+| `pearson_r`, `spearman_rho`, bootstrap CI | 诊断指标与 eval score 的相关性和置信区间 | label-free performance prediction / ATC family；Garg 2022, Deng & Zheng 2021, Efron & Tibshirani 1993 | `tools/repr_analysis/diagnostic_correlation.py` |
+| roll-up summary | 把 encoder、predictor、task-resolution、latent-noise 指标汇成一行/ckpt | 本项目工程聚合层 | `tools/repr_analysis/run_full_diagnostics.py::_summarize_noise_to_predictor_to_resolution` |
 
 ### 7.2 真正可主张的 novelty
 
@@ -1096,31 +1084,17 @@ L = pred_loss
 
 写 paper 必须在 Related Work 第一段就把这三篇拎出来讲清差异；不能只放在 reference list 里。
 
-### 7.5 附加可借鉴方法（已加入实现）
-
-| 方法 | 来源 | 状态 |
-|---|---|---|
-| **CKA(clean, noisy)** | Kornblith et al., ICML 2019 | ✅ 已加 `noise_sensitivity.py:_linear_cka`，作为 per-point shift 的子空间对齐补充 |
-| **LiDAR rank**（temporal 正样本对版本） | Thilak et al., ICLR 2024 | ✅ 已加 `task_resolution.py:_lidar_rank` |
-| **Brandfonbrener ID 定理** | NeurIPS 2023 | ✅ 论文写作时引用，作为 ID linear probe 的正当性依据；docstring 已注 |
-| **ATC 阈值-分桶框架** | Garg et al., ICLR 2022 | ✅ Spearman + Pearson + bootstrap CI 已在 `diagnostic_correlation.py` 实现（commit 13dda0f）。**未单独包成 ATC threshold predictor**——P0.6 active validation 时再按 ATC 流程做分桶 |
-| **Randomized smoothing 平移到 latent space** | Cohen et al., ICML 2019 | ✅ 已加 `tools/repr_analysis/latent_noise_sensitivity.py`（P2/P5）；framework 直接复用，输出 `robust_radius_z` / `cost_surface_slope_z`，挂入 `run_full_diagnostics` |
-
 ---
 
 ## 8. 决策节点
 
-✅ = 已得结论。⏳ = 仍是待决分支。
+只保留仍会影响下一步资源投入的分支；其他结论分别放回 §4 / §6 / §7 对应正文。
 
-| 节点 | 状态 / 触发条件 | 当前判定（或将采取的下一步） |
+| 节点 | 触发条件 | 下一步 |
 |---|---|---|
-| P0.4 | ✅ 已完成 | TwoRoom 单指标 \|ρ\|=0.91（`clean_nn_cos_dist_median`），PushT 单指标 \|ρ\|=0.88（`predictor_target_to_nn_cos_ratio_at_max_std`），均达 \|ρ\|≥0.7。诊断作为论文主贡献之一；不再走"全面不相关 → 查 planner / cost / action dynamics"分支 |
-| P0.6 | ⏳ 待做 holdout | 命中 ≥ 80% → 诊断工具独立写一节；< 60% → 转 P3 或重审失败机制 |
-| P1 | ✅ 已完成 | (a) 固定 std → 聚簇化（TwoRoom 升、PushT 降），per-frame → 平滑化（asymmetric 修复、clean 不升）；task-resolution tradeoff 成立。(b) LeWM 同样有 fixed-std 聚簇化但弱得多；球面 + uniformity + fixed-std 显著放大该风险。(c) PushT sweet spot 存在但 SWM 最优仍落后 LeWM → 球面表征的连续性 prior 与精细操作存在结构性冲突 |
-| P2.1 | ✅ 已完成 | raw+mse 仅回升 +6（36→42），cost saturation 不是主因，encoder noisy goal corruption 主导 |
-| P2.2 / P5 | ✅ 已完成 | TwoRoom: latent predictor drift ρ=+0.64 > input ρ=+0.48，部分解耦，predictor 端独立贡献；PushT: latent / input 几乎共线，主因仍是 encoder + 单步 predictor target shift，但 PushT 所有诊断指标 |ρ|<0.7，预测力不足。cost surface (`z`) 不主导。论文 §贡献 保留 encoder-decoupled latent diagnostic（部分解耦） |
-| P3 | ⏳ 待做 | 用 SWM-noBN / SWM-LN / SWM-dim128/192 ablation 拆解 encoder angular sensitivity 来源 |
-| P4 | ⏳ 待做 | adaptive guardrail（noise consistency + transition / action preservation） — 触发标准：保住 PushT 且提升 TwoRoom 即形成真正方法贡献 |
+| P0.6 holdout | 需要证明诊断不是事后解释 | 用 held-out ckpt 做 low / mid / high eval-drop 盲分桶；命中 ≥ 80% 则诊断工具可独立成节，< 60% 则回到 P3 或重审失败机制 |
+| P3 encoder 拆解 | P0.6 失败，或需要解释 SWM angular sensitivity 来源 | 做 SWM-noBN / SWM-LN / SWM-dim128/192 ablation |
+| P4 adaptive guardrail | P0.6 能稳定分桶，且 P3 给出明确 sensitivity 来源 | 实现 noise consistency + transition/action preservation；目标是保住 PushT 同时提升 TwoRoom |
 
 ---
 
@@ -1161,148 +1135,11 @@ L = pred_loss
 
 ---
 
-## 附录 A：诊断指标手册（指标 → 含义 → 文献 → 代码位置）
-
-> 本附录把 plan_v3 用到的每个 latent geometry 指标对应到：(1) 直观含义，(2) 计算公式或近似，(3) 最近的 prior art 引用，(4) 代码位置（file::function 的形式，便于人工对照审查）。所有代码模块的开头都已写有 `References:` docstring 段，下表只是把它们汇总到一处。`§7.x` 引用对应 plan_v3 自身的 prior art / novelty 章节。
-
-### A.1 Encoder shift（pixel-noise → encoder Lipschitz / 几何尺度）
-
-模块：`tools/repr_analysis/noise_sensitivity.py`。每个 model × std 对同一 batch 加 Gaussian pixel 噪声，比较 clean / noisy embedding 的局部偏移与几何参考量。所有指标按 `frame_scope ∈ {goal, history, all}` 分别报告，对齐 pixels-only / goal-only / pix+goal failure。
-
-| 指标 | 含义 | 计算（位置） | Prior art / 关系 |
-|---|---|---|---|
-| `noise_l2_{median,p90}` | clean ↔ noisy embedding 的 L2 距离 | `_shift_metrics` (line 154) | 经验 input-noise Jacobian / Lipschitz probe；Hoffman et al. 2019, Virmaux & Scaman NeurIPS 2018 |
-| `noise_cos_dist_{median,p90}` | 1 − cos(clean, noisy) | `_shift_metrics` (line 154) | 同上，cosine 版本 |
-| `noise_angle_deg_{median,p90}` | clean ↔ noisy 的角向偏移度数 | `_shift_metrics` (line 154) | 同上；球面表征下更直观 |
-| `clean_norm_mean` / `noisy_norm_mean` | 清/噪 embedding 模长均值 | `_shift_metrics` (line 154) | 用于诊断 BN / L2 norm 的尺度异常 |
-| `cka_linear_clean_vs_noisy` | clean / noisy embedding 子空间的 Centered Kernel Alignment | `_linear_cka` (line 130) | Kornblith et al. ICML 2019。补充 per-point shift —— 当整体子空间被旋转/平移但内部几何保留时，per-point shift 高但 CKA 仍接近 1 |
-| `clean_nn_cos_dist_median` / `clean_nn_l2_median` | clean embedding 自身最近邻距离中位数 | `_pairwise_reference` (line 97) | KNN-OOD primitive：Sun et al. NeurIPS 2022, SNGP Liu 2020。也是 `noise_to_nn_*` 比例的分母 |
-| `clean_pair_cos_dist_median` / `clean_pair_l2_median` | clean 全配对距离中位数（聚合版 uniformity） | `_pairwise_reference` (line 97) | 离散版 Wang & Isola `L_uniform`，ICML 2020 |
-| `clean_effective_rank` | latent 协方差 SVD 的 matrix entropy | `analyze_repr.effective_rank` → `_pairwise_reference` (line 126) | RankMe (Garrido et al. ICML 2023)；区分 collapse（rank ≪ d）vs clustered（rank 中等）vs balanced |
-| `noise_to_nn_cos_ratio_{median,p90}` | `noise_cos_dist / clean_nn_cos_dist` —— 噪声偏移相对 clean 邻域尺度 | `analyze_model_noise` (line 188, ratio 计算 line 220) | **Composite，本工具新增**（§7.2）。Cohen et al. ICML 2019 randomized smoothing 思路平移到 *planning latent*；ratio≥1 即 noise 把 embedding 推出邻域 |
-| `noise_to_nn_l2_ratio_median` | L2 版本的同一比例 | `analyze_model_noise` (line 225) | 同上 |
-| `risk` ∈ {low, medium, high} | 经验阈值标签：`ratio_med ≥ 1` 或 `ratio_p90 ≥ 2` → high | `_risk_label` (line 180) | 经验规则 |
-| `robust_radius_std`（summary 字段） | `noise_to_nn_cos_ratio_median` 跨过 1 的插值 std；样本"鲁棒半径" | `_interpolate_threshold` + `summarize_noise_geometry` (line 363, 460) | **Composite，本工具新增**（§7.2）；empirical / planning-latent 版本，区别于 Cohen et al. certified classifier radius |
-| `first_high_risk_std`（summary 字段） | 第一次 ratio ≥ 1 的离散 std | `_first_crossing_std` (line 402) | 同上 |
-| `noise_angle_slope_deg_per_std`（summary 字段） | 角度对 std 的零附近线性斜率（°/std） | `_near_zero_slope` (line 386) | 球面几何下的局部 Lipschitz 变体；与 LipSDP (Fazlyab 2019) 不是同一目的 |
-| `noise_ratio_slope_per_std`（summary 字段） | ratio 对 std 的零附近线性斜率 | 同上 | 同上 |
-| `geometry_flag` ∈ {balanced, fragile, robust, clustered, collapsed, high_angle_gain, ...} | 经验分类规则（半径阈值 + 角度增益 + NN 距离 + effective_rank） | `_geometry_flags` (line 414) | 经验组合规则。`collapsed` 用 `effective_rank<4` 作 disambiguation（区分聚簇 vs 塌缩） |
-| `recommendation` | 给出可执行建议字符串 | `_recommendation` (line 445) | 由 `geometry_flag` 派生 |
-
-### A.2 Predictor drift（pixel noise → encoder + predictor 多步累积）
-
-模块：`tools/repr_analysis/predictor_sensitivity.py`。仅给 history pixel 加噪（与 pixels-only failure 对齐），让 noisy/clean encoder 输出独立流过 predictor，比较 single-step target shift 与 multi-step rollout drift。
-
-| 指标 | 含义 | 计算（位置） | Prior art / 关系 |
-|---|---|---|---|
-| `target_{l2,cos_dist,angle_deg}_{median,p90}` | 同一 history-window 在 clean / noisy 输入下 predictor 输出最后一帧的 shift（"open-loop single-step"） | `_open_loop_target_shift` (line 131) → `_shift_stats` (line 94) | 单步 rollout error 是 Dreamer (Hafner 2020), TD-MPC2 (Hansen 2024) 标准做法。runtime 版本：Surprise-Recognition arXiv:2512.01119 |
-| `target_to_nn_cos_ratio` / `target_to_nn_l2_ratio` | predictor target shift 除以 `clean_nn_*` —— 跨模型可比的"是否被推出邻域" | `analyze_model_predictor_noise` (line 273-279) | **Composite，本工具新增**（§7.2） |
-| `rollout_T{1,2,4,8}_l2_median` | 从 noisy vs clean history 出发自回归 T 步后的 latent 偏差 L2（history-only 加噪） | `_autoregressive_rollout` (line 160) → `_shift_stats` (line 94)，索引在 line 262 | **Multi-step latent drift between noisy- and clean-history conditioning**；Dreamer / TD-MPC 报的是相对 ground-truth latent，本指标是 noise-vs-clean 条件对比，文献无对应（§7.2 主张 novel） |
-| `rollout_T{1,2,4,8}_cos_dist_median` / `_angle_deg_median` | rollout drift 的 cosine / angle 版本 | 同上 | 同上 |
-| `clean_nn_cos_dist_median` / `clean_nn_l2_median` | 用于 ratio 归一化的 clean NN | `_clean_nn_dist` (line 114) | 同 §A.1 KNN-OOD primitive |
-| `predictor_rollout_T8_l2`（summary 字段） | 取最大 std 下的 T=8 rollout drift | `run_full_diagnostics._summarize_noise_to_predictor_to_resolution` (line 129-143) | 跨 ckpt roll-up 的代表值 |
-| `predictor_target_to_nn_cos_ratio_at_max_std`（summary 字段） | 最大 std 下的 target_to_nn_cos_ratio | 同上 | PushT 主导信号（§4.4 / §6 P0.4，\|ρ\|=0.88） |
-
-### A.3 Task resolution（latent 对状态分辨率的保留）
-
-模块：`tools/repr_analysis/task_resolution.py`。三组 label-free 指标判断"哪些状态差异被保留"。
-
-| 指标 | 含义 | 计算（位置） | Prior art / 关系 |
-|---|---|---|---|
-| `consecutive_cos_dist_median` / `consecutive_l2_median` | 同一序列相邻帧 z_t / z_{t+1} 距离中位数 | `_transition_metrics` (line 113) → `_consecutive_pairs` (line 88) | KNN distance primitive；Sun et al. NeurIPS 2022 |
-| `far_cos_dist_median` / `far_l2_median` | 跨序列随机配对距离中位数 | `_far_pair_distances` (line 95) | 同上；retrieval inter-class proxy |
-| `transition_resolution_ratio_cos` / `_l2` | consecutive / far 的比值。小 ratio = 相邻帧差异显著 | `_transition_metrics` (line 134-145) | **Temporal-neighbor 版本的 retrieval intra/inter gap，本工具新命名**（§7.2）。在 plan_v3 P0.3 表中区分 TwoRoom（cos 0.18-0.73 离散转移）与 PushT（cos 0.06-0.12 连续控制） |
-| `id_probe_r2` / `id_probe_r2_min` | concat(z_t, z_{t+1}) → action_t 的闭式岭回归 R²（mean / 最差 dim） | `_ridge_probe` (line 200) → `_build_id_probe_data` (line 233) | **Inverse-dynamics linear probe**：Brandfonbrener et al. NeurIPS 2023, ICM (Pathak ICML 2017)，方法学 Alain & Bengio ICLR-W 2017。novelty 在用 noise-induced drop 作 failure predictor |
-| `clean_effective_rank` | 同 §A.1 | `analyze_repr.effective_rank` (line 271) | RankMe (Garrido ICML 2023) |
-| `lidar_rank` | 用相邻帧 (z_t, z_{t+1}) 作正样本对的 LiDAR rank（matrix entropy of `S_w^{-1/2} S_b S_w^{-1/2}`） | `_lidar_rank` (line 149) | LiDAR (Thilak et al. ICLR 2024)。需要 `eps=1e-3` 正则因为每类只有 2 样本；跨同样数据训练的模型可比 |
-
-### A.4 Latent-noise probing（encoder-decoupled，predictor / cost smoothness）
-
-模块：`tools/repr_analysis/latent_noise_sensitivity.py`。直接在 encoded `z` 上加 Gaussian 噪声，跳过 encoder。`std_mode="relative"` 默认按 per-token clean norm 缩放，跨 LeWM/SWM 可比；SWM 推荐 `noise_geometry="tangent"`（投影到 T_z S^{d-1} 后再回到原半径）。
-
-| 指标 | 含义 | 计算（位置） | Prior art / 关系 |
-|---|---|---|---|
-| `latent_{cos_dist,angle_deg,l2}_{median,p90}` | 注入 latent 噪声后在被扰动 slice 上的 realized magnitude（自我 sanity check） | `_shift_stats` (line 97) 经 `_inject_latent_noise` (line 131) 之后 | 验证我们注入的噪声幅度符合预期 |
-| `target_{cos_dist,angle_deg,l2}_{median,p90}` | 同 §A.2 的 single-step predictor target shift，但输入端是 latent 噪声 | `_open_loop_target_shift` (line 192) | **Latent-space randomized smoothing**（Cohen et al. ICML 2019 平移到 latent）。最近 RobustZero (Li et al. ICML 2025) 把 latent perturbation 用作 *training* objective；我们用作 *post-hoc diagnostic* |
-| `target_to_nn_cos_ratio` / `target_to_nn_l2_ratio` | latent target shift 除以 clean NN | `analyze_model_latent_noise` (line 392-401) | 与 §A.1 / §A.2 的 ratio 同 family |
-| `rollout_T{1,2,4,8}_l2_median` / `_cos_dist_median` / `_angle_deg_median` | 从 noisy/clean latent history 出发的多步 rollout drift（latent 端版本） | `_autoregressive_rollout` (line 218) → 索引 line 364 | 同 §A.2 multi-step drift，但 encoder 已被剔除（§7.2 novel） |
-| `cost_delta_mean` | `\|cost(pred, noisy_goal) − cost(pred, clean_goal)\|` 的 batch 均值（仅 goal scope） | `_planning_cost` (line 236) → `analyze_model_latent_noise` (line 374-379) | cost 对 goal latent 扰动的局部敏感度 |
-| `cost_surface_slope_z` | `cost_delta_mean / std`（goal scope，零附近近似一阶斜率） | `analyze_model_latent_noise` (line 407) | empirical Lipschitz of planning cost w.r.t. goal latent |
-| `robust_radius_z`（summary 字段） | 主路：`target_to_nn_cos_ratio` 跨过 1 的插值 std；fallback：`rollout_T8_l2 / clean_nn_l2` 跨过 1 | `summarize_latent_noise_geometry` (line 546)，fallback 在 line 573-575 | latent 版本的 §A.1 `robust_radius_std`（goal scope 经常恒为 0 → NaN，故加 history scope rollout-drift fallback；commit 13dda0f） |
-| `predictor_{angle,l2}_slope_per_std_z`（summary 字段） | latent target shift 对 std 的零附近斜率 | `_near_zero_slope` (line 530) | latent 版本的 noise_angle_slope |
-| `rollout_{angle,l2}_slope_per_std_z`（summary 字段） | latent rollout drift 对 std 的零附近斜率 | 同上，line 583-589 | 比单步 slope 更具判别力（commit 13dda0f） |
-| `noise_geometry` ∈ {ambient, tangent} | 注入几何选择 | `_inject_latent_noise` (line 170-181) | tangent 用于球面，避免破坏 norm 不变量 |
-| `std_mode` ∈ {relative, absolute} | std 解释方式 | `_inject_latent_noise` (line 164-167) | relative 让 LeWM (norm O(10)) 与 SWM (norm 1) 可比 |
-
-### A.5 相关性自动化（diagnostic ↔ eval）
-
-模块：`tools/repr_analysis/diagnostic_correlation.py`。把上面所有 summary 字段与 `eval_scores.json` 做相关性，输出排序表 + 热图。
-
-| 指标 | 含义 | 计算（位置） | Prior art / 关系 |
-|---|---|---|---|
-| `pearson_r` | 标准 Pearson 相关 | `_pearson` (line 118) | 监控线性关系；不抗 outlier |
-| `spearman_rho` | 秩相关，鲁棒于单调非线性 | `_spearman_bootstrap._rho` (line 98) | 主指标；ATC family（Garg et al. ICLR 2022），Deng & Zheng CVPR 2021 |
-| `spearman_ci_low` / `spearman_ci_high` | 1000 次 bootstrap percentile CI | `_spearman_bootstrap` (line 73) | Efron & Tibshirani 1993 |
-| 排序 by \|ρ\| | top 字段决定 P0.5 主指标 / 辅助指标分级 | `compute_correlations` 末尾 sort（`sort key=...reverse=True`） | ATC 风格 selection |
-
-> 实现注意：`_rank` 用 `argsort(argsort)` 给出 ordinal rank（不平均 ties）；对连续浮点指标 ties 几乎不存在。若需要 tied-rank averaging 切到 `scipy.stats.rankdata(..., method="average")` 即可。
-
-### A.6 一站式聚合（roll-up）
-
-模块：`tools/repr_analysis/run_full_diagnostics.py`。`_summarize_noise_to_predictor_to_resolution` (line 91) 把上面四组诊断的代表性字段合到 `diagnostics_summary.json` 一行/ckpt，供 §A.5 直接消费：
-
-- §A.1 → `noise_robust_radius_std`、`noise_angle_slope_deg_per_std`、`clean_nn_cos_dist_median`、`clean_effective_rank`、`geometry_flag`、`recommendation`、`cka_linear_at_max_std`（line 101-126）
-- §A.2 → 最大 std 下的 `predictor_rollout_T{T}_l2`、`predictor_target_to_nn_cos_ratio_at_max_std`（line 129-143）
-- §A.3 → `transition_resolution_ratio_{cos,l2}`、`id_probe_r2`、`id_probe_r2_min`、`lidar_rank`（line 146-155）
-- §A.4 → goal scope `latent_cost_surface_slope_z` + `latent_noise_geometry`；history scope `latent_robust_radius_z`、`latent_predictor_{angle,l2}_slope_per_std_z`、`latent_rollout_{angle,l2}_slope_per_std_z`、最大 std 下的 `latent_predictor_rollout_T{T}_l2_history`（line 157-219）
-
-### A.7 入口脚本与配套（非指标本身，便于复现）
-
-| 文件 | 作用 |
-|---|---|
-| `run_trainer.sh` | 训练 → eval sweep → 全套诊断 → summary 一站式（commit 06ea212 修正传 HDF5 dataset 名） |
-| `run_p03_tworoom.py` / `run_p03_pusht.py` | P0.3 数据矩阵收集脚本（一次跑多个 ckpt） |
-| `run_latent_noise_tworoom.py` / `run_latent_noise_pusht.py` | P2.2/P5 latent-noise 单独入口 |
-| `run_planning_action_probe.py` | action effect probe（commit 13dda0f 修正 KeyError: 'emb'） |
-| `tools/repr_analysis/repr_compare_template.ipynb` | Notebook 对比模板，每个图都对应 §A.1–§A.5 的某个指标 |
-
-### A.8 诊断指标 → 论文 §7.2 novelty 收紧
-
-| 类别 | 指标 | 来源 |
-|---|---|---|
-| 借用并标注引用 | `effective_rank`, `clean_pair_*`, `clean_nn_*`, `noise_l2 / cos_dist / angle_deg`, `cka_linear_clean_vs_noisy`, `id_probe_r2`, `lidar_rank`, Spearman + bootstrap workflow | RankMe / Wang-Isola / KNN-OOD / Hoffman / CKA / Brandfonbrener / Thilak / ATC（详 §7.1） |
-| 组合后可主张为 novel | `noise_to_nn_*_ratio`, `robust_radius_std`, `target_to_nn_*_ratio`, `robust_radius_z` | §7.2 contribution 1（empirical planning-latent robust radius） |
-| 文献无对应、命名为 novel | `predictor_rollout_drift(T)` 与其 latent 版本（noise-vs-clean conditioning） | §7.2 contribution 2 |
-| 协议 / 工具 novelty | encoder-decoupled latent diagnostic + active validation 闭环 | §7.2 contribution 3，由 §A.4 + §A.5 + P0.6 共同构成 |
-
----
-
-## 参考文件
-
-| 文件 | 内容 |
-|---|---|
-| `plan_v2.md` | 原始设计文档 |
-| `experiments.md` | 完整实验记录 |
-| `config/train/swm.yaml` | SWM 训练配置 |
-| `config/train/lewm.yaml` | LeWM 训练配置 |
-| `tools/repr_analysis/noise_sensitivity.py` | Noise sensitivity 诊断（含 history scope、effective_rank、CKA、collapse vs clustered 区分） |
-| `tools/repr_analysis/predictor_sensitivity.py` | Predictor open-loop target shift + 自回归 rollout drift |
-| `tools/repr_analysis/task_resolution.py` | transition resolution ratio + ID linear probe + LiDAR rank |
-| `tools/repr_analysis/latent_noise_sensitivity.py` | （P2/P5）latent randomized smoothing + predictor / cost slope，encoder-decoupled，已接入 `run_full_diagnostics` |
-| `tools/repr_analysis/run_full_diagnostics.py` | 统一入口，跑全套并产出 `diagnostics_summary.json` 一行 roll-up |
-| `tools/repr_analysis/diagnostic_correlation.py` | 诊断 ↔ eval 相关性自动化（Spearman + Pearson + bootstrap CI，commit 13dda0f） |
-| `run_trainer.sh` | 训练 → eval sweep → 全套诊断（自动调 run_full_diagnostics）→ summary 一站式 |
-| `tools/repr_analysis/repr_compare_template.ipynb` | Notebook 对比模板 |
-| `jepa.py` | JEPA + SphericalJEPA 实现 |
-| `module.py` | loss 与共享模块 |
-
----
-
-## 附录 B：CKPT→Eval→诊断完整溯源表（供人工核验）
+## 附录 A：CKPT→Eval→诊断完整溯源表（供人工核验）
 
 > **本附录存在的意义**：plan_v3.md §6 P0.4/P0.5/P0.7 的所有相关性数值均来自 `diagnostic_correlation.py` 对 `eval_scores.json` + `diagnostics_summary.json` 的自动计算。本附录逐条记录这 19 个模型对应的 ckpt 子目录、eval 分数来源、诊断指标来源，确保任何数值都可以从原始 ckpt 文件一路追溯到报告中的 ρ 值。
 
-### B.1 TwoRoom（8 模型，全 epoch_9）
+### A.1 TwoRoom（8 模型，全 epoch_9）
 
 | 模型名 | CKPT 子目录 | 对象文件名 | Eval 分数 | Eval 来源 | `clean_nn_dist` | `eff_rank` | `geometry_flag` |
 |---|---|---|---|---:|---:|---:|---|
@@ -1315,7 +1152,7 @@ L = pred_loss
 | SWM-perframe-p05 | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64` | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64_epoch_9_object.ckpt` | 92.0 | `eval_run.log`（run_missing_evals 重跑） | 0.04984 | 26.96 | balanced |
 | SWM-perframe-p1 | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64` | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64_epoch_9_object.ckpt` | 92.0 | `eval_run.log`（run_missing_evals 重跑） | 0.04775 | 26.89 | balanced |
 
-### B.2 PushT（11 模型，base 为 epoch_10，其余 epoch_9）
+### A.2 PushT（11 模型，base 为 epoch_10，其余 epoch_9）
 
 | 模型名 | CKPT 子目录 | 对象文件名 | Eval 分数 | Eval 来源 | `clean_nn_dist` | `eff_rank` | `geometry_flag` |
 |---|---|---|---|---:|---:|---:|---|
@@ -1331,7 +1168,7 @@ L = pred_loss
 | SWM-perframe-0to002-p05 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64_epoch_9_object.ckpt` | 80.0 | `eval_run.log`（run_missing_evals 重跑） | 0.27604 | 46.04 | balanced |
 | SWM-perframe-0to002-p1 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64_epoch_9_object.ckpt` | 88.0 | `eval_run.log`（run_missing_evals 重跑） | 0.26000 | 45.46 | balanced |
 
-### B.3 数据流与生成脚本
+### A.3 数据流与生成脚本
 
 | 层级 | 文件 | 生成脚本 | 输入依赖 |
 |---|---|---|---|
@@ -1344,7 +1181,7 @@ L = pred_loss
 | L6 相关性 | `diagnostic_correlation.csv/.png` | `diagnostic_correlation.py` | L4 + L5 |
 | L7 报告 | `plan_v3.md` P0.4/P0.5/P0.7 | 人工撰写（以 L6 为准） | L6 |
 
-### B.4 人工核验检查清单
+### A.4 人工核验检查清单
 
 你可以按以下步骤独立复现任何数值：
 
@@ -1382,7 +1219,7 @@ L = pred_loss
    - `predictor_target_to_nn_cos_ratio_at_max_std`：最大噪声 std 下，predictor target 与 nearest neighbor 的 cosine ratio（越小 = target shift 控制越好）
    - `geometry_flag`：`run_full_diagnostics.py` 自动标注的 noise geometry 类别（balanced / robust / fragile / clustered 等）
 
-### B.5 历史数据修正记录
+### A.5 历史数据修正记录
 
 | 时间 | Commit | 修正内容 | 影响 |
 |---|---|---|---|

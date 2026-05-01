@@ -120,7 +120,7 @@ loss:
 
 | Task | LeWM best | SWM best | Delta | 说明 |
 |---|---:|---:|---:|:---|
-| TwoRoom | 96.0 (`lewm_noise_0to005_p1`) | 97.6 (`swm_fixed-std_noise0.005`) | +1.6 | LeWM per-frame 最佳；SWM fixed-std 聚簇化红利 |
+| TwoRoom | 96.6 (`lewm_fixed-std_noise0.005`) | 97.6 (`swm_fixed-std_noise0.005`) | +1.0 | LeWM fixed-std 最佳；SWM fixed-std 聚簇化红利 |
 | PushT | 89.33 (`lewm_noise_0to002_p1`) | 81.33 (`swm_noise_0to002_p1`) | -8.0 | 基于 epoch_9, num_eval=150；fixed-std 仅 61.8 |
 | Reacher | 82.67 (`lewm_noise_0to005_p05`) | 78.0 (`swm_noise_0to002_p05` / `swm_noise_0to005_p1`) | -4.67 | LeWM per-frame 最佳；SWM 各配置接近 |
 | Cube | 90.0 (`lewm_base`, num_eval=10*) | 78.0 (`swm_base`) | -12.0 | LeWM-base num_eval=10 近似；其余 9 模型 num_eval=150 |
@@ -130,7 +130,7 @@ loss:
 结论：
 
 - SWM 在 TwoRoom 上可通过 fixed-std 聚簇化取得极高 clean score（97.6），但在 PushT 上同一配方崩溃（61.8）。
-- LeWM per-frame 在 PushT 上表现更稳定（92.0），说明 Euclidean + 平滑化更适应高分辨率任务。
+- LeWM per-frame 在 PushT 上表现更稳定（最佳 89.33，`lewm_noise_0to002_p1`），说明 Euclidean + 平滑化更适应高分辨率任务。
 - **旧 4-task 平均叙事（SWM 略高）不成立**：当 ckpt 来源一致后，SWM 的优势仅体现在特定任务（TwoRoom）和特定配方（fixed-std 聚簇化）上，不具备跨任务泛化性。
 
 ---
@@ -1170,7 +1170,7 @@ L = pred_loss
 | LeWM-base | `tworoom_lewm` | `tworoom_lewm_epoch_9_object.ckpt` | 93.0 | `tworoom_results.txt` | 0.03890 | 29.54 | balanced |
 | LeWM-fixed-std | `tworoom_lewm_noise_std_0_005` | `tworoom_lewm_noise_std_0_005_epoch_9_object.ckpt` | 96.6 | `tworoom_results.txt` | 0.01295 | 15.08 | fragile,clustered |
 | LeWM-perframe-p05 | `tworoom_lewm_noise_0to005_p05` | `tworoom_lewm_noise_0to005_p05_epoch_9_object.ckpt` | 94.0 | `eval_run.log`（run_missing_evals 重跑） | 0.03705 | 27.36 | balanced |
-| LeWM-perframe-p1 | `tworoom_lewm_noise_0to005_p1` | `tworoom_lewm_noise_0to005_p1_epoch_9_object.ckpt` | 96.0 | `eval_run.log`（run_missing_evals 重跑） | 0.03571 | 26.58 | balanced |
+| LeWM-perframe-p1 | `tworoom_lewm_noise_0to005_p1` | `tworoom_lewm_noise_0to005_p1_epoch_9_object.ckpt` | 94.0 | `eval_run.log`（run_missing_evals 重跑） | 0.03571 | 26.58 | balanced |
 | SWM-base | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260425` | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260425_epoch_9_object.ckpt` | 91.0 | `tworoom_results.txt` | 0.05943 | 29.04 | balanced |
 | SWM-fixed-std | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64` | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64_epoch_9_object.ckpt` | 97.6 | `tworoom_results.txt` | 0.00820 | 11.61 | fragile,high_angle_gain,clustered |
 | SWM-perframe-p05 | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64` | `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64_epoch_9_object.ckpt` | 87.33 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.04984 | 26.96 | balanced |
@@ -1182,15 +1182,15 @@ L = pred_loss
 |---|---|---|---|---:|---:|---:|---|
 | LeWM-base | `pusht_lewm_20260430` | `pusht_lewm_20260430_epoch_9_object.ckpt` | 80.67 | `pusht_results.txt` | 0.23599 | 47.48 | robust |
 | LeWM-fixed-std | `pusht_lewm_noise_std_0_005` | `pusht_lewm_noise_std_0_005_epoch_9_object.ckpt` | 83.0 | `pusht_results.txt` | 0.14473 | 31.40 | robust |
-| LeWM-perframe-0to001-p1 | `pusht_lewm_noise_0to001_p1` | `pusht_lewm_noise_0to001_p1_epoch_9_object.ckpt` | 92.0 | `eval_run.log`（run_missing_evals 重跑） | 0.22625 | 48.36 | balanced |
-| LeWM-perframe-0to002-p1 | `pusht_lewm_noise_0to002_p1` | `pusht_lewm_noise_0to002_p1_epoch_9_object.ckpt` | 88.0 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.24733 | 48.28 | balanced |
-| LeWM-perframe-0to005-p1 | `pusht_lewm_noise_0to005_p1` | `pusht_lewm_noise_0to005_p1_epoch_9_object.ckpt` | 82.67 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.22531 | 46.74 | balanced |
+| LeWM-perframe-0to001-p1 | `pusht_lewm_noise_0to001_p1` | `pusht_lewm_noise_0to001_p1_epoch_9_object.ckpt` | 87.33 | `eval_run.log`（run_missing_evals 重跑） | 0.22625 | 48.36 | balanced |
+| LeWM-perframe-0to002-p1 | `pusht_lewm_noise_0to002_p1` | `pusht_lewm_noise_0to002_p1_epoch_9_object.ckpt` | 89.33 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.24733 | 48.28 | balanced |
+| LeWM-perframe-0to005-p1 | `pusht_lewm_noise_0to005_p1` | `pusht_lewm_noise_0to005_p1_epoch_9_object.ckpt` | 82.0 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.22531 | 46.74 | balanced |
 | SWM-base | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430_epoch_9_object.ckpt` | 77.33 | `pusht_results.txt` | 0.26449 | 44.02 | robust |
 | SWM-fixed-std | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64_epoch_9_object.ckpt` | 61.8 | `pusht_results.txt` | 0.06639 | 18.38 | fragile,high_angle_gain |
-| SWM-perframe-0to001-p05 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p05_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p05_dim64_epoch_9_object.ckpt` | 82.0 | `eval_run.log`（run_missing_evals 重跑） | 0.25770 | 42.62 | robust |
-| SWM-perframe-0to001-p1 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64_epoch_9_object.ckpt` | 90.0 | `eval_run.log`（run_missing_evals 重跑） | 0.28448 | 45.70 | robust |
-| SWM-perframe-0to002-p05 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64_epoch_9_object.ckpt` | 76.0 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.27604 | 46.04 | balanced |
-| SWM-perframe-0to002-p1 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64_epoch_9_object.ckpt` | 82.0 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.26000 | 45.46 | balanced |
+| SWM-perframe-0to001-p05 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p05_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p05_dim64_epoch_9_object.ckpt` | 78.0 | `eval_run.log`（run_missing_evals 重跑） | 0.25770 | 42.62 | robust |
+| SWM-perframe-0to001-p1 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64_epoch_9_object.ckpt` | 87.33 | `eval_run.log`（run_missing_evals 重跑） | 0.28448 | 45.70 | robust |
+| SWM-perframe-0to002-p05 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64_epoch_9_object.ckpt` | 78.67 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.27604 | 46.04 | balanced |
+| SWM-perframe-0to002-p1 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64` | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64_epoch_9_object.ckpt` | 81.33 | `eval_run.log`（run_missing_evals 重跑，num_eval=150） | 0.26000 | 45.46 | balanced |
 
 ### A.3 Reacher（10 模型，全 epoch_9，num_eval=150）
 

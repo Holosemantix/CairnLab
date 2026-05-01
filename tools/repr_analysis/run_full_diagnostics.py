@@ -188,12 +188,11 @@ def _summarize_noise_to_predictor_to_resolution(
                 summary.setdefault(label, {"model": label})
                 summary[label].update({
                     "latent_robust_radius_z": float(row.get("robust_radius_z", float("nan"))),
-                    "latent_predictor_angle_slope_per_std_z": float(
-                        row.get("predictor_angle_slope_deg_per_std_z", float("nan"))
-                    ),
-                    "latent_predictor_l2_slope_per_std_z": float(
-                        row.get("predictor_l2_slope_per_std_z", float("nan"))
-                    ),
+                    # NOTE: predictor_angle_slope_deg_per_std_z and predictor_l2_slope_per_std_z
+                    # are excluded because _open_loop_target_shift mixes clean/noisy windows
+                    # when only a subset of tokens are perturbed, making the median uninformative.
+                    # Use rollout_angle/l2_slope_per_std_z instead (autoregressive init from
+                    # the perturbed slice, so all steps are genuinely noisy).
                     "latent_rollout_angle_slope_per_std_z": float(
                         row.get("rollout_angle_slope_deg_per_std_z", float("nan"))
                     ),

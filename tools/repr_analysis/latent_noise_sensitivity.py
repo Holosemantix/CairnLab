@@ -202,7 +202,9 @@ def _open_loop_target_shift(
         return {"clean_pred": clean_emb[:, :0], "noisy_pred": noisy_emb[:, :0]}
 
     clean_preds, noisy_preds = [], []
-    for s in range(T - H):
+    # Iterate over all valid H-windows, including the last one that ends at T-1.
+    # This ensures the goal token (at index T-1) is included when scope="goal".
+    for s in range(T - H + 1):
         c_win = clean_emb[:, s : s + H]
         n_win = noisy_emb[:, s : s + H]
         a_win = act_emb[:, s : s + H]

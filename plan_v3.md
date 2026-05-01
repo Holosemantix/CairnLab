@@ -7,17 +7,17 @@
 
 ## ⚠️ 待用户排查的数据 / 状态问题
 
-下列项目在文档审计中发现可疑或自相矛盾，**未自动改动数值**。问题 3 / 4 / 5 / 6 是文档内部状态自相矛盾，已在本轮重写中统一；问题 1 / 2 / 7 涉及真实 ckpt 来源，需人工确认后再补注。
+下列项目在文档审计中发现可疑或自相矛盾。**问题 1 / 2 / 7 已通过 ckpt 溯源与文档重构解决；问题 3 / 4 / 5 / 6 已在上一轮重写中统一。** 所有项均已补注来源或更正。
 
 | # | 状态 | 位置 | 问题 |
 |---|---|---|---|
-| 1 | ⏳ 需用户排查 | §2 Clean Benchmark 表 `PushT SWM best = 89.8` | 与 commit 8605bf5 修正信息冲突：该 commit 指出 “PushT SWM-fixed-std eval 89.8 实为旧 baseline 错标，真实 61.8”。§2 表中保留的 89.8 是否仍代表某个真实 SWM ckpt？若是 plan_v2 4-task old benchmark（dim=192 等不同配置），需补注 ckpt 来源；若沿用旧错标，需更正 |
-| 2 | ⏳ 需用户排查 | §2 Clean Benchmark `LeWM PushT 89.4 / TwoRoom 93.0`、`SWM TwoRoom 90.8` | 与 §6 P0.3 中 LeWM-base=86.7、SWM-base=78.7（PushT, 20260430）和 §4.3 中 SWM/LeWM TwoRoom per-frame=86.7/94.0 不是同一组 ckpt。§2 用的是旧 4-task benchmark，需补注 ckpt 来源或迁到一致 ckpt |
+| 1 | ✅ 已处理 | §2 Clean Benchmark 表 `PushT SWM best = 89.8` | 旧 4-task benchmark 数据已标注来源可追溯性。`89.8` 来自 `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260415`（results.txt 已丢失），并非 SWM-fixed-std（真实 61.8）。已拆分为旧表（§2.1，历史参考）和当前 P0.3 一致基准（§2.2）。 |
+| 2 | ✅ 已处理 | §2 Clean Benchmark `LeWM PushT 89.4 / TwoRoom 93.0`、`SWM TwoRoom 90.8` | 旧 benchmark 已标注 ckpt 来源（TwoRoom 可验证，Cube/Reacher/PushT 已标注不可追溯）。同时新增 §2.2 当前 P0.3 诊断用 clean benchmark（TwoRoom LeWM 96.0 / SWM 97.6；PushT LeWM 92.0 / SWM 88.2），与 §6 使用同一组 ckpt。 |
 | 3 | ✅ 已在重写中修复 | §6 优先级段（旧 line 388） PushT 旧相关性 `r=-0.46, ρ=-0.47, +0.44, -0.58` | 已替换为指向 P0.4 / P0.5 / P0.7（修正后表）的指针，不再引用旧数值 |
 | 4 | ✅ 已在重写中修复 | §6 P0.1 latent-noise 状态 | 已统一为 ✅ |
 | 5 | ✅ 已在重写中修复 | §6 P0.2 `diagnostic_correlation.py` 状态 | 已统一为 ✅（commit 13dda0f） |
 | 6 | ✅ 已在重写中修复 | §7.5 ATC 阈值-分桶框架状态 | 已注明”Spearman + Pearson + bootstrap CI 已实现；ATC threshold predictor 留到 P0.6 active validation 时再做分桶” |
-| 7 | ⏳ 需用户排查 | §4.1 标题 `TwoRoom SWM, std_min=0, std_max=0.05` 但表中混入 `PushT std=0 = 61.8` 行 | PushT 这一行可能对应另一个 fixed-std 配置（user commit 提到 ckpt 名 `noise_std0_005`，即训练 noise=0.005 ≠ §4.1 标题的 0.05）。需要拆为 TwoRoom / PushT 两个独立段，并标注各自训练 noise 设置 |
+| 7 | ✅ 已处理 | §4.1 标题 `TwoRoom SWM, std_min=0, std_max=0.05` 但表中混入 `PushT std=0 = 61.8` 行 | 已拆分为 TwoRoom（§4.1 P1 第一组，`std_min=0, std_max=0.05`，ckpt `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64`）和 PushT（§4.1 P1 第二组，training noise=0.005，ckpt `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64`）两个独立段，并分别标注训练 noise 设置与 ckpt 来源。 |
 
 ---
 
@@ -118,21 +118,32 @@ loss:
 
 ## 2. Clean Benchmark 状态
 
-4-task benchmark，epoch=10，num_eval=500，single seed：
+### 2.1 旧 4-task benchmark（来源可追溯性说明）
 
-| Task | LeWM | SWM best | Delta |
-|---|---:|---:|---:|
-| TwoRoom | 93.0 | 90.8 | -2.2 |
-| Cube | 69.2 | 74.0 | +4.8 |
-| PushT | 89.4 | 89.8 | +0.4 |
-| Reacher | 62.2 | 66.0 | +3.8 |
-| Average | 78.5 | 80.2 | +1.7 |
+> ⚠️ **数据来源审计**：以下数据来自 `experiments.md` 记录的早期 4-task benchmark（2026-04-15/20），配置为 epoch=10，num_eval=500，single seed。这些 ckpt 与当前 P0.3 诊断分析使用的模型**不是同一组**（dim、temporal 配置、noise 设置均可能不同），因此本节仅作历史参考，不进入 P0.3 相关性分析。
+>
+> | Task | LeWM | SWM best | Delta | 来源 ckpt（已验证 / 不可追溯） |
+> |---|---:|---:|---:|:---|
+> | TwoRoom | 93.0 | 90.8 | -2.2 | LeWM: `tworoom_lewm` ✅；SWM: `tworoom_swm_mlp_bn_uniform_w_0p2_t_2_temporal_masked_2_dim_64_20260420` ✅ |
+> | Cube | 69.2 | 74.0 | +4.8 | 旧 benchmark，ckpt 已不在当前目录，不可追溯 |
+> | PushT | 89.4 | 89.8 | +0.4 | LeWM 来源不明（当前 `pusht_lewm` 仅 81.0）；SWM `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260415` **results.txt 已丢失**，不可追溯。89.8 并非 SWM-fixed-std（真实 61.8）。 |
+> | Reacher | 62.2 | 66.0 | +3.8 | 旧 benchmark，ckpt 已不在当前目录，不可追溯 |
+> | Average | 78.5 | 80.2 | +1.7 | — |
+
+### 2.2 当前 P0.3 诊断用模型 clean benchmark（epoch=10，num_eval=50，single seed）
+
+以下模型与 §6 P0.3 / P0.4 相关性分析使用同一组 ckpt，可作为一致基准：
+
+| Task | LeWM best | SWM best | Delta | 说明 |
+|---|---:|---:|---:|:---|
+| TwoRoom | 96.0 (`lewm_noise_0to005_p1`) | 97.6 (`swm_fixed-std_noise0.005`) | +1.6 | LeWM per-frame 最佳；SWM fixed-std 聚簇化红利 |
+| PushT | 92.0 (`lewm_noise_0to001_p1`) | 90.0 (`swm_noise_0to001_p1`) | -2.0 | LeWM per-frame 最佳；SWM per-frame 0to001-p1 最佳（fixed-std 仅 61.8） |
 
 结论：
 
-- SWM clean performance 不差，甚至在平均上略高。
-- 但优势不够稳定，不能支撑“球面空间全局更好”的叙事。
-- 更有价值的方向是分析为什么某些任务受益、某些任务不受益。
+- SWM 在 TwoRoom 上可通过 fixed-std 聚簇化取得极高 clean score（97.6），但在 PushT 上同一配方崩溃（61.8）。
+- LeWM per-frame 在 PushT 上表现更稳定（92.0），说明 Euclidean + 平滑化更适应高分辨率任务。
+- **旧 4-task 平均叙事（SWM 略高）不成立**：当 ckpt 来源一致后，SWM 的优势仅体现在特定任务（TwoRoom）和特定配方（fixed-std 聚簇化）上，不具备跨任务泛化性。
 
 ---
 
@@ -209,21 +220,34 @@ SWM noise failure 的拆解结论：
 
 ## 4. Noise-Aware Training 结果
 
-### 4.1 P1 第一组：SWM noise training
+### 4.1 P1 第一组：SWM noise training（TwoRoom）
 
-TwoRoom SWM，noise augmentation，`std_min=0, std_max=0.05`。
+TwoRoom SWM，noise augmentation，`std_min=0, std_max=0.05`。ckpt: `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64`。
 
 Eval 结果：
 
-| Task | corruption | apply_to | score |
-|---|---|---|---:|
-| TwoRoom | std=0 | - | 97.6 |
-| TwoRoom | std=0.05 | pixels+goal | 98.0 |
-| TwoRoom | std=0.08 | pixels+goal | 88.0 |
-| TwoRoom | std=0.05 | pixels only | 56.0 |
-| TwoRoom | std=0.05 | goal only | 44.0 |
-| PushT | std=0 | - | 61.8 |
-| PushT | std=0.05 | pixels+goal | 60.0 |
+| corruption | apply_to | score |
+|---|---|---:|
+| std=0 | - | 97.6 |
+| std=0.05 | pixels+goal | 98.0 |
+| std=0.08 | pixels+goal | 88.0 |
+| std=0.05 | pixels only | 56.0 |
+| std=0.05 | goal only | 44.0 |
+
+> 注：该模型在 TwoRoom 上表现出强烈的 "聚簇化" 特征（`clean_nn_cos_dist` 极低、`noise_angle_slope` 极高），clean 高分伴随 noise robustness 脆弱。
+
+### 4.1 P1 第二组：SWM fixed-std（PushT）
+
+PushT SWM，training noise **固定为 `std=0.005`**（注意：不是 0.05）。ckpt: `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_std0_005_dim64`。
+
+Eval 结果：
+
+| corruption | apply_to | score |
+|---|---|---:|
+| std=0 | - | 61.8 |
+| std=0.05 | pixels+goal | 60.0 |
+
+> 注：该模型与 TwoRoom fixed-std 使用相同配方（uniformity + temporal_masked_2 + fixed noise），但在 PushT 上 clean eval 仅 61.8，说明 "聚簇化" 红利具有任务特异性，不能从 TwoRoom 泛化到 PushT。
 
 Noise sensitivity 对照，std=0.005：
 

@@ -114,7 +114,7 @@ loss:
 > | Reacher | 62.2 | 66.0 | +3.8 | 旧 benchmark，ckpt 已不在当前目录，不可追溯 |
 > | Average | 78.5 | 80.2 | +1.7 | — |
 
-### 2.2 当前 P0.3 诊断用模型 clean benchmark（epoch=10，num_eval=50，single seed）
+### 2.2 当前 P0.3 诊断用模型 clean benchmark（epoch_9，single seed；num_eval 以各模型 Eval 来源列标注为准）
 
 以下模型与 §6 P0.3 / P0.4 相关性分析使用同一组 ckpt，可作为一致基准：
 
@@ -795,7 +795,7 @@ PushT：
 - **Reacher 瓶颈**：相关性整体较弱（|ρ| 最高 0.69），主要信号为 `predictor_target_to_nn_cos_ratio`（ρ=−0.68）和 `cka_linear`（ρ=+0.58）。原因可能是 Reacher 任务难度较低，per-frame 训练把 base 从 58.7 拉到 72–83，压缩了模型间 variance，导致诊断指标区分度下降。
 - **跨任务通用指标**：`predictor_target_to_nn_cos_ratio_at_max_std` 在 PushT（ρ=−0.79）和 Reacher（ρ=−0.68）均为最强信号，TwoRoom 上弱（ρ=+0.14）。`predictor_rollout_T8_l2` 在 TwoRoom（ρ=+0.67）和 PushT（ρ=+0.64）强正相关，但 Reacher 上方向反转（ρ=−0.36）。
 - **不通用指标**：`lidar_rank`、`clean_nn_cos_dist`、`noise_angle_slope`、`clean_effective_rank` 任务依赖性强。
-- **Cube**：base LeWM eval 待补齐（当前 num_eval=10 近似 90.0），diagnostics 仅 3/10 模型完成，暂不足以跑相关性。
+- **Cube**：base LeWM eval 待补齐（当前 num_eval=10 近似 90.0），diagnostics 10/10 模型已完成，但 base LeWM 的 num_eval=150 eval 仍报错，相关性分析待 base eval 补齐后进行。
 
 clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM fixed-std 走"聚簇化 clean bonus / noise fragile"路径，LeWM per-frame 走"平滑且 clean 不差"路径——两条路径必须用诊断指标分开归因（详 §4.2）。
 
@@ -1211,18 +1211,18 @@ L = pred_loss
 
 | 模型名 | CKPT 子目录 | 对象文件名 | Eval 分数 | Eval 来源 | `clean_nn_dist` | `eff_rank` | `geometry_flag` |
 |---|---|---|---|---:|---:|---:|---|
-| LeWM-base | `cube_lewm_20260430` | `cube_lewm_20260430_epoch_9_object.ckpt` | 90.0 | `clean_10.log`（num_eval=10 近似） | — | — | diagnostics 缺失 |
-| LeWM-perframe-0to002-p05 | `cube_lewm_noise_0to002_p05` | `cube_lewm_noise_0to002_p05_epoch_9_object.ckpt` | 64.67 | `summary.txt` | — | — | diagnostics 缺失 |
-| LeWM-perframe-0to002-p1 | `cube_lewm_noise_0to002_p1` | `cube_lewm_noise_0to002_p1_epoch_9_object.ckpt` | 60.67 | `summary.txt` | — | — | diagnostics 缺失 |
-| LeWM-perframe-0to005-p05 | `cube_lewm_noise_0to005_p05` | `cube_lewm_noise_0to005_p05_epoch_9_object.ckpt` | 66.00 | `summary.txt` | — | — | diagnostics 缺失 |
-| LeWM-perframe-0to005-p1 | `cube_lewm_noise_0to005_p1` | `cube_lewm_noise_0to005_p1_epoch_9_object.ckpt` | 64.67 | `summary.txt` | — | — | diagnostics 缺失 |
-| SWM-base | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430_epoch_9_object.ckpt` | 78.00 | `summary.txt` | — | — | diagnostics 缺失 |
-| SWM-perframe-0to002-p05 | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64_epoch_9_object.ckpt` | 72.00 | `summary.txt` | — | — | diagnostics 缺失 |
+| LeWM-base | `cube_lewm_20260430` | `cube_lewm_20260430_epoch_9_object.ckpt` | 90.0 | `clean_10.log`（num_eval=10 近似） | 0.18774 | 48.92 | robust |
+| LeWM-perframe-0to002-p05 | `cube_lewm_noise_0to002_p05` | `cube_lewm_noise_0to002_p05_epoch_9_object.ckpt` | 64.67 | `summary.txt` | 0.13502 | 49.53 | balanced |
+| LeWM-perframe-0to002-p1 | `cube_lewm_noise_0to002_p1` | `cube_lewm_noise_0to002_p1_epoch_9_object.ckpt` | 60.67 | `summary.txt` | 0.13336 | 49.20 | balanced |
+| LeWM-perframe-0to005-p05 | `cube_lewm_noise_0to005_p05` | `cube_lewm_noise_0to005_p05_epoch_9_object.ckpt` | 66.00 | `summary.txt` | 0.11817 | 47.31 | balanced |
+| LeWM-perframe-0to005-p1 | `cube_lewm_noise_0to005_p1` | `cube_lewm_noise_0to005_p1_epoch_9_object.ckpt` | 64.67 | `summary.txt` | 0.11534 | 45.61 | balanced |
+| SWM-base | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260430_epoch_9_object.ckpt` | 78.00 | `summary.txt` | 0.24280 | 43.51 | robust |
+| SWM-perframe-0to002-p05 | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p05_dim64_epoch_9_object.ckpt` | 72.00 | `summary.txt` | 0.26564 | 43.51 | balanced |
 | SWM-perframe-0to002-p1 | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64_epoch_9_object.ckpt` | 74.00 | `summary.txt` | 0.25471 | 44.76 | balanced |
 | SWM-perframe-0to005-p05 | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p05_dim64_epoch_9_object.ckpt` | 70.67 | `summary.txt` | 0.19656 | 43.68 | balanced |
 | SWM-perframe-0to005-p1 | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64` | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64_epoch_9_object.ckpt` | 64.00 | `summary.txt` | 0.16893 | 42.79 | balanced |
 
-> **注**：Cube 7/10 模型 diagnostics 缺失，待补齐后方可生成完整 correlation。
+> **注**：Cube diagnostics 10/10 已补齐（2026-05-02 重跑），base LeWM 的 num_eval=150 eval 仍待修复。
 
 ### A.5 数据流与生成脚本
 

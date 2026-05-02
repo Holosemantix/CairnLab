@@ -60,6 +60,11 @@
 set -u  # treat unset vars as errors after the unsets below
 set -o pipefail
 
+# 切到脚本所在目录，确保所有相对路径（config/、tools/ 等）一致解析，
+# 避免从其它 cwd 调用本脚本时 diagnostics 读不到 train data config。
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
+
 # ---------- 1. Hydra 参数构建 (沿用原脚本) ----------
 CMD_ARGS=()
 add_override() {
@@ -70,25 +75,32 @@ add_override() {
     fi
 }
 
+# data: hydra data group; dataset_dirname: STABLEWM_HOME/lewm-<dirname>;
+# default_h5_name: 真实 HDF5 dataset 名称（必须与 config/train/data/<data>.yaml
+# 和 config/eval/<dataset_name>.yaml 中的 name 一致）。在此显式列出避免依赖
+# cwd 的 grep/sed 解析。
 case "${dataset_name}" in
-    tworoom) data="tworoom"; dataset_dirname="tworooms" ;;
-    pusht)   data="pusht";   dataset_dirname="pusht"    ;;
-    cube)    data="ogb";     dataset_dirname="cube"     ;;
-    reacher) data="dmc";     dataset_dirname="reacher"  ;;
+    tworoom) data="tworoom"; dataset_dirname="tworooms"; default_h5_name="tworoom"                    ;;
+    pusht)   data="pusht";   dataset_dirname="pusht";    default_h5_name="pusht_expert_train"         ;;
+    cube)    data="ogb";     dataset_dirname="cube";     default_h5_name="ogbench/cube_single_expert" ;;
+    reacher) data="dmc";     dataset_dirname="reacher";  default_h5_name="reacher"                    ;;
     *) echo "错误: 未知的 dataset_name '${dataset_name}'"; exit 1 ;;
 esac
 
-# 从训练数据配置读取默认 frameskip / 真实 HDF5 dataset name，支持环境变量覆盖
-_dataset_cfg="config/train/data/${data}.yaml"
+# 从训练数据配置读取默认 frameskip，支持环境变量覆盖
+_dataset_cfg="${SCRIPT_DIR}/config/train/data/${data}.yaml"
 if [ -f "${_dataset_cfg}" ]; then
     _default_frameskip=$(grep -m1 '^[[:space:]]*frameskip:' "${_dataset_cfg}" | sed 's/.*:[[:space:]]*\([0-9]*\).*/\1/')
     frameskip="${frameskip:-${_default_frameskip:-5}}"
-    _default_h5_name=$(grep -m1 '^[[:space:]]*name:' "${_dataset_cfg}" | sed 's/.*:[[:space:]]*\([^[:space:]]*\).*/\1/')
-    diagnostic_dataset_name="${diagnostic_dataset_name:-${_default_h5_name:-${dataset_name}}}"
+    # 双保险：若 yaml 中的 name 与 case 里硬编码不一致，提示一下
+    _yaml_h5_name=$(grep -m1 '^[[:space:]]*name:' "${_dataset_cfg}" | sed 's/.*:[[:space:]]*\([^[:space:]]*\).*/\1/')
+    if [ -n "${_yaml_h5_name}" ] && [ "${_yaml_h5_name}" != "${default_h5_name}" ]; then
+        echo "[warn] config/train/data/${data}.yaml name=${_yaml_h5_name} 与脚本内 default_h5_name=${default_h5_name} 不一致，使用脚本值；请同步两处"
+    fi
 else
     frameskip="${frameskip:-5}"
-    diagnostic_dataset_name="${diagnostic_dataset_name:-${dataset_name}}"
 fi
+diagnostic_dataset_name="${diagnostic_dataset_name:-${default_h5_name}}"
 
 output_model_name="${dataset_name}_${output_model_name}"
 

@@ -128,7 +128,7 @@ def run(cfg: DictConfig):
     policy = cfg.get("policy", "random")
 
     if policy != "random":
-        model = swm.policy.AutoCostModel(cfg.policy)
+        model = swm.policy.AutoCostModel(cfg.policy, cache_dir=cfg.cache_dir)
         apply_inference_overrides(model, cfg)
         model = model.to("cuda")
         model = model.eval()
@@ -144,7 +144,7 @@ def run(cfg: DictConfig):
         policy = swm.policy.RandomPolicy()
 
     results_path = (
-        Path(swm.data.utils.get_cache_dir(), cfg.policy).parent
+        Path(cfg.cache_dir or swm.data.utils.get_cache_dir(), cfg.policy).parent
         if cfg.policy != "random"
         else Path(__file__).parent
     )

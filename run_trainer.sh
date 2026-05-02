@@ -127,7 +127,12 @@ add_override "image_noise.apply_to_val" "${image_noise_apply_to_val:-}"
 
 # ---------- 2. 训练 ----------
 swanlab login -k "${SWANLAB_API_KEY}"
-export STABLEWM_HOME="${STABLEWM_HOME}/lewm-${dataset_dirname}"
+# Defensive: if STABLEWM_HOME already points to a lewm-* subdir, go up one level first
+if [[ "$(basename "$STABLEWM_HOME")" == lewm-* ]]; then
+    export STABLEWM_HOME="$(dirname "$STABLEWM_HOME")/lewm-${dataset_dirname}"
+else
+    export STABLEWM_HOME="${STABLEWM_HOME}/lewm-${dataset_dirname}"
+fi
 
 echo "==================================================="
 echo "[train] starting ${trainer_file} for ${output_model_name}"

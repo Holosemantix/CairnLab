@@ -79,8 +79,7 @@ case "${dataset_name}" in
 esac
 
 # 从训练数据配置读取默认 frameskip / 真实 HDF5 dataset name，支持环境变量覆盖
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_dataset_cfg="${SCRIPT_DIR}/config/train/data/${data}.yaml"
+_dataset_cfg="config/train/data/${data}.yaml"
 if [ -f "${_dataset_cfg}" ]; then
     _default_frameskip=$(grep -m1 '^[[:space:]]*frameskip:' "${_dataset_cfg}" | sed 's/.*:[[:space:]]*\([0-9]*\).*/\1/')
     frameskip="${frameskip:-${_default_frameskip:-5}}"

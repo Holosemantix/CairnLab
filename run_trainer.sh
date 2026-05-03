@@ -9,7 +9,6 @@
 #   trainer_file              train.py | train_swm.py
 #   config                    swm | lewm
 #   output_model_name         模型名后缀（最终落盘 `${dataset_name}_${output_model_name}`）
-#   eval_epoch                用于 eval 的 epoch 编号
 #   num_eval                  每次 eval 的 episode 数量
 #   STABLEWM_HOME             checkpoint 根目录
 #
@@ -36,10 +35,11 @@
 #   skip_diagnostics          设 1 跳过整套诊断（noise/predictor/resolution）
 #   diagnostic_skip_predictor 设 1 仅跳过 predictor_sensitivity
 #   diagnostic_skip_resolution 设 1 仅跳过 task_resolution
+#   eval_epoch                用于 eval 的 epoch 编号；默认读取训练 config 的 trainer.max_epochs
 #
 # 用法示例：
 #   dataset_name=tworoom trainer_file=train_swm.py config=swm \
-#     output_model_name=perframe_0to05_p1 eval_epoch=10 num_eval=50 \
+#     output_model_name=perframe_0to05_p1 num_eval=50 \
 #     image_noise_std_min=0.0 image_noise_std_max=0.05 image_noise_noise_prob=1.0 \
 #     eval_corruption_stds="0.0 0.05 0.08" \
 #     bash run_trainer.sh
@@ -101,6 +101,29 @@ else
     frameskip="${frameskip:-5}"
 fi
 diagnostic_dataset_name="${diagnostic_dataset_name:-${default_h5_name}}"
+
+# Eval 默认使用训练 config 中的 trainer.max_epochs 对应 checkpoint。
+_train_cfg="${SCRIPT_DIR}/config/train/${config}.yaml"
+if [ -f "${_train_cfg}" ]; then
+    _config_max_epochs=$(awk '
+        /^[^[:space:]]/ { in_trainer=($1=="trainer:") }
+        in_trainer && /^[[:space:]]*max_epochs:/ {
+            sub(/#.*/, "")
+            sub(/.*:[[:space:]]*/, "")
+            print
+            exit
+        }
+    ' "${_train_cfg}")
+else
+    echo "[eval] training config not found: ${_train_cfg}"
+    exit 1
+fi
+if [ -z "${_config_max_epochs}" ]; then
+    echo "[eval] trainer.max_epochs not found in ${_train_cfg}"
+    exit 1
+fi
+eval_epoch="${eval_epoch:-${_config_max_epochs}}"
+echo "[eval] using checkpoint epoch ${eval_epoch} (trainer.max_epochs from config/train/${config}.yaml)"
 
 output_model_name="${dataset_name}_${output_model_name}"
 

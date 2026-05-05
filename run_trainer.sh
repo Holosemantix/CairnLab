@@ -7,7 +7,7 @@
 # 必填 env vars (与旧脚本一致):
 #   dataset_name              tworoom | pusht | cube | reacher
 #   trainer_file              train.py | train_swm.py
-#   config                    swm | lewm
+#   config                    swm | lewm (also accepts swm.yaml | lewm.yaml)
 #   output_model_name         模型名后缀（最终落盘 `${dataset_name}_${output_model_name}`）
 #   num_eval                  每次 eval 的 episode 数量
 #   STABLEWM_HOME             checkpoint 根目录
@@ -75,6 +75,13 @@ add_override() {
     fi
 }
 
+# Backward-compatible Hydra config name. Older callers may pass `lewm.yaml`;
+# internally we need the stem for both config/train/<name>.yaml lookup and
+# `--config-name=<name>`.
+config_name="${config##*/}"
+config_name="${config_name%.yaml}"
+config_name="${config_name%.yml}"
+
 # data: hydra data group; dataset_dirname: STABLEWM_HOME/lewm-<dirname>;
 # default_h5_name: 真实 HDF5 dataset 名称（必须与 config/train/data/<data>.yaml
 # 和 config/eval/<dataset_name>.yaml 中的 name 一致）。在此显式列出避免依赖
@@ -103,7 +110,7 @@ fi
 diagnostic_dataset_name="${diagnostic_dataset_name:-${default_h5_name}}"
 
 # Eval 默认使用训练 config 中的 trainer.max_epochs 对应 checkpoint。
-_train_cfg="${SCRIPT_DIR}/config/train/${config}.yaml"
+_train_cfg="${SCRIPT_DIR}/config/train/${config_name}.yaml"
 if [ -f "${_train_cfg}" ]; then
     _config_max_epochs=$(awk '
         /^[^[:space:]]/ { in_trainer=($1=="trainer:") }
@@ -123,7 +130,7 @@ if [ -z "${_config_max_epochs}" ]; then
     exit 1
 fi
 eval_epoch="${eval_epoch:-${_config_max_epochs}}"
-echo "[eval] using checkpoint epoch ${eval_epoch} (trainer.max_epochs from config/train/${config}.yaml)"
+echo "[eval] using checkpoint epoch ${eval_epoch} (trainer.max_epochs from config/train/${config_name}.yaml)"
 
 output_model_name="${dataset_name}_${output_model_name}"
 
@@ -172,7 +179,7 @@ fi
 echo "==================================================="
 echo "[train] starting ${trainer_file} for ${output_model_name}"
 echo "==================================================="
-python ${trainer_file} --config-name=${config} \
+python ${trainer_file} --config-name="${config_name}" \
     logger_backend=swanlab \
     swanlab.enabled=True \
     "${CMD_ARGS[@]}"

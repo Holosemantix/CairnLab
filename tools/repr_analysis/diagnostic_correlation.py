@@ -25,10 +25,9 @@ References:
       et al., "Active Testing", ICML 2021.
 
 Spearman ρ implementation note:
-    `_rank` uses `argsort(argsort(.))` which gives ordinal ranks (does not
-    average ranks at ties). For continuous, real-valued diagnostic indicators
-    ties are negligibly rare; if exact tied-rank averaging is needed, use
-    scipy.stats.rankdata(..., method="average").
+    `_average_rank` matches scipy.stats.rankdata(..., method="average") without
+    requiring scipy. This matters because eval scores often have exact ties in
+    small checkpoint grids; ordinal ranks can move ρ noticeably.
 
 Usage::
 
@@ -90,26 +89,38 @@ def _spearman_bootstrap(
     if n < 4:
         return float("nan"), float("nan"), float("nan")
 
-    # scipy may not be available; implement simple Spearman rank correlation.
-    # NB: _rank uses ordinal rank (no tie averaging) — see module docstring.
-    def _rank(a: np.ndarray) -> np.ndarray:
-        return np.argsort(np.argsort(a)).astype(float)
+    # scipy may not be available; implement average ranks for ties.
+    def _average_rank(a: np.ndarray) -> np.ndarray:
+        order = np.argsort(a, kind="mergesort")
+        sorted_vals = a[order]
+        ranks = np.empty(len(a), dtype=float)
+        start = 0
+        while start < len(a):
+            end = start + 1
+            while end < len(a) and sorted_vals[end] == sorted_vals[start]:
+                end += 1
+            # Zero-based average rank; Pearson correlation is invariant to the
+            # shared affine shift relative to one-based ranks.
+            avg_rank = 0.5 * (start + end - 1)
+            ranks[order[start:end]] = avg_rank
+            start = end
+        return ranks
 
     def _rho(a: np.ndarray, b: np.ndarray) -> float:
-        # Spearman ρ = 1 - 6·Σd²/(n(n²-1)). Exact only without ties; for our
-        # continuous diagnostic indicators ties are practically nonexistent.
-        ra = _rank(a)
-        rb = _rank(b)
-        d = ra - rb
-        n_val = float(len(d))
-        return 1.0 - 6.0 * np.sum(d * d) / (n_val * (n_val * n_val - 1.0))
+        ra = _average_rank(a)
+        rb = _average_rank(b)
+        return _pearson(ra, rb)
 
     rho_obs = _rho(x, y)
     boot_rhos = []
     for _ in range(n_bootstrap):
         idx = rng.integers(0, n, size=n)
-        boot_rhos.append(_rho(x[idx], y[idx]))
+        rho_i = _rho(x[idx], y[idx])
+        if not math.isnan(rho_i):
+            boot_rhos.append(rho_i)
     boot_rhos = np.array(boot_rhos)
+    if boot_rhos.size == 0:
+        return float(rho_obs), float("nan"), float("nan")
     ci_low = float(np.percentile(boot_rhos, 2.5))
     ci_high = float(np.percentile(boot_rhos, 97.5))
     return float(rho_obs), ci_low, ci_high

@@ -14,17 +14,17 @@ The goal is not just to ask "did the model avoid collapse?", but to answer:
 
 ## Files
 
-- [analyze_repr.py](/home/ag/projects/le-wm/tools/repr_analysis/analyze_repr.py)
+- [analyze_repr.py](/home/ag/projects/wm_exp/tools/repr_analysis/analyze_repr.py)
   Single entrypoint for one or many checkpoints. It runs the analysis, saves outputs, and also exposes notebook-friendly table / plotting helpers.
-- [plot_repr.py](/home/ag/projects/le-wm/tools/repr_analysis/plot_repr.py)
+- [plot_repr.py](/home/ag/projects/wm_exp/tools/repr_analysis/plot_repr.py)
   Plots one PCA / t-SNE projection export.
-- [compare_repr.py](/home/ag/projects/le-wm/tools/repr_analysis/compare_repr.py)
+- [compare_repr.py](/home/ag/projects/wm_exp/tools/repr_analysis/compare_repr.py)
   Draws side-by-side comparison plots from two analysis directories.
-- [repr_compare_template.ipynb](/home/ag/projects/le-wm/tools/repr_analysis/repr_compare_template.ipynb)
+- [repr_compare_template.ipynb](/home/ag/projects/wm_exp/tools/repr_analysis/repr_compare_template.ipynb)
   Editable Jupyter notebook template that imports only `analyze_repr.py`.
 - [noise_sensitivity.py](noise_sensitivity.py)
   Notebook-friendly clean-vs-noisy latent diagnostics for pixel corruption robustness.
-- [run_repr_batch_example.sh](/home/ag/projects/le-wm/tools/repr_analysis/run_repr_batch_example.sh)
+- [run_repr_batch_example.sh](/home/ag/projects/wm_exp/tools/repr_analysis/run_repr_batch_example.sh)
   Editable shell example that wraps the batch script for multi-model comparison.
 
 ## What To Use When
@@ -236,7 +236,7 @@ Batch outputs:
 
 If you prefer interactive comparison instead of shell loops, open:
 
-- [repr_compare_template.ipynb](/home/ag/projects/le-wm/tools/repr_analysis/repr_compare_template.ipynb)
+- [repr_compare_template.ipynb](/home/ag/projects/wm_exp/tools/repr_analysis/repr_compare_template.ipynb)
 
 and edit:
 

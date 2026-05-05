@@ -582,9 +582,18 @@ def pearson_corr(x: torch.Tensor, y: torch.Tensor) -> float:
 
 def spearman_corr(x: torch.Tensor, y: torch.Tensor) -> float:
     def rankdata(v: torch.Tensor) -> torch.Tensor:
-        order = torch.argsort(v)
-        ranks = torch.empty_like(order, dtype=torch.float32)
-        ranks[order] = torch.arange(order.numel(), dtype=torch.float32, device=v.device)
+        order = torch.argsort(v, stable=True)
+        sorted_v = v[order]
+        ranks = torch.empty(order.numel(), dtype=torch.float32, device=v.device)
+        start = 0
+        n = order.numel()
+        while start < n:
+            end = start + 1
+            while end < n and sorted_v[end] == sorted_v[start]:
+                end += 1
+            avg_rank = 0.5 * float(start + end - 1)
+            ranks[order[start:end]] = avg_rank
+            start = end
         return ranks
 
     x = x.float().reshape(-1)

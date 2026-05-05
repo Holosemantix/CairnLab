@@ -3,6 +3,10 @@
 > 当前定位：本文不是单纯记录”SWM 是否强于 LeWM”，而是整理一个更稳定的研究路线：**world model 的 latent geometry 如何匹配 planning 任务的状态分辨率需求**。  
 > 原始设计见 `plan_v2.md`，完整流水实验见 `experiments.md`。
 
+> **2026-05-05 审计结论**：当前方向适合作为顶会论文中的一节“representation diagnostics / failure prediction”，但还不够单独支撑一篇顶会主贡献。必须补上 P0.6 holdout 盲分桶、统一 eval budget / 多 seed、Cube base num_eval=150，以及修正版相关性重算后，才能把诊断工具作为强贡献来写。
+>
+> **统计口径修正**：`tools/repr_analysis/diagnostic_correlation.py` 已从 ordinal Spearman ranks 改为 average-tie ranks。由于 TwoRoom / PushT / Reacher eval 分数存在 exact ties，§6 P0.4 / P0.5 / P0.7 的 Spearman ρ 和 bootstrap CI 需要用修正版脚本重算后再作为正式数字；当前表格保留为历史审计记录，不再作为 paper-ready 数值。
+
 ---
 
 ## 0. 当前结论
@@ -12,7 +16,7 @@
 目前更准确的判断是：
 
 1. **SWM 不是全局优于 LeWM 的替代品。**  
-   在 clean eval 上，当前最佳 SWM 与 LeWM 接近，4-task single-seed 平均略高，但没有形成压倒性优势。
+   旧版 4-task single-seed 平均略高的叙事不可追溯；按当前一致 ckpt 口径，SWM 只在 TwoRoom 特定配方上占优，在 PushT / Reacher / Cube 上不具备全局优势。
 
 2. **SWM 改变了表征的 invariance-resolution tradeoff。**  
    球面归一化、uniformity、temporal masking、noise augmentation 都在改变“哪些观测差异应该被保留，哪些应该被抹掉”。
@@ -26,6 +30,23 @@
 因此后续主线不应是“为每个任务手调一套 recipe”，而应是：
 
 > 建立一套可诊断、可预测、最好可自适应的 latent geometry 设计方法，让 world model 根据任务分辨率需求在 robustness 和 precision 之间取舍。
+
+### 0.1 清晰路线（paper-facing）
+
+1. **先把诊断做成预测，不是解释。**
+   P0.6 是当前最关键节点：冻结指标和阈值，只看 held-out checkpoint 的诊断输出，提前给出 clean / noisy eval drop 分桶。命中率达标后，`noise_to_nn_ratio`、`empirical robust radius`、`predictor target shift`、`predictor rollout drift` 才能进入论文主图。
+
+2. **主叙事改为 invariance-resolution tradeoff。**
+   TwoRoom 的聚簇化收益和 PushT 的分辨率损失是核心现象；不要再写成“spherical 比 Euclidean 更好”。SWM 是一个暴露 tradeoff 的 intervention，diagnostic toolkit 是主要方法贡献。
+
+3. **最小方法推进是 guarded noise consistency。**
+   P4 不应继续扫 recipe，而应在 noise consistency 外加 transition/action preservation guardrail，目标是保留 PushT resolution，同时让 TwoRoom 获得 noise smoothing。
+
+4. **实验门槛。**
+   Paper 主表至少需要：每任务 3 seeds；统一 `num_eval=150/500` 口径；TwoRoom / PushT / Reacher / Cube 四任务诊断与 eval 对齐；P0.6 holdout；重要 ablation 只保留 P3 的 BN/LN/dim 与 P4 guardrail。
+
+5. **不作为强贡献。**
+   `effective_rank`、LiDAR、CKA、ID probe、Wang-Isola uniformity、randomized smoothing 只能作为 borrowed diagnostics / related primitives；真正可主张的是它们在 planning latent 中的组合比值、noisy-vs-clean rollout drift、以及 active validation protocol。
 
 ---
 
@@ -411,7 +432,7 @@ PushT：
 | Encoder shift | `noise_angle_deg_median/p90`, `noise_l2_median/p90`, `noise_cos_dist_median/p90` | encoder 直接 angular / L2 sensitivity |
 | Encoder geometry | `clean_nn_cos_dist`, `clean_pair_cos_dist`, `clean_norm_mean` | clustering / scale |
 | 派生比例 | `noise_to_nn_cos_ratio_median/p90`, `robust_radius_std`, `noise_angle_slope_deg_per_std` | 跨模型可比的鲁棒性界 |
-| 几何标签 | `geometry_flag` (`clustered/fragile/robust/balanced`) + `recommendation` | 经验阈值规则 |
+| 几何标签 | `geometry_flag` (`clustered/fragile/robust/balanced`) + `recommendation` | 经验阈值规则；compact 只用 cosine NN 判定，L2 仅作附表诊断 |
 | Encoder 区分 | `effective_rank`、`frame_scope="history"` | 区分 collapse vs clustering；history 帧对应 pixels-only failure |
 | Predictor side | `predictor_rollout_drift(T)`、`predictor_target_shift` | encoder 之外，predictor 在 noisy history 下的累积漂移 |
 | Task resolution | `transition_resolution_ratio = d(z_t, z_{t+1}) / d(z_t, z_far)`、inverse-dynamics linear probe readout、LiDAR rank | 量化任务所需状态分辨率，区分 TwoRoom 与 PushT 偏好 |
@@ -775,6 +796,8 @@ PushT：
 #### P0.4 相关性分析（跨任务对比结论）
 
 > 完整自动化相关性表见 P0.7（来自 `diagnostic_correlation.py`，n=8 / n=11，含 95% bootstrap CI）。本节只给跨任务对比与高层结论，不重复列指标。
+>
+> **统计警告（2026-05-05）**：下表来自修正前的 ordinal-rank Spearman 实现。由于 eval 分数有 ties，正式写作前必须用 average-tie rank 版本重算。现阶段只保留方向性判断：TwoRoom 的 encoder geometry 信号强，PushT/Reacher 更偏 predictor target-shift；不要引用具体 ρ 值作为最终结论。
 
 **核心：诊断指标的任务特异性**
 
@@ -797,6 +820,8 @@ PushT：
 - **不通用指标**：`lidar_rank`、`clean_nn_cos_dist`、`noise_angle_slope`、`clean_effective_rank` 任务依赖性强。
 - **Cube**：base LeWM eval 待补齐（当前 num_eval=10 近似 90.0），diagnostics 10/10 模型已完成，但 base LeWM 的 num_eval=150 eval 仍报错，相关性分析待 base eval 补齐后进行。
 
+> **解释约束**：`predictor_rollout_T8_l2` 在 TwoRoom / PushT 上出现正相关，不能直接解释为“drift 越大越好”。这更可能混合了模型族、latent 尺度、noise training 强度与 task difficulty confounder。Paper 主指标应优先使用方向稳定且归一化明确的 `predictor_target_to_nn_cos_ratio_at_max_std`；rollout drift 只作为辅助或机制图，必须经 P0.6 holdout 验证。
+
 clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM fixed-std 走"聚簇化 clean bonus / noise fragile"路径，LeWM per-frame 走"平滑且 clean 不差"路径——两条路径必须用诊断指标分开归因（详 §4.2）。
 
 **局限**：PushT 中 `noise_robust_radius_std` 仅 n=6（per-frame 模型 radius>0.08 censored），需扩到 Cube / Reacher 才能评估稳定性。
@@ -812,6 +837,8 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM fixed-st
 ![Geometry Tradeoff 散点](assets/diagnostics/geometry_tradeoff_goal.png)
 
 #### P0.5 决策标准（按实际数据评估）
+
+> **待重算**：本节阈值判断依赖 P0.4/P0.7 的 Spearman ρ。`diagnostic_correlation.py` 修正 ties 后，以下 `|ρ|` 数字必须整体重算；在重算前，只把本节作为“哪些指标值得保留”的候选清单。
 
 | 任务 | 指标 | Spearman \|ρ\| | 判定 | 行动 |
 |---|---:|---:|---|---|
@@ -852,6 +879,8 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM fixed-st
 ![Reacher 诊断相关性热图](assets/diagnostics/diagnostic_correlation_reacher.png)
 
 **自动化相关性结果（`diagnostic_correlation.py` 输出）**
+
+> **历史数值，待修正版脚本重跑**：以下表格由旧版 ordinal Spearman rank 脚本生成。`diagnostic_correlation.py` 已改为 average-tie ranks；正式报告应重新生成 `diagnostic_correlation.csv/.png/.summary.json`，再同步本节和图片。
 
 TwoRoom（n=8，baselines 已补齐）：
 
@@ -1061,7 +1090,7 @@ L = pred_loss
 | `noise_to_nn_*_ratio` | encoder shift 除以 clean NN 尺度；ratio ≥ 1 表示噪声跨过局部邻域 | composite 指标，可作为 planning-latent robustness ratio 主张 | `noise_sensitivity.py::analyze_model_noise` |
 | `robust_radius_std`, `first_high_risk_std` | `noise_to_nn_cos_ratio` 跨过 1 的插值 / 首次离散 std | randomized smoothing 的 empirical planning-latent 版本；Cohen 2019 是来源，不是同一 certified setting | `noise_sensitivity.py::summarize_noise_geometry` |
 | `noise_angle_slope_deg_per_std`, `noise_ratio_slope_per_std` | 小 std 附近的 angular gain / ratio gain | local Lipschitz / spectral norm 思路的球面诊断版本 | `noise_sensitivity.py::_near_zero_slope` |
-| `geometry_flag`, `recommendation` | 按 radius、angle gain、NN distance、effective rank 给出的经验几何标签和建议 | 工程规则；不是论文 novelty 单独主张 | `noise_sensitivity.py::_geometry_flags`; `_recommendation` |
+| `geometry_flag`, `recommendation` | 按 radius、angle gain、cosine NN distance、effective rank 给出的经验几何标签和建议 | 工程规则；不是论文 novelty 单独主张；绝对 L2 不参与 flag | `noise_sensitivity.py::_geometry_flags`; `_recommendation` |
 | `predictor_target_shift`, `target_to_nn_*_ratio` | noisy history 经过 predictor 后的 single-step target shift；ratio 版本跨模型可比 | single-step rollout error 来自 Dreamer / TD-MPC family；ratio 是本文 composite | `tools/repr_analysis/predictor_sensitivity.py::_open_loop_target_shift`; `analyze_model_predictor_noise` |
 | `predictor_rollout_drift(T)` | noisy vs clean history 自回归 T 步后的 latent drift | multi-step noise-vs-clean conditioning，文献无直接对应，可主张 novelty；不同于 Dreamer/TD-MPC 对 ground-truth latent 的 rollout MSE | `predictor_sensitivity.py::_autoregressive_rollout` |
 | `transition_resolution_ratio` | 相邻帧距离 / 跨序列随机帧距离；衡量 latent 是否保留任务分辨率 | temporal-neighbor 版本的 intra/inter gap；命名和 planning 用法可主张新颖 | `tools/repr_analysis/task_resolution.py::_transition_metrics` |
@@ -1069,7 +1098,7 @@ L = pred_loss
 | `lidar_rank` | 用相邻帧作 positive pair 的 LiDAR rank | LiDAR；Thilak 2024，本文只是迁移到 temporal pair | `task_resolution.py::_lidar_rank` |
 | `predictor_rollout_drift_z(T)`, `target_to_nn_*_ratio_z` | 直接在 encoded `z` 加噪，剥离 encoder 后测 predictor smoothness | latent randomized smoothing / RobustZero 相关；本文用于 post-hoc encoder-decoupled diagnostic | `tools/repr_analysis/latent_noise_sensitivity.py::_open_loop_target_shift`; `_autoregressive_rollout` |
 | `cost_surface_slope_z`, `robust_radius_z` | latent 噪声下 planning cost / predictor 边界的经验斜率与半径 | Cohen 2019 / Lipschitz estimation 思路迁移到 latent cost；不是 certified bound | `latent_noise_sensitivity.py::analyze_model_latent_noise`; `summarize_latent_noise_geometry` |
-| `pearson_r`, `spearman_rho`, bootstrap CI | 诊断指标与 eval score 的相关性和置信区间 | label-free performance prediction / ATC family；Garg 2022, Deng & Zheng 2021, Efron & Tibshirani 1993 | `tools/repr_analysis/diagnostic_correlation.py` |
+| `pearson_r`, `spearman_rho`, bootstrap CI | 诊断指标与 eval score 的相关性和置信区间；Spearman 使用 average-tie ranks | label-free performance prediction / ATC family；Garg 2022, Deng & Zheng 2021, Efron & Tibshirani 1993 | `tools/repr_analysis/diagnostic_correlation.py` |
 | roll-up summary | 把 encoder、predictor、task-resolution、latent-noise 指标汇成一行/ckpt | 本项目工程聚合层 | `tools/repr_analysis/run_full_diagnostics.py::_summarize_noise_to_predictor_to_resolution` |
 
 ### 7.2 真正可主张的 novelty
@@ -1161,7 +1190,7 @@ L = pred_loss
 
 ## 附录 A：CKPT→Eval→诊断完整溯源表（供人工核验）
 
-> **本附录存在的意义**：plan_v3.md §6 P0.4/P0.5/P0.7 的所有相关性数值均来自 `diagnostic_correlation.py` 对 `eval_scores.json` + `diagnostics_summary.json` 的自动计算。本附录逐条记录这 19 个模型对应的 ckpt 子目录、eval 分数来源、诊断指标来源，确保任何数值都可以从原始 ckpt 文件一路追溯到报告中的 ρ 值。
+> **本附录存在的意义**：plan_v3.md §6 P0.4/P0.5/P0.7 的所有相关性数值均来自 `diagnostic_correlation.py` 对 `eval_scores.json` + `diagnostics_summary.json` 的自动计算。本附录逐条记录当前 39 个模型（TwoRoom 8、PushT 11、Reacher 10、Cube 10）对应的 ckpt 子目录、eval 分数来源、诊断指标来源，确保任何数值都可以从原始 ckpt 文件一路追溯到报告中的 ρ 值。注意：Spearman ties 修正后相关性需重算。
 
 ### A.1 TwoRoom（8 模型，全 epoch_9）
 
@@ -1237,7 +1266,7 @@ L = pred_loss
 | L6 相关性 | `diagnostic_correlation.csv/.png` | `diagnostic_correlation.py` | L4 + L5 |
 | L7 报告 | `plan_v3.md` P0.4/P0.5/P0.7 | 人工撰写（以 L6 为准） | L6 |
 
-### A.4 人工核验检查清单
+### A.6 人工核验检查清单
 
 你可以按以下步骤独立复现任何数值：
 
@@ -1275,7 +1304,7 @@ L = pred_loss
    - `predictor_target_to_nn_cos_ratio_at_max_std`：最大噪声 std 下，predictor target 与 nearest neighbor 的 cosine ratio（越小 = target shift 控制越好）
    - `geometry_flag`：`run_full_diagnostics.py` 自动标注的 noise geometry 类别（balanced / robust / fragile / clustered 等）
 
-### A.5 历史数据修正记录
+### A.7 历史数据修正记录
 
 | 时间 | Commit | 修正内容 | 影响 |
 |---|---|---|---|
@@ -1284,3 +1313,4 @@ L = pred_loss
 | 2026-05-01 04:33 | `bf79a80` | 插入诊断可视化配图 | 仅新增图片引用，未修正数值 |
 | 2026-05-01 05:07 | `6c7bf90` | 将 plan_v3.md 中所有 Spearman/Pearson 数值更新为与 `diagnostic_correlation.csv` 一致（基于 num_eval=50 的 perframe 模型） | PushT 所有指标 \|ρ\| 降至 0.4–0.6，无 ≥0.7 强相关；TwoRoom `clean_nn_cos_dist` 升至 −1.000 |
 | 2026-05-01 12:09 | `4ce4931` | **第三次修正**：发现 perframe 模型 eval 仅用 `num_eval=50`，将 11 个 perframe 模型重跑为 `num_eval=150` | TwoRoom perframe eval 更稳定（SWM-perframe-p05 92.0→87.33，SWM-perframe-p1 92.0→86.67）；PushT `predictor_target_to_nn_cos_ratio` 从 −0.564 升至 **−0.791**，`predictor_rollout_T8_l2` 从 +0.300 升至 **+0.636**，PushT 预测力显著改善 |
+| 2026-05-05 | working tree | 修正 `diagnostic_correlation.py` 的 Spearman rank：ordinal ranks → average-tie ranks | eval 分数存在 exact ties，旧版 ρ/CI 需重算；P0.4/P0.5/P0.7 当前数值降级为历史记录 |

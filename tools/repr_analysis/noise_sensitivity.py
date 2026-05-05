@@ -428,10 +428,11 @@ def _geometry_flags(
     if not math.isnan(angle_slope) and angle_slope >= 1500:
         flags.append("high_angle_gain")
 
-    nn_compact = (
-        (not math.isnan(clean_nn_cos) and clean_nn_cos < 0.02)
-        or (not math.isnan(clean_nn_l2) and clean_nn_l2 < 0.2)
-    )
+    # Use cosine NN for the compactness flag. Absolute L2 scales differ across
+    # LeWM/SWM spaces and tasks, so an L2 threshold can mislabel otherwise
+    # healthy low-scale embeddings as clustered. Keep L2 ratios in the tables,
+    # but avoid using them for the rule-of-thumb label.
+    nn_compact = not math.isnan(clean_nn_cos) and clean_nn_cos < 0.02
     if nn_compact:
         # Disambiguate: tight NN with low rank => collapse; tight NN with high rank => clustering
         if not math.isnan(effective_rank_value) and effective_rank_value < 4.0:

@@ -16,7 +16,7 @@
 #   encoder_projection_head_type, loss_regularizer_*, loss_uniformity_*,
 #   loss_temporal_hinge_*, loss_inverse_dynamics_weight,
 #   loss_transition_distance_weight, loss_pred_*, loss_rollout_*,
-#   wm_embed_dim, wm_inference_*, image_noise_std_min/max/apply_to_val
+#   seed, wm_embed_dim, wm_inference_*, image_noise_std_min/max/apply_to_val
 #
 # 新增 env vars:
 #   image_noise_noise_prob    每帧加噪概率 (默认 1.0；<1 制造 clean+noisy 混合)
@@ -136,6 +136,7 @@ output_model_name="${dataset_name}_${output_model_name}"
 
 add_override "data" "${data}"
 add_override "data.dataset.frameskip" "${frameskip}"
+add_override "seed" "${seed:-}"
 add_override "output_model_name" "${output_model_name}"
 add_override "subdir" "ckpt/${output_model_name}"
 add_override "encoder.projection_head.type" "${encoder_projection_head_type:-}"

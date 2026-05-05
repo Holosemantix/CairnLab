@@ -3,10 +3,6 @@
 > 当前定位：本文不是单纯记录”SWM 是否强于 LeWM”，而是整理一个更稳定的研究路线：**world model 的 latent geometry 如何匹配 planning 任务的状态分辨率需求**。  
 > 原始设计见 `plan_v2.md`，完整流水实验见 `experiments.md`。
 
-> **2026-05-05 审计结论**：当前方向适合作为顶会论文中的一节“representation diagnostics / failure prediction”，但还不够单独支撑一篇顶会主贡献。必须补上 P0.6 holdout 盲分桶、统一 eval budget / 多 seed、Cube base num_eval=150，以及修正版相关性重算后，才能把诊断工具作为强贡献来写。
->
-> **统计口径修正**：`tools/repr_analysis/diagnostic_correlation.py` 已从 ordinal Spearman ranks 改为 average-tie ranks。由于 TwoRoom / PushT / Reacher eval 分数存在 exact ties，§6 P0.4 / P0.5 / P0.7 的 Spearman ρ 和 bootstrap CI 需要用修正版脚本重算后再作为正式数字；当前表格保留为历史审计记录，不再作为 paper-ready 数值。
-
 ---
 
 ## 0. 当前结论
@@ -125,7 +121,7 @@ loss:
 
 ### 2.1 旧 4-task benchmark（来源可追溯性说明）
 
-> ⚠️ **数据来源审计**：以下数据来自 `experiments.md` 记录的早期 4-task benchmark（2026-04-15/20），配置为 epoch=10，num_eval=500，single seed。这些 ckpt 与当前 P0.3 诊断分析使用的模型**不是同一组**（dim、temporal 配置、noise 设置均可能不同），因此本节仅作历史参考，不进入 P0.3 相关性分析。
+> **数据来源说明**：以下数据来自 `experiments.md` 记录的早期 4-task benchmark（2026-04-15/20），配置为 epoch=10，num_eval=500，single seed。这些 ckpt 与当前 P0.3 诊断分析使用的模型**不是同一组**（dim、temporal 配置、noise 设置均可能不同），因此本节仅作历史参考，不进入 P0.3 相关性分析。
 >
 > | Task | LeWM | SWM best | Delta | 来源 ckpt |
 > |---|---:|---:|---:|:---|
@@ -730,7 +726,7 @@ PushT：
 > 3. **Per-frame pixel-noise training 不改善 predictor 的 latent-noise 鲁棒性。** LeWM-perframe 的 T8 drift 与 baseline 几乎相同（5.9 vs 5.8），SWM-perframe 甚至略升（0.81 vs 0.67）。这说明三层归因中，瓶颈在 **Layer 1 (encoder)**，而非 Layer 2 (predictor) 或 Layer 3 (cost surface)。noise training 的收益集中在 pixel→latent 映射的平滑化，而不是 predictor 本身的 Lipschitz 改善。
 > 4. **`robust_radius_z` 已修复：goal scope 仍为 NaN，但 history scope 通过 rollout-drift fallback 获得有效值。** 修改内容：`summarize_latent_noise_geometry` 在 `target_to_nn_cos_ratio` 无法达到 threshold=1.0 时，回退到 `rollout_T8_l2_median / clean_nn_l2_median` 作为 ratio 进行插值。`run_full_diagnostics.py` 的 `_summarize` 也改为分别从 goal scope（cost slope）和 history scope（robust radius + slope）提取指标。当前 history scope `robust_radius_z`：TwoRoom 0.005–0.021，PushT 0.018–0.031。与 eval 的相关性：TwoRoom −0.54（弱/中等），PushT −0.08（弱），说明 latent robust radius 对 eval 的解释力有限，不如 `predictor_rollout_T8_l2`（两任务均中等正相关）。
 
-结果保存：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/latent_noise_diagnostics/`
+结果保存：`dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/latent_noise_diagnostics/`
 
 **Planning signal probe（CEM cost 是否能区分 expert vs random）**
 
@@ -776,7 +772,7 @@ PushT：
 >
 > 批量命令：
 > ```bash
-> export STABLEWM_HOME=/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}
+> export STABLEWM_HOME=dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}
 > python run_planning_action_probe.py
 > ```
 
@@ -791,7 +787,7 @@ PushT：
 3. **SWM-perframe-0to001 在 PushT 上被评为 robust，0to002 是 balanced。**  
    在 PushT 上，0to001 的 noise 强度已经足够产生 robust geometry（radius≈0.07），而 0to002 的 robust_radius=NaN（更 robust 但 clean eval 从 87.3 降至 81.3）。这与 TwoRoom 上 0to005 才达到 balanced 形成对比，说明 PushT 的"最优 noise 强度"确实更低。
 
-结果保存：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/`
+结果保存：`dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/`
 
 #### P0.4 相关性分析（跨任务对比结论）
 
@@ -827,7 +823,7 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM fixed-st
 **局限**：PushT 中 `noise_robust_radius_std` 仅 n=6（per-frame 模型 radius>0.08 censored），需扩到 Cube / Reacher 才能评估稳定性。
 
 **图表**：`p0_correlation_{tworoom,pusht}.png`、`predictor_drift_eval_correlation.png`、`noise_angle_curve_goal.png`、`noise_ratio_curve_goal.png`、`geometry_tradeoff_goal.png`。  
-保存路径：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/`。
+保存路径：`dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/`。
 
 ![TwoRoom P0 诊断指标与 eval 相关性](assets/diagnostics/p0_correlation_tworoom.png)
 ![PushT P0 诊断指标与 eval 相关性](assets/diagnostics/p0_correlation_pusht.png)
@@ -939,7 +935,7 @@ PushT（n=11，baselines 已补齐，SWM-fixed-std 真实 eval=61.8）：
 
 > 上面是按 |Spearman ρ| 排序的 top 字段。跨任务对比（含哪个指标在 TwoRoom / PushT 上是主导信号）见 P0.4 综合结论表，不再重复。
 
-保存路径：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/diagnostic_correlation.{csv,png,summary.json}`
+保存路径：`dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/diagnostic_correlation.{csv,png,summary.json}`
 
 ### P1：Noise-Aware Training（结论见 §4）
 
@@ -1273,29 +1269,29 @@ L = pred_loss
 1. **核验 Eval 分数**
    ```bash
    # TwoRoom
-   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/<subdir>/tworoom_results.txt
+   cat dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/<subdir>/tworoom_results.txt
    # PushT
-   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/<subdir>/pusht_results.txt
+   cat dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/<subdir>/pusht_results.txt
    # 若模型由 run_missing_evals.py 重跑，则查看 eval_run.log 中 'success_rate': <num>
    ```
 
 2. **核验诊断指标（原始 CSV）**
    ```bash
    # TwoRoom
-   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/noise_sensitivity.csv | grep <model>
+   cat dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/noise_sensitivity.csv | grep <model>
    # PushT（含 base 补做）
-   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/repr_analysis/p03_diagnostics/noise_sensitivity.csv | grep <model>
-   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/repr_analysis/p03_diagnostics_new_baselines/<model>/noise_sensitivity.csv | grep <model>
+   cat dataset/ag_data/data/world_model/quentinll/lewm-pusht/repr_analysis/p03_diagnostics/noise_sensitivity.csv | grep <model>
+   cat dataset/ag_data/data/world_model/quentinll/lewm-pusht/repr_analysis/p03_diagnostics_new_baselines/<model>/noise_sensitivity.csv | grep <model>
    ```
 
 3. **核验相关性数值**
    ```bash
-   cat /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/diagnostic_correlation.csv
+   cat dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht}/repr_analysis/p03_diagnostics/diagnostic_correlation.csv
    # 或重新运行脚本
    python -m tools.repr_analysis.diagnostic_correlation \
-       --diagnostics /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/diagnostics_summary.json \
-       --eval-scores /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/eval_scores.json \
-       --out-dir /tmp/tworoom_corr_check
+       --diagnostics dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/diagnostics_summary.json \
+       --eval-scores dataset/ag_data/data/world_model/quentinll/lewm-tworooms/repr_analysis/p03_diagnostics/eval_scores.json \
+       --out-dir tworoom_corr_check
    ```
 
 4. **关键字段定义速查**

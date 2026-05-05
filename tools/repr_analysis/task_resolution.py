@@ -155,7 +155,7 @@ def _lidar_rank(z: torch.Tensor, eps: float = 1e-3) -> float:
         S_w = average per-pair within-class scatter
         S_b = scatter of pair midpoints (between-class)
         L   = S_w^{-1/2} S_b S_w^{-1/2}
-        LiDAR rank = matrix entropy of singular values of L
+        LiDAR rank = entropy effective rank of singular values of L
 
     A high LiDAR rank means many directions both (a) discriminate between
     different *transitions* and (b) are stable within a transition. RankMe /
@@ -188,11 +188,12 @@ def _lidar_rank(z: torch.Tensor, eps: float = 1e-3) -> float:
 
     Lidar = Sw_inv_sqrt @ Sb @ Sw_inv_sqrt
     sv = torch.linalg.svdvals(Lidar)
-    power = sv.square()
-    total = power.sum()
+    # Match `effective_rank`: entropy over singular values, not squared energy,
+    # so the reported rank follows the RankMe / effective-rank convention.
+    total = sv.sum()
     if float(total) < 1e-12:
         return 0.0
-    p = power / total
+    p = sv / total
     entropy = -(p * torch.log(p.clamp_min(1e-12))).sum()
     return float(torch.exp(entropy))
 

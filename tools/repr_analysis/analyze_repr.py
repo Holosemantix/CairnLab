@@ -489,7 +489,10 @@ def get_model_spaces(model) -> Dict[str, str]:
     context_space = resolve_space_name(getattr(model, "training_context_space", analysis_space))
     rollout_space = resolve_space_name(getattr(model, "inference_rollout_state_space", "normalized"))
     cost_space = resolve_space_name(getattr(model, "inference_cost_space", "normalized"))
-    cost_type = getattr(model, "inference_cost_type", "cosine").lower()
+    # Plain JEPA does not carry the newer inference_* attributes and its
+    # planner criterion is MSE. SphericalJEPA sets inference_cost_type itself,
+    # usually to cosine, so this default only affects the LeWM baseline.
+    cost_type = getattr(model, "inference_cost_type", "mse").lower()
     return {
         "analysis_prediction_space": analysis_space,
         "training_context_space": context_space,
@@ -602,13 +605,18 @@ def spearman_corr(x: torch.Tensor, y: torch.Tensor) -> float:
 
 
 def effective_rank(z: torch.Tensor) -> float:
+    """Entropy effective rank of centered features.
+
+    We use the RankMe / Roy-Vetterli convention: normalize singular values
+    directly, then exponentiate their entropy. This estimates how many
+    independent latent directions carry variance.
+    """
     z = z - z.mean(0, keepdim=True)
     singular_values = torch.linalg.svdvals(z)
-    power = singular_values.square()
-    total = power.sum()
+    total = singular_values.sum()
     if float(total) < 1e-12:
         return 0.0
-    p = power / total
+    p = singular_values / total
     entropy = -(p * torch.log(p.clamp_min(1e-12))).sum()
     return float(torch.exp(entropy))
 

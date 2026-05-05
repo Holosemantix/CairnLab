@@ -459,7 +459,7 @@ PushT：
 5. `tools/repr_analysis/latent_noise_sensitivity.py`（**P2/P5**）：
    - 直接对 encoded `z` 注入高斯噪声，跳过 encoder。
    - 支持 `frame_scopes ∈ {history, goal, all}` 与 input-space 工具镜像。
-   - 支持 `noise_geometry ∈ {ambient, tangent}`（tangent 用于 SWM 切空间扰动）与 `std_mode ∈ {relative, absolute}`（默认 relative，按 per-token clean norm 缩放，跨 LeWM/SWM 可比）。
+   - 支持 `noise_geometry ∈ {auto, ambient, tangent}`（auto：SWM normalized space 用 tangent，LeWM/raw space 用 ambient）与 `std_mode ∈ {relative, absolute}`（默认 relative，按 per-token clean norm 缩放，跨 LeWM/SWM 可比）。
    - 输出 `predictor_target_shift_z`、`predictor_rollout_drift_z(T)`、`cost_surface_slope_z`、`robust_radius_z`，roll-up 字段已并入 `diagnostics_summary.json`。
 
 - `tools/repr_analysis/diagnostic_correlation.py`：诊断 ↔ eval 自动相关性（Spearman + Pearson + bootstrap CI），结果见 P0.7。
@@ -1013,7 +1013,7 @@ P5 原本单列为一个诊断实验；这里并入 P2，因为它和 cost swap 
 
 - 噪声注入位置：encoder 输出 `z`，跳过 encoder。
 - `frame_scopes ∈ {history, goal, all}`，与 input-space 工具镜像。
-- `noise_geometry ∈ {ambient, tangent}`；tangent 用于 SWM 切空间扰动。
+- `noise_geometry ∈ {auto, ambient, tangent}`；auto 默认对 SWM normalized space 使用 tangent，对 LeWM/raw space 使用 ambient。
 - `std_mode ∈ {relative, absolute}`；默认 relative，按 per-token clean norm 缩放，跨 LeWM/SWM 可比。
 - 已挂入 `run_full_diagnostics.py`，CLI 默认开启（`--skip-latent-noise` 可关），`diagnostics_summary.json` 多出 `latent_*` 字段。
 

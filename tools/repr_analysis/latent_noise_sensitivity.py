@@ -36,7 +36,7 @@ Notebook use:
         dataset="tworoom",
         stds=[0.0, 0.005, 0.01, 0.02, 0.05],
         rollout_steps=[1, 2, 4, 8],
-        noise_geometry="ambient",   # or "tangent" for spherical SWM
+        noise_geometry="auto",      # SWM normalized -> tangent; LeWM/raw -> ambient
     )
 """
 
@@ -202,8 +202,11 @@ def _open_loop_target_shift(
         return {"clean_pred": clean_emb[:, :0], "noisy_pred": noisy_emb[:, :0]}
 
     clean_preds, noisy_preds = [], []
-    # Iterate over all valid H-windows, including the last one that ends at T-1.
-    # This ensures the goal token (at index T-1) is included when scope="goal".
+    # Iterate over all H-token windows, including the final window ending at
+    # T-1. Unlike predictor_sensitivity.py this latent-only probe compares
+    # clean-vs-noisy predictor outputs directly, so it does not need a dataset
+    # target after the window. Including the final window lets goal-scope latent
+    # perturbations test whether the predictor would consume a perturbed goal.
     for s in range(T - H + 1):
         c_win = clean_emb[:, s : s + H]
         n_win = noisy_emb[:, s : s + H]
@@ -211,7 +214,7 @@ def _open_loop_target_shift(
         clean_preds.append(model.predict(c_win, a_win)[:, -1])
         noisy_preds.append(model.predict(n_win, a_win)[:, -1])
     return {
-        "clean_pred": torch.stack(clean_preds, dim=1),  # (B, T-H, D)
+        "clean_pred": torch.stack(clean_preds, dim=1),  # (B, T-H+1, D)
         "noisy_pred": torch.stack(noisy_preds, dim=1),
     }
 
@@ -275,6 +278,15 @@ def analyze_model_latent_noise(
     space = resolve_space_name(embedding_space or spaces["inference_cost_space"])
     cost_type = spaces["inference_cost_type"]
     history_size = infer_history_size(model)
+    if noise_geometry == "auto":
+        # SphericalJEPA exposes normalize_embeddings and commonly analyzes the
+        # normalized cost space; tangent noise respects that sphere. LeWM and
+        # raw-space ablations remain Euclidean, so ambient noise is correct.
+        noise_geometry = (
+            "tangent"
+            if space == "normalized" and hasattr(model, "normalize_embeddings")
+            else "ambient"
+        )
 
     # Encode clean batch once. We work in the inference cost space throughout.
     clean_outputs = encode_sequences(model, _clone_batch(batch))
@@ -324,10 +336,11 @@ def analyze_model_latent_noise(
                     base_norm=base_norm,
                 )
 
-                # Encoder-side shift (applies only to the perturbed slice; this
-                # is essentially an internal sanity check, since we generated
-                # the noise ourselves — we report the realized magnitude).
-                shift = _shift_stats(clean_emb, noisy_emb)
+                # Realized latent shift on the perturbed slice only. Measuring
+                # the whole sequence would dilute goal-only noise with many
+                # unchanged history tokens and under-report the injected shift.
+                idx = _frame_slice(clean_emb.size(1), scope, history_size)
+                shift = _shift_stats(clean_emb[:, idx], noisy_emb[:, idx])
                 for kk, v in shift.items():
                     shift_acc.setdefault(kk, []).append(v)
 
@@ -456,7 +469,7 @@ def run_latent_noise_sensitivity(
     img_size: int = 224,
     embedding_space: str | None = None,
     frame_scopes: Sequence[str] = ("history", "goal", "all"),
-    noise_geometry: str = "ambient",
+    noise_geometry: str = "auto",
     std_mode: str = "relative",
     n_noise_samples: int = 1,
     seed: int = 3072,
@@ -709,8 +722,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--embedding-space", default=None, choices=[None, "raw", "normalized"])
     p.add_argument("--frame-scopes", nargs="+", default=["history", "goal", "all"],
                    choices=["history", "goal", "all"])
-    p.add_argument("--noise-geometry", default="ambient", choices=["ambient", "tangent"],
-                   help="`tangent` projects noise onto T_z S^{d-1}; recommended for SWM.")
+    p.add_argument("--noise-geometry", default="auto", choices=["auto", "ambient", "tangent"],
+                   help="`auto` uses tangent noise for SWM normalized space and ambient otherwise.")
     p.add_argument("--std-mode", default="relative", choices=["relative", "absolute"],
                    help="`relative` scales std by per-token clean norm "
                         "(comparable across LeWM/SWM). `absolute` uses raw σ × global clean norm.")

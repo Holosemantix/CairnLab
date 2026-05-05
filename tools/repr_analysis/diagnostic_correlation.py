@@ -137,7 +137,10 @@ def _pearson(x: np.ndarray, y: np.ndarray) -> float:
 
 def _is_numeric_scalar(v: Any) -> bool:
     if isinstance(v, (int, float, np.floating, np.integer)):
-        return not math.isnan(float(v))
+        # Correlation code assumes finite inputs. Treat NaN/Inf as missing so
+        # censored diagnostic fields do not leak invalid values into Pearson or
+        # rank statistics.
+        return math.isfinite(float(v))
     return False
 
 

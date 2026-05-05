@@ -247,7 +247,7 @@ def run_full_diagnostics(
     skip_resolution: bool = False,
     skip_latent_noise: bool = False,
     predictor_history_noise_only: bool = True,
-    latent_noise_geometry: str = "ambient",
+    latent_noise_geometry: str = "auto",
     latent_noise_std_mode: str = "relative",
     latent_noise_n_samples: int = 1,
     log=print,
@@ -482,9 +482,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--predictor-full-noise",
                    dest="predictor_history_noise_only", action="store_false",
                    help="Predictor diagnostic adds noise to all frames including goal.")
-    p.add_argument("--latent-noise-geometry", default="ambient",
-                   choices=["ambient", "tangent"],
-                   help="Latent-noise injection geometry. `tangent` keeps SWM on the sphere.")
+    p.add_argument("--latent-noise-geometry", default="auto",
+                   choices=["auto", "ambient", "tangent"],
+                   help="Latent-noise geometry. `auto` uses tangent for SWM normalized space and ambient otherwise.")
     p.add_argument("--latent-noise-std-mode", default="relative",
                    choices=["relative", "absolute"],
                    help="`relative` scales std by per-token clean norm "

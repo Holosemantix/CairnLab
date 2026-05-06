@@ -392,7 +392,7 @@ summary_file="${results_dir}/summary.txt"
     echo "ckpt: ${ckpt_abs}"
     echo "dataset: ${dataset_name}    num_eval: ${num_eval}    epoch: ${eval_epoch}"
     echo
-    echo "----- eval metrics -----"
+    echo "----- eval metrics (per-seed raw) -----"
     for log in "${results_dir}"/*.log; do
         [ -e "$log" ] || continue
         base=$(basename "$log" .log)
@@ -407,6 +407,63 @@ summary_file="${results_dir}/summary.txt"
             grep -i "metrics\|success" "$log" | tail -3
         fi
     done
+
+    echo
+    echo "----- eval metrics (aggregated across seeds) -----"
+    # 把 *_seed<N>.log 按去掉 seed 后缀的 group key 聚合，
+    # 输出 mean / std / sem，并把同一份结果写到 eval_summary.csv 供下游消费。
+    python3 - "${results_dir}" <<'PYEOF'
+import ast, glob, os, re, statistics, sys, csv
+
+results_dir = sys.argv[1]
+groups = {}  # group_key -> list of (seed_or_None, metrics_dict)
+
+for log in sorted(glob.glob(os.path.join(results_dir, "*.log"))):
+    base = os.path.basename(log)[:-4]
+    if base in ("noise_table", "diagnostics"):
+        continue
+    m = re.match(r"^(.*?)(?:_seed(\d+))?$", base)
+    group_key, seed = m.group(1), m.group(2)
+    last_dict_line = None
+    with open(log, "r", errors="replace") as f:
+        for line in f:
+            s = line.strip()
+            if s.startswith("{") and s.endswith("}"):
+                last_dict_line = s
+    if last_dict_line is None:
+        continue
+    try:
+        d = ast.literal_eval(last_dict_line)
+    except Exception:
+        continue
+    if not isinstance(d, dict):
+        continue
+    groups.setdefault(group_key, []).append((seed, d))
+
+csv_rows = [("group", "n_seeds", "seeds", "metric", "mean", "std", "sem", "values")]
+for group_key in sorted(groups):
+    runs = groups[group_key]
+    seeds_str = ",".join(s if s else "-" for s, _ in runs)
+    n = len(runs)
+    print(f"\n== {group_key}  (n_seeds={n}, seeds={seeds_str}) ==")
+    keys = sorted({k for _, d in runs for k in d.keys()})
+    for k in keys:
+        vals = [d[k] for _, d in runs if k in d and isinstance(d[k], (int, float)) and not isinstance(d[k], bool)]
+        if not vals:
+            print(f"  {k}: <non-numeric or missing>")
+            continue
+        mean = sum(vals) / len(vals)
+        std = statistics.pstdev(vals) if len(vals) >= 2 else 0.0
+        sem = std / (len(vals) ** 0.5) if len(vals) >= 2 else 0.0
+        print(f"  {k}: mean={mean:.4f}  std={std:.4f}  sem={sem:.4f}  n={len(vals)}  raw={['%.4f' % v for v in vals]}")
+        csv_rows.append((group_key, n, seeds_str, k, f"{mean:.6f}", f"{std:.6f}", f"{sem:.6f}",
+                         ";".join(f"{v:.6f}" for v in vals)))
+
+csv_path = os.path.join(results_dir, "eval_summary.csv")
+with open(csv_path, "w", newline="") as f:
+    csv.writer(f).writerows(csv_rows)
+print(f"\n[aggregated CSV] {csv_path}")
+PYEOF
     if [ -f "${results_dir}/diagnostics/geometry_summary.csv" ]; then
         echo
         echo "----- geometry summary -----"

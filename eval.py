@@ -183,15 +183,57 @@ def run(cfg: DictConfig):
     world.set_policy(policy)
 
     start_time = time.time()
-    metrics = world.evaluate_from_dataset(
-        dataset,
-        start_steps=eval_start_idx.tolist(),
-        goal_offset_steps=cfg.eval.goal_offset_steps,
-        eval_budget=cfg.eval.eval_budget,
-        episodes_idx=eval_episodes.tolist(),
-        callables=OmegaConf.to_container(cfg.eval.get("callables"), resolve=True),
-        video_path=results_path,
-    )
+    num_eval = cfg.eval.num_eval
+    batch_size = world.num_envs
+
+    if num_eval > batch_size:
+        # Batch evaluation to avoid creating too many parallel envs
+        all_successes = []
+        all_seeds = []
+        for batch_start in range(0, num_eval, batch_size):
+            batch_end = min(batch_start + batch_size, num_eval)
+            actual_bs = batch_end - batch_start
+            batch_episodes = eval_episodes[batch_start:batch_end].tolist()
+            batch_start_idx = eval_start_idx[batch_start:batch_end].tolist()
+
+            # Pad to match world.num_envs if last batch is smaller
+            if actual_bs < batch_size:
+                pad = batch_size - actual_bs
+                batch_episodes = batch_episodes + batch_episodes[-1:] * pad
+                batch_start_idx = batch_start_idx + batch_start_idx[-1:] * pad
+
+            batch_video_path = results_path / f"batch_{batch_start}"
+            batch_video_path.mkdir(parents=True, exist_ok=True)
+
+            batch_metrics = world.evaluate_from_dataset(
+                dataset,
+                start_steps=batch_start_idx,
+                goal_offset_steps=cfg.eval.goal_offset_steps,
+                eval_budget=cfg.eval.eval_budget,
+                episodes_idx=batch_episodes,
+                callables=OmegaConf.to_container(cfg.eval.get("callables"), resolve=True),
+                video_path=batch_video_path,
+            )
+            all_successes.extend(batch_metrics["episode_successes"][:actual_bs])
+            batch_seeds = batch_metrics.get("seeds")
+            if batch_seeds is not None:
+                all_seeds.extend(batch_seeds[:actual_bs])
+
+        metrics = {
+            "success_rate": float(np.sum(all_successes)) / num_eval * 100.0,
+            "episode_successes": np.array(all_successes),
+            "seeds": np.array(all_seeds) if all_seeds else None,
+        }
+    else:
+        metrics = world.evaluate_from_dataset(
+            dataset,
+            start_steps=eval_start_idx.tolist(),
+            goal_offset_steps=cfg.eval.goal_offset_steps,
+            eval_budget=cfg.eval.eval_budget,
+            episodes_idx=eval_episodes.tolist(),
+            callables=OmegaConf.to_container(cfg.eval.get("callables"), resolve=True),
+            video_path=results_path,
+        )
     end_time = time.time()
 
     print(metrics)

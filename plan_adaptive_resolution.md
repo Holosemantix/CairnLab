@@ -81,11 +81,17 @@ logvar_head_pred(h_pred)  → log σ̂_{t+1}² ∈ R^d
 - multi-step rollout 时 σ̂ 沿 horizon **累积**，给 CEM 自然的不确定性 horizon-decay；
 - σ̂ 区分 "encoder 不确定"（aleatoric）和 "predictor 不确定"（epistemic）两种来源。
 
-### 2.3 EMA target encoder
+### 2.3 Target encoder：保留 LeWM 单 encoder 哲学，**不引入 EMA**
 
-防止 target collapse：维护 `enc_EMA`，每步 `θ_EMA ← τ·θ_EMA + (1−τ)·θ`，τ ∈ [0.99, 0.999]（沿用 BYOL/JEPA 标准）。
+LeWM 论文的核心方法论卖点是：**SIGReg 让 anti-collapse 成为对称单 encoder 的训练问题，不需要 BYOL-style 的 EMA + stop-grad asymmetry**。如果我们退回 EMA target，等于把 LeWM 的方法论价值废掉。
 
-target latent `μ_{t+1}^EMA = enc_EMA(x_{t+1}).μ`，无 σ 输出，stop-grad 进入 loss。
+本框架沿用 LeWM 做法：
+
+```
+μ_{t+1}^target = enc(x_{t+1}).μ      # 同一个 encoder，不是 EMA 副本
+```
+
+是否对 target 做 stop-grad 与 LeWM 保持一致（LeWM 在 predictor target 侧做 stop-grad，但没有 EMA decoupling）。Anti-collapse 完全交给 §3.2 的 **extended SIGReg**——SIGReg 的存在本身就是 EMA 的替代，我们要做的只是把它从 deterministic z 推广到 stochastic (μ, σ)。
 
 ---
 
@@ -100,8 +106,10 @@ $$
 
 最大化对数似然 → 等价最小化负对数似然：
 $$
-\mathcal{L}_{\text{pred}} = \frac{1}{2}\,\mathbb{E}_t\!\left[\frac{\|\hat\mu_{t+1} - \mu_{t+1}^{\text{EMA}}\|^2}{\hat\sigma_{t+1}^2} + \log \hat\sigma_{t+1}^2\right] + \text{const}
+\mathcal{L}_{\text{pred}} = \frac{1}{2}\,\mathbb{E}_t\!\left[\frac{\|\hat\mu_{t+1} - \mu_{t+1}^{\text{target}}\|^2}{\hat\sigma_{t+1}^2} + \log \hat\sigma_{t+1}^2\right] + \text{const}
 $$
+
+`μ^target` 来自同一个 encoder（无 EMA，见 §2.3）。
 
 **直观解读**：
 - 第一项：预测越准的样本（小 σ̂）权重越大；
@@ -110,48 +118,104 @@ $$
 
 文献：Kendall & Gal NeurIPS 2017 "What Uncertainties Do We Need in Bayesian Deep Learning"。
 
-### 3.2 Information Bottleneck 项替代 SIGReg
+### 3.2 Extended SIGReg：anti-collapse 同时给 σ 软下界（替代 EMA 的核心改动）
 
-LeWM 现有的 SIGReg / SWM 的 uniformity 都在做"给 z 的边缘分布加先验"，但选择是 ad-hoc 的。Information Bottleneck 给出原理性版本：
+LeWM 的 SIGReg 是 anti-collapse 的核心机制——把 marginal `p(z)` 通过 moment matching 推向 `N(0, I)`。我们要把它**从 deterministic z 推广到 stochastic (μ, σ)**。
+
+**Reparametrization**：
+$$
+\tilde z_x = \mu_x + \sigma_x \odot \epsilon,\quad \epsilon \sim \mathcal{N}(0, I)
+$$
+
+每个 batch 跑一次 reparametrization，`z̃_x` 直接喂给 LeWM 现有的 `SIGReg(z)` 实现——**SIGReg 代码本身不改一行**。
+
+**aggregate marginal 的二阶矩闭式**（Gaussian mixture 标准结果）：
+$$
+\mathbb{E}_z[z] = \mathbb{E}_x[\mu_x],\qquad
+\mathrm{Cov}_z[z] = \mathrm{Cov}_x[\mu_x] + \mathbb{E}_x[\sigma_x^2]\cdot I
+$$
+
+SIGReg 推这两个矩到 `N(0, I)` 的 `(0, I)` ⇒ 给出**统一的 anti-collapse 约束**：
+$$
+\boxed{\;\;
+\mathrm{Cov}_x[\mu_x] + \mathbb{E}_x[\sigma_x^2]\cdot I \;\approx\; I
+\;\;}
+$$
+
+**这一项同时做两件事**：
+- 强迫 μ_x 在样本间分散（防 μ collapse）——同 LeWM SIGReg
+- 给 σ_x² 一个**软全局下界**（防 σ → 0 退化），同时通过资源 trade-off 形成软上界
+
+**实现**：`L_SIGReg = SIGReg(μ + σ⊙ε)`，权重 `λ_SIG` 沿用 LeWM 默认值。
+
+### 3.2.1 设计权衡：高阶矩松弛
+
+LeWM 原 SIGReg 用 Stein identity 做完整的 Gaussianization，包括 skewness、kurtosis 等高阶矩。一个 Gaussian mixture **几乎不可能**在高阶矩上严格匹配 Gaussian（除非所有 component 的 σ 相等）——也就是说严格版 SIGReg 会和 heteroscedasticity 在高阶矩上**冲突**，把 σ_x 推向均匀。
+
+**为了让自适应分辨率活下来，本框架明确把 SIGReg 放宽到一/二阶矩匹配**（aggregate mean = 0, aggregate cov = I），高阶矩允许偏离。
+
+代价 / 收益：
+- 失去：marginal 几何在三阶以上的"整洁度"
+- 获得：per-sample σ 自由度，整个自适应机制的存在前提
+
+实现上，让 `SIGReg` 的高阶 Stein 项权重为 0（或显著减小），保留一/二阶矩 + entropy proxy。这是论文里需要老实写出来的 **deliberate weakening**，作为 Pilot-1 必检项（看 σ_x 方差是否显著 > 0）。
+
+### 3.3 Information Bottleneck 项：σ 的 per-sample 上界
+
+aggregate SIGReg 给 σ 全局下界，但还需要一个**逐点上界**阻止"少数样本 σ 爆炸 + 多数样本 σ 极小"的退化分布。Information Bottleneck 给出原理性版本：
 
 $$
 \max\ I(z_{t+1}; z_t, a_t) - \beta\, I(z_t; x_t)
 $$
 
-第一项 = 预测可达性（已经在 L_pred 里隐含）；第二项 = encoder 对 input 的压缩率（编码长度）。
+第一项 = 预测可达性（已在 L_pred 里隐含）；第二项 = encoder 对 input 的压缩率。
 
 对 Gaussian latent `z_t ~ N(μ_x, σ_x²)`：
 $$
-I(z_t; x_t) = \mathbb{E}_x[\,\mathrm{KL}(p(z|x)\,\|\,p(z))\,] \approx -\frac{1}{2}\,\mathbb{E}_x[\log \sigma_x^2] + \text{const}
+I(z_t; x_t) \approx -\frac{1}{2}\,\mathbb{E}_x[\log \sigma_x^2] + \text{const}
 $$
-（在 marginal `p(z)` 近似为标准高斯的弱假设下；DeepVIB Alemi 2017 的标准近似。）
+（DeepVIB Alemi 2017 标准近似。）
 
 代入 IB 目标：
 $$
 \mathcal{L}_{\text{IB}} = -\frac{\beta}{2}\,\mathbb{E}_x[\log \sigma_x^2]
 $$
 
-### 3.3 总目标
+### 3.4 总目标：双侧 σ 闭包
 
 $$
 \boxed{\quad
-\mathcal{L} = \underbrace{\frac{1}{2}\mathbb{E}_t\!\left[\frac{\|\hat\mu - \mu^{\text{EMA}}\|^2}{\hat\sigma^2} + \log \hat\sigma^2\right]}_{\text{heteroscedastic prediction NLL}} - \underbrace{\frac{\beta}{2}\mathbb{E}_x[\log \sigma_x^2]}_{\text{IB compression}}
+\mathcal{L} = \underbrace{\frac{1}{2}\mathbb{E}_t\!\left[\frac{\|\hat\mu - \mu^{\text{target}}\|^2}{\hat\sigma^2} + \log \hat\sigma^2\right]}_{\text{heteroscedastic NLL}} \;+\; \underbrace{\lambda_{\text{SIG}}\cdot \mathrm{SIGReg}(\mu + \sigma\odot\epsilon)}_{\text{aggregate σ 下界 + μ anti-collapse}} \;-\; \underbrace{\frac{\beta}{2}\mathbb{E}_x[\log \sigma_x^2]}_{\text{per-sample σ 上界}}
 \quad}
 $$
 
-**等价于**：
-- predict NLL 推 σ 小（高信息）
-- IB 项推 σ 大（高压缩）
-- 平衡点（KKT）就是 per-sample 信息量分配
+**双侧 σ 闭包**：
+- **下界（aggregate）**：SIGReg 锁住总信息预算 `Cov[μ] + E[σ²] ≈ I`
+- **上界（per-sample）**：IB 项给每个 σ_x 一个 log-惩罚
+- **中间**：NLL 决定每个样本的具体 σ_x 投标——预测越难的样本 σ 越小
 
-**单一 hyperparameter β**：
-- β → 0：退化为纯预测，σ 趋向集体压低（接近 LeWM 行为）
-- β → ∞：退化为最大压缩，所有 σ 趋向相同（信息平均分配）
-- 中间 β：σ_x 在不同样本上自动分布不同 → **rate-distortion 的 task-adaptive allocation**
+**资源拍卖解释**：总 σ 预算固定（SIGReg），per-sample σ 投标由 NLL pressure 决定，IB 项给个体 σ 上限阻止"赢者通吃"。**这是 rate-distortion 的字面实现**。
 
-### 3.4 与 ELBO 的关系
+**Hyperparameter**：
+- `λ_SIG`：沿用 LeWM 默认（不算新参数）
+- `β`：唯一新增 hyperparameter
 
-可以证明上述目标恰好对应一个 latent variable model 的 ELBO（Var-JEPA 的核心论点）。本工作不强调"这是 ELBO"——而是强调"我们用 IB 推出来 + 在 multi-step + planning 上跑通"，二者数学上等价但 IB 角度更直接。
+**β 的作用范围**：
+- β → 0：IB 项 vanish，σ 仅受 SIGReg 全局约束 + NLL 自由竞争 → σ 可能趋向集体压低
+- β → ∞：IB 项主导，所有 σ 推向相同大值 → 信息平均分配
+- 中间 β：σ_x 在不同样本上自动分布不同 → **task-adaptive resource allocation**
+
+### 3.5 与 ELBO / Constrained Optimization 的关系
+
+总目标恰好对应一个 **constrained ELBO**：
+$$
+\max\ \mathbb{E}[\log p(z_{t+1}|μ_t, a_t)]\quad \text{s.t.}\quad \mathrm{KL}(q(z)\,\|\,\mathcal{N}(0,I)) \leq \tau
+$$
+
+SIGReg 是 KL 约束的 moment-matching surrogate（避开 KL 的 Monte Carlo 估计），IB 项是 Lagrangian 形式的逐点版本。两套数学等价，但 SIGReg 实现稳定（LeWM 已验证），不依赖 KL 的 Monte Carlo 估计。
+
+**论文叙事**：
+> "We extend LeWM's SIGReg from deterministic to stochastic latents. The same Gaussian moment-matching that prevents collapse in LeWM now also bounds per-sample σ from below in aggregate. Combined with an information-bottleneck term that bounds σ from above per sample, the latent geometry is bracketed without EMA, stop-grad asymmetry, or task-specific tuning."
 
 ---
 
@@ -188,17 +252,34 @@ $$
 
 **结果**：σ 沿 horizon 自然增大，匹配 "long-horizon prediction is harder" 的物理直觉，**完全无需手设计 horizon decay schedule**。
 
-### 4.4 现有方法作为本框架的特例
+### 4.4 现有方法作为本框架的特例（**口径已修正**）
 
-| 现有方法 | 在本框架下 |
-|---|---|
-| LeWM / SIGReg | σ_x ≡ const（homoscedastic），β = 0，仅 predict + Gaussian 边际正则 |
-| SWM / spherical | μ_x 投影到单位球 + σ_x ≡ const（球面 vMF 的 σ 退化） |
-| VICReg variance | σ_x ≡ const + 协方差 decorrelation；可看作 IB 项的离散化 |
-| vMF (V1 in plan_v2) | μ 在球面 + 1D 角度 σ（concentration κ 的 inverse） |
-| Ball-cap (V2) | σ_x 学 hard cutoff，本框架的 quantile clip |
+之前简单说"σ ≡ const + β = 0 → LeWM"不严谨。正确口径是：**LeWM 是本框架在 σ-homoscedastic restriction 下的特例**。
 
-**论文里把 LeWM/SWM 改写成本框架的 ablation case**——方法论分量从"一种新方法"升级为"一个统一框架"。
+**Homoscedastic restriction**：把 σ_x 限制为**单一可学习标量** `σ_x ≡ σ_const`（不是 0、不是 per-sample，而是全数据集共享一个标量）。在这个约束下：
+
+- aggregate SIGReg `Cov[μ] + σ_const²·I ≈ I` ⇒ 退化为 `Cov[μ] ≈ (1−σ_const²)·I`，即 LeWM 的 **SIGReg-on-μ**（差一个常数尺度因子）
+- heteroscedastic NLL `‖μ̂−μ‖²/σ² + log σ²` ⇒ σ 是常数时退化为 **MSE + 常数项** = LeWM 的 prediction loss
+- IB 项 `−β·log σ²` ⇒ σ 是 single scalar 时变成训练中的常数，对梯度无贡献，drop out
+- reparametrization `μ + σ_const·ε` ⇒ LeWM 没显式做但等价于一个固定幅度的 input noise（LeWM 的 `image_noise` 机制本来就有；理论上吸收到现有 noise schedule 即可）
+
+**完整对照表**：
+
+| 现有方法 | 在本框架下的特例条件 | 备注 |
+|---|---|---|
+| LeWM + SIGReg | σ-homoscedastic restriction（σ_x ≡ σ_const） | β 项 drop out；NLL 退化为 MSE |
+| SWM (V0 spherical) | σ-homoscedastic restriction + μ_x 投影到单位球 | 球面 vMF 的 σ 退化 |
+| VICReg | σ-homoscedastic + 协方差 decorrelation 等价于 SIGReg 二阶矩匹配的另一实现 | 可视为本框架的另一 surrogate |
+| vMF (plan_v2 V1) | μ 在球面 + 1D 角度 σ_x（per-sample 但限制为 1D） | 几何特化版的 heteroscedastic |
+| Ball-cap (plan_v2 V2) | σ_x 学 hard cutoff（quantile clip on σ_x） | OOD detection 延伸 |
+
+### 4.5 强于"特例包含"的 smoothness 主张
+
+更进一步，可以陈述 **smoothness / regime collapse**：
+
+> 当训练数据的 per-sample 预测难度接近常数时（数据 difficulty 同质），本框架最优解的 σ_x 收敛到 homoscedastic，等价于 LeWM。当数据 difficulty 异质（如世界模型中的接触瞬间 vs 自由运动），本框架的 σ 异质化解严格优于 LeWM。
+
+这是比"特例"更强的论文叙事：**不是简单"我们包含 LeWM"，而是"我们在 LeWM 失效的场景下精确填补了 gap"**。Pilot-1 的关键验证：在 PushT 这种 difficulty 异质性强的任务上，σ_x 方差应显著 > 0；在 TwoRoom 这种相对同质的任务上，σ_x 方差可能较小但依然存在。
 
 ---
 
@@ -252,8 +333,12 @@ cost(trajectory) = Σ_t  w_t · ‖μ̂_t − goal‖²,    w_t = 1 / (1 + σ̂_
 1. **Heteroscedastic JEPA for planning latents.**  
    per-sample (μ, σ) head 在 encoder 和 predictor 双侧。Var-JEPA (Gögl & Yau) 是 tabular + 单步 + 仅 encoder σ；本工作首次扩到 vision + multi-step rollout + planning + predictor σ。
 
-2. **Information-bottleneck principled adaptive resolution.**  
-   从 IB 推导 anti-collapse + per-sample 资源分配，把 SIGReg / VICReg / spherical normalization / uniformity 全部统一为 homoscedastic β=0 退化特例。一个 β 控制 robust ↔ resolution 全局平衡，**跨任务无需手调**。
+2. **Two-sided σ bracketing via extended SIGReg + IB.**  
+   - **下界（aggregate）**：把 LeWM SIGReg 从 deterministic z 推广到 stochastic `q(z|x) = N(μ_x, σ_x²I)`，aggregate marginal 的二阶矩约束 `Cov[μ] + E[σ²]·I ≈ I` **同时**给 μ anti-collapse 和 σ 全局软下界。
+   - **上界（per-sample）**：IB 项 `−β/2 · E[log σ²]` 给每个 σ_x 一个逐点 log-惩罚，阻止"赢者通吃"型分布退化。
+   - **对偶关系**：aggregate 下界 + per-sample 上界 = rate-distortion 字面闭包；σ_x 在两端约束之间被 NLL pressure 推向 task-adaptive 的资源分配。
+   - **保留 LeWM 单 encoder 哲学**：无 EMA、无 stop-grad asymmetry。LeWM/SWM 严格对应"σ-homoscedastic restriction"特例；当数据 difficulty 同质时本框架收敛到 LeWM，异质时严格优于（§4.5 smoothness 主张）。
+   - 一个 β 跨任务**无需手调**，σ_x 在不同任务上 per-sample 自适应分配。
 
 3. **Uncertainty-aware CEM planning.**  
    利用 predictor σ̂ 加权 cost，长 horizon 自动 horizon-decay。比 fixed-discount 或 receding-horizon truncation 更原理化。
@@ -267,12 +352,14 @@ cost(trajectory) = Σ_t  w_t · ‖μ̂_t − goal‖²,    w_t = 1 / (1 + σ̂_
 
 | 风险 | 对策 |
 |---|---|
-| **Target collapse**：σ → ∞ + μ → 0 退化解 | EMA target encoder + IB 项的 log σ² 上界惩罚（β > 0 时 σ 不能任意大） |
-| **σ 无变化**：σ_x 退化成全局常数 | 检查 β 是否过小；切换 per-dim σ；增加数据多样性 |
-| **NLL 训练不稳定**：log σ 容易 NaN | 用 log σ² 参数化；clamp log σ² ∈ [-10, 10]；warmup（前 1k step 不开 IB 项） |
-| **Predictor σ̂ 退化成 encoder σ 简单复制** | 加 σ̂ 与 input σ 解耦的 ablation；强制 σ̂ 至少包含 "predictor 自身不确定" 信号 |
-| **EMA target 与 σ 互动**：target 是 deterministic μ，没有 σ，可能引导 main encoder σ 失真 | 可选项：EMA 也输出 σ_target，用 KL 替代 MSE，但增加复杂度——Pilot-1 不上 |
-| **Multi-step σ propagation 欠 calibrated** | 训练时显式监督 multi-step σ̂ 是否匹配实际预测误差（calibration loss） |
+| **SIGReg 高阶矩残留压力把 σ 拉向 homoscedastic** | **本框架的 critical 风险**。LeWM 原 SIGReg 用 Stein identity 做完整 Gaussianization；高阶矩对 Gaussian mixture 几乎不可满足，会推 σ_x → const，自适应失效。对策：把 SIGReg 高阶 Stein 项权重设 0 或显著减小，仅保留一/二阶矩 + entropy proxy（§3.2.1）。Pilot-1 必检：σ_x 跨样本方差是否显著 > 0（KS test 或 std/mean 比） |
+| **Target collapse**：σ → ∞ + μ → 0 退化解 | aggregate SIGReg 锁住 `Cov[μ] + E[σ²] ≈ I`，μ 不能塌缩到 0 + σ 不能集体爆炸；IB 项给逐点 σ 上界。三层约束应足够，不需 EMA |
+| **σ 无变化**：σ_x 退化成全局常数 | 与第一行连带——若高阶 SIGReg 太强会触发；其它原因：β 太小、数据 difficulty 同质（这种情况下 σ 退化为常数本身 = 退化为 LeWM，不算失败）。Pilot-1 在 difficulty 异质的 PushT 上必须看到 σ_x 显著异质 |
+| **NLL 训练不稳定**：log σ 容易 NaN | 用 log σ² 参数化；clamp log σ² ∈ [-10, 10]；warmup（前 1k step 关闭 IB 项 + reparametrization 噪声幅度从 0 渐进） |
+| **Reparametrization 噪声破坏预测信号** | 反向传播经过 `μ + σε` 时 ε 应 detach 但 σ 应保留梯度（标准 reparametrization trick）；早期训练 σ 过大会让 SIGReg 主导而 NLL 无法收敛 → warmup 必需 |
+| **Predictor σ̂ 退化成 encoder σ 简单复制** | 加 σ̂ 与 input σ 解耦的 ablation；强制 σ̂ 至少包含 "predictor 自身不确定" 信号；calibration loss 监督 |
+| **Multi-step σ propagation 欠 calibrated** | 训练时显式监督 multi-step σ̂ 是否匹配实际预测误差（calibration loss）：`(σ̂_T − ‖drift_T‖)²` |
+| **不带 EMA 的对称训练训练动力学不稳** | LeWM 已经验证 SIGReg 单 encoder 能稳；本框架 SIGReg 仍在（只是改成 stochastic 输入）。如果新增的 reparametrization + IB 项导致不稳，回退顺序：先关 IB（β=0），再缩小 reparametrization 幅度。EMA 是**最后的兜底**，论文叙事上承认这种回退会损失方法论简洁性 |
 
 ---
 
@@ -298,7 +385,7 @@ cost(trajectory) = Σ_t  w_t · ‖μ̂_t − goal‖²,    w_t = 1 / (1 + σ̂_
 - σ_x 直方图在 TwoRoom 与 PushT 上**统计上不同**（KS test p < 0.05）。
 - σ_x 与现有诊断 `clean_nn_cos_dist` 的 Spearman 相关 > 0.5。
 
-**失败判据**: σ_x 退化成几乎常数 → β 太弱或 EMA 不稳。先排查再决定是否调整框架。
+**失败判据**: σ_x 退化成几乎常数 → 优先排查 SIGReg 高阶矩压力（§3.2.1）；其次 β 太弱；最后才考虑数据 difficulty 是否真的同质（同质则退化为 LeWM 不算失败）。先排查再决定是否调整框架。
 
 ### 9.2 Pilot-2: Predictor σ̂ 验证
 
@@ -403,8 +490,8 @@ cost(trajectory) = Σ_t  w_t · ‖μ̂_t − goal‖²,    w_t = 1 / (1 + σ̂_
 1. **β 调整策略**: 单值 β 跨 4 task 是否真的够用？如果某任务需要不同 β，是否退化为本方案试图避免的"task-specific tuning"？
    - 应对：β 在量级 [1e-4, 1e-1] 之间扫，看是否有 single β 在 4 任务上都接近最优；如果不行，退到 per-task β 但仍主张比 per-task τ 优雅（β 是物理量级参数）。
 
-2. **EMA target 的 σ**: 现版本 EMA 只输出 μ_target，丢失 σ 信息。是否应该用 EMA 双头 + KL 替代 MSE？
-   - 应对：Pilot-1 先用简化版（MSE），如果 σ_x 信号弱再升级。
+2. **SIGReg 高阶矩松弛幅度**: 把 Stein 高阶项权重设为 0 是粗暴做法；是否有更优雅的方式只保留必要的 Gaussianization 而不挤压 σ 异质性？候选：用 mixture-aware 的 moment matching（针对 Gaussian mixture 的二阶 + skewness/kurtosis 闭式而不是用整体 Stein 算子）。
+   - 应对：Pilot-1 先用 "高阶项权重=0" 的暴力版；如果 σ 异质性 OK 但 marginal 几何明显歪，再升级到 mixture-aware。
 
 3. **IB 项的高阶近似**: `I(z; x) ≈ -E[log σ²] / 2` 在 marginal 不接近标准高斯时不准。是否需要更精确的 mutual information 估计？
    - 应对：在 fixed prior 下偏差是常数，对优化无影响；如果 marginal 偏离严重，加 KL(q(z) ‖ N(0,I)) 项作为高阶修正。

@@ -538,7 +538,7 @@ Cube：
 
 | 模型 | robust_radius | first_risk_std | noise_angle_slope (°/std) | clean_nn_cos_dist | clean_eff_rank | geometry_flag |
 |---|---:|---:|---:|---:|---:|---|
-| LeWM-base | **0.0164** | 0.02 | 842.6 | 0.0389 | 29.54 | balanced |
+| LeWM-base | **0.0142** | 0.02 | 1085.8 | 0.0449 | 47.60 | balanced |
 | LeWM-perframe-p1 | **>0.08** | **>0.08** | **86.9** | 0.0357 | 26.58 | balanced |
 | SWM-base | **0.0029** | 0.005 | 3975.0 | 0.0360 | 35.39 | fragile,high_angle_gain |
 | SWM-perframe-p1 | **>0.08** | **>0.08** | **80.3** | 0.0475 | 36.41 | balanced |
@@ -555,10 +555,10 @@ Cube：
 
 | 模型 | robust_radius | first_risk_std | noise_angle_slope (°/std) | clean_nn_cos_dist | clean_eff_rank | geometry_flag |
 |---|---:|---:|---:|---:|---:|---|
-| LeWM-base | **0.0529** | 0.05 | 284.8 | 0.2360 | 47.48 | **robust** |
-| LeWM-perframe-0to001-p1 | **>0.08** | **>0.08** | 121.3 | 0.2263 | 48.36 | balanced |
-| LeWM-perframe-0to002-p1 | **>0.08** | **>0.08** | 71.8 | 0.2473 | 48.28 | balanced |
-| LeWM-perframe-0to005-p1 | **>0.08** | **>0.08** | 47.5 | 0.2253 | 46.74 | balanced |
+| LeWM-base | **0.0537** | 0.05 | 284.8 | 0.2360 | 76.42 | **robust** |
+| LeWM-perframe-0to001-p1 | **>0.08** | **>0.08** | 120.7 | 0.2242 | 78.59 | balanced |
+| LeWM-perframe-0to002-p1 | **>0.08** | **>0.08** | 71.8 | 0.2477 | 77.41 | balanced |
+| LeWM-perframe-0to005-p1 | **>0.08** | **>0.08** | 46.8 | 0.2226 | 78.32 | balanced |
 | SWM-base | **0.0273** | 0.03 | 707.7 | 0.2582 | 52.94 | **robust** |
 | SWM-perframe-0to001-p1 | **0.0717** | 0.07 | 103.7 | 0.2810 | 55.45 | **robust** |
 | SWM-perframe-0to002-p1 | **>0.08** | **0.09** | 68.6 | 0.2622 | 55.09 | balanced |
@@ -570,7 +570,7 @@ Cube：
 | LeWM-base | 0.0142 | 0.02 | 831.7 | 0.0633 | 61.0 | balanced |
 | LeWM-perframe-0to002-p1 | >0.08 | >0.08 | 16.6 | 0.0696 | 70.4 | balanced |
 | LeWM-perframe-0to005-p1 | >0.08 | >0.08 | 15.2 | 0.0584 | 53.4 | balanced |
-| SWM-base | 0.0201 | 0.02 | 651.1 | 0.0933 | 51.0 | robust |
+| SWM-base | 0.0211 | 0.02 | 600.0 | 0.0994 | 44.17 | robust |
 | SWM-perframe-0to001-p1 | 0.0695 | 0.06 | 111.2 | 0.0955 | 52.6 | robust |
 | SWM-perframe-0to002-p1 | >0.08 | >0.08 | 16.5 | 0.0942 | 50.6 | balanced |
 | SWM-perframe-p1 | >0.08 | >0.08 | 11.0 | 0.0953 | 52.0 | balanced |
@@ -587,7 +587,7 @@ Cube：
 | SWM-perframe-0to002-p1 | >0.08 | >0.08 | 26.2 | 0.2566 | 53.2 | balanced |
 | SWM-perframe-p1 | >0.08 | >0.08 | 14.7 | 0.1680 | 51.4 | balanced |
 
-> 新增 baselines（20260430）：LeWM-base eval **80.67%**（epoch_9, num_eval=150），geometry `robust`（radius=0.053，eff_rank=47.5）；SWM-base eval **80.00%**（epoch_10, num_eval=300），geometry `robust`（radius=0.037，eff_rank=52.94）。两者均被评为 robust。
+> 新增 baselines（20260430）：LeWM-base eval **80.67%**（epoch_9, num_eval=150），geometry `robust`（radius=0.054，eff_rank=76.4）；SWM-base eval **80.00%**（epoch_10, num_eval=300），geometry `robust`（radius=0.037，eff_rank=52.94）。两者均被评为 robust。
 
 **Noise sensitivity @ std=0.08：median vs p90，多 scope 对比**
 

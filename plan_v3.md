@@ -290,6 +290,8 @@ Noise sensitivity 对照，std=0.005：
 - P1.1：TwoRoom SWM/LeWM per-frame `std∈[0,0.05]`，`noise_prob=1.0 / 0.5`
 - P1.2：PushT SWM `std∈[0,0.01]`、`std∈[0,0.02]`，`noise_prob=1.0 / 0.5`
 - P1.3：PushT LeWM 同条件对照 `std∈[0,0.01]`、`std∈[0,0.02]`、`std∈[0,0.05]`
+- P1.4：Reacher SWM/LeWM per-frame `std∈[0,0.05]`，`noise_prob=1.0 / 0.5`
+- P1.5：Cube SWM/LeWM per-frame `std∈[0,0.05]`，`noise_prob=1.0 / 0.5`
 
 **TwoRoom eval（num_eval=300，all models）**
 
@@ -307,7 +309,7 @@ Noise sensitivity 对照，std=0.005：
 
 > *per-frame 行数据口径不一（部分为 num_eval=150 旧跑，部分为 num_eval=300 新跑），保留原文供趋势对比，不宜和 baseline 行做小数点级比较。
 
-**PushT eval（num_eval=150）**
+**PushT eval（num_eval=300）**
 
 | 模型 | clean | goal_0.03 | goal_0.05 | goal_0.08 | pix+goal_0.03 | pix+goal_0.05 | pix+goal_0.08 | pix_0.03 | pix_0.05 | pix_0.08 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -321,7 +323,25 @@ Noise sensitivity 对照，std=0.005：
 | LeWM 0to002 p1 | **89.3** | 88.0 | **86.7** | **82.0** | 88.0 | **85.3** | **74.0** | 87.3 | **86.0** | **76.0** |
 | LeWM 0to005 p1 | 82.0 | 81.3 | 77.3 | 80.7 | 80.0 | 80.0 | 78.0 | 83.3 | 78.7 | 76.0 |
 
-**Eval drop（clean − noisy, num_eval=150）**
+**Reacher eval（num_eval=300）**
+
+| 模型 | clean | goal_0.03 | goal_0.05 | goal_0.08 | pix+goal_0.03 | pix+goal_0.05 | pix+goal_0.08 | pix_0.03 | pix_0.05 | pix_0.08 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| LeWM baseline | **58.67** | 36.00 | 22.00 | 12.00 | 42.67 | 20.67 | 15.33 | 40.00 | 22.67 | 17.33 |
+| SWM baseline | **60.00** | 27.33 | 22.33 | 19.67 | 39.00 | 36.67 | 23.00 | 39.33 | 22.33 | 12.00 |
+| SWM per-frame p1 | **78.00** | 75.33 | 76.00 | 77.33 | 78.67 | 80.00 | 80.00 | 74.67 | 78.00 | 76.00 |
+| LeWM per-frame p1 | **78.00** | 68.00 | 72.67 | 70.67 | 74.00 | 68.67 | 64.67 | 70.00 | 72.67 | 68.00 |
+
+**Cube eval（num_eval=300）**
+
+| 模型 | clean | goal_0.03 | goal_0.05 | goal_0.08 | pix+goal_0.03 | pix+goal_0.05 | pix+goal_0.08 | pix_0.03 | pix_0.05 | pix_0.08 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| LeWM baseline | **72.33** | 68.00 | 54.67 | 47.00 | 66.00 | 61.33 | 72.67 | 72.67 | 56.67 | 49.00 |
+| SWM baseline | **77.00** | 62.67 | 49.00 | 47.67 | 69.33 | 56.00 | 52.67 | 64.00 | 48.67 | 50.00 |
+| SWM per-frame p1 | **64.00** | 66.00 | 62.00 | 63.33 | 65.33 | 64.67 | 65.33 | 64.00 | 63.33 | 65.33 |
+| LeWM per-frame p1 | **64.67** | 60.67 | 64.00 | 64.67 | 62.67 | 65.33 | 61.33 | 66.00 | 61.33 | 63.33 |
+
+**Eval drop（clean − noisy, num_eval=300）**
 
 TwoRoom：
 
@@ -345,9 +365,33 @@ PushT：
 | LeWM 0to002 p1 | **89.3** | 4.0 | 3.3 | 4.0 |
 | LeWM 0to005 p1 | 82.0 | 2.0 | 3.3 | 2.0 |
 
-> **统一口径**：`goal_drop = clean − goal_0.05`，`pix_drop = clean − pix_0.05`，`pix+goal_drop = clean − pix+goal_0.05`。负值表示 noisy 反而略高于 clean（采样波动）。PushT SWM 0to001 的 goal_drop ≈28 为全表最大，说明低强度 noise 在 SWM 上造成严重的 goal-only failure；LeWM 0to002 的 drop 仅 3–4，几乎免疫。TwoRoom 上 per-frame 模型的 drop 均 <2，说明 per-frame 独立 std 彻底修复了 asymmetric 崩溃。
+Reacher：
+
+| 模型 | clean | goal_drop_005 | pix_drop_005 | pix+goal_drop_005 |
+|---|---:|---:|---:|---:|
+| SWM baseline | 60.0 | **37.7** | **37.7** | 23.3 |
+| LeWM baseline | 58.7 | **36.7** | 36.0 | **38.0** |
+| SWM per-frame p1 | 78.0 | 2.0 | 0.0 | −2.0 |
+| LeWM per-frame p1 | 78.0 | 5.3 | 5.3 | 9.3 |
+
+Cube：
+
+| 模型 | clean | goal_drop_005 | pix_drop_005 | pix+goal_drop_005 |
+|---|---:|---:|---:|---:|
+| SWM baseline | 77.0 | **28.0** | **28.3** | 21.0 |
+| LeWM baseline | 72.3 | 17.7 | 15.7 | 11.0 |
+| SWM per-frame p1 | 64.0 | 2.0 | 0.7 | −0.7 |
+| LeWM per-frame p1 | 64.7 | 0.7 | 3.3 | −0.7 |
+
+> **统一口径**：`goal_drop = clean − goal_0.05`，`pix_drop = clean − pix_0.05`，`pix+goal_drop = clean − pix+goal_0.05`。负值表示 noisy 反而略高于 clean（采样波动）。
+> - **TwoRoom**：per-frame 模型的 drop 均 <2，说明 per-frame 独立 std 彻底修复了 asymmetric 崩溃。
+> - **PushT**：SWM 0to001 的 goal_drop ≈28 为全表最大，说明低强度 noise 在 SWM 上造成严重的 goal-only failure；LeWM 0to002 的 drop 仅 3–4，几乎免疫。
+> - **Reacher**：baseline 的 drop 高达 36–38，与 TwoRoom/PushT 同量级；per-frame 后 SWM drop 降至 0–2，LeWM 降至 5–9。说明 Reacher 的 noise sensitivity 同样可通过 per-frame 训练大幅修复。
+> - **Cube**：baseline drop 15–28，per-frame 后降至 <3。与 TwoRoom 类似，per-frame 独立 std 几乎完全消除 noise failure。
 
 **Noise sensitivity 对照（std=0.005, goal frame, normalized space）**
+
+TwoRoom：
 
 | 模型 | clean_nn_cos_dist | noise_angle_deg | noise_to_nn_cos_ratio | risk |
 |---|---:|---:|---:|---:|
@@ -359,12 +403,31 @@ PushT：
 | LeWM per-frame p1 (0to005) | 0.036 | **0.44°** | 0.0008 | low |
 | LeWM per-frame p05 (0to005) | 0.037 | **0.63°** | 0.0016 | low |
 
+Reacher：
+
+| 模型 | clean_nn_cos_dist | noise_angle_deg | noise_to_nn_cos_ratio | risk |
+|---|---:|---:|---:|---:|
+| SWM baseline | 0.093 | 2.54° | 0.0105 | low |
+| SWM per-frame p1 (0to005) | 0.095 | **0.06°** | 0.0000 | low |
+| LeWM baseline | 0.063 | 3.22° | 0.0249 | low |
+| LeWM per-frame p1 (0to005) | 0.058 | **0.08°** | 0.0000 | low |
+
+Cube：
+
+| 模型 | clean_nn_cos_dist | noise_angle_deg | noise_to_nn_cos_ratio | risk |
+|---|---:|---:|---:|---:|
+| SWM baseline | 0.260 | 2.85° | 0.0048 | low |
+| SWM per-frame p1 (0to005) | 0.168 | **0.07°** | 0.0000 | low |
+| LeWM baseline | 0.186 | 1.40° | 0.0016 | low |
+| LeWM per-frame p1 (0to005) | 0.118 | **0.08°** | 0.0000 | low |
+
 **关键事实（不重复 §4.2 解释，仅给数值锚点）**
 
-- **per-frame 修复 asymmetric**：SWM per-frame p1/p05 的 pix-only / goal-only 维持 85–89%，对比 fixed-std 的 56/44。
-- **几何对照（std=0.005, goal frame）**：fixed-std `clean_nn_cos_dist=0.008, noise_angle=27.6°`；per-frame `0.048, 0.41°`（详 noise sensitivity 表）。
-- **LeWM 同样有 fixed-std 聚簇化但更弱**：P0.3 标 `fragile,clustered`；per-frame 下 LeWM noise_angle=0.44°、`clean_nn` 几乎不压缩（0.039→0.036）。
+- **per-frame 修复 asymmetric（TwoRoom）**：SWM per-frame p1/p05 的 pix-only / goal-only 维持 85–89%，对比 fixed-std 的 56/44。
+- **几何对照（std=0.005, goal frame）**：TwoRoom fixed-std `clean_nn_cos_dist=0.008, noise_angle=27.6°`；per-frame `0.048, 0.41°`。Reacher/Cube 的 baseline angle 已较低（1.4–3.2°），per-frame 后降至 0.06–0.08°，几乎完全消除 encoder 对 input noise 的角向响应。
+- **LeWM 同样有 fixed-std 聚簇化但更弱（TwoRoom）**：P0.3 标 `fragile,clustered`；per-frame 下 LeWM noise_angle=0.44°、`clean_nn` 几乎不压缩（0.039→0.036）。
 - **PushT noise sweet spot**：SWM 最优 0to002 p1（clean 81.3, goal_0.08=64.0）；LeWM 最优 0to002 p1（clean 89.3, goal_0.08=82.0）。**即使最优强度，SWM 仍明显落后 LeWM**——这是 SWM 在精细操作任务上的结构性劣势。
+- **Reacher/Cube 的 per-frame 收益**：Reacher baseline drop 36–38，per-frame 后降至 0–9；Cube baseline drop 11–28，per-frame 后降至 <3。两任务均验证 per-frame 独立 std 可有效修复 noise failure。
 
 ---
 

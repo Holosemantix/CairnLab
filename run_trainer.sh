@@ -9,7 +9,7 @@
 #   trainer_file              train.py | train_swm.py
 #   config                    swm | lewm (also accepts swm.yaml | lewm.yaml)
 #   output_model_name         模型名后缀（最终落盘 `${dataset_name}_${output_model_name}`）
-#   num_eval                  每次 eval 的 episode 数量
+#   num_eval                  eval 总 episode 数量（多 seed 时会平分到每个 seed）
 #   STABLEWM_HOME             checkpoint 根目录
 #
 # 可选 Hydra overrides (与旧脚本一致，留空则不下发):
@@ -36,6 +36,8 @@
 #   diagnostic_skip_predictor 设 1 仅跳过 predictor_sensitivity
 #   diagnostic_skip_resolution 设 1 仅跳过 task_resolution
 #   eval_epoch                用于 eval 的 epoch 编号；默认读取训练 config 的 trainer.max_epochs
+#   eval_seeds                eval sweep 的 seed 数量；默认 3。每个 seed 跑 num_eval/eval_seeds 次
+#   eval_base_seed            首 seed；不传则读取 config/eval/<dataset_name>.yaml 顶层 seed；后续 seed = base+1, base+2, ...
 #
 # 用法示例：
 #   dataset_name=tworoom trainer_file=train_swm.py config=swm \
@@ -216,6 +218,53 @@ n_gpus=${#gpu_array[@]}
 echo "[gpu] using GPUs: ${gpu_array[*]} (count=${n_gpus})"
 
 # ---------- 4. Eval Sweep ----------
+# 多 seed 支持：
+#   eval_seeds          每个 (std, mode) 组合下要跑的不同 seed 数量；默认 3。
+#                       =1 时退化为单 seed 行为（与旧脚本一致）。
+#   eval_base_seed      第一个 seed，后续 seed 依次 +1；默认 42（与 LeWM eval
+#                       config 中的默认 seed 对齐）。
+#   每个 seed 实际跑的 episode 数 = num_eval / eval_seeds（向下取整）。
+#   不能整除时打印 warning，并丢弃余数，保证每个 seed 样本数一致便于聚合。
+eval_seeds="${eval_seeds:-3}"
+
+if ! [[ "${eval_seeds}" =~ ^[0-9]+$ ]] || [ "${eval_seeds}" -lt 1 ]; then
+    echo "[eval] eval_seeds 必须是 >=1 的整数，got '${eval_seeds}'"
+    exit 1
+fi
+
+# eval_base_seed 未传时从 config/eval/<dataset_name>.yaml 中读取顶层 seed 字段。
+if [ -z "${eval_base_seed:-}" ]; then
+    _eval_cfg="${SCRIPT_DIR}/config/eval/${dataset_name}.yaml"
+    if [ ! -f "${_eval_cfg}" ]; then
+        echo "[eval] eval config not found: ${_eval_cfg}"
+        exit 1
+    fi
+    eval_base_seed=$(awk '
+        /^[[:space:]]/ { next }       # 仅匹配顶层（行首无空格）的 seed:
+        /^seed:/ {
+            sub(/#.*/, "")
+            sub(/.*:[[:space:]]*/, "")
+            print
+            exit
+        }
+    ' "${_eval_cfg}")
+    if [ -z "${eval_base_seed}" ]; then
+        echo "[eval] 无法在 ${_eval_cfg} 中找到顶层 seed 字段；请显式设置 eval_base_seed"
+        exit 1
+    fi
+fi
+if ! [[ "${eval_base_seed}" =~ ^[0-9]+$ ]]; then
+    echo "[eval] eval_base_seed 必须是非负整数，got '${eval_base_seed}'"
+    exit 1
+fi
+
+per_seed_num_eval=$(( num_eval / eval_seeds ))
+if [ $(( per_seed_num_eval * eval_seeds )) -ne "${num_eval}" ]; then
+    echo "[eval][warn] num_eval=${num_eval} 不能被 eval_seeds=${eval_seeds} 整除，"
+    echo "[eval][warn]   每个 seed 跑 ${per_seed_num_eval} 次，余数 $(( num_eval - per_seed_num_eval * eval_seeds )) 被丢弃。"
+fi
+echo "[eval] seeds=${eval_seeds} (base=${eval_base_seed})  per-seed num_eval=${per_seed_num_eval}"
+
 run_one_eval() {
     local job="$1"
     local gpu="$2"
@@ -223,11 +272,13 @@ run_one_eval() {
     local label="${parts[0]}"
     local std="${parts[1]}"
     local mode="${parts[2]}"
+    local seed="${parts[3]}"
 
     local args=(
         "--config-name=${dataset_name}.yaml"
         "policy=${ckpt_rel}"
-        "eval.num_eval=${num_eval}"
+        "seed=${seed}"
+        "eval.num_eval=${per_seed_num_eval}"
         "output.filename=${results_dir}/${label}_metrics.txt"
     )
     if [ "$mode" != "none" ]; then
@@ -236,7 +287,7 @@ run_one_eval() {
         args+=("eval.corruption.apply_to=[${apply_list}]")
     fi
 
-    echo "[eval] start  gpu=${gpu} label=${label} std=${std} mode=${mode}"
+    echo "[eval] start  gpu=${gpu} label=${label} std=${std} mode=${mode} seed=${seed}"
     CUDA_VISIBLE_DEVICES=${gpu} python eval.py "${args[@]}" \
         > "${results_dir}/${label}.log" 2>&1
     local rc=$?
@@ -251,18 +302,28 @@ if [ "${skip_eval_sweep:-0}" != "1" ]; then
     eval_corruption_stds="${eval_corruption_stds-0.0 0.03 0.05 0.08}"
     eval_corruption_apply_to="${eval_corruption_apply_to:-pixels+goal,pixels,goal}"
 
+    # 构造 (label, std, mode, seed) 任务列表。多 seed 时 label 后缀 _seed${seed}，
+    # 单 seed (eval_seeds=1) 时不加后缀以保持向后兼容（产出的文件名跟旧脚本一致）。
+    seed_suffix() {
+        if [ "${eval_seeds}" -gt 1 ]; then echo "_seed$1"; else echo ""; fi
+    }
+
     jobs=()
     for std in $eval_corruption_stds; do
         is_zero=$(awk -v s="$std" 'BEGIN{print (s+0==0)?1:0}')
-        if [ "$is_zero" = "1" ]; then
-            jobs+=("clean|0.0|none")
-        else
-            IFS=',' read -ra modes <<< "${eval_corruption_apply_to}"
-            for mode in "${modes[@]}"; do
-                local_label="$(echo "${mode}" | tr '+' '_')_std${std}"
-                jobs+=("${local_label}|${std}|${mode}")
-            done
-        fi
+        for ((s=0; s<eval_seeds; s++)); do
+            cur_seed=$(( eval_base_seed + s ))
+            suf=$(seed_suffix "${cur_seed}")
+            if [ "$is_zero" = "1" ]; then
+                jobs+=("clean${suf}|0.0|none|${cur_seed}")
+            else
+                IFS=',' read -ra modes <<< "${eval_corruption_apply_to}"
+                for mode in "${modes[@]}"; do
+                    local_label="$(echo "${mode}" | tr '+' '_')_std${std}${suf}"
+                    jobs+=("${local_label}|${std}|${mode}|${cur_seed}")
+                done
+            fi
+        done
     done
 
     total=${#jobs[@]}

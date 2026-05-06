@@ -291,20 +291,21 @@ Noise sensitivity 对照，std=0.005：
 - P1.2：PushT SWM `std∈[0,0.01]`、`std∈[0,0.02]`，`noise_prob=1.0 / 0.5`
 - P1.3：PushT LeWM 同条件对照 `std∈[0,0.01]`、`std∈[0,0.02]`、`std∈[0,0.05]`
 
-**TwoRoom eval（per-frame 新跑为 num_eval=150；baseline 旧行为不同 eval budget）**
+**TwoRoom eval（num_eval=300，all models）**
 
-> **注**：SWM baseline clean 分数已更新为 **69.67%**（epoch_10, num_eval=300），下表 baseline 行其余列为旧 noisy eval 数据（epoch_9 或更早），未重新评估。
+> **注**：SWM / LeWM baseline 所有列均为 **num_eval=300** 新跑数据（epoch_10 SWM / epoch_9 LeWM）。per-frame 行部分为 num_eval=150 旧跑，部分为 num_eval=300 新跑。
 
 | 模型 | clean | goal_0.03 | goal_0.05 | goal_0.08 | pix+goal_0.03 | pix+goal_0.05 | pix+goal_0.08 | pix_0.03 | pix_0.05 | pix_0.08 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| SWM baseline | 90.8 | **42*** | — | — | **36*** | — | — | **66*** | — | — |
+| SWM baseline | **69.67** | 21.33 | 24.67 | 25.00 | 37.33 | 31.00 | 29.67 | 35.00 | 34.67 | 35.00 |
+| LeWM baseline | **93.00** | 86.67 | 71.00 | 55.67 | 81.00 | 62.33 | 44.33 | 87.67 | 70.33 | 59.33 |
 | SWM 旧版固定 std | **97.6** | — | — | — | — | **98.0** | 88.0 | — | 56.0 | — |
 | SWM per-frame p1 | 86.7 | 88.0 | 87.3 | 89.3 | 87.3 | 87.3 | 89.3 | 86.7 | 87.3 | 86.7 |
 | SWM per-frame p05 | 87.3 | 86.7 | 88.7 | 86.0 | 86.7 | 85.3 | 88.0 | 87.3 | 86.7 | 85.3 |
 | LeWM per-frame p1 | **94.0** | 94.0 | 94.0 | 93.3 | 94.0 | 92.7 | 94.7 | 94.0 | 94.0 | 94.0 |
 | LeWM per-frame p05 | **94.0** | 94.7 | 94.0 | 94.7 | 94.0 | 94.7 | 94.0 | 94.0 | 94.0 | 94.0 |
 
-> *baseline clean 来自 §2 的 4-task benchmark（num_eval=500）；baseline noisy 来自 §3.1 的 `std=0.03` 旧评估（num_eval=50）。它只用于锚定旧 failure，不应和 per-frame num_eval=150 行做小数点级比较。
+> *per-frame 行数据口径不一（部分为 num_eval=150 旧跑，部分为 num_eval=300 新跑），保留原文供趋势对比，不宜和 baseline 行做小数点级比较。
 
 **PushT eval（num_eval=150）**
 

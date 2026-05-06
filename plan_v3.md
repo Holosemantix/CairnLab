@@ -246,12 +246,16 @@ SWM noise failure 的拆解结论：
 
 已实现 `utils.py:AddNormalizedGaussianNoise`：每帧独立经过 Bernoulli(`noise_prob`) 决定是否加噪，如加则 std ~ Uniform(`std_min`, `std_max`)。
 
-补跑完成：
-- P1.1：TwoRoom SWM/LeWM per-frame `std∈[0,0.05]`，`noise_prob=1.0 / 0.5`
-- P1.2：PushT SWM `std∈[0,0.01]`、`std∈[0,0.02]`，`noise_prob=1.0 / 0.5`
-- P1.3：PushT LeWM 同条件对照 `std∈[0,0.01]`、`std∈[0,0.02]`、`std∈[0,0.05]`
-- P1.4：Reacher SWM/LeWM per-frame `std∈[0,0.05]`，`noise_prob=1.0 / 0.5`
-- P1.5：Cube SWM/LeWM per-frame `std∈[0,0.05]`，`noise_prob=1.0 / 0.5`
+已完成：
+- P1.1：TwoRoom SWM/LeWM per-frame `std∈[0,0.05]`，`noise_prob=1.0`
+- P1.2：PushT SWM `std∈[0,0.01]`、`std∈[0,0.02]`，`noise_prob=1.0`
+- P1.3：PushT LeWM 同条件对照 `std∈[0,0.01]`、`std∈[0,0.02]`、`std∈[0,0.05]`，`noise_prob=1.0`
+- P1.4：Reacher SWM/LeWM per-frame `std∈[0,0.05]`，`noise_prob=1.0`
+- P1.5：Cube SWM/LeWM per-frame `std∈[0,0.05]`，`noise_prob=1.0`
+
+补跑中（p1-only，`std_max ∈ {0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08}`）：
+- TwoRoom LeWM `0to001` / `0to002` clean + 全噪声条件
+- 各任务缺失的 `0to003`–`0to008` p1 变体（如需要填充 clean-noise 曲线）
 
 **TwoRoom eval（num_eval=300）**
 
@@ -360,7 +364,7 @@ Cube：
 | LeWM 0to005 p1 | 64.7 | 0.7 | 3.3 | −0.7 |
 
 > **统一口径**：`goal_drop = clean − goal_0.05`，`pix_drop = clean − pix_0.05`，`pix+goal_drop = clean − pix+goal_0.05`。负值表示 noisy 反而略高于 clean（采样波动）。
-> - **TwoRoom**：per-frame 模型的 drop 均 <4，说明 per-frame 独立 std 大幅修复了 noise failure；LeWM 0to001/0to002 的 clean eval 及部分噪声条件正在补全（当前仅 goal_0.05 和 pix+goal_0.08 有值），0to005-p1 drop 仅 1.6。
+> - **TwoRoom**：per-frame 模型的 drop 均 <4，说明 per-frame 独立 std 大幅修复了 noise failure；LeWM 0to001/0to002 的完整 eval 正在补跑（`std_max=0.01~0.08` 维度），当前表中仅填入已确认的部分值，0to005-p1 drop 仅 1.6。
 > - **PushT**：SWM baseline drop 高达 72.7，0to001-p1 降至 8.0，0to002-p1 几乎免疫（2.0）；LeWM 0to002-p1 drop 仅 2.7–4.0，为全表最稳健。
 > - **Reacher**：baseline drop 36–38，与 TwoRoom/PushT 同量级；per-frame 后 SWM 0to002-p1 降至 0–6，LeWM 0to005-p1 降至 5–9。
 > - **Cube**：baseline drop 15–28，per-frame 后降至 <6。与 TwoRoom 类似，per-frame 独立 std 几乎完全消除 noise failure。
@@ -1157,7 +1161,7 @@ Cube（n=7，SWM epoch_10 num_eval=300；LeWM base + 2 per-frame epoch_9/10 num_
 
 P1.1–P1.3 完整 eval / geometry 数据见 §4；机制结论（baseline 高角向增益 vs per-frame 平滑化）见 §4.2；与 P0 诊断指标的对应关系见 §6 P0.3 / P0.4。本节不重复。
 
-P1.4（可选，未做）：补扫 SWM `std_max ∈ {0.01, 0.02, 0.03, 0.08}` 以画完整 clean-noise 曲线。当前 TwoRoom 仅 0.05，PushT 仅 0.01 / 0.02 / 0.05。
+P1.4（进行中）：补跑 p1 `std_max ∈ {0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08}` 以画完整 clean-noise 曲线。当前 TwoRoom LeWM 0to001/0to002 的 clean + 全噪声条件正在补跑中。
 
 ### P2/P5：Mechanism Attribution（Cost Surface + Latent-Noise）
 

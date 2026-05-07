@@ -7,6 +7,7 @@ import lightning as pl
 import stable_pretraining as spt
 import stable_worldmodel as swm
 import torch
+import torch.nn.functional as F
 from lightning.pytorch.loggers import WandbLogger
 from torch import nn
 
@@ -33,6 +34,15 @@ from utils import (
     ModelObjectCallBack,
     TransformDataset,
 )
+
+
+def get_pred_loss_tensor(tensor: torch.Tensor, *, space: str) -> torch.Tensor:
+    space = space.lower()
+    if space == "raw":
+        return tensor
+    if space in {"normalized", "l2_norm", "sphere"}:
+        return F.normalize(tensor, dim=-1, eps=1e-8)
+    raise ValueError(f"Unsupported loss.pred.space: {space}")
 
 
 def compute_temporal_hinge(output, *, model, cfg):
@@ -109,15 +119,19 @@ def lejepa_forward(self, batch, stage, cfg):
 
     emb = output["emb"]  # (B, T, D)
     act_emb = output["act_emb"]
+    pred_cfg = cfg.loss.get("pred", {})
+    pred_space = pred_cfg.get("space", "raw")
 
     ctx_emb = emb[:, :ctx_len]
     ctx_act = act_emb[:, :ctx_len]
 
     tgt_emb = emb[:, n_preds:]  # label
     pred_emb = self.model.predict(ctx_emb, ctx_act)  # pred
+    pred_loss_emb = get_pred_loss_tensor(pred_emb, space=pred_space)
+    tgt_loss_emb = get_pred_loss_tensor(tgt_emb, space=pred_space)
 
     # LeWM loss
-    output["pred_loss"] = (pred_emb - tgt_emb).pow(2).mean()
+    output["pred_loss"] = (pred_loss_emb - tgt_loss_emb).pow(2).mean()
     output["sigreg_loss"] = self.sigreg(emb.transpose(0, 1))
     output["temporal_hinge_loss"] = compute_temporal_hinge(
         output, model=self.model, cfg=cfg

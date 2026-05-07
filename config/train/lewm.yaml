@@ -75,6 +75,8 @@ predictor:
   emb_dropout: 0.0
 
 loss:
+  pred:
+    space: raw # raw or l2_norm/normalized; only changes pred_loss MSE inputs
   sigreg:
     weight: 0.09
     kwargs:

@@ -38,13 +38,15 @@ SWEEP_VARS=(
     # 基础必填
     dataset_name trainer_file config output_model_name num_eval seed
     # 训练相关
-    encoder_projection_head_type
+    encoder_projection_head_type encoder_projection_head_norm_fn encoder_projection_head_hidden_dim
+    loss_sigreg_weight
     loss_regularizer_type loss_regularizer_weight loss_regularizer_scope loss_regularizer_t
     loss_uniformity_mode loss_uniformity_temporal_exclusion
     loss_temporal_hinge_weight loss_temporal_hinge_margin loss_temporal_hinge_squared
     loss_temporal_hinge_dynamic_enabled loss_temporal_hinge_dynamic_base_margin
     loss_temporal_hinge_dynamic_min_margin loss_temporal_hinge_dynamic_max_margin
     loss_inverse_dynamics_weight loss_transition_distance_weight
+    loss_target_stop_grad
     loss_pred_space loss_pred_type loss_rollout_weight loss_rollout_steps
     wm_embed_dim wm_inference_rollout_state_space wm_inference_cost_space wm_inference_cost_type
     image_noise_std_min image_noise_std_max image_noise_noise_prob image_noise_apply_to_val
@@ -54,6 +56,8 @@ SWEEP_VARS=(
     noise_table_stds diagnostic_rollout_steps diagnostic_dataset_name
     skip_eval_sweep skip_noise_table skip_diagnostics
     diagnostic_skip_predictor diagnostic_skip_resolution
+    diagnostic_skip_latent_noise diagnostic_skip_action_effect
+    run_cross_check_correlations
 )
 
 # 1) 第一遍扫描：解析每个变量的 split values，记录最大长度。

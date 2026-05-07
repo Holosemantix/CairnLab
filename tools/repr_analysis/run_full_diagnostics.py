@@ -64,6 +64,7 @@ from tools.repr_analysis.action_effect import (
     format_action_effect_table,
     run_action_effect,
 )
+from tools.repr_analysis.latent_visualization import run_latent_visualization
 from tools.repr_analysis.latent_noise_sensitivity import (
     format_latent_noise_table,
     plot_latent_noise_curves,
@@ -273,6 +274,7 @@ def run_full_diagnostics(
     skip_resolution: bool = False,
     skip_latent_noise: bool = False,
     skip_action_effect: bool = False,
+    skip_visualization: bool = False,
     predictor_history_noise_only: bool = True,
     latent_noise_geometry: str = "auto",
     latent_noise_std_mode: str = "relative",
@@ -451,6 +453,20 @@ def run_full_diagnostics(
             if log is not None:
                 log(f"[diagnostics] action_effect table format skipped: {e}")
 
+    if not skip_visualization and output_dir is not None:
+        if log is not None:
+            log("==[diagnostics] rendering latent_visualization ==")
+        try:
+            run_latent_visualization(
+                save_dir=output_dir,
+                **{k: v for k, v in common.items() if k != "embedding_space"},
+                embedding_space=embedding_space,
+                log=log,
+            )
+        except Exception as e:
+            if log is not None:
+                log(f"[diagnostics] latent_visualization skipped: {e}")
+
     rollup = _summarize_noise_to_predictor_to_resolution(
         noise_rows=noise_rows,
         predictor_rows=predictor_rows,
@@ -538,6 +554,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Skip P5 latent-space noise probing.")
     p.add_argument("--skip-action-effect", action="store_true",
                    help="Skip action-effect probe (action perturbation -> predictor shift).")
+    p.add_argument("--skip-visualization", action="store_true",
+                   help="Skip latent PCA-2D visualization (saves no .png/.npz).")
     p.add_argument("--action-effect-n-trials", type=int, default=128)
     p.add_argument("--action-effect-interp-steps", type=int, default=16)
     p.add_argument("--action-effect-perturb-scale", type=float, default=0.5)
@@ -580,6 +598,7 @@ def main():
         skip_resolution=args.skip_resolution,
         skip_latent_noise=args.skip_latent_noise,
         skip_action_effect=args.skip_action_effect,
+        skip_visualization=args.skip_visualization,
         predictor_history_noise_only=args.predictor_history_noise_only,
         latent_noise_geometry=args.latent_noise_geometry,
         latent_noise_std_mode=args.latent_noise_std_mode,

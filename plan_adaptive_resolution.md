@@ -293,10 +293,10 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 
 ## 11. References
 
-- **JEPA / LeWM**: LeCun 2022; LeWM 2024
+- **JEPA / LeWM**: LeCun 2022 ("A Path Towards Autonomous Machine Intelligence"); **Maes et al. 2026, "LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels"** (arXiv:2603.19312, Mar 2026; Lucas Maes / Quentin Le Lidec / Damien Scieur / Yann LeCun / Randall Balestriero)
 - **Heteroscedastic regression**: Kendall & Gal NeurIPS 2017 "What Uncertainties Do We Need in Bayesian Deep Learning"
-- **Variational JEPA (rejected as direct borrow)**: Gögl & Yau 2026 (arXiv:2603.20111)——tabular only，本工作扩到 vision + multi-step
-- **Anti-collapse 工具线**: SIGReg (LeWM), VICReg (Bardes 2022), RankMe (Garrido 2023)
+- **Variational JEPA (rejected as direct borrow)**: Gögl & Yau 2026 (arXiv:2603.20111, Mar 2026) — tabular only，本工作扩到 vision + multi-step
+- **Anti-collapse 工具线**: SIGReg (Maes et al. 2026), VICReg (Bardes 2022), RankMe (Garrido 2023)
 
 ---
 

@@ -1,0 +1,618 @@
+{
+  "TwoRoom": {
+    "LeWM-base": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_lewm_20260430/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 93.0,
+        "goal_std0.03": 86.67,
+        "goal_std0.05": 71.0,
+        "goal_std0.08": 55.67,
+        "pixels_std0.03": 87.67,
+        "pixels_std0.05": 70.33,
+        "pixels_std0.08": 59.33,
+        "pixels_goal_std0.03": 81.0,
+        "pixels_goal_std0.05": 62.33,
+        "pixels_goal_std0.08": 44.33
+      }
+    },
+    "LeWM-0to001-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_lewm_noise_0to001_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 92.0,
+        "goal_std0.03": 92.33,
+        "goal_std0.05": 93.33,
+        "goal_std0.08": 86.0,
+        "pixels_std0.03": 92.0,
+        "pixels_std0.05": 92.67,
+        "pixels_std0.08": 90.67,
+        "pixels_goal_std0.03": 92.33,
+        "pixels_goal_std0.05": 89.67,
+        "pixels_goal_std0.08": 84.67
+      }
+    },
+    "LeWM-0to002-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_lewm_noise_0to002_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 94.33,
+        "goal_std0.03": 93.0,
+        "goal_std0.05": 93.0,
+        "goal_std0.08": 93.0,
+        "pixels_std0.03": 94.33,
+        "pixels_std0.05": 94.0,
+        "pixels_std0.08": 94.33,
+        "pixels_goal_std0.03": 94.0,
+        "pixels_goal_std0.05": 94.0,
+        "pixels_goal_std0.08": 91.0
+      }
+    },
+    "LeWM-0to005-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_lewm_noise_0to005_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 94.0,
+        "goal_std0.03": 94.67,
+        "goal_std0.05": 93.33,
+        "goal_std0.08": 94.0,
+        "pixels_std0.03": 94.0,
+        "pixels_std0.05": 94.67,
+        "pixels_std0.08": 94.0,
+        "pixels_goal_std0.03": 94.67,
+        "pixels_goal_std0.05": 94.0,
+        "pixels_goal_std0.08": 94.0
+      }
+    },
+    "SWM-base": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 69.67,
+        "goal_std0.03": 21.33,
+        "goal_std0.05": 24.67,
+        "goal_std0.08": 25.0,
+        "pixels_std0.03": 35.0,
+        "pixels_std0.05": 34.67,
+        "pixels_std0.08": 35.0,
+        "pixels_goal_std0.03": 37.33,
+        "pixels_goal_std0.05": 31.0,
+        "pixels_goal_std0.08": 29.67
+      }
+    },
+    "SWM-0to001-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 94.33,
+        "goal_std0.03": 94.0,
+        "goal_std0.05": 92.0,
+        "goal_std0.08": 87.0,
+        "pixels_std0.03": 94.33,
+        "pixels_std0.05": 93.67,
+        "pixels_std0.08": 90.0,
+        "pixels_goal_std0.03": 93.67,
+        "pixels_goal_std0.05": 91.0,
+        "pixels_goal_std0.08": 82.0
+      }
+    },
+    "SWM-0to002-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 88.0,
+        "goal_std0.03": 89.33,
+        "goal_std0.05": 87.67,
+        "goal_std0.08": 87.0,
+        "pixels_std0.03": 88.33,
+        "pixels_std0.05": 87.0,
+        "pixels_std0.08": 90.67,
+        "pixels_goal_std0.03": 87.67,
+        "pixels_goal_std0.05": 88.67,
+        "pixels_goal_std0.08": 88.67
+      }
+    },
+    "SWM-0to005-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 91.67,
+        "goal_std0.03": 91.33,
+        "goal_std0.05": 91.0,
+        "goal_std0.08": 91.0,
+        "pixels_std0.03": 90.67,
+        "pixels_std0.05": 92.0,
+        "pixels_std0.08": 91.67,
+        "pixels_goal_std0.03": 91.67,
+        "pixels_goal_std0.05": 90.33,
+        "pixels_goal_std0.08": 90.67
+      }
+    }
+  },
+  "PushT": {
+    "LeWM-base": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_20260430/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 87.33,
+        "goal_std0.03": 68.67,
+        "goal_std0.05": 38.0,
+        "goal_std0.08": 15.0,
+        "pixels_std0.03": 53.33,
+        "pixels_std0.05": 17.33,
+        "pixels_std0.08": 6.0,
+        "pixels_goal_std0.03": 49.33,
+        "pixels_goal_std0.05": 15.0,
+        "pixels_goal_std0.08": 3.67
+      }
+    },
+    "LeWM-0to001-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_noise_0to001_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 89.67,
+        "goal_std0.03": 88.67,
+        "goal_std0.05": 85.67,
+        "goal_std0.08": 70.33,
+        "pixels_std0.03": 86.0,
+        "pixels_std0.05": 77.0,
+        "pixels_std0.08": 54.33,
+        "pixels_goal_std0.03": 84.33,
+        "pixels_goal_std0.05": 77.0,
+        "pixels_goal_std0.08": 46.33
+      }
+    },
+    "LeWM-0to002-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_noise_0to002_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 90.0,
+        "goal_std0.03": 87.33,
+        "goal_std0.05": 85.0,
+        "goal_std0.08": 83.0,
+        "pixels_std0.03": 87.67,
+        "pixels_std0.05": 87.67,
+        "pixels_std0.08": 74.67,
+        "pixels_goal_std0.03": 88.67,
+        "pixels_goal_std0.05": 86.0,
+        "pixels_goal_std0.08": 70.67
+      }
+    },
+    "LeWM-0to005-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_noise_0to005_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 82.0,
+        "goal_std0.03": 81.33,
+        "goal_std0.05": 77.33,
+        "goal_std0.08": 80.67,
+        "pixels_std0.03": 83.33,
+        "pixels_std0.05": 78.67,
+        "pixels_std0.08": 76.0,
+        "pixels_goal_std0.03": 80.0,
+        "pixels_goal_std0.05": 80.0,
+        "pixels_goal_std0.08": 78.0
+      }
+    },
+    "SWM-base": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 80.0,
+        "goal_std0.03": 26.33,
+        "goal_std0.05": 7.33,
+        "goal_std0.08": 3.33,
+        "pixels_std0.03": 12.33,
+        "pixels_std0.05": 3.33,
+        "pixels_std0.08": 2.0,
+        "pixels_goal_std0.03": 14.0,
+        "pixels_goal_std0.05": 5.0,
+        "pixels_goal_std0.08": 3.0
+      }
+    },
+    "SWM-0to001-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 83.33,
+        "goal_std0.03": 82.33,
+        "goal_std0.05": 74.67,
+        "goal_std0.08": 29.67,
+        "pixels_std0.03": 80.33,
+        "pixels_std0.05": 63.67,
+        "pixels_std0.08": 7.0,
+        "pixels_goal_std0.03": 77.67,
+        "pixels_goal_std0.05": 58.67,
+        "pixels_goal_std0.08": 7.0
+      }
+    },
+    "SWM-0to002-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 81.0,
+        "goal_std0.03": 81.0,
+        "goal_std0.05": 80.33,
+        "goal_std0.08": 67.67,
+        "pixels_std0.03": 81.0,
+        "pixels_std0.05": 79.33,
+        "pixels_std0.08": 48.67,
+        "pixels_goal_std0.03": 82.67,
+        "pixels_goal_std0.05": 82.0,
+        "pixels_goal_std0.08": 47.33
+      }
+    },
+    "SWM-0to005-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 71.67,
+        "goal_std0.03": 70.67,
+        "goal_std0.05": 71.33,
+        "goal_std0.08": 72.0,
+        "pixels_std0.03": 70.67,
+        "pixels_std0.05": 70.0,
+        "pixels_std0.08": 72.33,
+        "pixels_goal_std0.03": 71.33,
+        "pixels_goal_std0.05": 71.33,
+        "pixels_goal_std0.08": 70.0
+      }
+    }
+  },
+  "Reacher": {
+    "LeWM-base": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_20260430/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 57.67,
+        "goal_std0.03": 29.0,
+        "goal_std0.05": 24.33,
+        "goal_std0.08": 15.67,
+        "pixels_std0.03": 41.33,
+        "pixels_std0.05": 26.67,
+        "pixels_std0.08": 13.67,
+        "pixels_goal_std0.03": 38.33,
+        "pixels_goal_std0.05": 25.33,
+        "pixels_goal_std0.08": 14.67
+      }
+    },
+    "LeWM-0to001-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_noise_0to001_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 55.67,
+        "goal_std0.03": 59.33,
+        "goal_std0.05": 51.67,
+        "goal_std0.08": 32.33,
+        "pixels_std0.03": 56.67,
+        "pixels_std0.05": 58.67,
+        "pixels_std0.08": 45.67,
+        "pixels_goal_std0.03": 59.67,
+        "pixels_goal_std0.05": 55.0,
+        "pixels_goal_std0.08": 45.33
+      }
+    },
+    "LeWM-0to002-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_noise_0to002_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 80.33,
+        "goal_std0.03": 80.67,
+        "goal_std0.05": 84.67,
+        "goal_std0.08": 81.67,
+        "pixels_std0.03": 80.67,
+        "pixels_std0.05": 81.33,
+        "pixels_std0.08": 82.33,
+        "pixels_goal_std0.03": 87.0,
+        "pixels_goal_std0.05": 82.0,
+        "pixels_goal_std0.08": 80.67
+      }
+    },
+    "LeWM-0to005-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_noise_0to005_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 73.33,
+        "goal_std0.03": 71.33,
+        "goal_std0.05": 73.0,
+        "goal_std0.08": 71.33,
+        "pixels_std0.03": 66.33,
+        "pixels_std0.05": 70.33,
+        "pixels_std0.08": 70.33,
+        "pixels_goal_std0.03": 73.67,
+        "pixels_goal_std0.05": 69.67,
+        "pixels_goal_std0.08": 71.33
+      }
+    },
+    "SWM-base": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 60.0,
+        "goal_std0.03": 27.33,
+        "goal_std0.05": 22.33,
+        "goal_std0.08": 19.67,
+        "pixels_std0.03": 39.33,
+        "pixels_std0.05": 22.33,
+        "pixels_std0.08": 12.0,
+        "pixels_goal_std0.03": 39.0,
+        "pixels_goal_std0.05": 36.67,
+        "pixels_goal_std0.08": 23.0
+      }
+    },
+    "SWM-0to001-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 65.67,
+        "goal_std0.03": 69.33,
+        "goal_std0.05": 63.33,
+        "goal_std0.08": 41.67,
+        "pixels_std0.03": 64.33,
+        "pixels_std0.05": 61.33,
+        "pixels_std0.08": 46.33,
+        "pixels_goal_std0.03": 65.33,
+        "pixels_goal_std0.05": 64.67,
+        "pixels_goal_std0.08": 50.67
+      }
+    },
+    "SWM-0to002-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 78.0,
+        "goal_std0.03": 76.67,
+        "goal_std0.05": 81.67,
+        "goal_std0.08": 85.33,
+        "pixels_std0.03": 80.33,
+        "pixels_std0.05": 82.0,
+        "pixels_std0.08": 79.33,
+        "pixels_goal_std0.03": 77.0,
+        "pixels_goal_std0.05": 80.0,
+        "pixels_goal_std0.08": 82.33
+      }
+    },
+    "SWM-0to005-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 78.0,
+        "goal_std0.03": 78.67,
+        "goal_std0.05": 85.0,
+        "goal_std0.08": 82.0,
+        "pixels_std0.03": 78.67,
+        "pixels_std0.05": 83.33,
+        "pixels_std0.08": 82.67,
+        "pixels_goal_std0.03": 78.0,
+        "pixels_goal_std0.05": 82.33,
+        "pixels_goal_std0.08": 82.0
+      }
+    }
+  },
+  "Cube": {
+    "LeWM-base": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_lewm_20260430/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 72.33,
+        "goal_std0.03": 68.0,
+        "goal_std0.05": 54.67,
+        "goal_std0.08": 47.0,
+        "pixels_std0.03": 69.0,
+        "pixels_std0.05": 60.0,
+        "pixels_std0.08": 49.0,
+        "pixels_goal_std0.03": 66.0,
+        "pixels_goal_std0.05": 61.33,
+        "pixels_goal_std0.08": 52.33
+      }
+    },
+    "LeWM-0to001-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_lewm_noise_0to001_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 73.0,
+        "goal_std0.03": 73.0,
+        "goal_std0.05": 67.33,
+        "goal_std0.08": 53.67,
+        "pixels_std0.03": 72.0,
+        "pixels_std0.05": 69.33,
+        "pixels_std0.08": 54.0,
+        "pixels_goal_std0.03": 70.0,
+        "pixels_goal_std0.05": 66.33,
+        "pixels_goal_std0.08": 53.33
+      }
+    },
+    "LeWM-0to002-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_lewm_noise_0to002_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 64.67,
+        "goal_std0.03": 65.33,
+        "goal_std0.05": 64.0,
+        "goal_std0.08": 63.33,
+        "pixels_std0.03": 63.67,
+        "pixels_std0.05": 62.67,
+        "pixels_std0.08": 63.67,
+        "pixels_goal_std0.03": 63.33,
+        "pixels_goal_std0.05": 61.0,
+        "pixels_goal_std0.08": 63.0
+      }
+    },
+    "LeWM-0to005-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_lewm_noise_0to005_p1/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 61.33,
+        "goal_std0.03": 63.33,
+        "goal_std0.05": 61.67,
+        "goal_std0.08": 63.0,
+        "pixels_std0.03": 62.0,
+        "pixels_std0.05": 62.67,
+        "pixels_std0.08": 62.0,
+        "pixels_goal_std0.03": 62.33,
+        "pixels_goal_std0.05": 61.33,
+        "pixels_goal_std0.08": 60.67
+      }
+    },
+    "SWM-base": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 77.0,
+        "goal_std0.03": 62.67,
+        "goal_std0.05": 49.0,
+        "goal_std0.08": 47.67,
+        "pixels_std0.03": 64.0,
+        "pixels_std0.05": 48.67,
+        "pixels_std0.08": 50.0,
+        "pixels_goal_std0.03": 69.33,
+        "pixels_goal_std0.05": 56.0,
+        "pixels_goal_std0.08": 52.67
+      }
+    },
+    "SWM-0to001-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 72.33,
+        "goal_std0.03": 74.33,
+        "goal_std0.05": 66.67,
+        "goal_std0.08": 47.33,
+        "pixels_std0.03": 73.33,
+        "pixels_std0.05": 70.33,
+        "pixels_std0.08": 49.67,
+        "pixels_goal_std0.03": 74.67,
+        "pixels_goal_std0.05": 71.0,
+        "pixels_goal_std0.08": 56.67
+      }
+    },
+    "SWM-0to002-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 71.0,
+        "goal_std0.03": 74.0,
+        "goal_std0.05": 70.67,
+        "goal_std0.08": 71.33,
+        "pixels_std0.03": 72.0,
+        "pixels_std0.05": 70.33,
+        "pixels_std0.08": 72.33,
+        "pixels_goal_std0.03": 72.67,
+        "pixels_goal_std0.05": 70.67,
+        "pixels_goal_std0.08": 72.67
+      }
+    },
+    "SWM-0to005-p1": {
+      "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64/eval_results/summary.txt",
+      "header": [
+        300,
+        10
+      ],
+      "evals": {
+        "clean": 62.67,
+        "goal_std0.03": 63.0,
+        "goal_std0.05": 62.67,
+        "goal_std0.08": 63.33,
+        "pixels_std0.03": 64.33,
+        "pixels_std0.05": 63.67,
+        "pixels_std0.08": 63.67,
+        "pixels_goal_std0.03": 64.33,
+        "pixels_goal_std0.05": 64.0,
+        "pixels_goal_std0.08": 63.33
+      }
+    }
+  }
+}

@@ -173,7 +173,7 @@ Eval corruption：`eval.corruption.std=X`、`eval.corruption.apply_to=[goal|pixe
 
 | 层 | canonical 证据 | 判定 |
 |---|---|---|
-| Encoder angular sensitivity | SWM-base TwoRoom std=0.005 时 noise_angle 20.12°、ratio=1.70（32 ckpt 中**唯一** risk=high） | **主因** |
+| Encoder angular sensitivity | SWM-base TwoRoom std=0.005 时 noise_angle 20.12°、ratio=1.70（canonical 32 + LeWM sweep 20 = 52 ckpt 中**唯一** risk=high） | **主因** |
 | Cost saturation | §6 P2.1 eval-only `raw+mse` cost swap 仅 +6（36→42） | 次因 |
 | Predictor 独立 | PushT `predictor_target_to_nn_cos_ratio` ρ=−0.93、`latent_predictor_rollout_T8_l2_history` ρ=+0.86；Reacher `predictor_rollout_T8_l2` ρ=−0.83 | predictor 端独立信号成立（PushT/Reacher）；TwoRoom 主要在 latent-noise 端 |
 
@@ -297,7 +297,7 @@ Eval corruption：`eval.corruption.std=X`、`eval.corruption.apply_to=[goal|pixe
 | Cube | LeWM-base | 72.3 | **17.7** | **12.3** | **11.0** |
 | Cube | SWM-base | 77.0 | **28.0** | **28.3** | **21.0** |
 
-> **统一口径**：`drop = clean − std=0.05`；其余 23 个 perframe 模型（4 任务 × 6）所有三个 drop 列 |Δ|≤6（多数 ≤2），完整可由上方 eval 表减得；负值（如 Reacher SWM-0to005-p1=−7）是单 seed 抽样波动。
+> **统一口径**：`drop = clean − std=0.05`；其余 canonical perframe 23 行（4 任务 × 6 - baseline 8 = 23）+ LeWM noise sweep 20 行 = 43 行，所有三个 drop 列 |Δ|≤6（多数 ≤2），完整可由上方 eval 表减得；负值（如 Reacher SWM-0to005-p1=−7）是单 seed 抽样波动。**新 sweep 中唯一 mild 越界**：Reacher LeWM-0to006-p1 † pix+goal_drop = 86.0−79.33 = 6.67，仍属抽样范围。
 > - per-frame 独立 std 显著修复 noise failure：所有 perframe drop 集中在 [−7, +6.7]。
 > - 唯一例外是 PushT SWM-0to001-p1 的 pix/pix+goal drop 仍 19.7/24.7（noise 强度不够，0to002 已降至 ~1）。
 > - clean 差异在 perframe 之间仍然保留：PushT LeWM-0to002 90.0 vs SWM-0to005 71.7，drop 都接近 0 但 clean 差 18pt。
@@ -528,6 +528,8 @@ Cube：
 | Cube    | SWM  | 1.38 → 0.01 (0to005-p1) | **138×** | 87.7° → 0.6° |
 
 > std=0.005 累积口径（T1→T8）确认 LeWM drift 在 T1 即接近 saturation（0.5–0.9 → 平台），SWM 同样 T1 即饱和——说明 single-step predictor error 主导，per-frame 训练把 Lipschitz 常数压到足够低使大噪声输入也不发散。
+>
+> **2026-05-07 LeWM noise sweep 扩展**：把 LeWM 0to006/0to007/0to008-p1 的 max std=0.08 history-scope T8_l2 接进来后，TwoRoom 单调降到 0to008 = 0.66（vs 0to005 = 0.97，**28×**）；PushT 单调降到 0to008 = 1.06（vs 0to005 = 3.56，**18×**）；Reacher 0to005 = 0.21 仍是最低（0to008 = 0.36），Cube 0to005 = 0.19 仍是最低（0to008 = 0.60）。即 LeWM 在 TwoRoom/PushT 的 predictor 平滑性可继续随 noise std 提升，Reacher/Cube 在 0to005 即已饱和。
 
 **CKA(clean, noisy) @ max std=0.08**
 
@@ -573,7 +575,7 @@ Cube：
 
 **Planning signal probe（CEM cost 区分 expert vs random）**
 
-所有 ckpt `expert_beats_best_random ≥ 0.844`，`expert_beats_random ≥ 0.984`——planning signal 在 32 个 ckpt 中都有效。
+所有 ckpt `expert_beats_best_random ≥ 0.844`，`expert_beats_random ≥ 0.984`——planning signal 在 canonical 32 个 ckpt 中都有效（LeWM sweep 20 个新 ckpt 未单独跑 planning probe，可由 `run_planning_action_probe.py` 重构后回填，但训练用的 dataset/predictor 已知没有 planning failure，预期一致）。
 
 > **Cost 尺度差异**：LeWM 的 L2 margin ~257–366，SWM 的 cosine margin ~0.64–0.92（理论上界 2），但 normalized 后均工作。差异不在 signal 有无，而在 cost slope 对 latent perturbation 的敏感度（latent-noise 表里 SWM 1.0–1.8 vs LeWM 2.0–3.8）。
 
@@ -586,6 +588,8 @@ Cube：
 > **2026-05-06 重算**：此前的 P0.4/P0.5/P0.7 数据基于一个 8/11/10/11 模型集合，里面混入了已废弃的 `fixed-std` 和 `perframe-p05` 变体。本次重算改为只用 canonical 8 模型/任务（base + 0to001-p1 + 0to002-p1 + 0to005-p1，LeWM 与 SWM 各 4 个），eval 取自每个 ckpt `eval_results/summary.txt` 的 `clean_300` 列（缺失则 `clean`），诊断取自 `eval_results/diagnostics/diagnostics_summary.json`。所有 n=8。
 >
 > **重要变化**：旧 §4.3 / 旧 P0.7 中 TwoRoom `clean_nn_cos_dist` ρ=−0.91 / `lidar_rank` ρ=−0.81 等"强信号"只是含 fixed-std 的 SWM-noise_std0_005=97.6 这一个外点拉出来的相关；canonical 8 上 TwoRoom 这两个指标都退化为弱相关。
+>
+> **2026-05-07 数据扩展**：LeWM noise sweep 0to003 / 0to004 / 0to006 / 0to007 / 0to008-p1（4 任务 × 5 = 20 ckpt）已含完整 noise / predictor / resolution / latent_noise / geometry 诊断（`eval_results/diagnostics/`），可作为**within-LeWM 单调性子分析**（n=8 LeWM 档位/任务，纯 LeWM）独立跑一遍 P0.4。本表 n=8 canonical 数值未受新数据影响（输入未变），保持原状作为跨方法对比；within-LeWM sweep 相关性留作后续 P0.4 补充章节。
 
 **核心：诊断指标的任务特异性（canonical n=8）**
 

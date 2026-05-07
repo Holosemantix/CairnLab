@@ -21,6 +21,7 @@ Layout (per --save-dir):
         latent_geometry_summary.csv / .json     (P5)
         latent_noise_ratio_curve_goal.png       (if --plot)
         latent_noise_angle_curve_goal.png       (if --plot)
+        action_effect.csv / .json
         diagnostics_summary.json   (one-line per-checkpoint roll-up)
 
 CLI mirrors `noise_sensitivity.py` for backwards compatibility:
@@ -59,6 +60,10 @@ from tools.repr_analysis.task_resolution import (
     format_resolution_table,
     run_task_resolution,
 )
+from tools.repr_analysis.action_effect import (
+    format_action_effect_table,
+    run_action_effect,
+)
 from tools.repr_analysis.latent_noise_sensitivity import (
     format_latent_noise_table,
     plot_latent_noise_curves,
@@ -94,6 +99,7 @@ def _summarize_noise_to_predictor_to_resolution(
     predictor_rows,
     resolution_rows,
     latent_noise_rows=None,
+    action_effect_rows=None,
 ) -> list[Dict[str, Any]]:
     """One-line per-checkpoint roll-up combining the diagnostic families."""
     summary: Dict[str, Dict[str, Any]] = {}
@@ -217,6 +223,26 @@ def _summarize_noise_to_predictor_to_resolution(
                         summary[label][f"latent_predictor_rollout_T{T}_l2_history"] = float(r[key])
                         break
 
+    # Action-effect probe: action perturbation -> predictor shift.
+    if action_effect_rows:
+        for r in action_effect_rows:
+            label = r["model"]
+            summary.setdefault(label, {"model": label})
+            summary[label].update({
+                "action_mean_pred_shift_norm": float(
+                    r.get("mean_pred_shift_norm", float("nan"))
+                ),
+                "action_perturb_pred_shift_corr": float(
+                    r.get("action_perturb_pred_shift_corr", float("nan"))
+                ),
+                "action_interpolation_endpoint_shift": float(
+                    r.get("interpolation_endpoint_shift", float("nan"))
+                ),
+                "action_interpolation_monotonicity": float(
+                    r.get("interpolation_monotonicity", float("nan"))
+                ),
+            })
+
     # Drop bookkeeping fields
     for s in summary.values():
         for k in list(s.keys()):
@@ -246,10 +272,14 @@ def run_full_diagnostics(
     skip_predictor: bool = False,
     skip_resolution: bool = False,
     skip_latent_noise: bool = False,
+    skip_action_effect: bool = False,
     predictor_history_noise_only: bool = True,
     latent_noise_geometry: str = "auto",
     latent_noise_std_mode: str = "relative",
     latent_noise_n_samples: int = 1,
+    action_effect_n_trials: int = 128,
+    action_effect_interp_steps: int = 16,
+    action_effect_perturb_scale: float = 0.5,
     log=print,
 ) -> Dict[str, Any]:
     """Run the full diagnostic suite from one Python entrypoint.
@@ -279,6 +309,7 @@ def run_full_diagnostics(
     predictor_rows: list = []
     resolution_rows: list = []
     latent_noise_rows: list = []
+    action_effect_rows: list = []
     geometry = None
     latent_geometry = None
 
@@ -402,11 +433,30 @@ def run_full_diagnostics(
                 if log is not None:
                     log(f"[diagnostics] latent noise plotting skipped: {e}")
 
+    if not skip_action_effect:
+        if log is not None:
+            log("==[diagnostics] running action_effect ==")
+        action_effect_rows = run_action_effect(
+            n_trials=action_effect_n_trials,
+            interp_steps=action_effect_interp_steps,
+            perturb_scale=action_effect_perturb_scale,
+            **common,
+        )
+        if output_dir is not None:
+            _save_rows(output_dir, "action_effect", action_effect_rows)
+        try:
+            if log is not None:
+                log(format_action_effect_table(action_effect_rows).to_string(index=False))
+        except Exception as e:
+            if log is not None:
+                log(f"[diagnostics] action_effect table format skipped: {e}")
+
     rollup = _summarize_noise_to_predictor_to_resolution(
         noise_rows=noise_rows,
         predictor_rows=predictor_rows,
         resolution_rows=resolution_rows,
         latent_noise_rows=latent_noise_rows,
+        action_effect_rows=action_effect_rows,
     )
     if output_dir is not None:
         with (output_dir / "diagnostics_summary.json").open("w") as f:
@@ -431,6 +481,13 @@ def run_full_diagnostics(
         )
     except Exception:
         latent_noise_table = None
+    try:
+        action_effect_table = (
+            format_action_effect_table(action_effect_rows)
+            if action_effect_rows else None
+        )
+    except Exception:
+        action_effect_table = None
 
     if log is not None and output_dir is not None:
         log(f"\n[diagnostics] saved unified output to: {output_dir}")
@@ -445,11 +502,13 @@ def run_full_diagnostics(
         "resolution_rows": resolution_rows,
         "latent_noise_rows": latent_noise_rows,
         "latent_geometry_summary": latent_geometry,
+        "action_effect_rows": action_effect_rows,
         "diagnostics_summary": rollup,
         "noise_table": noise_table,
         "predictor_table": predictor_table,
         "resolution_table": resolution_table,
         "latent_noise_table": latent_noise_table,
+        "action_effect_table": action_effect_table,
         "save_dir": output_dir,
     }
 
@@ -477,6 +536,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--skip-resolution", action="store_true")
     p.add_argument("--skip-latent-noise", action="store_true",
                    help="Skip P5 latent-space noise probing.")
+    p.add_argument("--skip-action-effect", action="store_true",
+                   help="Skip action-effect probe (action perturbation -> predictor shift).")
+    p.add_argument("--action-effect-n-trials", type=int, default=128)
+    p.add_argument("--action-effect-interp-steps", type=int, default=16)
+    p.add_argument("--action-effect-perturb-scale", type=float, default=0.5)
     p.add_argument("--predictor-history-noise-only", action="store_true", default=True,
                    help="Predictor diagnostic adds noise only to history frames (default).")
     p.add_argument("--predictor-full-noise",
@@ -515,10 +579,14 @@ def main():
         skip_predictor=args.skip_predictor,
         skip_resolution=args.skip_resolution,
         skip_latent_noise=args.skip_latent_noise,
+        skip_action_effect=args.skip_action_effect,
         predictor_history_noise_only=args.predictor_history_noise_only,
         latent_noise_geometry=args.latent_noise_geometry,
         latent_noise_std_mode=args.latent_noise_std_mode,
         latent_noise_n_samples=args.latent_noise_n_samples,
+        action_effect_n_trials=args.action_effect_n_trials,
+        action_effect_interp_steps=args.action_effect_interp_steps,
+        action_effect_perturb_scale=args.action_effect_perturb_scale,
     )
 
 

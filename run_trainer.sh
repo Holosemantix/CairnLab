@@ -35,6 +35,7 @@
 #   skip_diagnostics          设 1 跳过整套诊断（noise/predictor/resolution）
 #   diagnostic_skip_predictor 设 1 仅跳过 predictor_sensitivity
 #   diagnostic_skip_resolution 设 1 仅跳过 task_resolution
+#   diagnostic_skip_action_effect 设 1 仅跳过 action_effect probe
 #   eval_epoch                用于 eval 的 epoch 编号；默认读取训练 config 的 trainer.max_epochs
 #   eval_seeds                eval sweep 的 seed 数量；默认 3。每个 seed 跑 num_eval/eval_seeds 次
 #   eval_base_seed            首 seed；不传则读取 config/eval/<dataset_name>.yaml 顶层 seed；后续 seed = base+1, base+2, ...
@@ -54,6 +55,7 @@
 #       geometry_summary.{csv,json}
 #       predictor_sensitivity.{csv,json}
 #       task_resolution.{csv,json}
+#       action_effect.{csv,json}
 #       diagnostics_summary.json          per-checkpoint 一行 roll-up
 #       *.png                             curves & geometry tradeoff plots
 #   eval_results/summary.txt              所有 eval + diagnostics 的摘要
@@ -375,6 +377,7 @@ if [ "${skip_diagnostics:-${skip_noise_table:-0}}" != "1" ]; then
     )
     [ "${diagnostic_skip_predictor:-0}" = "1" ] && diag_args+=("--skip-predictor")
     [ "${diagnostic_skip_resolution:-0}" = "1" ] && diag_args+=("--skip-resolution")
+    [ "${diagnostic_skip_action_effect:-0}" = "1" ] && diag_args+=("--skip-action-effect")
 
     echo "==================================================="
     echo "[diagnostics] running full suite on ${ckpt_abs}"
@@ -486,6 +489,7 @@ echo "      * noise_sensitivity.csv / .json"
 echo "      * geometry_summary.csv / .json"
 echo "      * predictor_sensitivity.csv / .json"
 echo "      * task_resolution.csv / .json"
+echo "      * action_effect.csv / .json"
 echo "      * diagnostics_summary.json"
 echo "      * noise_ratio_curve_goal.png"
 echo "      * noise_angle_curve_goal.png"

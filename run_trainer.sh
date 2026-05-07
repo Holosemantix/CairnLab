@@ -421,22 +421,51 @@ import ast, glob, os, re, statistics, sys, csv
 results_dir = sys.argv[1]
 groups = {}  # group_key -> list of (seed_or_None, metrics_dict)
 
+
+def _last_balanced_dict(text: str):
+    """Return the last balanced {...} substring, scanning naively. Brace
+    counting works for our eval logs (no '{' or '}' inside strings/arrays)."""
+    last = None
+    i, n = 0, len(text)
+    while i < n:
+        if text[i] != "{":
+            i += 1
+            continue
+        depth = 0
+        for j in range(i, n):
+            c = text[j]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    last = text[i:j + 1]
+                    i = j + 1
+                    break
+        else:
+            break
+    return last
+
+
+# numpy `array([...])` literals (and a generic `np.array(...)`) are not
+# accepted by ast.literal_eval; replace them with None before parsing so the
+# numeric metrics survive.
+_ARRAY_RE = re.compile(r"\b(?:np\.)?array\((?:[^()]|\([^()]*\))*\)", re.DOTALL)
+
 for log in sorted(glob.glob(os.path.join(results_dir, "*.log"))):
     base = os.path.basename(log)[:-4]
     if base in ("noise_table", "diagnostics"):
         continue
     m = re.match(r"^(.*?)(?:_seed(\d+))?$", base)
     group_key, seed = m.group(1), m.group(2)
-    last_dict_line = None
     with open(log, "r", errors="replace") as f:
-        for line in f:
-            s = line.strip()
-            if s.startswith("{") and s.endswith("}"):
-                last_dict_line = s
-    if last_dict_line is None:
+        text = f.read()
+    candidate = _last_balanced_dict(text)
+    if candidate is None or "success_rate" not in candidate:
         continue
+    cleaned = _ARRAY_RE.sub("None", candidate)
     try:
-        d = ast.literal_eval(last_dict_line)
+        d = ast.literal_eval(cleaned)
     except Exception:
         continue
     if not isinstance(d, dict):

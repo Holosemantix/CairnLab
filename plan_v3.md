@@ -169,7 +169,50 @@ Eval corruption：`eval.corruption.std=X`、`eval.corruption.apply_to=[goal|pixe
 
 旧版 goal-frame normalized 诊断：LeWM std∈[0.005, 0.030] 时 noise_angle 4.2° → 32.0°，shift/NN ratio 0.07 → 3.90，robust radius ≈ 0.017；SWM 同区间 11.9° → 69.7°，ratio 0.26 → 7.96，radius ≈ 0.008。SWM 小噪声角向偏移约 LeWM 的 3×，**clean NN 距离反而更大**（不是聚簇过密导致脆弱，而是 angular sensitivity 高）——这是后续 P1 / P0 工作链的最初动机。canonical 跨 ckpt 数值见 §6 P0.3。
 
-### 3.3 失败机制（已收敛，详见 §4.2 与 §6 P2/P5）
+### 3.3 SWM vs LeWM 凝练画像（canonical 8 + LeWM sweep 20 数据综合，2026-05-07）
+
+> 三个维度合并视角，每条结论后注明判据来源章节。**任务别 eval 结论以 best 配置为准，详见 §2.2**；下面对应"特点 → eval 表现"映射只描述方法层面规律。
+
+**A. 表征几何特征（什么样子）**
+
+| 维度 | LeWM | SWM | 来源 |
+|---|---|---|---|
+| 范数 | raw L2，跨任务尺度差异大（clean_nn_l2: TwoRoom 0.058 / PushT 9.47 / Reacher 4.84 / Cube 8.24） | unit sphere（强制 \|\|z\|\|=1），`clean_nn_cos_dist` 跨任务 0.04–0.28 但 normalized | §4.2 / §6 P0.3 |
+| Effective rank | 高（45–120），TwoRoom/PushT 更倾向于占满高维 | 低（51–55，所有任务近似），uniformity 把表征推到接近全维均匀分布 | §6 P0.3 / §A.3 |
+| 邻域结构 | clean_nn_cos_dist median 0.04–0.07（局部聚簇紧密） | 0.04–0.10（TwoRoom/Reacher）或 0.21–0.28（PushT/Cube），SWM 在 manipulation 任务上保留更多局部分辨率 | §4.3 noise sens 表 |
+| Cost surface | L2 cost margin 257–366（绝对值大，对扰动 2× 更敏感） | cosine cost margin 0.64–0.92（理论上界 2，归一化后稳定） | §4.3 latent-noise / planning probe |
+| Predictor 内禀稳定性 | 单步 predictor 输出在原空间，T8 rollout drift baseline ≈18.6 | normalized 预测，T8 baseline ≈1.4（**8–10× 更稳定**） | §4.3 Predictor rollout drift 表 |
+| Encoder angular sensitivity（baseline） | low—mid（noise_angle@0.005 typically 1–6°） | **TwoRoom 唯一 high-risk**（20.1°，ratio 1.70；52 ckpt 中独此一例） | §3.4 / §6 P0.3 |
+
+**B. 在 eval 上的方法级差异**
+
+| 任务 | best 优胜方 | 差距 | 解释（机制层） |
+|---|---|---|---|
+| TwoRoom | **LeWM**（98.33 0to008-p1 vs 94.33 SWM 0to001-p1） | 4.0pt | LeWM noise sweep 单调推到 98+；SWM 受 baseline encoder fragility 限制，需依赖 0to001 才回到 94 |
+| PushT | **LeWM**（90.0 0to002-p1 vs 83.3 SWM 0to001-p1） | 6.7pt | PushT 需 fine resolution；SWM normalized 把 trans_res_cos 压到 ≤0.19，过度合并相邻状态；P0.5b PushT 主指标 `latent_cost_surface_slope_z`/`predictor_target_to_nn_cos_ratio` 都把 SWM 排在末位 |
+| Reacher | **LeWM**（80.3 / sweep 86.0 0to006-p1 vs 78.0 SWM 0to002/0to005） | 2.3–8.0pt | 接近持平；LeWM noise sweep 把上界推到 86，但 single-seed 漂移 ±5pt 内不应过度解读 |
+| Cube | **SWM**（77.0 SWM-base vs 73.0 LeWM 0to001-p1） | 4.0pt | 唯一 SWM 占优任务——SWM 在中等离散 manipulation 上保留 trans_res_cos 0.30 与 LeWM 0.24 持平，但 cka_linear 显著低（0.43→主指标 ρ=−0.96）说明"低跨样本相似度"是 Cube 的 eval 加分项，与 TwoRoom 相反 |
+
+**C. 抗噪性（eval drop @ std=0.05；详 §4.3 drop 段）**
+
+| 模型类 | TwoRoom | PushT | Reacher | Cube | 说明 |
+|---|---:|---:|---:|---:|---|
+| LeWM-base | 22 / 22 / 31 | 49 / 70 / 72 | 33 / 31 / 32 | 18 / 12 / 11 | 全任务全条件大跌；PushT 最严重 |
+| SWM-base | 45 / 35 / 39 | 73 / 77 / 75 | 38 / 38 / 23 | 28 / 28 / 21 | 比 LeWM-base 普遍**更脆弱**（encoder fragility） |
+| LeWM perframe | ≤6 | ≤6（除 0to001 外） | ≤6（0to006 mild 6.7 outlier） | ≤6 | 几乎完全修复 |
+| SWM perframe | ≤6 | 0to001 仍 19.7/24.7 | ≤6 | ≤6 | SWM 需要更高 std（0to002+）才在 PushT 上稳定 |
+
+**抗噪机制差**：noise training 同时压低 (i) noise_angle_slope（baseline 1085 → 86×12，SWM 3975 → 80×50）和 (ii) predictor T8 drift（5×–139× 改善）。但**SWM 端 cost surface 对 latent perturbation 比 LeWM 更稳 ~2×**（latent-noise 表 cost slope 1.0–1.8 vs LeWM 2.0–3.8）——也就是说 noise training 修了 encoder 端，SWM cost surface 的内禀稳定性是免费送的。
+
+**D. 一句话对照**
+
+- **LeWM = 高维 Euclidean encoder + 高分辨 + L2 cost / predictor**：clean eval 上限高（TwoRoom/PushT/Reacher 都领先），但 baseline encoder 对 pixel noise 不鲁棒；perframe noise training 是必备。
+- **SWM = 单位球面 + uniformity + 内禀稳定 cosine predictor**：predictor 与 cost surface 自带 ≥2× 稳定性，但表征强 collapse 到低 effective rank（~52）+ 在 PushT 上压损 fine-grained transitions；只在 Cube 上 SWM-base 直接占优；TwoRoom 上 baseline encoder 是论文里唯一 high-risk 标签。
+- **paper 定调**：SWM 不是 LeWM 的简单替代，而是"换一组 invariance-resolution tradeoff"。Cube 是 SWM 显式赢的任务；TwoRoom 是 SWM 显式输的任务（baseline）；PushT/Reacher 居中、由 perframe noise training 后差距收窄，但 LeWM 仍领先。
+
+> **数据自检方式**：以上每一行都可以从 §4.3 的 4 张 12-行 eval 表 + §6 P0.3 几何 + §6 P0.5b 交叉检查 + §A.3 ckpt 表交叉验证；canonical_evals_20260506.json 与 §4.3 † 行的 per-seed log 是底层数据。运行 `python -m tools.repr_analysis.cross_check_correlations` 复算交叉检查。运行 `python -m tools.repr_analysis.latent_visualization --model <label>=<ckpt> --dataset <task>` 看 PCA 散点 / trajectory 直观判别。
+
+### 3.4 失败机制（已收敛，详见 §4.2 与 §6 P2/P5）
 
 | 层 | canonical 证据 | 判定 |
 |---|---|---|

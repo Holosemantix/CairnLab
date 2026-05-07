@@ -210,7 +210,7 @@ Eval corruption：`eval.corruption.std=X`、`eval.corruption.apply_to=[goal|pixe
 - **SWM = 单位球面 + uniformity + 内禀稳定 cosine predictor**：predictor 与 cost surface 自带 ≥2× 稳定性，但表征强 collapse 到低 effective rank（~52）+ 在 PushT 上压损 fine-grained transitions；只在 Cube 上 SWM-base 直接占优；TwoRoom 上 baseline encoder 是论文里唯一 high-risk 标签。
 - **paper 定调**：SWM 不是 LeWM 的简单替代，而是"换一组 invariance-resolution tradeoff"。Cube 是 SWM 显式赢的任务；TwoRoom 是 SWM 显式输的任务（baseline）；PushT/Reacher 居中、由 perframe noise training 后差距收窄，但 LeWM 仍领先。
 
-> **数据自检方式**：以上每一行都可以从 §4.3 的 4 张 12-行 eval 表 + §6 P0.3 几何 + §6 P0.5b 交叉检查 + §A.3 ckpt 表交叉验证；canonical_evals_20260506.json 与 §4.3 † 行的 per-seed log 是底层数据。运行 `python -m tools.repr_analysis.cross_check_correlations` 复算交叉检查。运行 `python -m tools.repr_analysis.latent_visualization --model <label>=<ckpt> --dataset <task>` 看 PCA 散点 / trajectory 直观判别。
+> **数据自检方式**：以上每一行都可以从 §4.3 的 4 张 12-行 eval 表 + §6 P0.3 几何 + §6 P0.5b 交叉检查 + §A.3 ckpt 表交叉验证；canonical_evals_20260506.json 与 §4.3 † 行的 per-seed log 是底层数据。运行 `python -m tools.repr_analysis.cross_check_correlations` 复算交叉检查。需要 PCA / t-SNE 直观投影时用仓里既有的 `tools/repr_analysis/analyze_repr.py::pca_projection` / `tsne_projection` + `plot_repr.py`，但 PCA 在 unit-sphere SWM 与高维 LeWM 跨方法对比时几何失真，**比量化诊断信息少**，不放进 diagnostics 默认链。
 
 ### 3.4 失败机制（已收敛，详见 §4.2 与 §6 P2/P5）
 

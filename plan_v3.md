@@ -141,10 +141,10 @@ loss:
 |---|---:|---:|---:|:---|
 | TwoRoom | **94.33** (`LeWM-0to002-p1`) | **94.33** (`SWM-0to001-p1`) | **0.00** | LeWM 与 SWM 在最佳 perframe 配置下 clean 持平（实际 ±2pt 抽样波动）；LeWM-0to005-p1 = 94.00 同档 |
 | PushT | **90.00** (`LeWM-0to002-p1`) | 83.33 (`SWM-0to001-p1`) | **-6.67** | LeWM 在 PushT 显著领先；SWM 任意配置最多 83.3 |
-| Reacher | 73.33 (`LeWM-0to005-p1`) | **78.00** (`SWM-0to002-p1`/`0to005-p1`) | **+4.67** | SWM perframe 在 Reacher 略高，但 LeWM-0to002-p1 旧版 82.0 在新 run 降至 80.3，差距缩小 |
+| Reacher | **80.33** (`LeWM-0to002-p1`) | 78.00 (`SWM-0to002-p1`/`0to005-p1`) | **−2.33** | LeWM-0to002-p1 旧版 82.0 在新 run 降至 80.3，仍领先 SWM 最佳 perframe 配置 ~2pt |
 | Cube | 73.00 (`LeWM-0to001-p1`) | **77.00** (`SWM-base`) | **+4.00** | **唯一一个 SWM-base 不需 noise training 就高于 LeWM 全配置**的任务 |
 
-> 数值变更说明：相比旧 §2.2，TwoRoom LeWM best 从 96.00 → 94.33（旧值是 single-seed multi-run 偶然偏高）；PushT LeWM best 从 91.00 → 90.00（同 ckpt 不同 run）；Reacher LeWM best 从 82.00 → 73.33（旧 LeWM-0to002 = 82 是单 run，新 run = 80.3，且 0to005 反超 73.3 —— 可能是抽样波动，需 multi-seed 验证）。所有 SWM 数值与 §0.1 一致。
+> 数值变更说明：相比旧 §2.2，TwoRoom LeWM best 从 96.00 → 94.33（旧值是 single-seed multi-run 偶然偏高）；PushT LeWM best 从 91.00 → 90.00（同 ckpt 不同 run）；Reacher LeWM best 从 82.00 → 80.33（旧 LeWM-0to002 = 82 是单 run，新 run = 80.3；0to005-p1 = 73.33 较旧版下滑，但仍以 0to002-p1 为最佳）。所有 SWM 数值与 §0.1 一致。
 
 结论：
 

@@ -32,6 +32,7 @@ import argparse
 import json
 import math
 import os
+import random
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -47,6 +48,25 @@ CANON = [
     ("SWM-0to002-p1",    "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64",             "SWM",  0.002),
     ("SWM-0to005-p1",    "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64",             "SWM",  0.005),
 ]
+
+# 2026-05-07 LeWM noise-sweep extension (3-seed × 100 ep each). These are
+# *additional* to canonical above and only used for the n=8 within-LeWM
+# correlation (no SWM counterpart yet). Eval values come from per-seed log
+# extraction (see §4.3 data-source note in plan_v3.md). Update if SWM
+# sweep is added later.
+LEWM_SWEEP_EXTRA = [
+    ("LeWM-0to003-p1", "{tk}_lewm_noise_0to003_p1", "LeWM", 0.003),
+    ("LeWM-0to004-p1", "{tk}_lewm_noise_0to004_p1", "LeWM", 0.004),
+    ("LeWM-0to006-p1", "{tk}_lewm_noise_0to006_p1", "LeWM", 0.006),
+    ("LeWM-0to007-p1", "{tk}_lewm_noise_0to007_p1", "LeWM", 0.007),
+    ("LeWM-0to008-p1", "{tk}_lewm_noise_0to008_p1", "LeWM", 0.008),
+]
+LEWM_SWEEP_EVALS = {
+    "TwoRoom": {"LeWM-0to003-p1": 96.33, "LeWM-0to004-p1": 96.33, "LeWM-0to006-p1": 96.67, "LeWM-0to007-p1": 96.00, "LeWM-0to008-p1": 98.33},
+    "PushT":   {"LeWM-0to003-p1": 89.67, "LeWM-0to004-p1": 89.33, "LeWM-0to006-p1": 61.00, "LeWM-0to007-p1": 85.67, "LeWM-0to008-p1": 88.33},
+    "Reacher": {"LeWM-0to003-p1": 78.67, "LeWM-0to004-p1": 84.00, "LeWM-0to006-p1": 86.00, "LeWM-0to007-p1": 83.67, "LeWM-0to008-p1": 84.00},
+    "Cube":    {"LeWM-0to003-p1": 65.00, "LeWM-0to004-p1": 69.00, "LeWM-0to006-p1": 66.67, "LeWM-0to007-p1": 67.67, "LeWM-0to008-p1": 62.33},
+}
 
 TASKS = [
     ("TwoRoom", "tworooms", "tworoom"),
@@ -122,6 +142,34 @@ def partial_spearman(xs: Sequence[float], ys: Sequence[float], zs: Sequence[floa
     return pearson(rx_, ry_)
 
 
+def bootstrap_ci(xs: Sequence[float], ys: Sequence[float], stat=spearman,
+                 n_resample: int = 1000, alpha: float = 0.05, seed: int = 3072
+                 ) -> tuple[float, float]:
+    """Percentile bootstrap CI for a paired statistic at level (1−alpha).
+    Returns (lo, hi). Resamples (x_i, y_i) pairs with replacement."""
+    n = len(xs)
+    if n < 3:
+        return (float("nan"), float("nan"))
+    rng = random.Random(seed)
+    samples = []
+    for _ in range(n_resample):
+        idx = [rng.randrange(n) for _ in range(n)]
+        bx = [xs[i] for i in idx]
+        by = [ys[i] for i in idx]
+        try:
+            s = stat(bx, by)
+        except Exception:
+            continue
+        if s == s:  # not nan
+            samples.append(s)
+    if not samples:
+        return (float("nan"), float("nan"))
+    samples.sort()
+    lo = samples[max(0, int(alpha / 2 * len(samples)))]
+    hi = samples[min(len(samples) - 1, int((1 - alpha / 2) * len(samples)))]
+    return (lo, hi)
+
+
 def load_diag(stablewm_home: Path, sub: str, ckpt_subdir: str) -> dict | None:
     p = stablewm_home / f"lewm-{sub}" / "ckpt" / ckpt_subdir / "eval_results" / "diagnostics" / "diagnostics_summary.json"
     if not p.is_file():
@@ -132,10 +180,11 @@ def load_diag(stablewm_home: Path, sub: str, ckpt_subdir: str) -> dict | None:
     return d
 
 
-def build_task_rows(stablewm_home: Path, evals: Mapping[str, Mapping[str, float]], task: str, sub: str) -> list[dict]:
+def build_task_rows(stablewm_home: Path, evals: Mapping[str, Mapping[str, float]], task: str, sub: str,
+                    spec: list[tuple] = CANON) -> list[dict]:
     pre = "tworoom" if sub == "tworooms" else sub
     rows = []
-    for label, tpl, method, std in CANON:
+    for label, tpl, method, std in spec:
         d = load_diag(stablewm_home, sub, tpl.format(tk=pre))
         if d is None:
             continue
@@ -198,7 +247,7 @@ def paired_method_concordance(rows: list[dict], metric: str) -> dict:
     }
 
 
-def cross_check(rows: list[dict]) -> list[dict]:
+def cross_check(rows: list[dict], lewm_n8_rows: list[dict] | None = None) -> list[dict]:
     if not rows:
         return []
     evals = [r["eval"] for r in rows]
@@ -206,6 +255,8 @@ def cross_check(rows: list[dict]) -> list[dict]:
     methods_dummy = [0 if r["method"] == "LeWM" else 1 for r in rows]
     order = sorted(range(len(rows)), key=lambda i: evals[i])
     bot2, top2 = order[:2], order[-2:]
+    # n=8 within-LeWM (canonical 4 + sweep 5 - 1 dup = 8 unique LeWM noise levels)
+    lewm_n8_evals = [r["eval"] for r in lewm_n8_rows] if lewm_n8_rows else None
     out = []
     for m in METRICS:
         vals = [r[m] for r in rows]
@@ -219,6 +270,18 @@ def cross_check(rows: list[dict]) -> list[dict]:
         rho_s = spearman([vals[i] for i in s_idx], [evals[i] for i in s_idx]) if len(s_idx) >= 3 else float("nan")
         rho_partial_std = partial_spearman(vals, evals, stds)
         rho_partial_method = partial_spearman(vals, evals, methods_dummy)
+        # Bootstrap 95% CI on aggregate ρ (n=8)
+        ci_all = bootstrap_ci(vals, evals)
+        # n=8 within-LeWM (if extra sweep ckpts available)
+        if lewm_n8_rows is not None and all(
+            r.get(m) is not None for r in lewm_n8_rows
+        ):
+            n8_vals = [r[m] for r in lewm_n8_rows]
+            rho_l_n8 = spearman(n8_vals, lewm_n8_evals)
+            ci_l_n8 = bootstrap_ci(n8_vals, lewm_n8_evals)
+        else:
+            rho_l_n8 = float("nan")
+            ci_l_n8 = (float("nan"), float("nan"))
         top_mean = sum(vals[i] for i in top2) / 2
         bot_mean = sum(vals[i] for i in bot2) / 2
         denom = max(abs(top_mean), abs(bot_mean), 1e-9)
@@ -237,8 +300,11 @@ def cross_check(rows: list[dict]) -> list[dict]:
         out.append({
             "metric": m,
             "rho_all_n8": round(rho_all, 4),
+            "rho_all_n8_ci95": [round(ci_all[0], 4), round(ci_all[1], 4)],
             "rho_within_LeWM_n4": round(rho_l, 4),
             "rho_within_SWM_n4": round(rho_s, 4),
+            "rho_within_LeWM_n8_sweep": round(rho_l_n8, 4),
+            "rho_within_LeWM_n8_sweep_ci95": [round(ci_l_n8[0], 4), round(ci_l_n8[1], 4)],
             "rho_partial_given_std": round(rho_partial_std, 4),
             "rho_partial_given_method": round(rho_partial_method, 4),
             "method_pair_concordance": c,
@@ -249,6 +315,28 @@ def cross_check(rows: list[dict]) -> list[dict]:
             "top2_mean": round(top_mean, 6),
             "bot2_mean": round(bot_mean, 6),
         })
+    return out
+
+
+def metric_redundancy(rows: list[dict]) -> dict:
+    """Pairwise Spearman among diagnostic metrics across the n ckpts. Helps
+    identify which 'main indicators' are actually measuring the same latent
+    factor (e.g., rollout drift and noise_angle_slope often co-move under
+    noise training)."""
+    n = len(rows)
+    if n < 3:
+        return {}
+    out: dict[str, dict[str, float]] = {}
+    for i, m1 in enumerate(METRICS):
+        v1 = [r[m1] for r in rows]
+        if any(v is None for v in v1):
+            continue
+        out[m1] = {}
+        for m2 in METRICS:
+            v2 = [r[m2] for r in rows]
+            if any(v is None for v in v2):
+                continue
+            out[m1][m2] = round(spearman(v1, v2), 4)
     return out
 
 
@@ -264,15 +352,29 @@ def main():
 
     raw = json.loads(Path(args.evals).read_text())
     evals_clean = {tk: {label: v["evals"]["clean"] for label, v in raw[tk].items()} for tk in raw}
+    # Merge LeWM sweep eval values onto the task-eval table for the n=8 within-LeWM analysis.
+    for tk, extra in LEWM_SWEEP_EVALS.items():
+        evals_clean.setdefault(tk, {}).update(extra)
 
     result = {}
     header = (f"{'Task':<8} {'Metric':<46} {'rho_n8':>7} {'LeWM_n4':>8} {'SWM_n4':>8} "
-              f"{'p|std':>7} {'p|meth':>7} {'pairS':>6} {'top2-bot2':>11}")
+              f"{'LeWM_n8':>8} {'p|std':>7} {'p|meth':>7} {'pairS':>6} {'top2-bot2':>11}")
     print(header)
     print("-" * len(header))
     for task, sub, _ in TASKS:
-        rows = build_task_rows(home, evals_clean, task, sub)
-        result[task] = {"n_models": len(rows), "rows": cross_check(rows)}
+        rows = build_task_rows(home, evals_clean, task, sub, spec=CANON)
+        # n=8 within-LeWM (canonical 4 + sweep 5 - dup{0to005} = 8): use the
+        # 8 unique LeWM noise levels (0to000 base, 0to001..0to008 except dup).
+        lewm_full = [c for c in CANON if c[2] == "LeWM"] + LEWM_SWEEP_EXTRA
+        # de-dup by std (already unique here)
+        lewm_n8 = build_task_rows(home, evals_clean, task, sub, spec=lewm_full)
+        result[task] = {
+            "n_models": len(rows),
+            "n_lewm_sweep": len(lewm_n8),
+            "rows": cross_check(rows, lewm_n8_rows=lewm_n8 if len(lewm_n8) >= 5 else None),
+            "metric_redundancy_canonical_n8": metric_redundancy(rows),
+            "metric_redundancy_lewm_sweep_n8": metric_redundancy(lewm_n8) if len(lewm_n8) >= 5 else {},
+        }
         for r in result[task]["rows"]:
             if r.get("skipped"):
                 continue
@@ -280,9 +382,12 @@ def main():
             contrast = f"{sign}{abs(r['top2_minus_bot2_relative']) * 100:5.1f}%"
             sc = r.get("method_pair_signed_concordance")
             sc_s = f"{sc:+.2f}" if sc is not None else " -- "
+            n8 = r.get("rho_within_LeWM_n8_sweep")
+            n8_s = f"{n8:+.2f}" if (n8 is not None and not math.isnan(n8)) else "  -- "
             print(f"{task:<8} {r['metric']:<46} "
                   f"{r['rho_all_n8']:>+7.2f} {r['rho_within_LeWM_n4']:>+8.2f} "
-                  f"{r['rho_within_SWM_n4']:>+8.2f} {r['rho_partial_given_std']:>+7.2f} "
+                  f"{r['rho_within_SWM_n4']:>+8.2f} {n8_s:>8} "
+                  f"{r['rho_partial_given_std']:>+7.2f} "
                   f"{r['rho_partial_given_method']:>+7.2f} {sc_s:>6} {contrast:>11}")
         print()
     if args.out:

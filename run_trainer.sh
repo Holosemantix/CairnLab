@@ -35,6 +35,7 @@
 #   skip_diagnostics          设 1 跳过整套诊断（noise/predictor/resolution）
 #   diagnostic_skip_predictor 设 1 仅跳过 predictor_sensitivity
 #   diagnostic_skip_resolution 设 1 仅跳过 task_resolution
+#   diagnostic_skip_latent_noise 设 1 仅跳过 latent_noise_sensitivity (P5)
 #   diagnostic_skip_action_effect 设 1 仅跳过 action_effect probe
 #   diagnostic_skip_visualization 设 1 仅跳过 latent PCA 可视化（PNG + npz）
 #   run_cross_check_correlations=1 训练 + 诊断完成后，对当前任务再跑一次
@@ -356,19 +357,28 @@ else
 fi
 
 # ---------- 5. Full Latent-Geometry Diagnostics ----------
-# Unified entry: noise_sensitivity + predictor_sensitivity + task_resolution.
+# Unified entry: noise_sensitivity + predictor_sensitivity + task_resolution
+# + latent_noise_sensitivity + action_effect + latent_visualization.
 # Output dir: ${results_dir}/diagnostics/
 #   noise_sensitivity.{csv,json}, geometry_summary.{csv,json}, *.png
 #   predictor_sensitivity.{csv,json}
 #   task_resolution.{csv,json}
-#   diagnostics_summary.json   (per-checkpoint roll-up; consumed by P0.7)
+#   latent_noise_sensitivity.{csv,json}, latent_geometry_summary.{csv,json}
+#   action_effect.{csv,json}
+#   latent_pca_2d.png / latent_pca_2d_per_ckpt.png / latent_trajectory.png /
+#       latent_pca_data.npz
+#   diagnostics_summary.json   (per-checkpoint roll-up; consumed by P0.7
+#                                and by §6 P0.5b cross_check_correlations)
 #
 # Backward-compat env vars:
 #   skip_noise_table=1         skips the entire diagnostics suite (legacy name)
 #   skip_diagnostics=1         same as above (preferred)
 #   noise_table_stds           still used; passed as --stds
 #   diagnostic_rollout_steps   default "1 2 4 8"
-#   diagnostic_skip_predictor=1 / diagnostic_skip_resolution=1   per-tool overrides
+#   diagnostic_skip_predictor=1 / diagnostic_skip_resolution=1
+#   diagnostic_skip_action_effect=1 / diagnostic_skip_visualization=1
+#                              per-tool overrides (predictor / resolution /
+#                              action_effect / latent PCA viz)
 if [ "${skip_diagnostics:-${skip_noise_table:-0}}" != "1" ]; then
     noise_table_stds="${noise_table_stds:-0.0 0.005 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1}"
     diagnostic_rollout_steps="${diagnostic_rollout_steps:-1 2 4 8}"
@@ -383,6 +393,7 @@ if [ "${skip_diagnostics:-${skip_noise_table:-0}}" != "1" ]; then
     )
     [ "${diagnostic_skip_predictor:-0}" = "1" ] && diag_args+=("--skip-predictor")
     [ "${diagnostic_skip_resolution:-0}" = "1" ] && diag_args+=("--skip-resolution")
+    [ "${diagnostic_skip_latent_noise:-0}" = "1" ] && diag_args+=("--skip-latent-noise")
     [ "${diagnostic_skip_action_effect:-0}" = "1" ] && diag_args+=("--skip-action-effect")
     [ "${diagnostic_skip_visualization:-0}" = "1" ] && diag_args+=("--skip-visualization")
 
@@ -543,6 +554,7 @@ echo "      * noise_sensitivity.csv / .json"
 echo "      * geometry_summary.csv / .json"
 echo "      * predictor_sensitivity.csv / .json"
 echo "      * task_resolution.csv / .json"
+echo "      * latent_noise_sensitivity.csv / .json + latent_geometry_summary.csv / .json"
 echo "      * action_effect.csv / .json"
 echo "      * latent_pca_2d.png / latent_pca_2d_per_ckpt.png / latent_trajectory.png / latent_pca_data.npz"
 echo "      * diagnostics_summary.json"

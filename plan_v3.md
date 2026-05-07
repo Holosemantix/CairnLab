@@ -551,7 +551,7 @@ Cube：
 
 > **Cost 尺度差异**：LeWM 的 L2 margin ~257–366，SWM 的 cosine margin ~0.64–0.92（理论上界 2），但 normalized 后均工作。差异不在 signal 有无，而在 cost slope 对 latent perturbation 的敏感度（latent-noise 表里 SWM 1.0–1.8 vs LeWM 2.0–3.8）。
 
-**Action effect probe**：TwoRoom `mean_pred_shift_norm` 0.15–0.58，correlation 0.11–0.31，monotonicity >0.80；PushT 待补。
+**Action effect probe**：canonical 8 模型/任务上**未跑**，4 任务全部待补。`run_trainer.sh` 调用的 `run_full_diagnostics` 不包含 action_effect probe（仅 noise / predictor / resolution / latent_noise 四项），需另行批量跑 `run_planning_action_probe.py`。注：磁盘现存 TwoRoom / PushT `planning_action_probe.json` 是旧 baseline 集（非 canonical 8）且 `action.*` 全部 `KeyError: 'emb'`；commit 13dda0f 已在代码侧修复 `encode_sequences` 调用，但修复后未重跑，旧数字（如 TwoRoom 0.15–0.58）不可追溯。
 
 结果保存：`dataset/ag_data/data/world_model/quentinll/lewm-{tworooms,pusht,reacher,cube}/repr_analysis/{p03_diagnostics,latent_noise_diagnostics}/`
 

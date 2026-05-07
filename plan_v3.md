@@ -674,50 +674,52 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM baseline
 
 #### P0.5b 交叉检查（within-method × partial × group-contrast；canonical n=8）
 
-> **动机**：P0.4/P0.5 主表的 ρ_all(n=8) 把 4 个 LeWM + 4 个 SWM 拼在一起，可能混进两个 confounder：(i) **LeWM↔SWM cluster axis**——某指标在 SWM 集中显著高/低，aggregate ρ 实际是 method-axis 的投影；(ii) **noise_max 强度**——noise training 同时移动 eval 和多项诊断（T8 drift、noise_angle_slope、nn_cos_dist），univariate ρ 等于把"训练强度"与"latent 结构信号"混在一起。下方对每个候选主指标独立验证：(a) within-LeWM ρ (n=4)、(b) within-SWM ρ (n=4)、(c) partial Spearman conditioning on `std_max`、(d) top-2 vs bottom-2 mean 相对差。复现：`STABLEWM_HOME=<root> python -m tools.repr_analysis.cross_check_correlations --out /tmp/cross_check_corr.json`。
+> **动机**：P0.4/P0.5 主表的 ρ_all(n=8) 把 4 个 LeWM + 4 个 SWM 拼在一起，可能混进两个 confounder：(i) **LeWM↔SWM cluster axis**——某指标在 SWM 集中显著高/低，aggregate ρ 实际是 method-axis 的投影；(ii) **noise_max 强度**——noise training 同时移动 eval 和多项诊断（T8 drift、noise_angle_slope、nn_cos_dist），univariate ρ 等于把"训练强度"与"latent 结构信号"混在一起。下方 6 个维度独立验证：(a) within-LeWM ρ (n=4)、(b) within-SWM ρ (n=4)、(c) **partial Spearman conditioning on `std_max`**（去掉训练强度 confound）、(d) **partial Spearman conditioning on method dummy**（去掉 LeWM↔SWM cluster shift，保留两个方法各自的内部排序）、(e) **method-paired signed concordance** ∈ [−1, +1]：在 4 个匹配 noise 档位（base / 0to001 / 0to002 / 0to005）下，sign(LeWM.metric − SWM.metric) 与 sign(LeWM.eval − SWM.eval) 是否在每一档都同向（按 ρ_all 的符号校准；+1 = 全部 4 档与 ρ_all 方向一致，−1 = 全部反向）、(f) top-2 vs bottom-2 mean 相对差。复现：`STABLEWM_HOME=<root> python -m tools.repr_analysis.cross_check_correlations --out cross_check_corr.json`，输出 7 个数值/指标。
 
-**通过 ≥3 项检查的"真信号"**（rho_all ≠ partial 不显著弱化、within-method 至少一侧 ≥0.6 同号、top-bot 差 ≥30%）：
+**严格"真信号"**（同时满足：\|partial\|std\| ≥ 0.5 ∧ \|partial\|method\| ≥ 0.5；前者排除噪声训练 confound，后者要求两方法各自 noise sweep 内仍能排序 eval）：
 
-| 任务 | 指标 | ρ_all | LeWM_n4 | SWM_n4 | partial\|std | top2−bot2 | 判定 |
-|---|---|---:|---:|---:|---:|---:|---|
-| PushT | `predictor_target_to_nn_cos_ratio_at_max_std` | **−0.93** | −0.80 | −0.80 | **−0.95** | ↓72% | **4/4 通过**（study 内最强） |
-| PushT | `latent_cost_surface_slope_z` | **+0.93** | +0.80 | **+1.00** | **+0.96** | ↑99.9% | **4/4 通过** |
-| PushT | `latent_predictor_rollout_T8_l2_history` | +0.86 | +0.40 | +0.80 | **+0.85** | ↑94% | 3/4（LeWM 内偏弱） |
-| Cube | `cka_linear_at_max_std` | **−0.96** | **−1.00** | **−1.00** | −0.80 | ↓73% | **4/4 通过** |
-| Cube | `clean_nn_cos_dist_median` | +0.79 | **+1.00** | +0.80 | +0.66 | ↑36% | 4/4 通过 |
-| Reacher | `predictor_rollout_T8_l2` | **−0.83** | −0.60 | **−0.95** | −0.60 | ↓99% | 3/4（partial 中等） |
+| 任务 | 指标 | ρ_all | LeWM_n4 | SWM_n4 | partial\|std | partial\|method | pairS | top2−bot2 | 判定 |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| PushT | `predictor_target_to_nn_cos_ratio_at_max_std` | **−0.93** | −0.80 | −0.80 | **−0.95** | **−0.83** | +1.00 | ↓72% | **6/6 通过**（study 内最强） |
+| PushT | `latent_cost_surface_slope_z` | **+0.93** | +0.80 | **+1.00** | **+0.96** | **+0.83** | +1.00 | ↑99.9% | **6/6 通过** |
+| PushT | `latent_predictor_rollout_T8_l2_history` | +0.86 | +0.40 | +0.80 | **+0.85** | +0.60 | +1.00 | ↑94% | 5/6（LeWM_n4 偏弱） |
+| Cube | `cka_linear_at_max_std` | **−0.96** | **−1.00** | **−1.00** | −0.80 | **−0.97** | +0.50 | ↓73% | **6/6 通过** |
+| Cube | `clean_nn_cos_dist_median` | +0.79 | **+1.00** | +0.80 | +0.66 | **+0.92** | +0.50 | ↑36% | 6/6 通过 |
+| Reacher | `predictor_rollout_T8_l2` | **−0.83** | −0.60 | **−0.95** | −0.60 | **−0.83** | +0.50 | ↓99% | 5/6 通过 |
 
-**仅是 noise-training 强度代理**（partial \|ρ\| ≤0.3 或 sign-flip）：
+**仅是 noise-training 强度代理**（partial\|std \|ρ\| ≤0.4 或 sign-flip；即去掉训练强度后信号大幅衰减）：
 
-| 任务 | 指标 | ρ_all | partial\|std | 解读 |
-|---|---|---:|---:|---|
-| Cube | `noise_angle_slope_deg_per_std` | **+0.90** | +0.13 | 几乎全部由 std_max 驱动；**P0.5 主指标需降级** |
-| Cube | `predictor_rollout_T8_l2` | +0.75 | **−0.22**（sign flip） | 同上，paper 不应单独使用 |
-| Cube | `transition_resolution_ratio_cos` | −0.68 | −0.06 | 失效 |
-| Cube | `latent_predictor_rollout_T8_l2_history` | +0.25 | **−0.39** | sign flip |
-| Cube | `id_probe_r2` | +0.83 | +0.31 | 重度衰减；同向但已不强 |
-| Reacher | `cka_linear_at_max_std` | +0.68 | −0.08 | 几乎全部 std_max；**P0.5 候选指标需降级** |
-| Reacher | `noise_angle_slope_deg_per_std` | −0.74 | −0.31 | 重度衰减 |
-| Reacher | `predictor_target_to_nn_cos_ratio_at_max_std` | −0.57 | −0.04 | 失效 |
-| TwoRoom | `noise_angle_slope_deg_per_std` | −0.16 | +0.06 | aggregate 已弱，partial 进一步证伪 |
-
-**主要由 LeWM↔SWM cluster axis 拉出**（within-method ρ collapse 或 sign-flip）：
-
-| 任务 | 指标 | ρ_all | LeWM_n4 | SWM_n4 | 解读 |
+| 任务 | 指标 | ρ_all | partial\|std | partial\|method | 解读 |
 |---|---|---:|---:|---:|---|
-| TwoRoom | `latent_cost_surface_slope_z` | +0.61 | **−0.40** | +0.80 | **sign flip**——P0.5 列为 TwoRoom candidate 主指标，实际只是 SWM 内单调，LeWM 内反向，应 **demote** |
-| TwoRoom | `clean_nn_cos_dist_median` | +0.04 | −0.60 | +0.80 | sign flip；旧 P0.5 已剔除，本检查二次确认 |
-| TwoRoom | `id_probe_r2` | −0.25 | −0.60 | +0.40 | sign flip |
-| PushT | `clean_effective_rank` | +0.81 | **+0.00** | +1.00 | LeWM 内无信号，aggregate 是 SWM-only + cluster 错觉 |
-| PushT | `lidar_rank` | +0.74 | **−0.40** | +1.00 | sign flip |
-| PushT | `id_probe_r2` | +0.81 | +0.20 | +0.60 | LeWM 内偏弱（仍同号但弱），不算稳健 |
+| Cube | `noise_angle_slope_deg_per_std` | **+0.90** | +0.13 | +0.90 | aggregate 几乎全由 std_max 驱动；within-method 仍有信号但本质是各方法的 noise sweep 单调性。**P0.5 主指标需降级** |
+| Cube | `predictor_rollout_T8_l2` | +0.75 | **−0.22**（sign flip） | +0.93 | std_max 控制后符号反转；within-method 强但被噪声强度放大解释 |
+| Cube | `transition_resolution_ratio_cos` | −0.68 | −0.06 | −0.85 | 失效（aggregate ≈ within-method 噪声扫描） |
+| Cube | `latent_predictor_rollout_T8_l2_history` | +0.25 | **−0.39** | +0.82 | sign flip |
+| Cube | `id_probe_r2` | +0.83 | +0.31 | **+0.90** | partial\|std 衰减；within-method 强但属"两方法各自 noise sweep 同步"，不是结构信号 |
+| Reacher | `cka_linear_at_max_std` | +0.68 | −0.08 | +0.73 | partial\|std≈0；**P0.5 候选指标需降级** |
+| Reacher | `noise_angle_slope_deg_per_std` | −0.74 | −0.31 | −0.73 | 重度衰减 |
+| Reacher | `predictor_target_to_nn_cos_ratio_at_max_std` | −0.57 | **−0.04** | −0.85 | partial\|std 完全失效；partial\|method 强暗示"方法间排序"主导，**不是 within-method 结构信号** |
+| TwoRoom | `noise_angle_slope_deg_per_std` | −0.16 | +0.06 | −0.24 | aggregate 已弱，partial 双向证伪 |
 
-**结论与 paper 主指标更新**：
-1. **PushT**：保留 `predictor_target_to_nn_cos_ratio_at_max_std` + `latent_cost_surface_slope_z` 为主指标（4/4 通过）；`clean_effective_rank` / `lidar_rank` / `id_probe_r2` 降级为辅助（cluster-driven）。
-2. **Cube**：保留 `cka_linear_at_max_std` + `clean_nn_cos_dist_median` 为主指标（partial 仍强）；**`noise_angle_slope` 与 `id_probe_r2` 由"主指标"降级为"noise-intensity 代理"**——这是 cross-check 后最重要的修正。
-3. **Reacher**：`predictor_rollout_T8_l2` 仍是最佳（3/4 通过），但 partial 中等说明 ~30% 信号来自训练强度；`cka_linear_at_max_std` 与 `noise_angle_slope` 几乎都是 noise-intensity confound，**降级**。
-4. **TwoRoom**：之前 P0.5 标记的"candidate 主指标" `latent_cost_surface_slope_z` 在 within-method 检查下 LeWM=−0.40 / SWM=+0.80，sign flip——**TwoRoom 仍无任何指标通过 ≥2 项交叉检查**。这进一步加固 §P0.5 的负面结论：canonical 8 上 TwoRoom 的 label-free predictor 是论文的硬风险点。
-5. **方法学补丁**：`tools/repr_analysis/cross_check_correlations.py` 已落库，未来每次 P0.4/P0.5 重算都应 paired with this script，避免重复落入"univariate ρ_all 强 = 主指标"的陷阱。
+**主要由 LeWM↔SWM cluster axis 拉出**（within-method ρ collapse 或 sign-flip；partial\|method 大幅小于 ρ_all）：
+
+| 任务 | 指标 | ρ_all | LeWM_n4 | SWM_n4 | partial\|method | pairS | 解读 |
+|---|---|---:|---:|---:|---:|---:|---|
+| TwoRoom | `latent_cost_surface_slope_z` | +0.61 | **−0.40** | +0.80 | +0.42 | +0.50 | **sign flip**——P0.5 列为 TwoRoom candidate 主指标，实际只是 SWM 内单调，LeWM 内反向，应 **demote** |
+| TwoRoom | `clean_nn_cos_dist_median` | +0.04 | −0.60 | +0.80 | +0.42 | 0.00 | sign flip；matched-pair 一半同向一半反向，纯 cluster |
+| TwoRoom | `id_probe_r2` | −0.25 | −0.60 | +0.40 | −0.23 | +0.50 | sign flip |
+| PushT | `clean_effective_rank` | +0.81 | **+0.00** | +1.00 | +0.45 | +1.00 | LeWM 内无信号，aggregate 是 SWM-only + cluster 一致放大 |
+| PushT | `lidar_rank` | +0.74 | **−0.40** | +1.00 | +0.23 | +1.00 | LeWM 内 sign flip，partial\|method 仅 +0.23——主要是 LeWM > SWM 的 cluster 一致性 |
+| PushT | `predictor_rollout_T8_l2` | +0.79 | +0.20 | +0.40 | +0.38 | +1.00 | LeWM 内极弱；matched-pair 全部 LeWM>SWM 与 eval 同向，但 partial\|method 中等说明 ρ_all 一半是 cluster 解释 |
+| PushT | `id_probe_r2` | +0.81 | +0.20 | +0.60 | +0.45 | +1.00 | 同上，cluster 放大 |
+
+**结论与 paper 主指标更新**（按"严格 6/6 通过 + p|std 与 p|method 双 ≥0.5"门槛）：
+
+1. **PushT 主指标**：`predictor_target_to_nn_cos_ratio_at_max_std`（6/6）、`latent_cost_surface_slope_z`（6/6）。`latent_predictor_rollout_T8_l2_history` 5/6 候选。`clean_effective_rank` / `lidar_rank` / `id_probe_r2` / `predictor_rollout_T8_l2` 即使 ρ_all+pairS 都强，partial\|method 都 ≤0.45，属"LeWM 整体 > SWM 整体且 eval 也是 LeWM>SWM"造成的 cluster 一致性，**降级为辅助**。
+2. **Cube 主指标**：`cka_linear_at_max_std`（6/6）、`clean_nn_cos_dist_median`（6/6）。**`noise_angle_slope` ρ_all=+0.90 但 partial\|std=+0.13——纯 noise-intensity 代理，从主指标降级**；`id_probe_r2` 同样从主指标降级（partial\|std=+0.31）；`predictor_rollout_T8_l2` 在 partial\|std 下 sign flip 到 −0.22，更不可信。
+3. **Reacher 主指标**：`predictor_rollout_T8_l2`（5/6，唯一同时通过 within-method、partial\|std、partial\|method 三项）。`noise_angle_slope` 与 `cka_linear_at_max_std` 都被 partial\|std 打到 \|ρ\|≤0.31，**从主指标降级**。`predictor_target_to_nn_cos_ratio_at_max_std` partial\|std=−0.04 完全失效，partial\|method=−0.85 强暗示其 Reacher ρ 来自方法间排序 + 噪声强度，不是 within-method 结构信号——**也降级**。
+4. **TwoRoom 主指标**：**仍无任何指标通过严格门槛**。前一轮 candidate `latent_cost_surface_slope_z` 在 within-method 下 LeWM=−0.40 / SWM=+0.80（sign flip），partial\|method=+0.42（中等弱），matched pairs 一半同向。最接近通过的是 `latent_rollout_angle_slope_per_std_z` (LeWM=−0.80, SWM=−0.40, p\|std=−0.54, p\|method=−0.28)——partial\|method 仍弱。canonical 8 上 TwoRoom 的 label-free predictor 是论文的硬风险点这一判断进一步加固。
+5. **方法学补丁**：`tools/repr_analysis/cross_check_correlations.py` 已落库（含 LeWM/SWM 配对、within-method、partial\|std、partial\|method、signed pair concordance、top-bot 6 个维度），且 `run_trainer.sh` 增加 `run_cross_check_correlations=1` 开关，训练完一个 ckpt 后会尝试增量刷新一次（数据不全时自动跳过缺失行）；保证未来每次 P0.4/P0.5 都至少有 6 维度同步检查，避免重复落入"univariate ρ_all 强 = 主指标"的陷阱。
 
 > **数据生成时间**：2026-05-07，输入 = canonical 8 ckpts × 4 任务 = 32 行 `eval_results/diagnostics/diagnostics_summary.json`；eval 取自 `canonical_evals_20260506.json` 的 `clean` 字段（与 §4.3 一致）；输出 = `/tmp/cross_check_corr.json`（可在 §6 P0.7 主表旁边长期存放）。
 

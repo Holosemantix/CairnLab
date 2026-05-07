@@ -36,6 +36,11 @@
 #   diagnostic_skip_predictor 设 1 仅跳过 predictor_sensitivity
 #   diagnostic_skip_resolution 设 1 仅跳过 task_resolution
 #   diagnostic_skip_action_effect 设 1 仅跳过 action_effect probe
+#   run_cross_check_correlations=1 训练 + 诊断完成后，对当前任务再跑一次
+#                                  P0.5b cross-check（LeWM/SWM 配对 + within-method
+#                                  + partial|std + partial|method + pairS + top-bot），
+#                                  缺失 ckpt 自动跳过；输出 cross_check_corr.json
+#                                  到 ${results_dir}/diagnostics/。
 #   eval_epoch                用于 eval 的 epoch 编号；默认读取训练 config 的 trainer.max_epochs
 #   eval_seeds                eval sweep 的 seed 数量；默认 3。每个 seed 跑 num_eval/eval_seeds 次
 #   eval_base_seed            首 seed；不传则读取 config/eval/<dataset_name>.yaml 顶层 seed；后续 seed = base+1, base+2, ...
@@ -508,6 +513,24 @@ PYEOF
     fi
 } > "${summary_file}"
 
+# ---------- 6b. Cross-check correlations (optional) ----------
+# Multi-dimensional confound check on the canonical 8 ckpts/task already on
+# disk under STABLEWM_HOME's parent directory. Tolerates missing ckpts —
+# rows with absent diagnostics_summary.json are silently skipped, so it's
+# safe to run after each training even if the sweep is incomplete.
+if [ "${run_cross_check_correlations:-0}" = "1" ]; then
+    cross_check_root="$(dirname "${STABLEWM_HOME}")"
+    cross_check_out="${results_dir}/diagnostics/cross_check_corr.json"
+    echo "==================================================="
+    echo "[cross_check] running on ${cross_check_root} -> ${cross_check_out}"
+    echo "==================================================="
+    STABLEWM_HOME="${cross_check_root}" \
+        python -m tools.repr_analysis.cross_check_correlations \
+        --out "${cross_check_out}" \
+        2>&1 | tee "${results_dir}/diagnostics/cross_check.log" || \
+        echo "[cross_check] non-fatal failure (likely missing ckpts in sweep)"
+fi
+
 echo "==================================================="
 echo "[done] artifacts in:"
 echo "  ${results_dir}/"
@@ -520,6 +543,7 @@ echo "      * predictor_sensitivity.csv / .json"
 echo "      * task_resolution.csv / .json"
 echo "      * action_effect.csv / .json"
 echo "      * diagnostics_summary.json"
+echo "      * cross_check_corr.json (when run_cross_check_correlations=1)"
 echo "      * noise_ratio_curve_goal.png"
 echo "      * noise_angle_curve_goal.png"
 echo "      * geometry_tradeoff_goal.png"

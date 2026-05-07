@@ -149,11 +149,61 @@ def build_task_rows(stablewm_home: Path, evals: Mapping[str, Mapping[str, float]
     return rows
 
 
+def paired_method_concordance(rows: list[dict], metric: str) -> dict:
+    """Pair LeWM[X] with SWM[X] at matched noise std_max X. For each pair
+    compute sign(LeWM.metric - SWM.metric) and sign(LeWM.eval - SWM.eval).
+    Concordance = fraction of pairs where the two signs agree (i.e. the
+    method-axis ranking on the metric matches the method-axis ranking on
+    eval at that noise level).
+
+    A high concordance (≥0.75) means the metric's LeWM-vs-SWM gap actually
+    *predicts* which method has higher eval at each noise level — that is
+    a stronger claim than the symmetric 'within-method ρ' check.
+    """
+    by_std: dict[float, dict[str, dict]] = {}
+    for r in rows:
+        by_std.setdefault(r["std"], {})[r["method"]] = r
+    pairs = [(s, b["LeWM"], b["SWM"]) for s, b in sorted(by_std.items())
+             if "LeWM" in b and "SWM" in b
+             and b["LeWM"].get(metric) is not None
+             and b["SWM"].get(metric) is not None]
+    if not pairs:
+        return {"n_pairs": 0}
+    agree = 0
+    eval_diffs = []
+    metric_diffs = []
+    details = []
+    for std, lw, sw in pairs:
+        de = lw["eval"] - sw["eval"]
+        dm = lw[metric] - sw[metric]
+        eval_diffs.append(de)
+        metric_diffs.append(dm)
+        if (de == 0) or (dm == 0):
+            sign_match = None
+        else:
+            sign_match = ((de > 0) == (dm > 0))
+        if sign_match:
+            agree += 1
+        details.append({
+            "std_max": std,
+            "lewm_eval": lw["eval"], "swm_eval": sw["eval"], "delta_eval": de,
+            "lewm_metric": lw[metric], "swm_metric": sw[metric], "delta_metric": dm,
+            "sign_match": sign_match,
+        })
+    return {
+        "n_pairs": len(pairs),
+        "concordance": round(agree / len(pairs), 4),
+        "delta_eval_delta_metric_pearson": round(pearson(eval_diffs, metric_diffs), 4) if len(pairs) >= 2 else float("nan"),
+        "details": details,
+    }
+
+
 def cross_check(rows: list[dict]) -> list[dict]:
     if not rows:
         return []
     evals = [r["eval"] for r in rows]
     stds = [r["std"] for r in rows]
+    methods_dummy = [0 if r["method"] == "LeWM" else 1 for r in rows]
     order = sorted(range(len(rows)), key=lambda i: evals[i])
     bot2, top2 = order[:2], order[-2:]
     out = []
@@ -167,17 +217,34 @@ def cross_check(rows: list[dict]) -> list[dict]:
         s_idx = [i for i, r in enumerate(rows) if r["method"] == "SWM"]
         rho_l = spearman([vals[i] for i in l_idx], [evals[i] for i in l_idx]) if len(l_idx) >= 3 else float("nan")
         rho_s = spearman([vals[i] for i in s_idx], [evals[i] for i in s_idx]) if len(s_idx) >= 3 else float("nan")
-        rho_partial = partial_spearman(vals, evals, stds)
+        rho_partial_std = partial_spearman(vals, evals, stds)
+        rho_partial_method = partial_spearman(vals, evals, methods_dummy)
         top_mean = sum(vals[i] for i in top2) / 2
         bot_mean = sum(vals[i] for i in bot2) / 2
         denom = max(abs(top_mean), abs(bot_mean), 1e-9)
         rel = (top_mean - bot_mean) / denom
+        paired = paired_method_concordance(rows, m)
+        # Signed pair concordance: +1 = all matched-noise LeWM-vs-SWM pairs
+        # rank in the same direction as the aggregate ρ_all sign predicts;
+        # -1 = all pairs rank opposite to ρ_all. Distinguishes "metric's
+        # method-axis gap predicts eval's method-axis gap" from "univariate
+        # ρ from cluster mismatch".
+        c = paired.get("concordance")
+        if c is None or rho_all == 0 or math.isnan(rho_all):
+            signed_c = None
+        else:
+            signed_c = (2 * c - 1) * (1.0 if rho_all > 0 else -1.0)
         out.append({
             "metric": m,
             "rho_all_n8": round(rho_all, 4),
             "rho_within_LeWM_n4": round(rho_l, 4),
             "rho_within_SWM_n4": round(rho_s, 4),
-            "rho_partial_given_std": round(rho_partial, 4),
+            "rho_partial_given_std": round(rho_partial_std, 4),
+            "rho_partial_given_method": round(rho_partial_method, 4),
+            "method_pair_concordance": c,
+            "method_pair_signed_concordance": round(signed_c, 4) if signed_c is not None else None,
+            "delta_eval_metric_pearson": paired.get("delta_eval_delta_metric_pearson"),
+            "n_method_pairs": paired.get("n_pairs"),
             "top2_minus_bot2_relative": round(rel, 4),
             "top2_mean": round(top_mean, 6),
             "bot2_mean": round(bot_mean, 6),
@@ -199,8 +266,10 @@ def main():
     evals_clean = {tk: {label: v["evals"]["clean"] for label, v in raw[tk].items()} for tk in raw}
 
     result = {}
-    print(f"{'Task':<8} {'Metric':<46} {'rho_n8':>7} {'LeWM_n4':>9} {'SWM_n4':>8} {'partial':>9} {'top2-bot2':>11}")
-    print("-" * 102)
+    header = (f"{'Task':<8} {'Metric':<46} {'rho_n8':>7} {'LeWM_n4':>8} {'SWM_n4':>8} "
+              f"{'p|std':>7} {'p|meth':>7} {'pairS':>6} {'top2-bot2':>11}")
+    print(header)
+    print("-" * len(header))
     for task, sub, _ in TASKS:
         rows = build_task_rows(home, evals_clean, task, sub)
         result[task] = {"n_models": len(rows), "rows": cross_check(rows)}
@@ -209,10 +278,12 @@ def main():
                 continue
             sign = "↑" if r["top2_mean"] > r["bot2_mean"] else "↓"
             contrast = f"{sign}{abs(r['top2_minus_bot2_relative']) * 100:5.1f}%"
+            sc = r.get("method_pair_signed_concordance")
+            sc_s = f"{sc:+.2f}" if sc is not None else " -- "
             print(f"{task:<8} {r['metric']:<46} "
-                  f"{r['rho_all_n8']:>+7.2f} {r['rho_within_LeWM_n4']:>+9.2f} "
-                  f"{r['rho_within_SWM_n4']:>+8.2f} {r['rho_partial_given_std']:>+9.2f} "
-                  f"{contrast:>11}")
+                  f"{r['rho_all_n8']:>+7.2f} {r['rho_within_LeWM_n4']:>+8.2f} "
+                  f"{r['rho_within_SWM_n4']:>+8.2f} {r['rho_partial_given_std']:>+7.2f} "
+                  f"{r['rho_partial_given_method']:>+7.2f} {sc_s:>6} {contrast:>11}")
         print()
     if args.out:
         Path(args.out).write_text(json.dumps(result, indent=2))

@@ -45,6 +45,20 @@ def get_pred_loss_tensor(tensor: torch.Tensor, *, space: str) -> torch.Tensor:
     raise ValueError(f"Unsupported loss.pred.space: {space}")
 
 
+def resolve_norm_fn(norm_name: str):
+    """Resolve a config string to an nn norm class (or None for identity).
+    Mirrors train_swm.resolve_norm_fn so both training paths accept the same
+    encoder.projection_head.norm_fn vocabulary."""
+    norm_name = norm_name.lower()
+    if norm_name in {"none", "identity"}:
+        return None
+    if norm_name in {"ln", "layernorm"}:
+        return nn.LayerNorm
+    if norm_name in {"bn", "batchnorm", "batchnorm1d"}:
+        return nn.BatchNorm1d
+    raise ValueError(f"Unsupported encoder.projection_head.norm_fn: {norm_name}")
+
+
 def compute_temporal_hinge(output, *, model, cfg):
     """Upper hinge loss on consecutive latent pairs (LeWM variant).
 
@@ -275,18 +289,23 @@ def run(cfg):
 
     action_encoder = Embedder(input_dim=effective_act_dim, emb_dim=embed_dim)
 
+    head_cfg = cfg.get("encoder", {}).get("projection_head", {})
+    proj_norm_name = head_cfg.get("norm_fn", "batchnorm1d")
+    proj_hidden_dim = head_cfg.get("hidden_dim", 2048)
+    proj_norm_fn = resolve_norm_fn(proj_norm_name)
+
     projector = MLP(
         input_dim=hidden_dim,
         output_dim=embed_dim,
-        hidden_dim=2048,
-        norm_fn=torch.nn.BatchNorm1d,
+        hidden_dim=proj_hidden_dim,
+        norm_fn=proj_norm_fn,
     )
 
     predictor_proj = MLP(
         input_dim=hidden_dim,
         output_dim=embed_dim,
-        hidden_dim=2048,
-        norm_fn=torch.nn.BatchNorm1d,
+        hidden_dim=proj_hidden_dim,
+        norm_fn=proj_norm_fn,
     )
 
     world_model = JEPA(

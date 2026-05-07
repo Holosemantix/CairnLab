@@ -21,6 +21,11 @@ image_noise:
   noise_prob: 1.0 # per-frame Bernoulli prob of applying noise; <1 leaves some frames clean
   apply_to_val: False
 
+encoder:
+  projection_head:
+    norm_fn: batchnorm1d # none, layernorm, or batchnorm1d (lewm head is always MLP)
+    hidden_dim: 2048
+
 trainer:
   max_epochs: 10
   devices: auto

@@ -140,6 +140,14 @@ def lejepa_forward(self, batch, stage, cfg):
     ctx_act = act_emb[:, :ctx_len]
 
     tgt_emb = emb[:, n_preds:]  # label
+    # Optional SimSiam-style stop-grad on target. Together with the existing
+    # predictor head this turns the JEPA into an asymmetric architecture and
+    # is the standard recipe for BN-free non-contrastive training (see Chen
+    # & He, "Exploring Simple Siamese Representation Learning", CVPR 2021).
+    # Without this asymmetry, dropping BN tends to collapse because pred and
+    # target share gradient through the same encoder.
+    if cfg.loss.get("target_stop_grad", False):
+        tgt_emb = tgt_emb.detach()
     pred_emb = self.model.predict(ctx_emb, ctx_act)  # pred
     pred_loss_emb = get_pred_loss_tensor(pred_emb, space=pred_space)
     tgt_loss_emb = get_pred_loss_tensor(tgt_emb, space=pred_space)

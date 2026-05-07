@@ -18,6 +18,7 @@
 #   loss_regularizer_*, loss_uniformity_*,
 #   loss_temporal_hinge_*, loss_inverse_dynamics_weight,
 #   loss_transition_distance_weight, loss_pred_*, loss_rollout_*,
+#   loss_target_stop_grad (lewm-only, SimSiam-style stop-grad on target),
 #   seed, wm_embed_dim, wm_inference_*, image_noise_std_min/max/apply_to_val
 #
 # 新增 env vars:
@@ -174,6 +175,7 @@ add_override "loss.temporal_hinge.dynamic.max_margin" "${loss_temporal_hinge_dyn
 add_override "loss.inverse_dynamics.weight" "${loss_inverse_dynamics_weight:-}"
 add_override "loss.transition_distance.weight" "${loss_transition_distance_weight:-}"
 add_override "loss.pred.space" "${loss_pred_space:-}"
+add_override "loss.target_stop_grad" "${loss_target_stop_grad:-}"
 add_override "loss.pred.type" "${loss_pred_type:-}"
 add_override "wm.embed_dim" "${wm_embed_dim:-}"
 add_override "wm.inference.rollout_state_space" "${wm_inference_rollout_state_space:-}"

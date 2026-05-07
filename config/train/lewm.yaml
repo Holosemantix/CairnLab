@@ -82,6 +82,12 @@ predictor:
 loss:
   pred:
     space: raw # raw or l2_norm/normalized; only changes pred_loss MSE inputs
+  # SimSiam-style stop-grad on the target branch (Chen & He, CVPR 2021).
+  # Default false preserves classic LeWM behavior. Setting true is the
+  # recommended companion when removing BN from the projection head — the
+  # asymmetric architecture (predictor on online side + stop-grad on target)
+  # is what prevents trivial directional collapse without batch-coupling.
+  target_stop_grad: false
   sigreg:
     weight: 0.09
     kwargs:

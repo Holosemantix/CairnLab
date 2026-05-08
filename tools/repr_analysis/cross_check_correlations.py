@@ -36,7 +36,7 @@ import random
 from pathlib import Path
 from typing import Mapping, Sequence
 
-CANONICAL_EVALS = "canonical_evals_20260506.json"
+CANONICAL_EVALS = "canonical_evals_20260508.json"
 
 CANON = [
     ("LeWM-base",        "{tk}_lewm_20260430",                                                                "LeWM", 0.000),
@@ -48,6 +48,20 @@ CANON = [
     ("SWM-0to002-p1",    "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64",             "SWM",  0.002),
     ("SWM-0to005-p1",    "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to005_p1_dim64",             "SWM",  0.005),
 ]
+
+# Per-task SWM-base subdir override. Some baselines were retrained as
+# 3-seed × 100ep on 2026-05-07 (suffix `_20260507`). Old single-seed
+# canonical-2026-05-06 entries are superseded by these. When more SWM
+# baselines are retrained, add their dataset key here.
+SWM_BASE_OVERRIDES = {
+    "tworooms": "tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260507",
+    "pusht":    "pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64_20260507",
+}
+LEWM_PER_TASK_OVERRIDES = {
+    # PushT 0to006-p1 originally diverged (clean=61.0, single-seed); retrained
+    # 2026-05-07 with 3 seeds, mean=89.3.
+    ("pusht", "LeWM-0to006-p1"): "pusht_lewm_noise_0to006_p1_20260507",
+}
 
 # 2026-05-07 LeWM noise-sweep extension (3-seed × 100 ep each). These are
 # *additional* to canonical above and only used for the n=8 within-LeWM
@@ -185,7 +199,14 @@ def build_task_rows(stablewm_home: Path, evals: Mapping[str, Mapping[str, float]
     pre = "tworoom" if sub == "tworooms" else sub
     rows = []
     for label, tpl, method, std in spec:
-        d = load_diag(stablewm_home, sub, tpl.format(tk=pre))
+        # Resolve per-task overrides (retrained ckpts with date suffix).
+        override = None
+        if label == "SWM-base":
+            override = SWM_BASE_OVERRIDES.get(sub)
+        elif (sub, label) in LEWM_PER_TASK_OVERRIDES:
+            override = LEWM_PER_TASK_OVERRIDES[(sub, label)]
+        ckpt_subdir = override if override else tpl.format(tk=pre)
+        d = load_diag(stablewm_home, sub, ckpt_subdir)
         if d is None:
             continue
         if label not in evals[task]:

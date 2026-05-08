@@ -459,8 +459,32 @@ def run_full_diagnostics(
         action_effect_rows=action_effect_rows,
     )
     if output_dir is not None:
-        with (output_dir / "diagnostics_summary.json").open("w") as f:
-            json.dump(to_serializable(rollup), f, indent=2)
+        # Merge with any pre-existing diagnostics_summary.json instead of
+        # overwriting. When the user runs only a subset of sub-probes (e.g.
+        # to back-fill action_effect alone), preserving fields from earlier
+        # full-suite runs prevents data loss.
+        summary_path = output_dir / "diagnostics_summary.json"
+        merged = to_serializable(rollup)
+        if summary_path.is_file():
+            try:
+                prior = json.loads(summary_path.read_text())
+            except Exception:
+                prior = None
+            if prior:
+                # Both prior and merged are list[dict] keyed by 'model'.
+                if isinstance(prior, list) and isinstance(merged, list):
+                    by_label = {r.get("model"): dict(r) for r in prior if isinstance(r, dict)}
+                    for r in merged:
+                        if not isinstance(r, dict):
+                            continue
+                        label = r.get("model")
+                        if label in by_label:
+                            by_label[label].update(r)
+                        else:
+                            by_label[label] = dict(r)
+                    merged = list(by_label.values())
+        with summary_path.open("w") as f:
+            json.dump(merged, f, indent=2)
 
     try:
         noise_table = format_noise_table(noise_rows, frame_scope="goal") if noise_rows else None

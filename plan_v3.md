@@ -12,7 +12,7 @@
 目前更准确的判断是：
 
 1. **SWM 不是全局优于 LeWM 的替代品。**  
-   旧版 4-task single-seed 平均略高的叙事不可追溯；按最新一致 ckpt 口径（SWM & LeWM epoch_10, num_eval=300，summary.txt clean_300 优先），SWM baseline 在 TwoRoom（69.67% vs 93.0%）/ PushT（80.00% vs 87.33%）/ Reacher（60.00% vs 57.67%）上均不占优或持平，仅在 Cube（77.00% vs 72.33%）上略高。**LeWM noise sweep 0to003–0to008（3-seed avg）补齐后差距进一步拉大**：TwoRoom LeWM best 推到 98.33（0to008-p1），Reacher LeWM best 推到 86.00（0to006-p1），均显著高于对应 SWM 最佳；详见 §2.2 / §4.3。**注**：当前命名为 SWM-base 的 ckpt（`temporal_masked_2_dim64`，weight=0.2）与历史 §2.1 旧 4-task benchmark 中跑出 ~90/89 的 SWM 不是同一配置（旧配置是 `lambda_0p1_t_2`，weight=0.1，无 temporal_masked）；待重训后再做最终对比。
+   旧版 4-task single-seed 平均略高的叙事不可追溯。按 2026-05-07 数据（TwoRoom/PushT SWM-base 与 PushT LeWM-0to006-p1 重训成 3-seed × 100 ep；其余 ckpt 为 single-seed × 300 ep）：SWM baseline 在 **TwoRoom 88.33 vs LeWM 93.0（差 4.67）**、**PushT 85.67 vs LeWM 87.33（差 1.67）**、Reacher 60.00 vs 57.67（持平）、Cube 77.00 vs 72.33（SWM +4.67）——baseline 上 SWM 不再"明显劣于" LeWM。但 **noise drop 上 SWM-base 仍崩**：TwoRoom drop 32–45 / PushT drop 71–81，clean 接近 LeWM 不代表 noise robustness 同步改善。**LeWM noise sweep 0to003–0to008（3-seed avg）补齐后 best 差距**：TwoRoom LeWM best 98.33（0to008-p1）vs SWM best 94.33（0to001-p1）；Reacher LeWM best 86.00（0to006-p1）vs SWM best 78.00；详见 §2.2 / §4.3。**注**：旧 single-seed SWM-base 在 TwoRoom 跑出 69.67 是 unlucky outlier，3-seed retrain 后落入合理区间。当前 `temporal_masked_2_dim64` 与历史 §2.1 中跑出 ~90/89 的 SWM `lambda_0p1_t_2` 仍不是同一 config（weight=0.2 vs 0.1，是否含 temporal_masked），跨 config 对比仍受限。
 
 2. **SWM 改变了表征的 invariance-resolution tradeoff。**  
    球面归一化、uniformity、temporal masking、noise augmentation 都在改变“哪些观测差异应该被保留，哪些应该被抹掉”。
@@ -139,12 +139,12 @@ loss:
 
 | Task | LeWM best | SWM best | Delta | 说明 |
 |---|---:|---:|---:|:---|
-| TwoRoom | **98.33** (`LeWM-0to008-p1` †) | 94.33 (`SWM-0to001-p1`) | **−4.00** | LeWM noise sweep 单调上升至 0to008-p1 = 98.33（3-seed avg），SWM 任意配置最多 94.33 |
-| PushT | **90.00** (`LeWM-0to002-p1`) | 83.33 (`SWM-0to001-p1`) | **−6.67** | LeWM 在 PushT 显著领先；SWM 任意配置最多 83.3。LeWM-0to006-p1=61.0 异常断崖（疑训练发散，待 retrain） |
+| TwoRoom | **98.33** (`LeWM-0to008-p1` †) | 94.33 (`SWM-0to001-p1`) | **−4.00** | LeWM noise sweep 单调升至 0to008-p1 = 98.33；SWM 任意配置最多 94.33 |
+| PushT | **90.00** (`LeWM-0to002-p1`) | 83.33 (`SWM-0to001-p1`) | **−6.67** | LeWM 在 PushT 显著领先；SWM 任意配置最多 83.3。LeWM-0to006-p1 retrain 后 89.33（旧 61.0 是 single-seed 训练发散） |
 | Reacher | **86.00** (`LeWM-0to006-p1` †) | 78.00 (`SWM-0to002-p1`/`0to005-p1`) | **−8.00** | LeWM noise sweep 补齐后 0to006-p1（3-seed avg）反超 canonical 最佳 0to002-p1（80.33），与 SWM 最佳差距扩大到 8pt |
 | Cube | 73.00 (`LeWM-0to001-p1`) | **77.00** (`SWM-base`) | **+4.00** | **唯一一个 SWM-base 不需 noise training 就高于 LeWM 全配置**的任务（含 0to003–0to008 sweep，全部 ≤69） |
 
-> 数值变更说明：(a) canonical-only 阶段：TwoRoom LeWM best 96.00 → 94.33（旧值 single-seed multi-run 偶然偏高）；PushT LeWM best 91.00 → 90.00（同 ckpt 不同 run）；Reacher LeWM best 82.00 → 80.33（0to002 旧 single-run = 82，新 run = 80.3）。(b) **2026-05-07 LeWM noise sweep（0to003 / 0to004 / 0to006 / 0to007 / 0to008，3-seed × 100 ep）补齐后**：TwoRoom best 94.33 → **98.33** (0to008-p1)，Reacher best 80.33 → **86.00** (0to006-p1)；PushT / Cube best 模型未变。SWM 数值与 §0.1 一致（SWM 端 003–008 仍未训练）。
+> 数值变更说明：(a) canonical-only 阶段（2026-05-06）：TwoRoom LeWM best 96.00 → 94.33；PushT LeWM best 91.00 → 90.00；Reacher LeWM best 82.00 → 80.33。(b) **LeWM noise sweep 补齐 + 三个 single-seed ckpt retrain（2026-05-07）**：TwoRoom best 94.33 → **98.33** (0to008-p1)；Reacher best 80.33 → **86.00** (0to006-p1)；**PushT LeWM-0to006-p1 从 61.00（异常）→ 89.33（恢复正常），但 PushT best 仍是 0to002-p1=90.00**；TwoRoom SWM-base 69.67 → 88.33（没影响 best 排序但显著改变叙事——见 §3.3 凝练画像）；PushT SWM-base 80.0 → 85.67（同上）；Cube best 模型未变。所有 SWM noise variant（0to001/0to002/0to005-p1）数值与 canonical_evals_20260506 一致（未 retrain）。最新底层数据：`canonical_evals_20260508.json`。
 
 结论：
 
@@ -169,54 +169,54 @@ Eval corruption：`eval.corruption.std=X`、`eval.corruption.apply_to=[goal|pixe
 
 旧版 goal-frame normalized 诊断：LeWM std∈[0.005, 0.030] 时 noise_angle 4.2° → 32.0°，shift/NN ratio 0.07 → 3.90，robust radius ≈ 0.017；SWM 同区间 11.9° → 69.7°，ratio 0.26 → 7.96，radius ≈ 0.008。SWM 小噪声角向偏移约 LeWM 的 3×，**clean NN 距离反而更大**（不是聚簇过密导致脆弱，而是 angular sensitivity 高）——这是后续 P1 / P0 工作链的最初动机。canonical 跨 ckpt 数值见 §6 P0.3。
 
-### 3.3 SWM vs LeWM 凝练画像（canonical 8 + LeWM sweep 20 数据综合，2026-05-07）
+### 3.3 SWM vs LeWM 凝练画像（2026-05-08 综合：canonical 8 + LeWM sweep 5 + 三个 retrain ckpt）
 
-> 三个维度合并视角，每条结论后注明判据来源章节。**任务别 eval 结论以 best 配置为准，详见 §2.2**；下面对应"特点 → eval 表现"映射只描述方法层面规律。
+> 三个维度合并视角，每条结论后注明判据来源章节。任务别 eval 结论以 best 配置为准（详见 §2.2）。**重要 caveat**：TwoRoom SWM-base / PushT SWM-base / PushT LeWM-0to006-p1 三个 ckpt 已在 2026-05-07 用 3-seed × 100 ep retrain 替换；旧 single-seed 数据 unlucky outlier（TwoRoom SWM-base 69.67、PushT LeWM-0to006-p1 61.0）已被废弃。其余 ckpt 仍为 single-seed × 300 ep（待逐步 retrain）。
 
 **A. 表征几何特征（什么样子）**
 
 | 维度 | LeWM | SWM | 来源 |
 |---|---|---|---|
-| 范数 | raw L2，跨任务尺度差异大（clean_nn_l2: TwoRoom 0.058 / PushT 9.47 / Reacher 4.84 / Cube 8.24） | unit sphere（强制 \|\|z\|\|=1），`clean_nn_cos_dist` 跨任务 0.04–0.28 但 normalized | §4.2 / §6 P0.3 |
-| Effective rank | 高（45–120），TwoRoom/PushT 更倾向于占满高维 | 低（51–55，所有任务近似），uniformity 把表征推到接近全维均匀分布 | §6 P0.3 / §A.3 |
-| 邻域结构 | clean_nn_cos_dist median 0.04–0.07（局部聚簇紧密） | 0.04–0.10（TwoRoom/Reacher）或 0.21–0.28（PushT/Cube），SWM 在 manipulation 任务上保留更多局部分辨率 | §4.3 noise sens 表 |
-| Cost surface | L2 cost margin 257–366（绝对值大，对扰动 2× 更敏感） | cosine cost margin 0.64–0.92（理论上界 2，归一化后稳定） | §4.3 latent-noise / planning probe |
-| Predictor 内禀稳定性 | 单步 predictor 输出在原空间，T8 rollout drift baseline ≈18.6 | normalized 预测，T8 baseline ≈1.4（**8–10× 更稳定**） | §4.3 Predictor rollout drift 表 |
-| Encoder angular sensitivity（baseline） | low—mid（noise_angle@0.005 typically 1–6°） | **TwoRoom 唯一 high-risk**（20.1°，ratio 1.70；52 ckpt 中独此一例） | §3.4 / §6 P0.3 |
+| 范数 | raw L2，跨任务尺度差异大（clean_nn_l2: TwoRoom 0.058 / PushT 9.47 / Reacher 4.84 / Cube 8.24） | unit sphere（强制 \|\|z\|\|=1），`clean_nn_cos_dist` 跨任务 0.04–0.28 | §4.2 / §6 P0.3 |
+| Effective rank | 高（45–120），TwoRoom/PushT 倾向占满高维 | 低（38–55，所有任务近似），uniformity 把表征推到接近全维均匀分布 | §6 P0.3 / §A.3 |
+| 邻域结构 | clean_nn_cos_dist median 0.04–0.07（局部聚簇紧密） | 0.05–0.10（TwoRoom/Reacher）或 0.21–0.28（PushT/Cube），manipulation 任务保留更多局部分辨率 | §4.3 noise sens 表 |
+| Cost surface | L2 cost margin 257–366（绝对值大，对扰动 2× 更敏感） | cosine cost margin 0.64–0.92（归一化后稳定） | §4.3 latent-noise / planning probe |
+| Predictor 内禀稳定性 | T8 rollout drift baseline ≈18.6 | normalized 预测，T8 baseline ≈1.4（**8–10× 更稳定**） | §4.3 Predictor rollout drift 表 |
+| Encoder angular sensitivity（baseline） | low—mid（noise_angle@0.005 typically 1–6°） | mid—high（@0.005: TwoRoom 8.6° / PushT 1.6° / Reacher 2.5° / Cube 4.7°）；max-std slope 仍是 LeWM 的 ~2× | §3.4 / §6 P0.3 |
 
-**B. 在 eval 上的方法级差异**
+**B. 在 eval 上的方法级差异**（baseline + best 双视角）
 
-| 任务 | best 优胜方 | 差距 | 解释（机制层） |
+| 任务 | baseline 对比（LeWM vs SWM †） | best 对比（LeWM vs SWM） | 解释（机制层） |
 |---|---|---|---|
-| TwoRoom | **LeWM**（98.33 0to008-p1 vs 94.33 SWM 0to001-p1） | 4.0pt | LeWM noise sweep 单调推到 98+；SWM 受 baseline encoder fragility 限制，需依赖 0to001 才回到 94 |
-| PushT | **LeWM**（90.0 0to002-p1 vs 83.3 SWM 0to001-p1） | 6.7pt | PushT 需 fine resolution；SWM normalized 把 trans_res_cos 压到 ≤0.19，过度合并相邻状态；P0.5b PushT 主指标 `latent_cost_surface_slope_z`/`predictor_target_to_nn_cos_ratio` 都把 SWM 排在末位 |
-| Reacher | **LeWM**（80.3 / sweep 86.0 0to006-p1 vs 78.0 SWM 0to002/0to005） | 2.3–8.0pt | 接近持平；LeWM noise sweep 把上界推到 86，但 single-seed 漂移 ±5pt 内不应过度解读 |
-| Cube | **SWM**（77.0 SWM-base vs 73.0 LeWM 0to001-p1） | 4.0pt | 唯一 SWM 占优任务——SWM 在中等离散 manipulation 上保留 trans_res_cos 0.30 与 LeWM 0.24 持平，但 cka_linear 显著低（0.43→主指标 ρ=−0.96）说明"低跨样本相似度"是 Cube 的 eval 加分项，与 TwoRoom 相反 |
+| TwoRoom | 93.0 vs **88.3 ± 1.7**（LeWM +4.7） | **98.33** (0to008-p1 †) vs 94.33 (SWM-0to001-p1) | LeWM noise sweep 单调推到 98+；SWM noise variants 在 88–94 区间。**与旧叙事相反**：SWM-base 不再是 high-risk outlier |
+| PushT | 87.3 vs **85.7 ± 2.6**（LeWM +1.6） | **90.0** (0to002-p1) vs 83.3 (SWM-0to001-p1) | baseline 几乎持平，但 perframe 后 LeWM 领先 6.7pt——SWM normalized 把 trans_res_cos 压到 0.11，损失 fine-grained transitions |
+| Reacher | 57.7 vs 60.0（SWM +2.3） | **86.00** (LeWM-0to006-p1 †) vs 78.0 (SWM) | baseline SWM 略好；LeWM noise sweep 把上界推到 86 反超 |
+| Cube | 72.3 vs **77.0**（SWM +4.7） | 73.0 (LeWM-0to001-p1) vs **77.0** (SWM-base) | **唯一 SWM-base 直接占优**的任务；cka_linear 显著低（0.43）反而是 Cube 的 eval 加分项（P0.5b 主指标 ρ=−0.96） |
 
 **C. 抗噪性（eval drop @ std=0.05；详 §4.3 drop 段）**
 
 | 模型类 | TwoRoom | PushT | Reacher | Cube | 说明 |
 |---|---:|---:|---:|---:|---|
 | LeWM-base | 22 / 22 / 31 | 49 / 70 / 72 | 33 / 31 / 32 | 18 / 12 / 11 | 全任务全条件大跌；PushT 最严重 |
-| SWM-base | 45 / 35 / 39 | 73 / 77 / 75 | 38 / 38 / 23 | 28 / 28 / 21 | 比 LeWM-base 普遍**更脆弱**（encoder fragility） |
-| LeWM perframe | ≤6 | ≤6（除 0to001 外） | ≤6（0to006 mild 6.7 outlier） | ≤6 | 几乎完全修复 |
-| SWM perframe | ≤6 | 0to001 仍 19.7/24.7 | ≤6 | ≤6 | SWM 需要更高 std（0to002+）才在 PushT 上稳定 |
+| SWM-base † (20260507) | 42 / 32 / 45 | **71 / 81 / 80** | (旧 38/38/23) | (旧 28/28/21) | TwoRoom 略改善但仍崩；**PushT SWM-base clean 提升不带来 noise robustness**（drop 几乎不变） |
+| LeWM perframe | ≤6 | ≤6（含 retrain 后 0to006） | ≤6（0to006 mild 6.7） | ≤6 | 几乎完全修复 |
+| SWM perframe | ≤6 | 0to001 仍 19.7/24.7 | ≤6 | ≤6 | SWM 需要更高 std（0to002+）才在 PushT 稳定 |
 
-**抗噪机制差**：noise training 同时压低 (i) noise_angle_slope（baseline 1085 → 86×12，SWM 3975 → 80×50）和 (ii) predictor T8 drift（5×–139× 改善）。但**SWM 端 cost surface 对 latent perturbation 比 LeWM 更稳 ~2×**（latent-noise 表 cost slope 1.0–1.8 vs LeWM 2.0–3.8）——也就是说 noise training 修了 encoder 端，SWM cost surface 的内禀稳定性是免费送的。
+**抗噪机制核心**：noise training 同时压低 (i) noise_angle_slope（baseline 1085 → 86×12；SWM-base TwoRoom 旧 3975 → 新 1852 → 0to005 后 80）和 (ii) predictor T8 drift（5–139× 改善）。但 **SWM 端 cost surface 对 latent perturbation 比 LeWM 内禀更稳 ~2×**（latent-noise 表 SWM 1.0–1.8 vs LeWM 2.0–3.8）——noise training 修 encoder 端，SWM cost surface 稳定是免费送的。
 
-**D. 一句话对照**
+**D. 一句话对照**（基于 2026-05-08 最新数据）
 
-- **LeWM = 高维 Euclidean encoder + 高分辨 + L2 cost / predictor**：clean eval 上限高（TwoRoom/PushT/Reacher 都领先），但 baseline encoder 对 pixel noise 不鲁棒；perframe noise training 是必备。
-- **SWM = 单位球面 + uniformity + 内禀稳定 cosine predictor**：predictor 与 cost surface 自带 ≥2× 稳定性，但表征强 collapse 到低 effective rank（~52）+ 在 PushT 上压损 fine-grained transitions；只在 Cube 上 SWM-base 直接占优；TwoRoom 上 baseline encoder 是论文里唯一 high-risk 标签。
-- **paper 定调**：SWM 不是 LeWM 的简单替代，而是"换一组 invariance-resolution tradeoff"。Cube 是 SWM 显式赢的任务；TwoRoom 是 SWM 显式输的任务（baseline）；PushT/Reacher 居中、由 perframe noise training 后差距收窄，但 LeWM 仍领先。
+- **LeWM = 高维 Euclidean encoder + 高分辨 + L2 cost / predictor**：noise training 后所有 4 任务都 ≤6 drop；clean eval 在 TwoRoom/PushT/Reacher 都领先（best 配置）。
+- **SWM = 单位球面 + uniformity + 内禀稳定 cosine predictor**：predictor / cost surface 自带 ≥2× 稳定性；表征 collapse 到低 effective rank（~38–55）；在 Cube 上 SWM-base 直接占优；**baseline 在 TwoRoom/PushT 不再"明显劣于" LeWM**（retrain 后 88.3/85.7，差距 4.7/1.6），但 noise robustness 仍滞后。
+- **paper 定调修正**：SWM 不是 LeWM 的简单替代，而是 invariance-resolution tradeoff 的另一组取舍。Cube 显式赢；TwoRoom 之前看似 SWM 输（旧 69.67），retrain 后差距 4.7pt 而非 23pt——**"SWM 在 TwoRoom 上完全失效"是 single-seed artifact**。PushT/Reacher 居中、perframe 后 LeWM 领先。
 
-> **数据自检方式**：以上每一行都可以从 §4.3 的 4 张 12-行 eval 表 + §6 P0.3 几何 + §6 P0.5b 交叉检查 + §A.3 ckpt 表交叉验证；canonical_evals_20260506.json 与 §4.3 † 行的 per-seed log 是底层数据。运行 `python -m tools.repr_analysis.cross_check_correlations` 复算交叉检查。需要 PCA / t-SNE 直观投影时用仓里既有的 `tools/repr_analysis/analyze_repr.py::pca_projection` / `tsne_projection` + `plot_repr.py`，但 PCA 在 unit-sphere SWM 与高维 LeWM 跨方法对比时几何失真，**比量化诊断信息少**，不放进 diagnostics 默认链。
+> **数据自检方式**：每一行可从 §4.3 4 张 eval 表 + §6 P0.3 几何 + §6 P0.5b 交叉检查 + §A.3 ckpt 表交叉验证；底层数据 `canonical_evals_20260508.json` + 每 ckpt `eval_results/diagnostics/diagnostics_summary.json`。运行 `python -m tools.repr_analysis.cross_check_correlations` 复算。需要 PCA / t-SNE 直观投影时用 `tools/repr_analysis/analyze_repr.py::pca_projection / tsne_projection` + `plot_repr.py`（注意 PCA 在 unit-sphere 上几何失真，仅供定性参考）。
 
 ### 3.4 失败机制（已收敛，详见 §4.2 与 §6 P2/P5）
 
 | 层 | canonical 证据 | 判定 |
 |---|---|---|
-| Encoder angular sensitivity | SWM-base TwoRoom std=0.005 时 noise_angle 20.12°、ratio=1.70（canonical 32 + LeWM sweep 20 = 52 ckpt 中**唯一** risk=high） | **主因** |
+| Encoder angular sensitivity | SWM-base TwoRoom 旧 single-seed ckpt std=0.005 时 noise_angle 20.12°、ratio=1.70（曾是 52 ckpt 中**唯一** risk=high）；**2026-05-07 retrain 后降为 8.62°/0.23/risk=low**——"独特 high-risk"标签消失，但所有 SWM-base 在 max std=0.1 处 noise_angle_slope 仍是 LeWM 的 ~2×（TwoRoom new 1852°/std vs LeWM-base 1085°/std），方向上仍是 SWM 端的相对弱点 | **次因**（曾被高估为主因，retrain 后下调） |
 | Cost saturation | §6 P2.1 eval-only `raw+mse` cost swap 仅 +6（36→42） | 次因 |
 | Predictor 独立 | PushT `predictor_target_to_nn_cos_ratio` ρ=−0.93、`latent_predictor_rollout_T8_l2_history` ρ=+0.86；Reacher `predictor_rollout_T8_l2` ρ=−0.83 | predictor 端独立信号成立（PushT/Reacher）；TwoRoom 主要在 latent-noise 端 |
 
@@ -242,7 +242,7 @@ Eval corruption：`eval.corruption.std=X`、`eval.corruption.apply_to=[goal|pixe
 
 ### 4.3 P1 数据：per-frame 独立 std + noise_prob
 
-**实验设计**：`utils.py:AddNormalizedGaussianNoise` 每帧独立 Bernoulli(`noise_prob`) 决定是否加噪，加则 std ~ Uniform(0, std_max)。canonical 已完成 4 任务 × {LeWM, SWM} × {base, 0to001-p1, 0to002-p1, 0to005-p1} = 32 ckpt（epoch_10/num_eval=300，single seed）；**LeWM 端 0to003 / 0to004 / 0to006 / 0to007 / 0to008 也已补齐（3 seeds × 100 episodes，seed=42/43/44 平均）**，4 任务 × 5 = 20 ckpt，已覆盖 LeWM noise sweep 全 8 个 std 档位。SWM 端 0to003–0to008 仍未训练。
+**实验设计**：`utils.py:AddNormalizedGaussianNoise` 每帧独立 Bernoulli(`noise_prob`) 决定是否加噪，加则 std ~ Uniform(0, std_max)。canonical 完成 4 任务 × {LeWM, SWM} × {base, 0to001-p1, 0to002-p1, 0to005-p1} = 32 ckpt；**2026-05-07 把 TwoRoom SWM-base / PushT SWM-base / PushT LeWM-0to006-p1 三个 ckpt 用 3-seed × 100 ep 重训替换**（旧版前两者为 single-seed×300，第三个发生 single-seed 训练发散；retrain 后 ckpt 子目录带 `_20260507` 后缀，eval/diagnostics 来自新 ckpt）。**LeWM 端 0to003 / 0to004 / 0to006 / 0to007 / 0to008 已补齐（3 seeds × 100 episodes 平均）**，4 任务 × 5 = 20 ckpt，覆盖 LeWM noise sweep 全 8 档位。Reacher / Cube SWM-base 重训仍在跑（eval 未完成）；SWM 端 0to003–0to008 整体尚未训练。
 
 **TwoRoom eval（epoch_10, num_eval=300, summary.txt clean_300 优先）**
 
@@ -257,7 +257,7 @@ Eval corruption：`eval.corruption.std=X`、`eval.corruption.apply_to=[goal|pixe
 | LeWM-0to006-p1 † | 96.67 | 96.33 | 96.00 | 96.67 | 96.33 | 97.00 | 96.67 | 96.67 | 96.00 | 96.33 |
 | LeWM-0to007-p1 † | 96.00 | 96.00 | 97.00 | 97.00 | 97.00 | 96.33 | 96.33 | 96.33 | 96.00 | 96.67 |
 | LeWM-0to008-p1 † | **98.33** | 97.67 | 98.00 | 98.67 | 98.00 | 98.00 | 98.67 | 98.00 | 98.33 | 97.67 |
-| SWM-base | **69.67** | 21.33 | 24.67 | 25.00 | 37.33 | 31.00 | 29.67 | 35.00 | 34.67 | 35.00 |
+| SWM-base † (20260507) | **88.33** | 56.33 | 46.33 | 38.67 | 55.00 | 43.00 | 36.33 | 70.33 | 56.33 | 48.67 |
 | SWM-0to001-p1 | **94.33** | 94.00 | 92.00 | 87.00 | 93.67 | 91.00 | 82.00 | 94.33 | 93.67 | 90.00 |
 | SWM-0to002-p1 | 88.00 | 89.33 | 87.67 | 87.00 | 87.67 | 88.67 | 88.67 | 88.33 | 87.00 | 90.67 |
 | SWM-0to005-p1 | 91.67 | 91.33 | 91.00 | 91.00 | 91.67 | 90.33 | 90.67 | 90.67 | 92.00 | 91.67 |
@@ -272,10 +272,10 @@ Eval corruption：`eval.corruption.std=X`、`eval.corruption.apply_to=[goal|pixe
 | LeWM-0to003-p1 † | 89.67 | 89.33 | 89.67 | 86.67 | 89.00 | 87.00 | 83.00 | 89.33 | 89.33 | 82.00 |
 | LeWM-0to004-p1 † | 89.33 | 85.00 | 87.00 | 87.00 | 86.33 | 86.67 | 81.33 | 86.67 | 85.67 | 86.67 |
 | LeWM-0to005-p1 | 82.00 | 81.33 | 77.33 | 80.67 | 80.00 | 80.00 | 78.00 | 83.33 | 78.67 | 76.00 |
-| LeWM-0to006-p1 † | **61.00** | 59.33 | 58.00 | 58.00 | 54.33 | 58.00 | 54.67 | 57.00 | 59.00 | 52.67 |
+| LeWM-0to006-p1 † (retrained 20260507) | 89.33 | 88.33 | 87.67 | 89.67 | 89.00 | 88.33 | 87.00 | 88.33 | 88.00 | 87.67 |
 | LeWM-0to007-p1 † | 85.67 | 86.33 | 82.00 | 84.00 | 83.67 | 85.33 | 82.33 | 85.33 | 84.33 | 84.00 |
 | LeWM-0to008-p1 † | 88.33 | 89.33 | 91.33 | 89.00 | 89.33 | 87.67 | 85.33 | 89.00 | 87.33 | 89.00 |
-| SWM-base | **80.00** | 26.33 | 7.33 | 3.33 | 14.00 | 5.00 | 3.00 | 12.33 | 3.33 | 2.00 |
+| SWM-base † (20260507) | **85.67** | 58.33 | 14.33 | 4.00 | 39.00 | 5.33 | 5.67 | 45.67 | 5.00 | 2.00 |
 | SWM-0to001-p1 | 83.33 | 82.33 | 74.67 | 29.67 | 77.67 | 58.67 | 7.00 | 80.33 | 63.67 | 7.00 |
 | SWM-0to002-p1 | 81.00 | 81.00 | 80.33 | 67.67 | 82.67 | 82.00 | 47.33 | 81.00 | 79.33 | 48.67 |
 | SWM-0to005-p1 | 71.67 | 70.67 | 71.33 | 72.00 | 71.33 | 71.33 | 70.00 | 70.67 | 70.00 | 72.33 |
@@ -316,13 +316,13 @@ Eval corruption：`eval.corruption.std=X`、`eval.corruption.apply_to=[goal|pixe
 | SWM-0to002-p1 | 71.00 | 74.00 | 70.67 | 71.33 | 72.67 | 70.67 | 72.67 | 72.00 | 70.33 | 72.33 |
 | SWM-0to005-p1 | 62.67 | 63.00 | 62.67 | 63.33 | 64.33 | 64.00 | 63.33 | 64.33 | 63.67 | 63.67 |
 
-> **数据来源说明**：canonical 32 行（无 † 标记）从 `eval_results/summary.txt` `<cond>_300` 提取（缺失则 `<cond>`），均为 single-seed × 300 ep。**带 † 的 LeWM-0to003 / 0to004 / 0to006 / 0to007 / 0to008 行（4 任务 × 5 = 20 行）是 3-seed × 100 ep 平均（seed=42/43/44）**，从每个 ckpt `eval_results/<cond>_seed{42,43,44}.log` 末尾的 `success_rate` 直接抽取后取均值；`eval_summary.csv` 因 `ast.literal_eval` 解析不了 numpy `array(...)` 字面量目前是空的，是 `run_trainer.sh` 聚合脚本的已知 bug（不影响原始 per-seed 数据）。所有 ckpt 文件名均为 `*_epoch_10_object.ckpt`。**SWM-base ckpt（`temporal_masked_2_dim64`）与历史 §2.1 旧 4-task benchmark 中的 SWM 不是同一配置——旧 SWM-base 使用 `lambda_0p1_t_2`（无 temporal_masked）。当前 SWM-base 待重训以与 LeWM-base 口径完全对齐**。
+> **数据来源说明**：表中 † 行是 3-seed × 100 ep 平均（seed=42/43/44），从每个 ckpt `eval_results/<cond>_seed{42,43,44}.log` 末尾的 `success_rate` 抽取后取均值；其余无 † 行是 single-seed × 300 ep 直接读 `summary.txt::<cond>_300`。**TwoRoom SWM-base / PushT SWM-base / PushT LeWM-0to006-p1 三个原 single-seed ckpt 已用 3-seed × 100 ep 重训替换**（路径带 `_20260507` 后缀，3-seed std 见 `canonical_evals_20260508.json::<task>::<label>::evals::<cond>_std3seed`）。`eval_summary.csv` 之前因 `ast.literal_eval` 解析不了 numpy `array(...)` 字面量为空，已在 commit `31751d4` 修复（多行 brace-balanced 扫描 + array(...) 替换）。所有 ckpt 文件名均为 `*_epoch_10_object.ckpt`。**Reacher / Cube SWM-base 重训仍在进行**，本表暂用 single-seed 旧值。
 >
-> **新 LeWM noise sweep 观察**：
-> - **TwoRoom**：clean 单调上升至 0to008-p1 = 98.33，noise std 越高 LeWM 越好——中间档完全填补了 0to002→0to005 的平台。
-> - **PushT**：0to006-p1 = 61.0 是断崖式失败（前后 0to005=82.0 / 0to007=85.7 / 0to008=88.3），疑似单 seed 训练发散需要 retrain；其余档位 86–90 与 canonical 一致。
+> **新 LeWM noise sweep + 2026-05-07 retrain 观察**：
+> - **TwoRoom**：LeWM noise sweep clean 单调上升至 0to008-p1 = 98.33。**SWM-base 从 69.67 → 88.33（+18.7）**：原 single-seed ckpt 是 unlucky outlier，3-seed retrain 后清晰落入"接近但低于 LeWM-base 93"的合理区间。
+> - **PushT**：0to006-p1 retrain 后 89.33（旧 61.0 是 single-seed 训练发散，3 个 eval seed 全 55–71）。**SWM-base 从 80.0 → 85.67（+5.7）**，但 noise drop @ std=0.05 仍是 71/81/80（goal/pix/pix+goal），encoder fragility 没有解决；其余档位 86–90 与 canonical 一致。
 > - **Reacher**：0to006-p1 = 86.00 反超 canonical 最佳 0to002-p1（80.33），LeWM noise sweep 在 Reacher 上有 ~6pt 上界提升空间。
-> - **Cube**：5 个新档位 clean 集中在 62–69，没有突破 canonical 0to001-p1 的 73.0；说明 Cube 上更高 noise 不再带来增益。
+> - **Cube**：5 个新档位 clean 集中在 62–69，没有突破 canonical 0to001-p1 的 73.0；Cube 上更高 noise 不再带来增益。
 >
 > 同 ckpt 不同 run 的 single-seed 漂移可达 ±5pt（如 Reacher SWM-0to002-p1 多次 run 在 78–83 之间）；多 seed 平均见各 ckpt 内 `clean_seed42/43/44` 字段。
 
@@ -331,16 +331,16 @@ Eval corruption：`eval.corruption.std=X`、`eval.corruption.apply_to=[goal|pixe
 | 任务 | 模型 | clean | goal_drop | pix_drop | pix+goal_drop |
 |---|---|---:|---:|---:|---:|
 | TwoRoom | LeWM-base | 93.0 | **22.0** | **22.7** | **30.7** |
-| TwoRoom | SWM-base | 69.7 | **45.0** | **35.0** | **38.7** |
+| TwoRoom | SWM-base † (20260507) | 88.3 | **42.0** | **32.0** | **45.3** |
 | PushT | LeWM-base | 87.3 | **49.3** | **70.0** | **72.3** |
-| PushT | SWM-base | 80.0 | **72.7** | **76.7** | **75.0** |
+| PushT | SWM-base † (20260507) | 85.7 | **71.3** | **80.7** | **80.3** |
 | PushT | SWM-0to001-p1 | 83.3 | 8.7 | **19.7** | **24.7** |
 | Reacher | LeWM-base | 57.7 | **33.3** | **31.0** | **32.3** |
 | Reacher | SWM-base | 60.0 | **37.7** | **37.7** | **23.3** |
 | Cube | LeWM-base | 72.3 | **17.7** | **12.3** | **11.0** |
 | Cube | SWM-base | 77.0 | **28.0** | **28.3** | **21.0** |
 
-> **统一口径**：`drop = clean − std=0.05`；其余 canonical perframe 23 行（4 任务 × 6 - baseline 8 = 23）+ LeWM noise sweep 20 行 = 43 行，所有三个 drop 列 |Δ|≤6（多数 ≤2），完整可由上方 eval 表减得；负值（如 Reacher SWM-0to005-p1=−7）是单 seed 抽样波动。**新 sweep 中唯一 mild 越界**：Reacher LeWM-0to006-p1 † pix+goal_drop = 86.0−79.33 = 6.67，仍属抽样范围。
+> **统一口径**：`drop = clean − std=0.05`；其余 canonical perframe 23 行（4 任务 × 6 - baseline 8 = 23）+ LeWM noise sweep 20 行 = 43 行，所有三个 drop 列 |Δ|≤6（多数 ≤2），完整可由上方 eval 表减得；负值（如 Reacher SWM-0to005-p1=−7）是抽样波动。**新 sweep 中唯一 mild 越界**：Reacher LeWM-0to006-p1 † pix+goal_drop = 86.0−79.33 = 6.67，仍属抽样范围。**2026-05-07 retrain 观察**：TwoRoom SWM-base 新版 drop 32–45（相比旧版 35–45 略降但仍崩）；PushT SWM-base 新版 drop 71–81（旧版 73/77/75，几乎一样）——clean 提升但 encoder fragility 不变；PushT LeWM-0to006-p1 retrain 后 drop ≤2，与其它 LeWM perframe 一致。
 > - per-frame 独立 std 显著修复 noise failure：所有 perframe drop 集中在 [−7, +6.7]。
 > - 唯一例外是 PushT SWM-0to001-p1 的 pix/pix+goal drop 仍 19.7/24.7（noise 强度不够，0to002 已降至 ~1）。
 > - clean 差异在 perframe 之间仍然保留：PushT LeWM-0to002 90.0 vs SWM-0to005 71.7，drop 都接近 0 但 clean 差 18pt。
@@ -357,10 +357,12 @@ TwoRoom：
 | LeWM-0to001-p1 | 0.0430 | 1.83° | 0.0119 | low |
 | LeWM-0to002-p1 | 0.0413 | 1.05° | 0.0041 | low |
 | LeWM-0to005-p1 | 0.0356 | 0.45° | 0.0009 | low |
-| SWM-base | 0.0360 | **20.12°** | **1.6978** | **high** |
+| SWM-base † (20260507) | 0.0490 | 8.62° | 0.2308 | low |
 | SWM-0to001-p1 | 0.0566 | 1.58° | 0.0067 | low |
 | SWM-0to002-p1 | 0.0521 | 0.86° | 0.0022 | low |
 | SWM-0to005-p1 | 0.0475 | 0.41° | 0.0005 | low |
+
+> **2026-05-07 retrain 重要修正**：旧 SWM-base 在此条件下 risk=high（angle=20.12°, ratio=1.70），是 52 ckpt 中**唯一** high-risk 标签——这是 §3.4 / §6 P0.3 一直引用的"主因证据"。3-seed retrain 后 risk 降到 low（angle=8.62°, ratio=0.23）。**"SWM-base TwoRoom 唯一 fragile" 这一判断已不成立**——旧版是 single-seed unlucky outlier，retrain 后 SWM-base 在 std=0.005 处和其它 SWM 一样属 low risk 段。最大 std=0.1 处 noise_angle_slope 仍较高（1852°/std），geometry_flag 仍是 `fragile,high_angle_gain`，但严重程度已从"独特异常"降为"SWM 全任务的共有现象"。
 
 PushT：
 
@@ -370,7 +372,7 @@ PushT：
 | LeWM-0to001-p1 | 0.2242 | 0.61° | 0.0003 | low |
 | LeWM-0to002-p1 | 0.2477 | 0.36° | 0.0001 | low |
 | LeWM-0to005-p1 | 0.2226 | 0.23° | 0.0000 | low |
-| SWM-base | 0.2582 | 2.66° | 0.0042 | low |
+| SWM-base † (20260507) | 0.2711 | 1.56° | 0.0014 | low |
 | SWM-0to001-p1 | 0.2810 | 0.52° | 0.0001 | low |
 | SWM-0to002-p1 | 0.2622 | 0.33° | 0.0001 | low |
 | SWM-0to005-p1 | 0.2134 | 0.09° | 0.0000 | low |
@@ -632,7 +634,9 @@ Cube：
 >
 > **重要变化**：旧 §4.3 / 旧 P0.7 中 TwoRoom `clean_nn_cos_dist` ρ=−0.91 / `lidar_rank` ρ=−0.81 等"强信号"只是含 fixed-std 的 SWM-noise_std0_005=97.6 这一个外点拉出来的相关；canonical 8 上 TwoRoom 这两个指标都退化为弱相关。
 >
-> **2026-05-07 数据扩展**：LeWM noise sweep 0to003 / 0to004 / 0to006 / 0to007 / 0to008-p1（4 任务 × 5 = 20 ckpt）已含完整 noise / predictor / resolution / latent_noise / geometry 诊断（`eval_results/diagnostics/`），可作为**within-LeWM 单调性子分析**（n=8 LeWM 档位/任务，纯 LeWM）独立跑一遍 P0.4。本表 n=8 canonical 数值未受新数据影响（输入未变），保持原状作为跨方法对比；within-LeWM sweep 相关性留作后续 P0.4 补充章节。
+> **2026-05-07 数据扩展**：LeWM noise sweep 0to003 / 0to004 / 0to006 / 0to007 / 0to008-p1（4 任务 × 5 = 20 ckpt）已含完整 noise / predictor / resolution / latent_noise / geometry 诊断（`eval_results/diagnostics/`），可作为**within-LeWM 单调性子分析**（n=8 LeWM 档位/任务，纯 LeWM）独立跑一遍 P0.4。
+>
+> **2026-05-08 canonical n=8 数据修正**：TwoRoom SWM-base / PushT SWM-base / PushT LeWM-0to006-p1 三个 ckpt 用 3-seed retrain 替换（详 §4.3 数据来源说明），eval 与诊断都重算了。下表中部分相关系数因此发生**实质变化**：TwoRoom SWM-base 旧 single-seed 是 high-leverage outlier（69.67 极低 + noise_angle 极高），retrain 后这种"偶然完美对齐"的相关性削弱。最显著的变化：TwoRoom `latent_cost_surface_slope_z` ρ_n8 +0.61 → +0.56（仍中等），`clean_effective_rank` +0.44 → +0.24，`lidar_rank` +0.44 → +0.26，`id_probe_r2` −0.25 → −0.50；PushT `latent_cost_surface_slope_z` +0.93 → +0.76，`predictor_target_to_nn_cos_ratio` −0.93 → −0.90，`noise_angle_slope` +0.31 → +0.64，`id_probe_r2` +0.81 → +0.71。Reacher / Cube 未受影响（无 retrain）。**完整 6-维度交叉检查的最新数值见 §6 P0.5b 表，底层 `canonical_correlations_20260508.json`**；下表 P0.4 主表保留作为旧 2026-05-06 快照，不再代表当前真值，请优先参考 P0.5b。
 
 **核心：诊断指标的任务特异性（canonical n=8）**
 
@@ -719,16 +723,18 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM baseline
 
 > **动机**：P0.4/P0.5 主表的 ρ_all(n=8) 把 4 个 LeWM + 4 个 SWM 拼在一起，可能混进两个 confounder：(i) **LeWM↔SWM cluster axis**——某指标在 SWM 集中显著高/低，aggregate ρ 实际是 method-axis 的投影；(ii) **noise_max 强度**——noise training 同时移动 eval 和多项诊断（T8 drift、noise_angle_slope、nn_cos_dist），univariate ρ 等于把"训练强度"与"latent 结构信号"混在一起。下方 6 个维度独立验证：(a) within-LeWM ρ (n=4)、(b) within-SWM ρ (n=4)、(c) **partial Spearman conditioning on `std_max`**（去掉训练强度 confound）、(d) **partial Spearman conditioning on method dummy**（去掉 LeWM↔SWM cluster shift，保留两个方法各自的内部排序）、(e) **method-paired signed concordance** ∈ [−1, +1]：在 4 个匹配 noise 档位（base / 0to001 / 0to002 / 0to005）下，sign(LeWM.metric − SWM.metric) 与 sign(LeWM.eval − SWM.eval) 是否在每一档都同向（按 ρ_all 的符号校准；+1 = 全部 4 档与 ρ_all 方向一致，−1 = 全部反向）、(f) top-2 vs bottom-2 mean 相对差。复现：`STABLEWM_HOME=<root> python -m tools.repr_analysis.cross_check_correlations --out cross_check_corr.json`，输出 7 个数值/指标。
 
-**严格"真信号"**（同时满足：\|partial\|std\| ≥ 0.5 ∧ \|partial\|method\| ≥ 0.5；前者排除噪声训练 confound，后者要求两方法各自 noise sweep 内仍能排序 eval）：
+**严格"真信号"**（同时满足：\|partial\|std\| ≥ 0.5 ∧ \|partial\|method\| ≥ 0.5；前者排除噪声训练 confound，后者要求两方法各自 noise sweep 内仍能排序 eval）。**2026-05-08 数据更新后**：
 
-| 任务 | 指标 | ρ_all | LeWM_n4 | SWM_n4 | partial\|std | partial\|method | pairS | top2−bot2 | 判定 |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| PushT | `predictor_target_to_nn_cos_ratio_at_max_std` | **−0.93** | −0.80 | −0.80 | **−0.95** | **−0.83** | +1.00 | ↓72% | **6/6 通过**（study 内最强） |
-| PushT | `latent_cost_surface_slope_z` | **+0.93** | +0.80 | **+1.00** | **+0.96** | **+0.83** | +1.00 | ↑99.9% | **6/6 通过** |
-| PushT | `latent_predictor_rollout_T8_l2_history` | +0.86 | +0.40 | +0.80 | **+0.85** | +0.60 | +1.00 | ↑94% | 5/6（LeWM_n4 偏弱） |
-| Cube | `cka_linear_at_max_std` | **−0.96** | **−1.00** | **−1.00** | −0.80 | **−0.97** | +0.50 | ↓73% | **6/6 通过** |
-| Cube | `clean_nn_cos_dist_median` | +0.79 | **+1.00** | +0.80 | +0.66 | **+0.92** | +0.50 | ↑36% | 6/6 通过 |
-| Reacher | `predictor_rollout_T8_l2` | **−0.83** | −0.60 | **−0.95** | −0.60 | **−0.83** | +0.50 | ↓99% | 5/6 通过 |
+| 任务 | 指标 | ρ_all | LeWM_n4 | SWM_n4 | LeWM_n8 | partial\|std | partial\|method | pairS | top2−bot2 | 判定 |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| PushT | `predictor_target_to_nn_cos_ratio_at_max_std` | **−0.90** | −0.80 | **−1.00** | −0.71 | **−0.91** | **−0.90** | +1.00 | ↓69% | **6/6 通过**（study 内最强） |
+| PushT | `latent_cost_surface_slope_z` | +0.76 | +0.80 | +0.40 | +0.57 | **+0.90** | +0.52 | +1.00 | ↑99.9% | 6/6 通过；ρ_all 因 0to006 retrain 从 +0.93 降至 +0.76 |
+| PushT | `predictor_rollout_T8_l2` | +0.83 | +0.20 | **+1.00** | +0.36 | +0.78 | +0.71 | +1.00 | ↑94% | **6/6 通过（新增）**——0to006 retrain 后 LeWM 端从混乱变单调，partial\|method 从 +0.38 升至 +0.71 |
+| PushT | `noise_angle_slope_deg_per_std` | +0.64 | +0.20 | **+1.00** | +0.52 | +0.65 | +0.76 | +0.50 | ↓57% | **6/6 通过（新增）**——同上原因，0to006 retrain 后 within-LeWM 单调性恢复 |
+| Cube | `cka_linear_at_max_std` | **−0.96** | **−1.00** | **−1.00** | **−0.87** | −0.80 | **−0.97** | +0.50 | ↓73% | **6/6 通过** |
+| Cube | `clean_nn_cos_dist_median` | +0.79 | **+1.00** | +0.80 | +0.58 | +0.66 | **+0.92** | +0.50 | ↑36% | 6/6 通过 |
+| Reacher | `predictor_rollout_T8_l2` | **−0.83** | −0.60 | **−0.95** | −0.36 | −0.60 | **−0.83** | +0.50 | ↓99% | 6/6 通过 |
+| **TwoRoom** | **`id_probe_r2`** | −0.50 | −0.60 | −0.80 | −0.75 | **−0.62** | **−0.52** | +0.50 | ↓5.7% | **6/6 通过（新增）**——TwoRoom retrain 后首次出现严格-pass 指标，但 top-bot 仅 5.7%，需结合实际差异看 |
 
 **仅是 noise-training 强度代理**（partial\|std \|ρ\| ≤0.4 或 sign-flip；即去掉训练强度后信号大幅衰减）：
 
@@ -744,6 +750,8 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM baseline
 | Reacher | `predictor_target_to_nn_cos_ratio_at_max_std` | −0.57 | **−0.04** | −0.85 | partial\|std 完全失效；partial\|method 强暗示"方法间排序"主导，**不是 within-method 结构信号** |
 | TwoRoom | `noise_angle_slope_deg_per_std` | −0.16 | +0.06 | −0.24 | aggregate 已弱，partial 双向证伪 |
 
+> **2026-05-08 update**：本表数值基于 2026-05-07 数据，PushT 0to006-p1 retrain 与 SWM-base retrain 后 PushT `predictor_rollout_T8_l2`（旧 cluster-axis 表）和 PushT `noise_angle_slope_deg_per_std`（之前 ρ_all 仅 +0.31 不在任何一类）现都已升入 **严格-pass 表**（partial\|std/method 双双 ≥0.65）。Cube/Reacher 行未受影响（无 retrain）。
+
 **主要由 LeWM↔SWM cluster axis 拉出**（within-method ρ collapse 或 sign-flip；partial\|method 大幅小于 ρ_all）：
 
 | 任务 | 指标 | ρ_all | LeWM_n4 | SWM_n4 | partial\|method | pairS | 解读 |
@@ -756,15 +764,18 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM baseline
 | PushT | `predictor_rollout_T8_l2` | +0.79 | +0.20 | +0.40 | +0.38 | +1.00 | LeWM 内极弱；matched-pair 全部 LeWM>SWM 与 eval 同向，但 partial\|method 中等说明 ρ_all 一半是 cluster 解释 |
 | PushT | `id_probe_r2` | +0.81 | +0.20 | +0.60 | +0.45 | +1.00 | 同上，cluster 放大 |
 
-**结论与 paper 主指标更新**（按"严格 6/6 通过 + p|std 与 p|method 双 ≥0.5"门槛）：
+> **2026-05-08 update**：retrain 后 PushT `clean_effective_rank` ρ_all +0.81 → +0.62、`lidar_rank` +0.74 → +0.52、`id_probe_r2` +0.81 → +0.71，cluster 放大现象**减弱但仍存在**（partial\|method 仍 ≤0.45），分类不变。TwoRoom `latent_cost_surface_slope_z` ρ_all +0.61 → +0.56、SWM_n4 +0.80 → +0.40、partial\|method +0.42 → +0.31，性质不变（仍 sign flip 不通过严格门槛）。TwoRoom `id_probe_r2` 因 retrain 后 SWM-base 数值同向，已**移入严格-pass 表**。
 
-1. **PushT 主指标**：`predictor_target_to_nn_cos_ratio_at_max_std`（6/6）、`latent_cost_surface_slope_z`（6/6）。`latent_predictor_rollout_T8_l2_history` 5/6 候选。`clean_effective_rank` / `lidar_rank` / `id_probe_r2` / `predictor_rollout_T8_l2` 即使 ρ_all+pairS 都强，partial\|method 都 ≤0.45，属"LeWM 整体 > SWM 整体且 eval 也是 LeWM>SWM"造成的 cluster 一致性，**降级为辅助**。
-2. **Cube 主指标**：`cka_linear_at_max_std`（6/6）、`clean_nn_cos_dist_median`（6/6）。**`noise_angle_slope` ρ_all=+0.90 但 partial\|std=+0.13——纯 noise-intensity 代理，从主指标降级**；`id_probe_r2` 同样从主指标降级（partial\|std=+0.31）；`predictor_rollout_T8_l2` 在 partial\|std 下 sign flip 到 −0.22，更不可信。
-3. **Reacher 主指标**：`predictor_rollout_T8_l2`（5/6，唯一同时通过 within-method、partial\|std、partial\|method 三项）。`noise_angle_slope` 与 `cka_linear_at_max_std` 都被 partial\|std 打到 \|ρ\|≤0.31，**从主指标降级**。`predictor_target_to_nn_cos_ratio_at_max_std` partial\|std=−0.04 完全失效，partial\|method=−0.85 强暗示其 Reacher ρ 来自方法间排序 + 噪声强度，不是 within-method 结构信号——**也降级**。
-4. **TwoRoom 主指标**：**仍无任何指标通过严格门槛**。前一轮 candidate `latent_cost_surface_slope_z` 在 within-method 下 LeWM=−0.40 / SWM=+0.80（sign flip），partial\|method=+0.42（中等弱），matched pairs 一半同向。最接近通过的是 `latent_rollout_angle_slope_per_std_z` (LeWM=−0.80, SWM=−0.40, p\|std=−0.54, p\|method=−0.28)——partial\|method 仍弱。canonical 8 上 TwoRoom 的 label-free predictor 是论文的硬风险点这一判断进一步加固。
-5. **方法学补丁**：`tools/repr_analysis/cross_check_correlations.py` 已落库（含 LeWM/SWM 配对、within-method、partial\|std、partial\|method、signed pair concordance、top-bot 6 个维度），且 `run_trainer.sh` 增加 `run_cross_check_correlations=1` 开关，训练完一个 ckpt 后会尝试增量刷新一次（数据不全时自动跳过缺失行）；保证未来每次 P0.4/P0.5 都至少有 6 维度同步检查，避免重复落入"univariate ρ_all 强 = 主指标"的陷阱。
+**结论与 paper 主指标更新**（按"严格 6/6 通过 + p|std 与 p|method 双 ≥0.5"门槛；2026-05-08 数据）：
 
-> **数据生成时间**：2026-05-07，输入 = canonical 8 ckpts × 4 任务 = 32 行 `eval_results/diagnostics/diagnostics_summary.json`；eval 取自 `canonical_evals_20260506.json` 的 `clean` 字段（与 §4.3 一致）；输出 = `/tmp/cross_check_corr.json`（可在 §6 P0.7 主表旁边长期存放）。
+1. **PushT 主指标**：`predictor_target_to_nn_cos_ratio_at_max_std`（6/6，study 内最强）、`latent_cost_surface_slope_z`（6/6）。**新增**两个：`predictor_rollout_T8_l2`（6/6）和 `noise_angle_slope_deg_per_std`（6/6）——这两项之前因 PushT LeWM-0to006-p1 是 single-seed 训练发散（clean=61.0）破坏 within-LeWM 单调性而失效；retrain 后恢复。`clean_effective_rank` / `lidar_rank` / `id_probe_r2` 仍属 cluster 放大，partial\|method ≤ 0.45 不通过。
+2. **Cube 主指标**：`cka_linear_at_max_std`（6/6）、`clean_nn_cos_dist_median`（6/6）。`noise_angle_slope` partial\|std=+0.13（纯 noise-intensity 代理）、`id_probe_r2` partial\|std=+0.31、`predictor_rollout_T8_l2` 在 partial\|std 下 sign flip——**全部降级**。
+3. **Reacher 主指标**：`predictor_rollout_T8_l2`（6/6）。`noise_angle_slope` 与 `cka_linear_at_max_std` 被 partial\|std 打到 \|ρ\|≤0.31 降级；`predictor_target_to_nn_cos_ratio_at_max_std` partial\|std=−0.04 完全失效。
+4. **TwoRoom 主指标**：**`id_probe_r2`（6/6 通过）首次出现**——p\|std=−0.62, p\|method=−0.52, LeWM_n4=−0.60 / SWM_n4=−0.80（同向），LeWM_n8=−0.75。**Caveat**：top-2 vs bot-2 mean 仅相差 5.7%（绝对值差 0.01–0.02），ranking 强但 magnitude 弱——是真信号但变化幅度对论文叙事可能不够"显著"。其它 candidate 中 `latent_predictor_rollout_T8_l2_history` p\|std=+0.58 但 p\|method 仅 +0.34（不通过严格门槛）；`predictor_rollout_T8_l2` p\|std=+0.45（亦弱）。canonical 8 上 TwoRoom 仍是 4 任务中信号最弱的，但已不再是"零候选"。
+5. **2026-05-07 retrain 影响最大的方面**：(a) PushT cross-check 主指标从 2 个增加到 4 个（noise_angle_slope 与 predictor_rollout_T8_l2 从 within-method 失效变成全维度通过——直接证明之前 0to006 outlier 在污染相关性结构）；(b) TwoRoom 从"零严格-pass"变成 1 个（id_probe_r2）；(c) `latent_cost_surface_slope_z` SWM_n4 从 +0.80 → +0.40，但仍通过，主指标稳定性不受影响。
+6. **方法学补丁**：`tools/repr_analysis/cross_check_correlations.py` 已落库（含 LeWM/SWM 配对、within-method、partial\|std、partial\|method、signed pair concordance、top-bot 6 个维度 + bootstrap CI + 指标冗余矩阵 + within-LeWM n=8 sweep），且 `run_trainer.sh` 增加 `run_cross_check_correlations=1` 开关；保证未来每次 P0.4/P0.5 都至少有 6 维度同步检查。
+
+> **数据生成时间**：2026-05-08。输入 = canonical 8 ckpts × 4 任务 = 32 行 `eval_results/diagnostics/diagnostics_summary.json`（其中 TwoRoom/PushT SWM-base 与 PushT LeWM-0to006-p1 走 `_20260507` retrain 路径）；eval 取自 `canonical_evals_20260508.json::<task>::<label>::evals::clean`；输出 = `canonical_correlations_20260508.json`（顶层 list，对每任务/每指标包含 6 维度全部数值）。复现：`STABLEWM_HOME=<root> python -m tools.repr_analysis.cross_check_correlations --out cross_check_corr.json`。
 
 #### P0.6 Active Validation：从相关到预测
 

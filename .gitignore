@@ -4,6 +4,7 @@ swanlog/
 outputs/
 canonical_evals_*.json
 canonical_correlations_*.json
+cross_check_corr_*.json
 
 # Mac
 .DS_Store

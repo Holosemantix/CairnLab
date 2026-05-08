@@ -79,9 +79,29 @@ LEWM_SWEEP_EXTRA = [
 ]
 LEWM_SWEEP_EVALS = {
     "TwoRoom": {"LeWM-0to003-p1": 96.33, "LeWM-0to004-p1": 96.33, "LeWM-0to006-p1": 96.67, "LeWM-0to007-p1": 96.00, "LeWM-0to008-p1": 98.33},
-    "PushT":   {"LeWM-0to003-p1": 89.67, "LeWM-0to004-p1": 89.33, "LeWM-0to006-p1": 61.00, "LeWM-0to007-p1": 85.67, "LeWM-0to008-p1": 88.33},
+    # PushT LeWM-0to006-p1 retrained 2026-05-07 → 89.33 (was 61.0 single-seed divergence).
+    "PushT":   {"LeWM-0to003-p1": 89.67, "LeWM-0to004-p1": 89.33, "LeWM-0to006-p1": 89.33, "LeWM-0to007-p1": 85.67, "LeWM-0to008-p1": 88.33},
     "Reacher": {"LeWM-0to003-p1": 78.67, "LeWM-0to004-p1": 84.00, "LeWM-0to006-p1": 86.00, "LeWM-0to007-p1": 83.67, "LeWM-0to008-p1": 84.00},
     "Cube":    {"LeWM-0to003-p1": 65.00, "LeWM-0to004-p1": 69.00, "LeWM-0to006-p1": 66.67, "LeWM-0to007-p1": 67.67, "LeWM-0to008-p1": 62.33},
+}
+
+# 2026-05-08 SWM noise-sweep extension (3-seed × 100 ep each). Mirrors
+# LEWM_SWEEP_EXTRA so we can do within-SWM n=8 and method-combined n=16.
+# Eval values are 3-seed means parsed from each ckpt's eval_results/summary.txt
+# (aggregated section; reacher series uses per-seed raw means since aggregated
+# is empty there).
+SWM_SWEEP_EXTRA = [
+    ("SWM-0to003-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to003_p1_dim64", "SWM", 0.003),
+    ("SWM-0to004-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to004_p1_dim64", "SWM", 0.004),
+    ("SWM-0to006-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to006_p1_dim64", "SWM", 0.006),
+    ("SWM-0to007-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to007_p1_dim64", "SWM", 0.007),
+    ("SWM-0to008-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to008_p1_dim64", "SWM", 0.008),
+]
+SWM_SWEEP_EVALS = {
+    "TwoRoom": {"SWM-0to003-p1": 89.67, "SWM-0to004-p1": 89.00, "SWM-0to006-p1": 90.00, "SWM-0to007-p1": 91.00, "SWM-0to008-p1": 87.33},
+    "PushT":   {"SWM-0to003-p1": 82.33, "SWM-0to004-p1": 79.33, "SWM-0to006-p1": 84.67, "SWM-0to007-p1": 83.00, "SWM-0to008-p1": 81.00},
+    "Reacher": {"SWM-0to003-p1": 81.67, "SWM-0to004-p1": 77.00, "SWM-0to006-p1": 82.33, "SWM-0to007-p1": 84.67, "SWM-0to008-p1": 79.33},
+    "Cube":    {"SWM-0to003-p1": 70.33, "SWM-0to004-p1": 74.33, "SWM-0to006-p1": 70.33, "SWM-0to007-p1": 72.00, "SWM-0to008-p1": 70.00},
 }
 
 TASKS = [
@@ -270,7 +290,9 @@ def paired_method_concordance(rows: list[dict], metric: str) -> dict:
     }
 
 
-def cross_check(rows: list[dict], lewm_n8_rows: list[dict] | None = None) -> list[dict]:
+def cross_check(rows: list[dict], lewm_n8_rows: list[dict] | None = None,
+                swm_n8_rows: list[dict] | None = None,
+                combined_n16_rows: list[dict] | None = None) -> list[dict]:
     if not rows:
         return []
     evals = [r["eval"] for r in rows]
@@ -280,6 +302,15 @@ def cross_check(rows: list[dict], lewm_n8_rows: list[dict] | None = None) -> lis
     bot2, top2 = order[:2], order[-2:]
     # n=8 within-LeWM (canonical 4 + sweep 5 - 1 dup = 8 unique LeWM noise levels)
     lewm_n8_evals = [r["eval"] for r in lewm_n8_rows] if lewm_n8_rows else None
+    # n=8 within-SWM (canonical 4 + sweep 5 - 1 dup = 8 unique SWM noise levels)
+    swm_n8_evals = [r["eval"] for r in swm_n8_rows] if swm_n8_rows else None
+    # n=16 method-combined (LeWM-8 sweep + SWM-8 sweep)
+    if combined_n16_rows:
+        n16_evals = [r["eval"] for r in combined_n16_rows]
+        n16_stds = [r["std"] for r in combined_n16_rows]
+        n16_method_dummy = [0 if r["method"] == "LeWM" else 1 for r in combined_n16_rows]
+    else:
+        n16_evals = None
     out = []
     for m in METRICS:
         vals = [r[m] for r in rows]
@@ -305,6 +336,30 @@ def cross_check(rows: list[dict], lewm_n8_rows: list[dict] | None = None) -> lis
         else:
             rho_l_n8 = float("nan")
             ci_l_n8 = (float("nan"), float("nan"))
+        # n=8 within-SWM (if extra sweep ckpts available)
+        if swm_n8_rows is not None and all(
+            r.get(m) is not None for r in swm_n8_rows
+        ):
+            n8s_vals = [r[m] for r in swm_n8_rows]
+            rho_s_n8 = spearman(n8s_vals, swm_n8_evals)
+            ci_s_n8 = bootstrap_ci(n8s_vals, swm_n8_evals)
+        else:
+            rho_s_n8 = float("nan")
+            ci_s_n8 = (float("nan"), float("nan"))
+        # n=16 method-combined (LeWM-8 + SWM-8 sweep)
+        if combined_n16_rows is not None and all(
+            r.get(m) is not None for r in combined_n16_rows
+        ):
+            n16_vals = [r[m] for r in combined_n16_rows]
+            rho_n16 = spearman(n16_vals, n16_evals)
+            rho_n16_pstd = partial_spearman(n16_vals, n16_evals, n16_stds)
+            rho_n16_pmethod = partial_spearman(n16_vals, n16_evals, n16_method_dummy)
+            ci_n16 = bootstrap_ci(n16_vals, n16_evals)
+        else:
+            rho_n16 = float("nan")
+            rho_n16_pstd = float("nan")
+            rho_n16_pmethod = float("nan")
+            ci_n16 = (float("nan"), float("nan"))
         top_mean = sum(vals[i] for i in top2) / 2
         bot_mean = sum(vals[i] for i in bot2) / 2
         denom = max(abs(top_mean), abs(bot_mean), 1e-9)
@@ -328,6 +383,12 @@ def cross_check(rows: list[dict], lewm_n8_rows: list[dict] | None = None) -> lis
             "rho_within_SWM_n4": round(rho_s, 4),
             "rho_within_LeWM_n8_sweep": round(rho_l_n8, 4),
             "rho_within_LeWM_n8_sweep_ci95": [round(ci_l_n8[0], 4), round(ci_l_n8[1], 4)],
+            "rho_within_SWM_n8_sweep": round(rho_s_n8, 4),
+            "rho_within_SWM_n8_sweep_ci95": [round(ci_s_n8[0], 4), round(ci_s_n8[1], 4)],
+            "rho_combined_n16_sweep": round(rho_n16, 4),
+            "rho_combined_n16_sweep_ci95": [round(ci_n16[0], 4), round(ci_n16[1], 4)],
+            "rho_combined_n16_partial_given_std": round(rho_n16_pstd, 4),
+            "rho_combined_n16_partial_given_method": round(rho_n16_pmethod, 4),
             "rho_partial_given_std": round(rho_partial_std, 4),
             "rho_partial_given_method": round(rho_partial_method, 4),
             "method_pair_concordance": c,
@@ -376,12 +437,21 @@ def main():
     raw = json.loads(Path(args.evals).read_text())
     evals_clean = {tk: {label: v["evals"]["clean"] for label, v in raw[tk].items()} for tk in raw}
     # Merge LeWM sweep eval values onto the task-eval table for the n=8 within-LeWM analysis.
+    # Save canonical (retrained) values BEFORE sweep merge so retrained ckpts (e.g., PushT
+    # LeWM-0to006-p1 = 89.33) are not overwritten by stale sweep entries (61.0).
+    canonical_evals = {tk: dict(v) for tk, v in evals_clean.items()}
     for tk, extra in LEWM_SWEEP_EVALS.items():
-        evals_clean.setdefault(tk, {}).update(extra)
+        for label, v in extra.items():
+            # canonical wins if present; sweep fills in the rest.
+            evals_clean.setdefault(tk, {}).setdefault(label, v)
+    for tk, extra in SWM_SWEEP_EVALS.items():
+        for label, v in extra.items():
+            evals_clean.setdefault(tk, {}).setdefault(label, v)
 
     result = {}
     header = (f"{'Task':<8} {'Metric':<46} {'rho_n8':>7} {'LeWM_n4':>8} {'SWM_n4':>8} "
-              f"{'LeWM_n8':>8} {'p|std':>7} {'p|meth':>7} {'pairS':>6} {'top2-bot2':>11}")
+              f"{'LeWM_n8':>8} {'SWM_n8':>8} {'n16':>7} {'n16|std':>8} {'n16|meth':>9} "
+              f"{'p|std':>7} {'p|meth':>7} {'pairS':>6} {'top2-bot2':>11}")
     print(header)
     print("-" * len(header))
     for task, sub, _ in TASKS:
@@ -389,14 +459,26 @@ def main():
         # n=8 within-LeWM (canonical 4 + sweep 5 - dup{0to005} = 8): use the
         # 8 unique LeWM noise levels (0to000 base, 0to001..0to008 except dup).
         lewm_full = [c for c in CANON if c[2] == "LeWM"] + LEWM_SWEEP_EXTRA
+        swm_full = [c for c in CANON if c[2] == "SWM"] + SWM_SWEEP_EXTRA
         # de-dup by std (already unique here)
         lewm_n8 = build_task_rows(home, evals_clean, task, sub, spec=lewm_full)
+        swm_n8 = build_task_rows(home, evals_clean, task, sub, spec=swm_full)
+        combined_n16 = lewm_n8 + swm_n8
         result[task] = {
             "n_models": len(rows),
             "n_lewm_sweep": len(lewm_n8),
-            "rows": cross_check(rows, lewm_n8_rows=lewm_n8 if len(lewm_n8) >= 5 else None),
+            "n_swm_sweep": len(swm_n8),
+            "n_combined": len(combined_n16),
+            "rows": cross_check(
+                rows,
+                lewm_n8_rows=lewm_n8 if len(lewm_n8) >= 5 else None,
+                swm_n8_rows=swm_n8 if len(swm_n8) >= 5 else None,
+                combined_n16_rows=combined_n16 if len(combined_n16) >= 10 else None,
+            ),
             "metric_redundancy_canonical_n8": metric_redundancy(rows),
             "metric_redundancy_lewm_sweep_n8": metric_redundancy(lewm_n8) if len(lewm_n8) >= 5 else {},
+            "metric_redundancy_swm_sweep_n8": metric_redundancy(swm_n8) if len(swm_n8) >= 5 else {},
+            "metric_redundancy_combined_n16": metric_redundancy(combined_n16) if len(combined_n16) >= 10 else {},
         }
         for r in result[task]["rows"]:
             if r.get("skipped"):
@@ -405,11 +487,17 @@ def main():
             contrast = f"{sign}{abs(r['top2_minus_bot2_relative']) * 100:5.1f}%"
             sc = r.get("method_pair_signed_concordance")
             sc_s = f"{sc:+.2f}" if sc is not None else " -- "
+            def fmt(x):
+                return f"{x:+.2f}" if (x is not None and not math.isnan(x)) else "  -- "
             n8 = r.get("rho_within_LeWM_n8_sweep")
-            n8_s = f"{n8:+.2f}" if (n8 is not None and not math.isnan(n8)) else "  -- "
+            n8s = r.get("rho_within_SWM_n8_sweep")
+            n16 = r.get("rho_combined_n16_sweep")
+            n16ps = r.get("rho_combined_n16_partial_given_std")
+            n16pm = r.get("rho_combined_n16_partial_given_method")
             print(f"{task:<8} {r['metric']:<46} "
                   f"{r['rho_all_n8']:>+7.2f} {r['rho_within_LeWM_n4']:>+8.2f} "
-                  f"{r['rho_within_SWM_n4']:>+8.2f} {n8_s:>8} "
+                  f"{r['rho_within_SWM_n4']:>+8.2f} {fmt(n8):>8} {fmt(n8s):>8} "
+                  f"{fmt(n16):>7} {fmt(n16ps):>8} {fmt(n16pm):>9} "
                   f"{r['rho_partial_given_std']:>+7.2f} "
                   f"{r['rho_partial_given_method']:>+7.2f} {sc_s:>6} {contrast:>11}")
         print()

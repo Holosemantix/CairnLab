@@ -59,6 +59,65 @@ def resolve_norm_fn(norm_name: str):
     raise ValueError(f"Unsupported encoder.projection_head.norm_fn: {norm_name}")
 
 
+def compute_hetero_pred_loss(
+    pred_loss_emb: torch.Tensor,
+    tgt_loss_emb: torch.Tensor,
+    logvar_hat: torch.Tensor,
+    *,
+    s_min: float = -4.0,
+    s_max: float = 4.0,
+    tau_floor: float = 1e-6,
+):
+    """Scale-preserving heteroscedastic prediction loss (sigma-conditioned JEPA).
+
+    err_token  = mean((mu_hat - mu_target)^2, dim=-1)              # (B, T)
+    s          = clamp(logvar_hat.squeeze(-1), s_min, s_max)        # (B, T)
+    tau        = stop_grad(mean(err_token))                         # scalar (per-batch)
+    hetero     = mean( exp(-s) * err_token + tau * s )
+
+    At s ≡ 0 this equals plain MSE — so SIGReg's relative weight need not be
+    retuned. After training, exp(-s) downweights high-error samples (the known
+    hard-transition risk; monitor `hetero/weight_q10_q90_ratio` for this).
+
+    Returns (hetero_loss, monitors_dict). The monitors dict carries logging
+    fields only — none of them are part of the optimization graph.
+    """
+    err = (pred_loss_emb - tgt_loss_emb).pow(2).mean(dim=-1)        # (B, T)
+    s = logvar_hat.squeeze(-1).clamp(min=s_min, max=s_max)          # (B, T)
+    tau = err.detach().mean().clamp(min=tau_floor)
+    weight = torch.exp(-s)                                          # exp(-s); large = upweight
+    hetero_loss = (weight * err + tau * s).mean()
+
+    with torch.no_grad():
+        s_flat = s.reshape(-1)
+        w_flat = weight.reshape(-1)
+        e_flat = err.reshape(-1)
+        # Spearman-ish: Pearson on rank — cheaper to just use Pearson on values
+        # since exp/log are monotone, sign tells us the calibration direction.
+        s_centered = s_flat - s_flat.mean()
+        loge_centered = torch.log(e_flat.clamp(min=tau_floor)) - torch.log(
+            e_flat.clamp(min=tau_floor)
+        ).mean()
+        denom = s_centered.norm() * loge_centered.norm()
+        s_loge_corr = (s_centered * loge_centered).sum() / denom.clamp(min=1e-8)
+        # Per-sample weight quantiles → measure of hard-transition downweighting.
+        q10 = torch.quantile(w_flat, 0.1)
+        q90 = torch.quantile(w_flat, 0.9)
+        monitors = {
+            "hetero_s_mean": s_flat.mean(),
+            "hetero_s_std": s_flat.std(unbiased=False),
+            "hetero_s_abs_max": s_flat.abs().max(),
+            "hetero_weight_mean": w_flat.mean(),
+            "hetero_weight_q10": q10,
+            "hetero_weight_q90": q90,
+            "hetero_weight_q10_q90_ratio": q10 / q90.clamp(min=1e-8),
+            "hetero_tau": tau.detach(),
+            "hetero_err_mean": e_flat.mean(),
+            "hetero_s_logerr_corr": s_loge_corr,
+        }
+    return hetero_loss, monitors
+
+
 def compute_temporal_hinge(output, *, model, cfg):
     """Upper hinge loss on consecutive latent pairs (LeWM variant).
 
@@ -148,12 +207,38 @@ def lejepa_forward(self, batch, stage, cfg):
     # target share gradient through the same encoder.
     if cfg.loss.get("target_stop_grad", False):
         tgt_emb = tgt_emb.detach()
-    pred_emb = self.model.predict(ctx_emb, ctx_act)  # pred
+    hetero_cfg = cfg.loss.get("hetero", {})
+    hetero_enabled = bool(hetero_cfg.get("enabled", False))
+    if hetero_enabled:
+        pred_emb, logvar_hat = self.model.predict_with_logvar(ctx_emb, ctx_act)
+        if logvar_hat is None:
+            raise RuntimeError(
+                "loss.hetero.enabled=True requires model.pred_logvar_proj to be built"
+            )
+    else:
+        pred_emb = self.model.predict(ctx_emb, ctx_act)  # pred
+        logvar_hat = None
     pred_loss_emb = get_pred_loss_tensor(pred_emb, space=pred_space)
     tgt_loss_emb = get_pred_loss_tensor(tgt_emb, space=pred_space)
 
-    # LeWM loss
-    output["pred_loss"] = (pred_loss_emb - tgt_loss_emb).pow(2).mean()
+    # LeWM loss (or sigma-conditioned hetero loss when enabled)
+    if hetero_enabled:
+        hetero_loss, hetero_monitors = compute_hetero_pred_loss(
+            pred_loss_emb,
+            tgt_loss_emb,
+            logvar_hat,
+            s_min=hetero_cfg.get("s_min", -4.0),
+            s_max=hetero_cfg.get("s_max", 4.0),
+            tau_floor=hetero_cfg.get("tau_floor", 1e-6),
+        )
+        output["pred_loss"] = hetero_loss
+        # Also report the underlying MSE for direct comparability with the
+        # LeWM baseline (loss curves stay readable when toggling hetero).
+        output["pred_loss_mse_equiv"] = (pred_loss_emb - tgt_loss_emb).pow(2).mean().detach()
+        for k, v in hetero_monitors.items():
+            output[k] = v
+    else:
+        output["pred_loss"] = (pred_loss_emb - tgt_loss_emb).pow(2).mean()
     output["sigreg_loss"] = self.sigreg(emb.transpose(0, 1))
     output["temporal_hinge_loss"] = compute_temporal_hinge(
         output, model=self.model, cfg=cfg
@@ -223,6 +308,8 @@ def lejepa_forward(self, batch, stage, cfg):
                     k.startswith("transition_distance_")
                     and not k.endswith("_loss")
                 )
+                or k.startswith("hetero_")
+                or k == "pred_loss_mse_equiv"
             )
         )
     }
@@ -316,12 +403,34 @@ def run(cfg):
         norm_fn=proj_norm_fn,
     )
 
+    hetero_cfg = cfg.loss.get("hetero", {})
+    if hetero_cfg.get("enabled", False):
+        # scalar log-variance head sharing the predictor backbone hidden state.
+        # Adds ~0.5M params for hidden_dim=192 + hidden=2048; negligible.
+        # Initialised to output 0 so the loss starts at MSE-equivalent.
+        pred_logvar_head = MLP(
+            input_dim=hidden_dim,
+            output_dim=1,
+            hidden_dim=hetero_cfg.get("logvar_hidden_dim", 256),
+            norm_fn=proj_norm_fn,
+        )
+        # Zero the final linear so logvar starts at 0 (i.e. weight = exp(-0) = 1
+        # everywhere; loss reduces to plain MSE on the first step).
+        with torch.no_grad():
+            final = pred_logvar_head.net[-1]
+            final.weight.zero_()
+            if final.bias is not None:
+                final.bias.zero_()
+    else:
+        pred_logvar_head = None
+
     world_model = JEPA(
         encoder=encoder,
         predictor=predictor,
         action_encoder=action_encoder,
         projector=projector,
         pred_proj=predictor_proj,
+        pred_logvar_proj=pred_logvar_head,
     )
     if cfg.loss.temporal_hinge.get("dynamic", {}).get("enabled", False):
         world_model.dynamic_margin_head = nn.Linear(2 * embed_dim, 1)

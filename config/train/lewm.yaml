@@ -111,3 +111,17 @@ loss:
     hidden_dim: ${wm.embed_dim}
     metric: l2
     detach_input: True
+  # Sigma-conditioned (heteroscedastic) prediction. When enabled, replaces
+  # MSE pred_loss with a scale-preserving hetero NLL:
+  #   err_t = mean((mu_hat - mu_target)^2, dim=-1)
+  #   s     = clamp(logvar_hat, s_min, s_max)
+  #   tau   = stop_grad(mean(err_t))
+  #   loss  = mean(exp(-s) * err_t + tau * s)   # equals MSE at s=0
+  # SIGReg(mu) is unchanged. LeWM is the strict baseline (s ≡ 0).
+  # Pilot-1 plan: see plan_adaptive_resolution.md.
+  hetero:
+    enabled: false
+    logvar_hidden_dim: 256
+    s_min: -4.0
+    s_max: 4.0
+    tau_floor: 1.0e-6

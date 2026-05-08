@@ -18,6 +18,7 @@ class JEPA(nn.Module):
         action_encoder,
         projector=None,
         pred_proj=None,
+        pred_logvar_proj=None,
     ):
         super().__init__()
 
@@ -26,6 +27,10 @@ class JEPA(nn.Module):
         self.action_encoder = action_encoder
         self.projector = projector or nn.Identity()
         self.pred_proj = pred_proj or nn.Identity()
+        # Optional scalar log-variance head for sigma-conditioned (heteroscedastic)
+        # prediction. When None, predict_with_logvar() returns logvar=None and the
+        # model behaves identically to the pure-MSE LeWM baseline.
+        self.pred_logvar_proj = pred_logvar_proj
 
     def encode(self, info):
         """Encode observations and actions into embeddings.
@@ -54,6 +59,24 @@ class JEPA(nn.Module):
         preds = self.pred_proj(rearrange(preds, "b t d -> (b t) d"))
         preds = rearrange(preds, "(b t) d -> b t d", b=emb.size(0))
         return preds
+
+    def predict_with_logvar(self, emb, act_emb):
+        """Predict next state embedding and (optional) per-token scalar log-variance.
+
+        Both heads share the predictor backbone hidden state. Returns
+        (mu_hat, logvar_hat) with shapes (B, T, D) and (B, T, 1) respectively.
+        When pred_logvar_proj is None (default LeWM baseline), logvar_hat is
+        None and callers must fall back to plain MSE prediction.
+        """
+        b = emb.size(0)
+        hidden = self.predictor(emb, act_emb)              # (B, T, hidden)
+        hidden_flat = rearrange(hidden, "b t d -> (b t) d")
+        mu_hat = rearrange(self.pred_proj(hidden_flat), "(b t) d -> b t d", b=b)
+        if self.pred_logvar_proj is None:
+            return mu_hat, None
+        logvar_flat = self.pred_logvar_proj(hidden_flat)   # (B*T, 1)
+        logvar_hat = rearrange(logvar_flat, "(b t) d -> b t d", b=b)
+        return mu_hat, logvar_hat
 
     ####################
     ## Inference only ##

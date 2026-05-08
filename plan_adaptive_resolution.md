@@ -1,6 +1,6 @@
 # Adaptive Latent Resolution via Heteroscedastic JEPA (Minimal Version)
 
-> **Status**: 设计阶段，未实现。等 plan_v3 §6 P0 真实数据出来后再启动 Pilot。
+> **Status**: 设计阶段，未实现。plan_v3 2026-05-08 审计后，本方案升为下一步主线 Pilot。
 > **关系**: 不是 plan_v3 的替换，而是 plan_v3 §6 P4 "Adaptive Resolution Method" 的具体化方案。
 > **设计原则**: **不增加超参数数量**——和 LeWM 同一量级（仅 1 个 λ_SIGReg）。
 > **重要历史记录**: 本文件早期版本曾包含 IB term / aggregate covariance Frobenius / Fisher manifold planning 等多层架构，hyperparameter 数量涨到 4–5 个。经过严格审视后**全部回退**——它们都需要新超参却没有可论证的额外收益。详见 §10 设计回退记录。
@@ -171,7 +171,7 @@ CEM **在 μ 上做标准欧氏 planning**（不改 cost），自动受益于上
 - 现有诊断（`clean_nn_dist`, `effective_rank`, `transition_resolution_ratio` 等）和 σ_x 的相关性是**值得测的事后分析**，但不作为 a priori 的论文主张
 - 如果实证发现 σ_x 和某些诊断高相关 → 加分项；如果不相关 → σ_x 提供独立的新信息，也是加分项
 
-→ **诊断工具的价值在 plan_v3 P0 的相关性分析里独立证明**（论文 §4），与本框架的成败解耦。
+→ **诊断工具的价值主要是设计约束和机制解释**，不再要求先证明它们能独立预测 eval。它们与本框架的成败解耦：即使 P0.6 盲分桶不强，σ-head 仍可能作为更直接的 adaptive resolution 方法成立。
 
 ---
 
@@ -205,7 +205,7 @@ CEM **在 μ 上做标准欧氏 planning**（不改 cost），自动受益于上
 
 ## 8. Pilot 实验计划
 
-> **触发条件**: plan_v3 §6 P0.6 holdout 跑通 + std_max 加密 sweep 数据出来后启动。
+> **触发条件**: 已满足。LeWM+noise 已经强于 LeWM-base，但不同任务的最优 noise 强度不同；SWM 没有成为主方法，只保留为 geometry intervention。因此下一步应直接启动 Pilot-1，而不是等待 P0.6 holdout。
 
 ### 8.1 Pilot-1: 最小可行版
 
@@ -253,7 +253,7 @@ CEM **在 μ 上做标准欧氏 planning**（不改 cost），自动受益于上
 
 ### 9.1 与 plan_v3 §6 P4 的关系
 
-替代 plan_v3 §6 P4 现有 outer-controller 草案的**条件**: Pilot-1 通过后才考虑合并；在此之前 plan_v3 §6 P4 保留为 fallback（PI controller 至少不需要 σ-head 训练成本）。
+本文件现在是 plan_v3 §6 P4 的首选实现路线。guarded noise consistency / PI controller 保留为 fallback：只有当 Pilot-1 显示 σ 退化为常数、NLL 不稳定或 eval 明显退步时再回退。
 
 ### 9.2 与 plan_v2 V1/V2 的关系
 
@@ -264,7 +264,7 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 
 ### 9.3 与诊断工具的关系
 
-诊断工具**完全不变**，独立作为 plan_v3 §4 的论文 contribution。本框架的 σ_x 是新增的 per-sample 诊断量，**事后分析**它和现有诊断的相关性是 nice-to-have，不预设为 a priori 主张。
+诊断工具**完全不变**，但定位从“独立预测工具”降为“设计约束 + 机制解释”。本框架的 σ_x 是新增的 per-sample 诊断量，**事后分析**它和现有诊断的相关性是 nice-to-have，不预设为 a priori 主张。
 
 ---
 
@@ -304,6 +304,6 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 
 - 本文件供查阅与设计迭代；**不**作为 plan_v3 的替换。
 - 每次新讨论后追加新条目到 §7 风险表 或 §10 回退记录。
-- Pilot-1 启动前必读：§3.4（loss form）+ §8.1（critical signals）。
+- Pilot-1 已是下一步主线；启动前必读：§3.4（loss form）+ §8.1（critical signals）。
 - Pilot-1 通过后，把 §3 §4 §6 合并进 plan_v3 §6 P4；本文件归档。
 - **下一次想加新机制前**: 先回看 §10，问自己"它会增加几个超参数？经验收益的证据是什么？"。如果两个问题答不清楚，不加。

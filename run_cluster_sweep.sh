@@ -26,6 +26,7 @@
 #   cluster_seeds="3072"
 #   cluster_tag="$(date +%Y%m%d_%H%M%S)"  # set empty to reuse bare model names
 #   cluster_num_eval=150
+#   cluster_post_train_eval_mode=full|clean|none
 #   cluster_skip_eval_sweep=1
 #   cluster_skip_diagnostics=1
 #   cluster_skip_existing=1
@@ -428,6 +429,7 @@ should_export_cluster_var() {
 
 export_optional_runtime_vars() {
     if should_export_cluster_var cluster_eval_gpus; then export eval_gpus="${cluster_eval_gpus}"; fi
+    if should_export_cluster_var cluster_post_train_eval_mode; then export post_train_eval_mode="${cluster_post_train_eval_mode}"; fi
     if should_export_cluster_var cluster_eval_corruption_stds; then export eval_corruption_stds="${cluster_eval_corruption_stds}"; fi
     if should_export_cluster_var cluster_eval_corruption_apply_to; then export eval_corruption_apply_to="${cluster_eval_corruption_apply_to}"; fi
     if should_export_cluster_var cluster_noise_table_stds; then export noise_table_stds="${cluster_noise_table_stds}"; fi
@@ -484,7 +486,7 @@ run_job() {
         unset loss_pred_space loss_pred_type loss_rollout_weight loss_rollout_steps
         unset wm_embed_dim wm_inference_rollout_state_space wm_inference_cost_space wm_inference_cost_type
         unset image_noise_std_min image_noise_std_max image_noise_noise_prob image_noise_apply_to_val
-        unset eval_gpus eval_corruption_stds eval_corruption_apply_to
+        unset eval_gpus post_train_eval_mode eval_corruption_stds eval_corruption_apply_to
         unset noise_table_stds diagnostic_rollout_steps frameskip eval_epoch diagnostic_dataset_name
         unset skip_eval_sweep skip_diagnostics skip_noise_table diagnostic_skip_predictor diagnostic_skip_resolution
 

@@ -24,6 +24,10 @@
 #
 # 新增 env vars:
 #   image_noise_noise_prob    每帧加噪概率 (默认 1.0；<1 制造 clean+noisy 混合)
+#   post_train_eval_mode      训练后执行模式：full | clean | none
+#                              full  = eval sweep + full diagnostics（默认，旧行为）
+#                              clean = 只跑 clean eval，不跑 corruption sweep/diagnostics
+#                              none  = 不跑 eval/diagnostics
 #   eval_corruption_stds      eval sweep 噪声列表，空格分隔
 #                              默认 "0.0 0.03 0.05 0.08"
 #                              传 "" 跳过 eval sweep（仍跑 noise table）
@@ -217,6 +221,16 @@ ckpt_abs="${STABLEWM_HOME}/${ckpt_rel}_object.ckpt"
 results_dir="${STABLEWM_HOME}/ckpt/${output_model_name}/eval_results"
 mkdir -p "${results_dir}"
 
+post_train_eval_mode="${post_train_eval_mode:-full}"
+case "${post_train_eval_mode}" in
+    full|clean|none) ;;
+    *)
+        echo "[eval] post_train_eval_mode must be one of: full, clean, none; got '${post_train_eval_mode}'"
+        exit 1
+        ;;
+esac
+echo "[eval] post_train_eval_mode=${post_train_eval_mode}"
+
 if [ ! -f "${ckpt_abs}" ]; then
     echo "[eval] checkpoint not found: ${ckpt_abs}"
     echo "[eval] aborting downstream steps"
@@ -224,16 +238,48 @@ if [ ! -f "${ckpt_abs}" ]; then
 fi
 
 # GPU 探测
-if [ -z "${eval_gpus:-}" ]; then
-    if command -v nvidia-smi >/dev/null 2>&1; then
-        eval_gpus=$(nvidia-smi --query-gpu=index --format=csv,noheader,nounits | tr '\n' ' ')
+if [ "${post_train_eval_mode}" != "none" ]; then
+    if [ -z "${eval_gpus:-}" ]; then
+        if command -v nvidia-smi >/dev/null 2>&1; then
+            eval_gpus=$(nvidia-smi --query-gpu=index --format=csv,noheader,nounits | tr '\n' ' ')
+        else
+            eval_gpus="0"
+        fi
+    fi
+    read -ra gpu_array <<< "${eval_gpus}"
+    n_gpus=${#gpu_array[@]}
+    echo "[gpu] using GPUs: ${gpu_array[*]} (count=${n_gpus})"
+else
+    gpu_array=()
+    n_gpus=0
+    echo "[eval] GPU detection skipped (post_train_eval_mode=none)"
+fi
+
+run_eval_sweep=0
+run_diagnostics=0
+case "${post_train_eval_mode}" in
+    full)
+        [ "${skip_eval_sweep:-0}" != "1" ] && run_eval_sweep=1
+        [ "${skip_diagnostics:-${skip_noise_table:-0}}" != "1" ] && run_diagnostics=1
+        ;;
+    clean)
+        run_eval_sweep=1
+        eval_corruption_stds="0.0"
+        run_diagnostics=0
+        ;;
+    none)
+        run_eval_sweep=0
+        run_diagnostics=0
+        ;;
+esac
+
+if [ "${run_eval_sweep}" = "0" ]; then
+    if [ "${post_train_eval_mode}" = "none" ]; then
+        echo "[eval sweep] skipped (post_train_eval_mode=none)"
     else
-        eval_gpus="0"
+        echo "[eval sweep] skipped (skip_eval_sweep=1)"
     fi
 fi
-read -ra gpu_array <<< "${eval_gpus}"
-n_gpus=${#gpu_array[@]}
-echo "[gpu] using GPUs: ${gpu_array[*]} (count=${n_gpus})"
 
 # ---------- 4. Eval Sweep ----------
 # 多 seed 支持：
@@ -243,6 +289,7 @@ echo "[gpu] using GPUs: ${gpu_array[*]} (count=${n_gpus})"
 #                       config 中的默认 seed 对齐）。
 #   每个 seed 实际跑的 episode 数 = num_eval / eval_seeds（向下取整）。
 #   不能整除时打印 warning，并丢弃余数，保证每个 seed 样本数一致便于聚合。
+if [ "${run_eval_sweep}" = "1" ]; then
 eval_seeds="${eval_seeds:-3}"
 
 if ! [[ "${eval_seeds}" =~ ^[0-9]+$ ]] || [ "${eval_seeds}" -lt 1 ]; then
@@ -282,6 +329,7 @@ if [ $(( per_seed_num_eval * eval_seeds )) -ne "${num_eval}" ]; then
     echo "[eval][warn]   每个 seed 跑 ${per_seed_num_eval} 次，余数 $(( num_eval - per_seed_num_eval * eval_seeds )) 被丢弃。"
 fi
 echo "[eval] seeds=${eval_seeds} (base=${eval_base_seed})  per-seed num_eval=${per_seed_num_eval}"
+fi
 
 run_one_eval() {
     local job="$1"
@@ -316,7 +364,7 @@ run_one_eval() {
     fi
 }
 
-if [ "${skip_eval_sweep:-0}" != "1" ]; then
+if [ "${run_eval_sweep}" = "1" ]; then
     eval_corruption_stds="${eval_corruption_stds-0.0 0.03 0.05 0.08}"
     eval_corruption_apply_to="${eval_corruption_apply_to:-pixels+goal,pixels,goal}"
 
@@ -361,8 +409,6 @@ if [ "${skip_eval_sweep:-0}" != "1" ]; then
             wait "$pid" || true
         done
     done
-else
-    echo "[eval sweep] skipped (skip_eval_sweep=1)"
 fi
 
 # ---------- 5. Full Latent-Geometry Diagnostics ----------
@@ -388,7 +434,7 @@ fi
 #   diagnostic_skip_predictor=1 / diagnostic_skip_resolution=1
 #   diagnostic_skip_latent_noise=1 / diagnostic_skip_action_effect=1
 #                              per-tool overrides
-if [ "${skip_diagnostics:-${skip_noise_table:-0}}" != "1" ]; then
+if [ "${run_diagnostics}" = "1" ]; then
     noise_table_stds="${noise_table_stds:-0.0 0.005 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1}"
     diagnostic_rollout_steps="${diagnostic_rollout_steps:-1 2 4 8}"
     diag_args=(
@@ -411,7 +457,13 @@ if [ "${skip_diagnostics:-${skip_noise_table:-0}}" != "1" ]; then
     CUDA_VISIBLE_DEVICES=${gpu_array[0]} python -m tools.repr_analysis.run_full_diagnostics \
         "${diag_args[@]}" 2>&1 | tee "${results_dir}/diagnostics.log"
 else
-    echo "[diagnostics] skipped (skip_diagnostics=1)"
+    if [ "${post_train_eval_mode}" = "clean" ]; then
+        echo "[diagnostics] skipped (post_train_eval_mode=clean)"
+    elif [ "${post_train_eval_mode}" = "none" ]; then
+        echo "[diagnostics] skipped (post_train_eval_mode=none)"
+    else
+        echo "[diagnostics] skipped (skip_diagnostics=1)"
+    fi
 fi
 
 # ---------- 6. Summary ----------
@@ -419,7 +471,7 @@ summary_file="${results_dir}/summary.txt"
 {
     echo "===== ${output_model_name} eval summary ====="
     echo "ckpt: ${ckpt_abs}"
-    echo "dataset: ${dataset_name}    num_eval: ${num_eval}    epoch: ${eval_epoch}"
+    echo "dataset: ${dataset_name}    num_eval: ${num_eval}    epoch: ${eval_epoch}    post_train_eval_mode: ${post_train_eval_mode}"
     echo
     echo "----- eval metrics (per-seed raw) -----"
     for log in "${results_dir}"/*.log; do
@@ -539,7 +591,7 @@ PYEOF
 # disk under STABLEWM_HOME's parent directory. Tolerates missing ckpts —
 # rows with absent diagnostics_summary.json are silently skipped, so it's
 # safe to run after each training even if the sweep is incomplete.
-if [ "${run_cross_check_correlations:-0}" = "1" ]; then
+if [ "${run_cross_check_correlations:-0}" = "1" ] && [ "${run_diagnostics}" = "1" ]; then
     cross_check_root="$(dirname "${STABLEWM_HOME}")"
     cross_check_out="${results_dir}/diagnostics/cross_check_corr.json"
     echo "==================================================="
@@ -551,24 +603,31 @@ if [ "${run_cross_check_correlations:-0}" = "1" ]; then
         2>&1 | tee "${results_dir}/diagnostics/cross_check.log" || \
         echo "[cross_check] non-fatal failure (likely missing ckpts in sweep)"
 fi
+if [ "${run_cross_check_correlations:-0}" = "1" ] && [ "${run_diagnostics}" != "1" ]; then
+    echo "[cross_check] skipped (diagnostics not run; post_train_eval_mode=${post_train_eval_mode})"
+fi
 
 echo "==================================================="
 echo "[done] artifacts in:"
 echo "  ${results_dir}/"
 echo "  - per-eval logs:    *.log"
 echo "  - per-eval metrics: *_metrics.txt"
-echo "  - diagnostics:      diagnostics/"
-echo "      * noise_sensitivity.csv / .json"
-echo "      * geometry_summary.csv / .json"
-echo "      * predictor_sensitivity.csv / .json"
-echo "      * task_resolution.csv / .json"
-echo "      * latent_noise_sensitivity.csv / .json + latent_geometry_summary.csv / .json"
-echo "      * action_effect.csv / .json"
-echo "      * diagnostics_summary.json"
-echo "      * cross_check_corr.json (when run_cross_check_correlations=1)"
-echo "      * noise_ratio_curve_goal.png"
-echo "      * noise_angle_curve_goal.png"
-echo "      * geometry_tradeoff_goal.png"
+if [ "${run_diagnostics}" = "1" ]; then
+    echo "  - diagnostics:      diagnostics/"
+    echo "      * noise_sensitivity.csv / .json"
+    echo "      * geometry_summary.csv / .json"
+    echo "      * predictor_sensitivity.csv / .json"
+    echo "      * task_resolution.csv / .json"
+    echo "      * latent_noise_sensitivity.csv / .json + latent_geometry_summary.csv / .json"
+    echo "      * action_effect.csv / .json"
+    echo "      * diagnostics_summary.json"
+    echo "      * cross_check_corr.json (when run_cross_check_correlations=1)"
+    echo "      * noise_ratio_curve_goal.png"
+    echo "      * noise_angle_curve_goal.png"
+    echo "      * geometry_tradeoff_goal.png"
+else
+    echo "  - diagnostics:      skipped"
+fi
 echo "  - summary:          summary.txt"
 echo "==================================================="
 

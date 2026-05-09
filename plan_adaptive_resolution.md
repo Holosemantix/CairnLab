@@ -76,6 +76,34 @@ encoder σ_x 的用途必须明确，否则不加：
 - 作为 state-wise noise strength / consistency weight 的 controller。
 - 与 predictor σ̂ 做 calibration 对齐。
 
+### 2.2.1 备选：encoder input-sensitivity head（有监督版本，优先于 unsupervised σ_x）
+
+> 设计动机（2026-05-09 登记）：当前 Stage A–C 的所有 resolution controller 信号（σ̂、A_t）都经过 **predictor** 这条路。encoder 端对自己输入扰动的反应没有 self-aware signal；σ̂ 在 contact / 边界 chaotic extrapolation 时会被污染（§8.3.2.2 的 multi-δ CV 是在为此打补丁）。直觉"只给 predictor 加 head 差点啥"指向的不是 unsupervised encoder σ，而是这条**有天然监督**的替代。
+
+```
+enc_backbone(x) → h
+mean_head(h)    → μ_x ∈ R^d
+sens_head(h)    → s_enc(x) ∈ R^1   # 预测 input-perturbation 后的 encoder 位移
+
+# detached supervision
+target_enc = log( ||enc(x).detach() − enc(aug(x)).detach()||₂ + eps )
+L_sens = smooth_l1(s_enc(x), target_enc)
+```
+
+性质：
+- **天然监督信号**：`||enc(x) − enc(aug(x))||` 直接可测，避免 §2.1 点名的 unsupervised encoder σ identifiability trap。
+- **与 predictor σ̂ 正交**：σ̂ 是 *transition difficulty given clean state*；s_enc 是 *state representation 对 input nuisance 的敏感度*。两者描述不同物理量，没有互相吸收 residual 的退化路径。
+- **不引入 EMA / 第二 encoder**：监督目标用同一个 encoder 的两次 forward，与 §2.3 单 encoder 哲学一致。
+
+不立即采用的理由（§10 纪律）：
+1. Pilot-1（probe-only σ）尚未给出结果；最便宜的 predictor head 都未验证。
+2. Stage C 的 `L_cons = w_t · ||z_clean − z_noisy||` 已经隐式让 encoder input-sensitivity 进入梯度——先看它够不够，再决定是否需要把 encoder sensitivity 显式提取成 controller 输入。
+3. 加这一项会引入新 hyperparam `beta_sens`，违反"加项必须先有经验收益证据"的 §10 第 1 条。
+
+**触发加入的条件**（写死，不模糊）：
+- Stage C 的 `alpha_cons` ramp 在 PushT 上撞 guardrail（transition_resolution_ratio_l2 < 0.24 或 clean < 84），且诊断显示 critical 区域是因 **encoder 端对 input nuisance 区分不足** 导致（不是 predictor 端 σ̂ / A_t 信号失败）；或
+- σ̂ 的 calibration 在 +noise 训练下漂移（§8.5.6 Probe-on-noise 阶段），需要一个 input-side 信号去解释 σ̂ 漂移成分。
+
 ### 2.3 Target encoder：保留 LeWM 单 encoder 哲学
 
 target latent `μ_{t+1}^target = enc(x_{t+1})`——同一个 encoder，无 EMA、无 stop-grad asymmetry（沿用 LeWM 做法，是否对 target stop-grad 跟 LeWM 保持一致即可）。

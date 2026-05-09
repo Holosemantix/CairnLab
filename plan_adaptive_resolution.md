@@ -7,17 +7,19 @@
 
 ---
 
-## 论证链 (Core Argument Chain)
+## 论证链 (Argument Chain)
 
-1. **Baseline.** LeWM (MSE on μ + SIGReg anti-collapse) 是 4-task 上最强的 JEPA baseline；但 LeWM+noise 的 `image_noise.std_max` 必须按任务手调——*adaptive* latent resolution 要替代的就是这个全局超参 [Maes et al. 2026, arXiv:2603.19312]。
+**Background — latent geometry is a global trade-off in current world models.**
+Joint-embedding predictive architectures (JEPAs) learn action-conditioned latent dynamics from pixels, and their downstream value rests on a single property: the latent must encode *task-relevant* state distinctions while being invariant to *task-irrelevant* nuisances [LeCun 2022; Maes et al. 2026, "LeWorldModel", arXiv:2603.19312]. State-of-the-art recipes achieve this with one *global* knob — image-noise consistency strength in LeWM+noise, the variance-regulariser weight in VICReg/SIGReg [Bardes et al. ICLR 2022; Maes et al. 2026], or a fixed bottleneck width.
 
-2. **Prediction-loss reweighting 不是答案。** 经典 heteroscedastic NLL `0.5·(err·exp(−s)+s)` [Kendall & Gal, NeurIPS 2017] 在本仓 Pilot-1B (2026-05-09) 让 PushT clean 从 87 跌到 13：σ 学到 prediction difficulty (`s_logerr_corr` ≈ 0.95) 但 `exp(−s)` downweight 把接触瞬间的控制关键 transition 抹掉 (`transition_resolution_ratio_l2` 0.30→0.10)。
+**Problem — one global knob cannot serve heterogeneous states.**
+Different states carry fundamentally different controllable information: in PushT, free-motion frames tolerate aggressive invariance, while contact frames carry the precise pose that determines task success. Empirically the optimal `image_noise.std_max` differs by an order of magnitude across tasks (TwoRoom 0.08, PushT 0.02), and within PushT the clean-vs-robust frontier is a hand-tuned compromise. The model itself has no notion of *resolution* — that judgment lives only in the engineer who picks the knob.
 
-3. **σ 是 confounder。** Prediction difficulty 同时含 (a) controllable dynamics difficulty 与 (b) aleatoric visual nuisance；σ-only invariance 控制器会把不可控视觉随机源当作"高分辨率需求"，即经典 Noisy TV trap [Burda, Edwards, Pathak, Storkey, Darrell & Efros, ICLR 2019, "Large-Scale Study of Curiosity-Driven Learning"]。
+**Motivation — the obvious fix (heteroscedastic NLL) fails for a structural reason.**
+The natural candidate is to let the model emit a per-state uncertainty σ and use it to reweight the prediction loss [Kendall & Gal NeurIPS 2017]. Our Pilot-1B (2026-05-09) confirms σ calibrates well (`s_logerr_corr ≈ 0.95`) but PushT clean success collapses 87 → 13 while validation MSE keeps falling: `exp(−s)` downweights the high-error contact transitions that *are* the control signal (`transition_resolution_ratio_l2` 0.30 → 0.10). The deeper failure is that prediction difficulty is a *confounded* signal — it superposes (a) controllable dynamics complexity (deserves resolution) with (b) aleatoric visual nuisance (deserves invariance). Any σ-only controller therefore reproduces the Noisy TV pathology of curiosity / uncertainty learning [Burda et al. ICLR 2019, "Large-Scale Study of Curiosity-Driven Learning"]: it spends representational budget on uncontrollable randomness.
 
-4. **Action sensitivity 是天然 disambiguator。** `A_t = ||f(z, a+δ) − f(z, a)|| / ||δ||` 仅在 *动作可影响的状态* 上为高，是 empowerment 框架中量化 controllability 的标准构造 [Klyubin, Polani & Nehaniv, IEEE CEC 2005, "Empowerment: A universal agent-centric measure of control"]。组合 `critical_t = gA_t · (0.5 + 0.5·gS_t)` 用 A_t 做主门控、σ 做 difficulty enhancer。
-
-5. **干预 input-side invariance，不动 μ 的 prediction loss。** 用 `critical_t` 调 per-token encoder consistency `L_cons = w_t · d(z_clean, z_noisy)`——这是 SimSiam-style asymmetric consistency [Chen & He, CVPR 2021] 的 *per-state 加权* 推广；与 VICReg/SIGReg 的全局 anti-collapse 正交 [Bardes, Ponce & LeCun, ICLR 2022]。LeWM+noise (`w_t ≡ const`) 与 LeWM-base (`α_cons = 0`) 都是本框架的严格特例，任何系统失败必须能定位到 `A_t / σ` controller 误判，而非方法 ill-defined。
+**Our solution — disambiguate with action sensitivity, intervene on invariance not on prediction loss.**
+We separate the two components of difficulty using a finite-difference *controllability* signal, `A_t = ‖f(z, a+δ) − f(z, a)‖ / ‖δ‖`, the local responsiveness of the predictor to small action perturbations — a tractable proxy for the action-conditioned mutual-information measure that defines empowerment [Klyubin, Polani & Nehaniv IEEE CEC 2005]. A_t is high precisely where action choice changes future state, and low for distractors and uncontrollable scene dynamics. We combine A_t (main gate) with σ (difficulty enhancer) into a per-token critical score `critical_t = gA_t · (0.5 + 0.5 · gS_t)`, and use it to modulate *input-side encoder consistency* — `L_cons = w_t · d(z_clean, z_noisy)` with `w_t` decreasing in critical_t — instead of reweighting the prediction loss. The μ path keeps LeWM's MSE+SIGReg objective unchanged, sidestepping the failure mode that motivated us. This is a *per-state* generalisation of SimSiam-style asymmetric consistency [Chen & He CVPR 2021] and of LeWM+noise's global isotropic invariance: `w_t ≡ const` recovers LeWM+noise, `α_cons = 0` recovers LeWM-base, so both serve as falsifiable strict baselines. The contribution is not a new representation regulariser but a principled, mechanistically-grounded *resolution controller* — the first, to our knowledge, to combine epistemic and controllability signals to allocate latent capacity per state in a JEPA world model.
 
 ---
 

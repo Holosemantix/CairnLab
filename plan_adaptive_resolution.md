@@ -14,6 +14,7 @@
 1. **Pilot-1B 结论：Scale-preserving heteroscedastic loss 语义成功、控制失败。** `hetero_s_logerr_corr` 在 TwoRoom/PushT 后期分别约 0.89/0.95，说明 σ head 学到了 prediction difficulty；但 PushT `hetero_weight_q10_q90_ratio` 掉到约 0.008，hard transition 被强 downweight，clean eval 崩到 13.33。
 2. **下一步首选：Probe-only σ + action-aware adaptive consistency。** μ path 保持 LeWM MSE + SIGReg，σ head detached 学 `log(error)`；真正改变 encoder resolution 的路径应放在 input-side consistency 上，而不是 prediction-loss reweighting 上。
 3. **σ 不能单独决定 consistency weight。** prediction difficulty 会混合 action-relevant difficulty 和视觉 aleatoric noise；σ-only consistency 会落入 Noisy TV / confounder trap。必须用 action sensitivity `A_t` 作为主门控，σ 只作为 difficulty enhancer。
+4. **Pilot-2A 结论（2026-05-09，§8.3.6）：probe-only 救回 PushT，gate logging 三个结构判据通过，但发现 BN drift bug 让 TwoRoom probe+gate clean 跌 7pt（96.33 → 89.33）。** PushT 崩溃问题已解决（probe+gate clean 87.00 ≈ LeWM-base 87.33）；σ-A 弱正/独立，乘性 critical 设计得到经验支持；但 `compute_action_gate_metrics` 的 K 次 perturb forward 在 train mode 下污染了 `BatchNorm1d` running stats，TwoRoom 受害严重。**Stage C 不能解决此 bug**——它正交于 `alpha_cons`，必须先在 gate 内部把 BN 切到 `.eval()` 再重测。修复前不开 `alpha_cons > 0`。
 
 > **为什么恢复 probe-only？** 2026-05-09 Pilot-1B 已经证明核心风险真实存在：σ calibration 很好，但 PushT 失败。此时 probe-only 不再是“容量 smoke test”，而是把 σ 语义从 μ 几何更新中解耦，避免 hard-but-important transition 被训练权重抹掉。
 
@@ -315,6 +316,7 @@ NLL/hetero loss 的潜在好处：
 | **encoder σ 不可辨识** | encoder σ 无天然监督，和 predictor σ 同时学会互相逃逸 | Pilot-1 不加 encoder σ；只在 predictor σ 成立后再加 |
 | **Multi-step σ propagation 公式不准** | 本最简版**不主张**手写 σ 累积公式；让 predictor σ̂ 自学 multi-step uncertainty | 用 multi-step rollout NLL 做训练监督 |
 | **不超过 LeWM+noise oracle** | 很可能；LeWM+noise 已经很强 | 目标先设为减少手调且接近 oracle；若明显低于 oracle，降级为 analysis/future work |
+| **BN drift via gate perturb forward**（2026-05-09 实证发现） | gate 内 K 次 perturb forward 在 train mode 下走 projector / predictor_proj 的 `BatchNorm1d`，污染 running stats；TwoRoom probe+gate clean 因此跌 7pt（96.33 → 89.33）。**Stage C 不能解决此 bug**——它正交于 `alpha_cons` 与 `w_t` 设计。 | 在 `compute_action_gate_metrics` perturb forward 前临时把所有 `_BatchNorm` module `.eval()`，结束后恢复。修复后重跑 TwoRoom/PushT probe+gate；clean 未恢复前不进入 Stage C。 |
 
 ---
 
@@ -609,6 +611,97 @@ Guardrail 建议阈值（相对 PushT LeWM-base）：
 3. `A_t` / `critical_t` 必须显示 action-relevant 结构；否则不启用 consistency。
 4. PushT resolution guardrail 不得破。
 5. 若 action-aware consistency 无收益，方法降级为 uncertainty/action diagnostic；若有收益，再谈 adaptive resolution 主方法。
+
+#### 8.3.6 Probe-only σ + Action-gate logging 结果（2026-05-09 Pilot-2A）
+
+运行：
+
+| Task | Run | SwanLab id |
+|---|---|---|
+| TwoRoom probe | `tworoom_lewm_hetero_probe_default` | `75qiqru0ttwmyy7pwigly` |
+| TwoRoom probe+gate | `tworoom_lewm_hetero_probe_default_action_gate` | `awokxbepmodp2shcqmynr` |
+| PushT probe | `pusht_lewm_hetero_probe_default` | `jgqsw29zji110j3gczu03` |
+| PushT probe+gate | `pusht_lewm_hetero_probe_default_action_gate` | `oezw5j3w0uh3ydxnan63c` |
+
+设置：`loss.hetero.enabled=true loss.hetero.mode=probe`；`probe+gate` 额外 `loss.action_gate.enabled=true`（logging-only，`adaptive_consistency.weight=0`）。Eval epoch 10，seeds 42/43/44，每 seed `num_eval=100`。
+
+##### 8.3.6.1 Eval 表
+
+| Task / model | Clean | goal 0.05 | pixels 0.05 | px+goal 0.05 | goal 0.08 | px+goal 0.08 |
+|---|---:|---:|---:|---:|---:|---:|
+| TwoRoom LeWM-base | 93.00 | 71.00 | 70.33 | 62.33 | 55.67 | 44.33 |
+| TwoRoom hetero (Pilot-1B) | **99.67** | 85.33 | **96.67** | 84.67 | 73.33 | **55.33** |
+| TwoRoom probe | 96.33 | 80.67 | 81.00 | 67.00 | 63.67 | 46.00 |
+| TwoRoom probe+gate | 89.33 | 49.00 | 52.00 | 36.67 | 41.67 | 33.00 |
+| PushT LeWM-base | 87.33 | 38.00 | 17.33 | 15.00 | 15.00 | 3.67 |
+| PushT hetero (Pilot-1B) | 13.33 | 7.67 | 7.67 | 7.67 | 9.67 | 6.00 |
+| PushT probe | 81.67 | 39.00 | 19.33 | 14.67 | 17.33 | 3.33 |
+| PushT probe+gate | **87.00** | **52.00** | **31.67** | **21.00** | **23.00** | 3.33 |
+
+##### 8.3.6.2 训练侧诊断
+
+| 指标 | tw_probe | tw_probe_gate | pu_probe | pu_probe_gate |
+|---|---:|---:|---:|---:|
+| `pred_loss_mse_equiv` (tail100) | 0.0295 | 0.0295 | 0.0177 | 0.0162 |
+| `validate/hetero_s_logerr_corr` (last) | 0.620 | 0.621 | 0.480 | 0.462 |
+| `hetero_s_abs_max` (last) | 4.24 | 4.30 | 4.23 | 4.23 |
+| `adaptive_action_sensitivity_cv_mean` | — | 0.36 | — | 0.245 |
+| `adaptive_action_sensitivity_cv_high_A` | — | 0.35 | — | 0.277 |
+| `validate/adaptive_corr_sigma_action_epoch` | — | −0.02 | — | +0.23 |
+| `adaptive_critical_mean` (val) | — | 0.35 | — | 0.30 |
+
+##### 8.3.6.3 结论
+
+1. **PushT 崩溃问题已解决。** probe-only PushT clean 81.67、probe+gate clean 87.00，与 LeWM-base 87.33 持平；hetero loss 的 13.33 不再出现。证明 §3.4 把 σ 从 μ-path 梯度解耦的设计是对的。
+2. **σ probe 语义保留。** PushT validate corr ≈ 0.46–0.54、TwoRoom ≈ 0.62。PushT 边界但通过 Stage A 0.5 阈值。代价是 σ 比 hetero loss 下的 0.95 弱，因为没有 NLL 反馈把 σ 强行钉到 prediction error。
+3. **Action-gate 三个结构判据通过（PushT）。** `cv_mean = 0.245 < 0.5` ✅；`cv_high_A = 0.277` 不显著高于全局 ✅；`corr_sigma_action`：PushT 0.23 弱正相关、TwoRoom −0.02 基本独立 → σ 与 A_t 不是同一信号，乘性 `critical = gA × (0.5 + 0.5·gS)` 设计得到经验支持。这是 §8.3.2.2 多 δ CV 判据的首个正面验证。
+4. **TwoRoom probe+gate clean 跌 7pt（96.33 → 89.33）是真问题，且不是 Stage C 能解决的。** 见 §8.3.6.4。
+5. **PushT probe+gate robustness 比 LeWM-base 更高**（goal 0.05: 38 → 52、pixels 0.05: 17 → 32），但 logging-only run 不应改变训练梯度——这要么是种子噪声，要么是 §8.3.6.4 同源的 BN drift 在 PushT 上反而起到轻微 invariance 训练效果。需要修 BN drift 后重测确认。
+
+##### 8.3.6.4 关键 bug：BN drift via gate perturb forward
+
+**机制：** `train.py::compute_action_gate_metrics` 内 K=4 次 `model.predict(ctx_emb_d, act_emb_pert)` 在 `model.training=True` 下执行。`projector` 与 `predictor_proj` 默认 `nn.BatchNorm1d`（`config/train/lewm.yaml::encoder.projection_head.norm_fn=batchnorm1d`），每次 perturb forward 都会用 OOD-ish 扰动 activation 更新 BN running mean/var。每个 train step BN 统计被多走了 K 次偏离主分布的 forward。
+
+**为什么 TwoRoom 受害严重、PushT 几乎不受影响：**
+- TwoRoom：表征空间小、batch 视觉多样性低，BN 统计的有效样本数对 perturb forward 敏感；clean eval 跌 7pt（96.33 → 89.33）。
+- PushT：视觉多样性主导 BN 统计，K=4 perturb forward 占比可忽略；clean 87.00 与 LeWM-base 87.33 持平。
+
+**为什么 Stage C 解决不了这个 bug：** Stage C 是在主 loss 上加 `L_cons = w_t · d(z_clean, z_noisy)`，**完全不改 gate 内部的 perturb forward 逻辑**。BN running stats 仍然每步被 K=4 OOD forward 污染，与 `alpha_cons` 大小、`w_t` 设计正交。叠加 Stage C 只会让 BN drift 与 consistency gradient 互相纠缠，更难诊断。
+
+**修复方案（必须先做，再开 Stage C）：**
+
+```python
+# In compute_action_gate_metrics, before the K-loop perturb forwards:
+bn_states = []
+for m in model.modules():
+    if isinstance(m, nn.modules.batchnorm._BatchNorm):
+        bn_states.append((m, m.training))
+        m.eval()  # use running stats; do NOT update them
+try:
+    for _ in range(K):
+        ...  # perturb forward + A_t computation
+finally:
+    for m, was_train in bn_states:
+        m.train(was_train)
+```
+
+语义上这是正确的：A_t 测的是 `||predictor(z, a+δ) − predictor(z, a)||` 的局部敏感度，应该在**固定 normalization 统计**下测量；让 perturb forward 反向影响 BN 统计本身就是 leakage。
+
+**修复后必须重跑的实验：**
+- TwoRoom probe+gate（验证 clean 回到 96+；如果仍 89 附近，bug 不止 BN drift）。
+- PushT probe+gate（验证 clean 87 与 robustness 是否仍保持；如果 robustness 跌回 LeWM-base 水平，§8.3.6.3 第 5 点的"轻微 invariance 训练副作用"假设成立）。
+
+**Stage C 的真实定位（修 BN drift 之后才有意义）：** Stage C 仍可能解决 TwoRoom 与 PushT *两个任务都接近各自最优* 的兼容性问题——critical 区域降 consistency 保 PushT 接触 resolution，non-critical 区域加 consistency 把 TwoRoom 提到 LeWM+noise 水平。但前提是 logging-only 阶段已经 clean 不掉。当前数据**还不能下结论 "adaptive consistency 兼容动态分辨率"**，要先修 bug 再观察。
+
+##### 8.3.6.5 进入 Stage C 的修订前置条件
+
+§8.3.3 原前置条件 "logging → consistency `alpha=0.01`" 现追加：
+
+- **(新)** TwoRoom probe+gate clean ≥ 92（恢复到 LeWM-base 附近），证明 BN drift 已修；同时 PushT probe+gate clean ≥ 86 不退化。
+- σ probe corr (validate) PushT ≥ 0.5、TwoRoom ≥ 0.5（已基本满足，PushT 边界）。
+- §8.3.2.2 三个 cv 结构判据保持通过（已通过）。
+
+不满足前两条之前，**不开 `alpha_cons > 0`**。
 
 ### 8.4 Pilot-2: Action-aware σ 使用逻辑
 

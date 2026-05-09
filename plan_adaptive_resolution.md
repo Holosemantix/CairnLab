@@ -94,6 +94,8 @@ L_sens = smooth_l1(s_enc(x), target_enc)
 - **天然监督信号**：`||enc(x) − enc(aug(x))||` 直接可测，避免 §2.1 点名的 unsupervised encoder σ identifiability trap。
 - **与 predictor σ̂ 正交**：σ̂ 是 *transition difficulty given clean state*；s_enc 是 *state representation 对 input nuisance 的敏感度*。两者描述不同物理量，没有互相吸收 residual 的退化路径。
 - **不引入 EMA / 第二 encoder**：监督目标用同一个 encoder 的两次 forward，与 §2.3 单 encoder 哲学一致。
+- **与 §3.4 `L_cons` 共享 forward，零额外开销**：`||enc(x) − enc(aug(x))||` 正是 `L_cons` 已经在计算的 per-token distance。监督目标直接复用 `d(stopgrad(z_clean), stopgrad(z_noisy))`，不需要第二次 `enc(aug(x))`。
+- **真正的价值是 controller-side 闭环，不是 loss-side**：`L_cons` 已经把这个距离当**训练目标**（梯度反传进 encoder 把它压小）；s_enc head 的角色是把这个量**摘出来作为 controller `w_t` 的输入**。没有 s_enc 时，`w_t` 只看 predictor 端信号（σ̂、A_t），是 predictor-only feedback loop；有了 s_enc 才形成 *encoder sensitivity → controller → encoder consistency pressure* 的闭环。这也是直觉"predictor-only head 差点啥"指向的真正缺口。
 
 不立即采用的理由（§10 纪律）：
 1. Pilot-1（probe-only σ）尚未给出结果；最便宜的 predictor head 都未验证。

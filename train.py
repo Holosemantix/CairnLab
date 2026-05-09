@@ -669,16 +669,18 @@ def run(cfg):
     gate_cfg_init = cfg.loss.get("action_gate", {})
     if gate_cfg_init.get("enabled", False):
         # Scalar EMA buffers for zscore normalisation of log A_t and s_t.
-        # Stored on world_model so they round-trip with checkpoints.
+        # Non-persistent: they re-converge quickly during warmup_epochs, and
+        # making them persistent breaks resume from checkpoints that predate
+        # this feature.
         for name in ("log_A", "s"):
             world_model.register_buffer(
-                f"gate_{name}_mean", torch.zeros(()), persistent=True
+                f"gate_{name}_mean", torch.zeros(()), persistent=False
             )
             world_model.register_buffer(
-                f"gate_{name}_var", torch.ones(()), persistent=True
+                f"gate_{name}_var", torch.ones(()), persistent=False
             )
             world_model.register_buffer(
-                f"gate_{name}_inited", torch.zeros(()), persistent=True
+                f"gate_{name}_inited", torch.zeros(()), persistent=False
             )
 
     if cfg.loss.temporal_hinge.get("dynamic", {}).get("enabled", False):

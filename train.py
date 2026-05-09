@@ -1,4 +1,3 @@
-import os
 from functools import partial
 from pathlib import Path
 
@@ -118,6 +117,55 @@ def compute_hetero_pred_loss(
     return hetero_loss, monitors
 
 
+def compute_sigma_probe_loss(
+    pred_loss_emb: torch.Tensor,
+    tgt_loss_emb: torch.Tensor,
+    logvar_hat: torch.Tensor,
+    *,
+    s_min: float = -4.0,
+    s_max: float = 4.0,
+    tau_floor: float = 1e-6,
+):
+    """Detached sigma calibration loss.
+
+    The prediction error target is detached, and callers should also detach the
+    logvar head input so this loss only trains pred_logvar_proj. The mean path
+    remains the exact LeWM MSE + SIGReg objective.
+    """
+    err = (pred_loss_emb.detach() - tgt_loss_emb.detach()).pow(2).mean(dim=-1)
+    target_logerr = torch.log(err.clamp(min=tau_floor)).clamp(min=s_min, max=s_max)
+    s = logvar_hat.squeeze(-1)
+    sigma_probe_loss = F.smooth_l1_loss(s, target_logerr)
+
+    with torch.no_grad():
+        s_flat = s.reshape(-1)
+        e_flat = err.reshape(-1)
+        target_flat = target_logerr.reshape(-1)
+        weight = torch.exp(-s.clamp(min=s_min, max=s_max))
+        w_flat = weight.reshape(-1)
+        s_centered = s_flat - s_flat.mean()
+        loge_centered = target_flat - target_flat.mean()
+        denom = s_centered.norm() * loge_centered.norm()
+        s_loge_corr = (s_centered * loge_centered).sum() / denom.clamp(min=1e-8)
+        q10 = torch.quantile(w_flat, 0.1)
+        q90 = torch.quantile(w_flat, 0.9)
+        monitors = {
+            "hetero_s_mean": s_flat.mean(),
+            "hetero_s_std": s_flat.std(unbiased=False),
+            "hetero_s_abs_max": s_flat.abs().max(),
+            "hetero_weight_mean": w_flat.mean(),
+            "hetero_weight_q10": q10,
+            "hetero_weight_q90": q90,
+            "hetero_weight_q10_q90_ratio": q10 / q90.clamp(min=1e-8),
+            "hetero_tau": e_flat.mean(),
+            "hetero_err_mean": e_flat.mean(),
+            "hetero_s_logerr_corr": s_loge_corr,
+            "sigma_probe_target_logerr_mean": target_flat.mean(),
+            "sigma_probe_target_logerr_std": target_flat.std(unbiased=False),
+        }
+    return sigma_probe_loss, monitors
+
+
 def compute_temporal_hinge(output, *, model, cfg):
     """Upper hinge loss on consecutive latent pairs (LeWM variant).
 
@@ -209,8 +257,15 @@ def lejepa_forward(self, batch, stage, cfg):
         tgt_emb = tgt_emb.detach()
     hetero_cfg = cfg.loss.get("hetero", {})
     hetero_enabled = bool(hetero_cfg.get("enabled", False))
+    hetero_mode = hetero_cfg.get("mode", "loss").lower()
+    if hetero_enabled and hetero_mode not in {"loss", "probe"}:
+        raise ValueError(f"Unsupported loss.hetero.mode: {hetero_mode}")
     if hetero_enabled:
-        pred_emb, logvar_hat = self.model.predict_with_logvar(ctx_emb, ctx_act)
+        pred_emb, logvar_hat = self.model.predict_with_logvar(
+            ctx_emb,
+            ctx_act,
+            detach_logvar_input=(hetero_mode == "probe"),
+        )
         if logvar_hat is None:
             raise RuntimeError(
                 "loss.hetero.enabled=True requires model.pred_logvar_proj to be built"
@@ -221,8 +276,8 @@ def lejepa_forward(self, batch, stage, cfg):
     pred_loss_emb = get_pred_loss_tensor(pred_emb, space=pred_space)
     tgt_loss_emb = get_pred_loss_tensor(tgt_emb, space=pred_space)
 
-    # LeWM loss (or sigma-conditioned hetero loss when enabled)
-    if hetero_enabled:
+    # LeWM loss, optional hetero replacement, or detached sigma probe.
+    if hetero_enabled and hetero_mode == "loss":
         hetero_loss, hetero_monitors = compute_hetero_pred_loss(
             pred_loss_emb,
             tgt_loss_emb,
@@ -239,6 +294,19 @@ def lejepa_forward(self, batch, stage, cfg):
             output[k] = v
     else:
         output["pred_loss"] = (pred_loss_emb - tgt_loss_emb).pow(2).mean()
+        if hetero_enabled and hetero_mode == "probe":
+            sigma_probe_loss, probe_monitors = compute_sigma_probe_loss(
+                pred_loss_emb,
+                tgt_loss_emb,
+                logvar_hat,
+                s_min=hetero_cfg.get("s_min", -4.0),
+                s_max=hetero_cfg.get("s_max", 4.0),
+                tau_floor=hetero_cfg.get("tau_floor", 1e-6),
+            )
+            output["sigma_probe_loss"] = sigma_probe_loss
+            output["pred_loss_mse_equiv"] = output["pred_loss"].detach()
+            for k, v in probe_monitors.items():
+                output[k] = v
     output["sigreg_loss"] = self.sigreg(emb.transpose(0, 1))
     output["temporal_hinge_loss"] = compute_temporal_hinge(
         output, model=self.model, cfg=cfg
@@ -292,6 +360,11 @@ def lejepa_forward(self, batch, stage, cfg):
             output["loss"]
             + dist_weight * output["transition_distance_loss"]
         )
+    if "sigma_probe_loss" in output:
+        output["loss"] = (
+            output["loss"]
+            + hetero_cfg.get("probe_weight", 1.0) * output["sigma_probe_loss"]
+        )
     output["temporal_straightness"] = temporal_straightness(emb)
 
     losses_dict = {f"{stage}/{k}": v.detach() for k, v in output.items() if "loss" in k}
@@ -309,6 +382,7 @@ def lejepa_forward(self, batch, stage, cfg):
                     and not k.endswith("_loss")
                 )
                 or k.startswith("hetero_")
+                or k.startswith("sigma_probe_")
                 or k == "pred_loss_mse_equiv"
             )
         )

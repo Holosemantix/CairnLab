@@ -60,13 +60,15 @@ class JEPA(nn.Module):
         preds = rearrange(preds, "(b t) d -> b t d", b=emb.size(0))
         return preds
 
-    def predict_with_logvar(self, emb, act_emb):
+    def predict_with_logvar(self, emb, act_emb, *, detach_logvar_input: bool = False):
         """Predict next state embedding and (optional) per-token scalar log-variance.
 
         Both heads share the predictor backbone hidden state. Returns
         (mu_hat, logvar_hat) with shapes (B, T, D) and (B, T, 1) respectively.
         When pred_logvar_proj is None (default LeWM baseline), logvar_hat is
-        None and callers must fall back to plain MSE prediction.
+        None and callers must fall back to plain MSE prediction. In probe-only
+        mode, detach_logvar_input prevents the sigma loss from updating the
+        shared predictor backbone.
         """
         b = emb.size(0)
         hidden = self.predictor(emb, act_emb)              # (B, T, hidden)
@@ -74,7 +76,8 @@ class JEPA(nn.Module):
         mu_hat = rearrange(self.pred_proj(hidden_flat), "(b t) d -> b t d", b=b)
         if self.pred_logvar_proj is None:
             return mu_hat, None
-        logvar_flat = self.pred_logvar_proj(hidden_flat)   # (B*T, 1)
+        logvar_input = hidden_flat.detach() if detach_logvar_input else hidden_flat
+        logvar_flat = self.pred_logvar_proj(logvar_input)  # (B*T, 1)
         logvar_hat = rearrange(logvar_flat, "(b t) d -> b t d", b=b)
         return mu_hat, logvar_hat
 

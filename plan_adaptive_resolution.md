@@ -370,6 +370,11 @@ Pilot-1B 的结果是“语义成功、系统失败”：
 
 #### 8.3.1 第一优先级：Probe-only σ head（恢复 Stage A，但目的改变）
 
+实现状态（2026-05-09）：
+- 已加入 `loss.hetero.mode=probe`。
+- `JEPA.predict_with_logvar(..., detach_logvar_input=True)` 会 detach σ head 的 predictor hidden 输入，确保 `sigma_probe_loss` 不更新 shared predictor backbone。
+- 使用方式：`python train.py data=pusht output_model_name=pusht_lewm_sigma_probe_default loss.hetero.enabled=true loss.hetero.mode=probe`。
+
 训练：
 
 ```text

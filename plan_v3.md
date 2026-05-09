@@ -54,7 +54,7 @@
 
 **这是否已经足够构成主方法？** 还不够。LeWM+noise 的提升是真实且强的，但它目前仍是**静态 augmentation recipe**：每个任务需要选 `std_max`，而且四个任务的最优点不同（TwoRoom 可继续吃到 0to008，PushT 在 0to002/0to006 附近，Reacher 在 0to006，Cube 高 noise 反而退化）。因此它更像强 baseline / motivation，不是最终方法贡献。
 
-**当前主线应改成 adaptive latent resolution。** SWM 只作为表征几何干预，帮助证明”同一个静态 geometry prior 在不同任务上反应不同”；真正的方法目标是让 LeWM 自动按状态/任务难度分配 latent resolution。`plan_adaptive_resolution.md` 中的 **Sigma-conditioned JEPA**（2026-05-08 修订版）是目前最干净的落地方向，但已从”直接 NLL 替换 MSE”收紧为**三阶段验证**：(1) Probe-only σ head（保持 LeWM MSE 不变，σ 仅 detached calibrate per-token error，验证额外输出头是否真的学到状态/任务异质性）；(2) Scale-preserving heteroscedastic loss（仅在 (1) 通过后启用，避免 NLL 替换 MSE 改变 SIGReg 相对尺度并 downweight 高误差关键 transition）；(3) σ 进入 planner / controller / consistency 等使用逻辑（仅在 (2) 不退步且 σ 语义稳定后）。它把”分辨率”变成模型输出，而不是用一堆诊断指标手工做 loss——但**不预设 σ-head 自动等于 dynamic resolution**，必须实证验证 σ 的语义和系统级使用收益。
+**当前主线应改成 adaptive latent resolution。** SWM 只作为表征几何干预，帮助说明”同一个静态 geometry prior 在不同任务上反应不同”；真正的方法目标是让 LeWM 自动按状态分配 invariance / resolution 预算。`plan_adaptive_resolution.md` 中的 **Action-Aware Adaptive Consistency**（2026-05-09 修订版）是当前主线：Pilot-1B 已经证明 σ head 能校准 prediction difficulty，但也证明 heteroscedastic loss 会在 PushT 上严重压缩 critical transition/action resolution。因此后续路线改为：(1) Probe-only σ head，保持 LeWM MSE + SIGReg 主路径不变；(2) logging-only action gate，用 `A_t` 验证 local action sensitivity 是否能过滤 σ 中的 visual-nuisance / action-irrelevant 成分；(3) action-aware adaptive consistency，只让 `A_t × σ` 调节 input-side consistency strength。它不把 σ-head 自动等同于 dynamic resolution，而是把 σ 作为 difficulty signal、`A_t` 作为 action-relevance filter，并用 PushT resolution guardrail 约束训练介入。
 
 **诊断指标的定位也要降级/转向。** 不应把 P0.6 “预测工具”作为核心承诺，也不应把 `effective_rank`、LiDAR、CKA、NN ratio 等直接当 loss；这样既不优雅，也容易变成 post-hoc metric chasing。**2026-05-08 §6 P0.5c n=18 cross-check 进一步证实**：跨任务通用 label-free predictor 在 n=18 上几乎全部稀释——只有 PushT 2 个、Cube 3 个主指标仍通过严格门槛；Reacher 之前 n=8 上的"强信号"（`predictor_rollout_T8_l2` ρ=−0.83）全部失效（n=18 ρ=−0.33，p\|method=−0.12，是 method-axis cluster 拉出的伪相关），TwoRoom 主指标 `id_probe_r2` 边缘不达。更合适的用途是：
 
@@ -62,7 +62,7 @@
 2. **机制解释**：说明 σ 是否真的和预测难度、transition/action sensitivity 对齐。
 3. **验收标准**：新方法相对 LeWM+noise 是否减少手调 std 的需求，同时保持/提升 clean 和 noise robustness。
 
-下一步资源优先投给 **heteroscedastic JEPA Pilot-1（TwoRoom + PushT）+ 关键结果 3-seed 补齐**。P0.6 blind holdout 可以保留为诊断附属验证，但不再是主线 gating item。
+下一步资源优先投给 **probe-only σ + action-gate logging（TwoRoom + PushT）+ 关键结果 3-seed 补齐**。P0.6 blind holdout 可以保留为诊断附属验证，但不再是主线 gating item。
 
 ---
 
@@ -1012,28 +1012,30 @@ P5 原本单列为一个诊断实验；这里并入 P2，因为它和 cost swap 
 
 目标：避免“每个任务手调一套 noise recipe”，把 LeWM+noise 的经验提升升级成真正的方法贡献。
 
-当前最值得做的不是把诊断指标直接写成 loss，也不是继续扩大 SWM recipe sweep，而是按 `plan_adaptive_resolution.md`（2026-05-08 修订版）三阶段推进 sigma-conditioned JEPA。**不再默认假设 NLL 优于 MSE**——LeWM 的 MSE + SIGReg 已经很强，直接替换会改变 pred loss 与 SIGReg 的相对尺度，且 NLL 会 downweight 高误差样本（在 PushT 这类任务里高误差样本可能正是接触/精细控制的关键状态）。
+当前最值得做的不是把诊断指标直接写成 loss，也不是继续扩大 SWM recipe sweep，而是按 `plan_adaptive_resolution.md`（2026-05-09 修订版）推进 **probe-only σ + action-aware adaptive consistency**。Pilot-1B 已经给出关键反证：scale-preserving heteroscedastic loss 虽然能把 σ 校准到 prediction difficulty，但在 PushT 上把 clean eval 从 87.33/86.00 打到 13.33，并显著压缩 transition/action resolution。因此 hetero loss 不再是主方法路线，只作为 failure ablation / cautionary baseline。
 
 ```text
-# Stage A (Pilot-1A, 首选): predictor 加 scalar logvar_hat，主 loss 不变
+# Stage A: predictor 加 scalar logvar_hat，主 loss 不变
 L_main = mean((mu_hat - mu_target)^2) + lambda_SIGReg * SIGReg(mu)
 err_token = mean((mu_hat.detach() - mu_target.detach())^2, dim=-1)
 L_sigma_probe = smooth_l1(logvar_hat, log(err_token + eps))   # 只更新 σ head
 
-# Stage B (Pilot-1B, 仅在 Stage A 通过后): scale-preserving hetero loss
-tau = stopgrad(EMA(mean(err_token)))
-L_main = mean(exp(-logvar_hat) * err_token + tau * logvar_hat) + lambda_SIGReg * SIGReg(mu)
-# 初始 logvar_hat=0 时 L_main = mean(err_token)，与原 MSE 同尺度
+# Stage B: logging-only action gate，不改变训练目标
+A_t = d(f(z_t, a_t + delta), f(z_t, a_t)) / (||delta|| + eps)
+critical_t = gA_t * (0.5 + 0.5 * gS_t)   # 全部 stop-grad，只记录
 
-# Stage C (Pilot-2, 仅在 Stage B 不退步后): σ 进入 planner / consistency / gating
+# Stage C: action-aware adaptive consistency
+L_cons = mean(stopgrad(w_t) * d(stopgrad(z_clean_t), z_noisy_t))
+L_total = L_main + beta_probe * L_sigma_probe + alpha_cons * L_cons
 ```
 
 核心理由：
 - LeWM+noise 已证明”增强鲁棒性”有收益，但 `std_max` 是外部静态旋钮；2026-05-08 SWM noise sweep 补齐后同样表现出”每任务最优 std 不同”（TwoRoom 0to001 / PushT 0to006 / Reacher 0to007 / Cube SWM-base），印证静态 recipe 不通用。
-- `σ` head 给模型一个内生的”局部分辨率/预测难度”变量；但 σ 是 transition uncertainty，不能**自动**等同于 latent 邻域半径，必须 Stage A probe 先验证有意义异质性。
-- LeWM 是 σ-head 不参与使用逻辑（Stage A）或 logvar_hat ≡ 0（Stage B）的严格 baseline——任何 σ 方案都必须先证明不破坏 LeWM+noise 的 clean / robustness tradeoff。
+- `σ` head 给模型一个内生的 prediction-difficulty signal；但 σ 不能**自动**等同于 latent 邻域半径或分辨率需求。Pilot-1B 的 PushT 失败已经证明，σ 单独进入 loss 会把 hard-but-important transition 降权。
+- `A_t` 是 learned predictor 下的 local action sensitivity proxy，用来过滤 σ 中的 action-irrelevant / visual-nuisance 成分。它不是无需验证的 controllability 定理，必须先 logging-only 验证与 action-effect / contact / transition displacement 对齐，且多 `delta` CV 不显示 chaotic extrapolation。
+- LeWM 是 `alpha_cons=0` 的严格 baseline；LeWM+noise 是 `w_t=const` 的严格 baseline。任何 adaptive consistency 方案都必须证明不破坏 PushT resolution guardrail，并且至少接近 LeWM+noise per-task oracle。
 
-Pilot-1A 最小设置：
+Stage A 最小设置：
 
 | 项 | 设置 |
 |---|---|
@@ -1044,7 +1046,7 @@ Pilot-1A 最小设置：
 | Eval | num_eval=100 单 seed，先验证主性能不变 |
 | 关键对照 | LeWM-base、LeWM best noise（TwoRoom 0to008 / PushT 0to002）、SWM 作为 geometry intervention |
 
-Pilot-1A 验收信号（详 plan_adaptive_resolution §8.1）：
+Stage A 验收信号（详 plan_adaptive_resolution §8.3.1）：
 
 | 信号 | 判定 |
 |---|---|
@@ -1053,18 +1055,18 @@ Pilot-1A 验收信号（详 plan_adaptive_resolution §8.1）：
 | σ 与任务结构对齐 | 高 σ 集中在 contact / sharp transition / high action-effect 区域，不是只跟图像噪声共变 |
 | 主性能未污染 | clean eval 与 LeWM baseline 基本一致（σ probe 不影响 μ path） |
 
-**Pilot-1A 失败判据**：σ 在 PushT 上仍然集体常数，或与 prediction error 无关 → 不要进入 Stage B，先停。
+**Stage A 失败判据**：σ 在 PushT 上仍然集体常数，或与 prediction error 无关 → 不要进入 action-aware consistency，先把 σ 降级为 diagnostic 或重查 probe head。
 
-如果整条路线失败，再退回 guarded noise consistency：
+Stage B/C 的核心 guardrail：
 
-| fallback | 目的 |
+| 项 | 目的 |
 |---|---|
-| noise consistency + action-effect preservation | 保留 action 对 latent transition 的影响 |
-| noise consistency + transition distance preservation | 防止相邻但关键的状态差异被抹掉 |
-| adaptive λ | 根据 transition/action sensitivity 自动调 noise consistency 强度 |
-| vMF concentration `κ` | 长线方案；仅当 scalar σ 有正信号后再考虑球面版本 |
+| action-gate logging | 只记录 `A_t` / `critical_t`，确认它比 σ-only 更能过滤 visual nuisance |
+| multi-δ CV | 区分 smooth-controllable 高敏感区与 chaotic / extrapolation 高敏感区 |
+| PushT transition/action resolution guardrail | 防止 consistency 把接触控制所需的细粒度差异抹掉 |
+| σ-only consistency ablation | 作为 failure control，检验 Noisy-TV-style confounder 是否真实 |
 
-短期优先级：**先做 sigma-conditioned JEPA Pilot-1A（probe-only）**；通过后才进入 Pilot-1B（hetero loss）→ Pilot-2（σ 使用逻辑）。guarded consistency 是 Pilot-1B/Pilot-2 失败时的 fallback，不是首选。
+短期优先级：**probe-only σ → action-gate logging → action-aware adaptive consistency**。heteroscedastic NLL 已经作为 Pilot-1B 失败路线记录，不再扩大为主方法。
 
 ## 7. Prior Art：诊断指标的归属与 Gap
 
@@ -1100,7 +1102,7 @@ Pilot-1A 验收信号（详 plan_adaptive_resolution §8.1）：
 主贡献应从“诊断预测工具”转向“动态分辨率 world model”。诊断指标仍有价值，但作为设计与验收工具，而不是论文主方法。
 
 1. **Adaptive latent resolution for JEPA world models.**
-   LeWM 是固定分辨率 latent；LeWM+noise 证明静态 smoothing 有收益但需要按任务调 `std_max`。Heteroscedastic JEPA 给每个状态/预测输出 `σ`，用 NLL 自校准到 per-sample prediction difficulty，使 latent `μ` 在不同状态区域自动分配 coarse/fine resolution。LeWM 是 `σ ≡ const` 的严格特例。
+   LeWM 是固定分辨率 latent；LeWM+noise 证明静态 smoothing 有收益但需要按任务调 `std_max`。我们不再把 heteroscedastic NLL 当主方法，而是用 detached σ probe 提供 prediction-difficulty signal，再用 action sensitivity `A_t` 过滤 action-irrelevant difficulty，控制 input-side consistency strength。LeWM 是 `alpha_cons=0` 的严格特例，LeWM+noise 是 `w_t=const` 的严格特例。
 
 2. **Task-dependent invariance-resolution evidence.**
    SWM、LeWM+noise、四任务 noise sweep 共同说明：TwoRoom、PushT、Reacher、Cube 对同一个 geometry prior 的响应不同。SWM 的角色是 geometry intervention / ablation，不再是主方法。
@@ -1139,13 +1141,14 @@ Pilot-1A 验收信号（详 plan_adaptive_resolution §8.1）：
 
 | 节点 | 触发条件 | 下一步 |
 |---|---|---|
-| **P4 Pilot-1A: probe-only σ head** | **当前主线（首要）** | 给 predictor 加 scalar `logvar_hat`，主 LeWM MSE + SIGReg 不变；σ head 用 detached `log(err_token)` 监督。任务 TwoRoom + PushT，单 seed × num_eval=100。验收 σ 异质性、σ↔error calibration、主性能未污染 |
-| P4 Pilot-1B: scale-preserving hetero loss | Pilot-1A 通过（σ 有意义异质性） | 用 §plan_adaptive_resolution.md §3.2 的 scale-preserving hetero loss 替代 MSE；不加 encoder σ；不改 planner |
-| P4 Pilot-2: σ 进入使用逻辑 | Pilot-1B 不退步且 σ 语义稳定 | σ-based CEM budget / horizon gating / 条件 noise consistency 三选一，避免新超参膨胀 |
-| 3-seed 4-task 全套 validation | Pilot-1B 或 Pilot-2 通过 | 4 task × 3 seeds × num_eval=300；对照 LeWM-base / LeWM+noise shared std / LeWM+noise per-task oracle / 本框架 |
+| **P4 Stage A: probe-only σ head** | **当前主线（首要）** | 给 predictor 加 scalar `logvar_hat`，主 LeWM MSE + SIGReg 不变；σ head 用 detached `log(err_token)` 监督。任务 TwoRoom + PushT，验收 σ 异质性、σ↔error calibration、主性能未污染 |
+| **P4 Stage B: action-gate logging** | probe-only 保持 PushT clean / resolution，且 σ 语义稳定 | 开启 `loss.action_gate.enabled=true` 但 `adaptive_consistency.weight=0`，只记录 `A_t` / `critical_t` / CV，验证 action relevance 与 visual nuisance 分离 |
+| **P4 Stage C: action-aware adaptive consistency** | logging-only 三个结构判据通过，PushT guardrail 通过 | 启用小 `alpha_cons`，用 `A_t × σ` 控制 clean/noisy encoder consistency；对照 LeWM-base、LeWM+noise constant weight、σ-only consistency |
+| hetero loss ablation | 已完成 Pilot-1B，PushT 失败 | 作为反例保留：σ calibration 成功但 loss reweighting 会压缩 critical transition resolution |
+| 3-seed 4-task 全套 validation | Stage C 通过 TwoRoom + PushT pilot | 4 task × 3 seeds × num_eval=300；对照 LeWM-base / LeWM+noise shared std / LeWM+noise per-task oracle / 本框架 |
 | P0.6 holdout | 需要把诊断写成附属工具 | 用 held-out ckpt 做 low / mid / high eval-drop 盲分桶；命中高则作为 appendix/secondary contribution，不作为主线 gating |
 | P3 encoder 拆解 | 需要解释 SWM angular sensitivity 或 hetero 失败原因 | 做 SWM-noBN / SWM-LN / SWM-dim128/192 ablation |
-| guarded consistency fallback | Pilot-1A 失败（σ 无语义）或 Pilot-1B 退步（hard transition 被 downweight） | 实现 noise consistency + transition/action preservation；目标是保住 PushT 同时提升 TwoRoom |
+| guarded consistency fallback | σ probe 无语义，或 action gate 无法过滤 confounder | 降级为 noise consistency + transition/action preservation，不再主张 σ-adaptive resolution |
 
 ---
 
@@ -1153,19 +1156,19 @@ Pilot-1A 验收信号（详 plan_adaptive_resolution §8.1）：
 
 一句话版本：
 
-> Static noise augmentation makes LeWM substantially stronger, but different planning tasks require different latent resolutions; we extend JEPA world models with a sigma-conditioned predictor whose calibrated per-transition uncertainty drives adaptive resolution rather than hand-tuned per-task noise schedules.
+> Static noise augmentation makes LeWM substantially stronger, but different planning tasks require different latent resolutions; we extend JEPA world models with an action-aware adaptive consistency mechanism that uses calibrated prediction difficulty and local action sensitivity to allocate invariance per state instead of hand-tuning a global noise schedule.
 
 中文版本：
 
-> LeWM 加 per-frame noise training 后已经显著强于 LeWM baseline，但它仍依赖按任务选择静态 noise 强度。四个任务的最优点不同（2026-05-08 LeWM/SWM noise sweep 双侧补齐：TwoRoom 0to008 / PushT 0to002 / Reacher 0to006 / Cube SWM-base），说明 world model 需要动态分辨率：低维导航可更 invariant，高分辨率操作要保留连续状态差异。我们把 LeWM 扩展为 sigma-conditioned JEPA，分阶段验证 (A) σ-probe 学到 transition-level 异质性、(B) scale-preserving hetero loss 不破坏 LeWM 主性能、(C) σ 进入 planner / consistency 真正改变 inference；SWM 和表征诊断作为机制实验，解释为什么静态 geometry prior 不能一把通吃。
+> LeWM 加 per-frame noise training 后已经显著强于 LeWM baseline，但它仍依赖按任务选择静态 noise 强度。四个任务的最优点不同（2026-05-08 LeWM/SWM noise sweep 双侧补齐：TwoRoom 0to008 / PushT 0to002 / Reacher 0to006 / Cube SWM-base），说明 world model 需要动态分辨率：低维导航可更 invariant，高分辨率操作要保留连续状态差异。我们把 LeWM 扩展为 action-aware adaptive consistency：detached σ probe 学 prediction difficulty，`A_t` 估计 local action sensitivity，二者共同决定 encoder 对 noisy input 的 consistency pressure；主 MSE + SIGReg 保持 LeWM 原状。SWM 和表征诊断作为机制实验，解释为什么静态 geometry prior 不能一把通吃。
 
 主要贡献（与 §7.2 对齐）：
 
 1. **强基线发现**：per-frame noise training 让 LeWM clean 和 noisy eval 都显著超过 LeWM-base，但暴露静态 `std_max` 需要按任务选择。
-2. **方法**：sigma-conditioned JEPA on planning latents（三阶段）：(A) predictor 加 scalar `logvar_hat` 作为 detached prediction-difficulty probe；(B) 用 scale-preserving hetero loss 让 σ 进入训练梯度但保持初始尺度等于 MSE；(C) σ 进入 planner / consistency / gating。LeWM 是 σ-head 不参与使用逻辑（A）或 `logvar ≡ 0`（B）的严格特例。
+2. **方法**：action-aware adaptive consistency on JEPA planning latents：predictor 加 scalar `logvar_hat` 作为 detached prediction-difficulty probe；用 `A_t = ||f(z,a+δ)-f(z,a)|| / ||δ||` 估计 local action sensitivity；`A_t × σ` 控制 input-side consistency strength。LeWM 是 `alpha_cons=0` 的严格特例，LeWM+noise 是 `w_t=const` 的严格特例。
 3. **机制发现**：SWM、LeWM+noise 与四任务 sweep 显示 invariance-resolution tradeoff；TwoRoom / PushT / Reacher / Cube 对静态 geometry prior 的偏好不同。
 4. **诊断工具**：noise-to-NN ratio、robust radius、predictor drift、transition resolution、ID probe 用于解释和约束 adaptive resolution，而不是作为主方法或强预测承诺。
-5. **fallback 方法**：若 heteroscedastic Pilot 失败，再走 guarded noise consistency，显式保护 action/transition resolution。
+5. **反例与 guardrail**：heteroscedastic Pilot-1B 作为反例说明 σ-only / loss-reweighting 会伤害 PushT；PushT transition/action resolution 是所有 adaptive consistency 实验的硬 guardrail。
 
 诚实声明：`effective_rank`、Wang & Isola uniformity、Jacobian/Lipschitz 概念、ID linear probe、Spearman + bootstrap workflow 均为已有方法（参见 §7.1 和 §7.3），论文中需明确归属。
 

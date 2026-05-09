@@ -7,6 +7,39 @@
 
 ---
 
+## 审稿人版主链（不越界版）
+
+这条链条是 paper 正文里最应该守住的版本。它不把任何中间现象说成定理，只把每一步写成“问题 → 证据 → 排除的替代解释 → 下一步必要设计”。
+
+1. **Planning latent 同时需要 invariance 和 resolution。**
+   JEPA world model 不是为了重建像素，而是为了让 CEM 在 latent space 里区分会改变未来控制结果的状态差异。因此 latent 应该对 action-irrelevant visual nuisance 不敏感，同时对 action-relevant transition 保持足够分辨率。这里的核心矛盾不是“鲁棒性越强越好”，而是 **robustness 和 planning precision 共享同一份 latent capacity**。
+
+2. **LeWM / SIGReg / SWM / noise training 都是静态 trade-off 选择。**
+   SIGReg、unit-sphere uniformity、embed dimension、全局 image-noise strength 都是在全局层面选一个 invariance-resolution 点。我们的实验不需要证明“某个 prior 总是错的”，只需要证明：四个任务的最优点不同，且 PushT 这类连续接触控制会惩罚过度压缩的 transition/action resolution。这足以推出：**单个全局旋钮不是最终形态**。
+
+3. **LeWM+noise 是强 baseline，也是 adaptive resolution 的动机，而不是反例。**
+   LeWM+noise 已经显著改善 clean 和 noisy eval，说明 input-side invariance 是有效干预；但最优 `std_max` 仍按任务变化。若 reviewer 问“为什么不直接调 std？”，答案不是“调 std 不行”，而是：调 std 是 per-task oracle，不能说明模型知道哪些 token 该 smooth、哪些 token 该保留。我们的目标是把这个 oracle 旋钮拆成 per-state / per-transition controller。
+
+4. **σ head 的正确地位是 prediction-difficulty signal，不是 latent resolution 本身。**
+   Pilot-1B 已证明 σ 可以被校准到 prediction error；但同一个实验也证明，把 σ 直接放进 heteroscedastic loss 会把 PushT clean 从 87 降到 13。这是关键反证：**“σ 有语义”不等于“σ 可以单独决定训练权重或分辨率”**。
+
+5. **失败机制给出必要约束：difficulty 必须被 action relevance 过滤。**
+   Prediction difficulty 混合了两类相反需求：controllable dynamics difficulty 应该保留 resolution；aleatoric / visual nuisance 应该增强 invariance。单 σ controller 无法区分这两类信号，所以会被 reviewer 质疑为 Noisy-TV-style confounder。我们的设计必须显式加入 action-conditioned relevance。
+
+6. **`A_t` 是最小的模型内 action-relevance proxy，但必须先验证。**
+   `A_t = ||f(z,a+δ)-f(z,a)|| / ||δ||` 不是“真实 controllability”的定理，而是一个可计算 proxy：在当前 learned predictor 下，小 action 扰动能否改变下一步 latent。它只在三条约束下进入方法主张：(i) `δ` 来自 in-distribution action scale；(ii) gate 全部 stop-grad，不能被模型反向操纵；(iii) logging-only 阶段验证高 `A_t` 与 action-effect / contact / transition displacement 对齐，且多 δ CV 不显示 chaotic extrapolation。
+
+7. **最终 intervention 放在 input-side consistency，而不是主 prediction loss。**
+   主 MSE + SIGReg 保持 LeWM 原状，避免复现 hetero-NLL 的 hard-transition downweight。`A_t × σ` 只调节 clean/noisy encoder consistency strength：action-insensitive 区域加大 invariance，action-critical 区域降低 consistency pressure。这样 LeWM-base (`alpha_cons=0`) 和 LeWM+noise (`w_t=const`) 都是严格对照，方法收益可以被清楚归因。
+
+**最容易被质疑、必须避免的写法：**
+- 不要写“σ 是 dynamic resolution”；应写“σ 是 prediction-difficulty signal，只有经过 action relevance gate 并进入 consistency 后才参与 resolution allocation”。
+- 不要写“`A_t` 证明 controllability”；应写“`A_t` 是 learned-predictor 下的 local action sensitivity proxy，并用 logging-only 结构证据验收”。
+- 不要写“SWM 失败证明 spherical prior 不好”；应写“SWM 是静态 geometry intervention，显示不同任务对同一 prior 的响应不同”。
+- 不要裸写“首个方法”，除非 Related Work 最终核查后仍成立；更稳的说法是“据我们对最相近工作的对比，现有方法没有把 prediction difficulty 与 action-conditioned sensitivity 联合用于 JEPA planning latent 的 per-state consistency allocation”。
+
+---
+
 ## 论证链 — 太长不看版（顺序图）
 
 ```
@@ -28,10 +61,10 @@
         ┌────────────────────┼────────────────────┐
         ▼                    ▼                    ▼
    [a] SWM              [b] 诊断工具箱        [c] LeWM+noise
-   换球面 prior         robust_radius/         全局 std,但
-   仍救不了 PushT,      RankMe / ID probe /    每任务最优
-   反而把 tradeoff      trans_res 与 eval      std_max 不同
-   暴露成可干预变量     drop \|ρ\|>0.6          (强基线 ≠ 终点)
+   换球面 prior         robust_radius/         全局 std 有效,
+   Cube 赢, PushT       RankMe / ID probe /    但每任务最优
+   上限仍低: 静态       trans_res 检出       std_max 不同
+   prior 不能通吃       resolution collapse   (强基线 ≠ 终点)
    [Wang&Isola'20]      [Cohen'19;
                          Garrido'23;
                          Brandfonbrener'23]
@@ -49,15 +82,15 @@
                              │
                              ▼
  ★ Ours  A_t × σ → input-side adaptive consistency
-   A_t = ‖f(z,a+δ) − f(z,a)‖ / ‖δ‖    (controllability 信号,
-                empowerment 的有限差分代理)   [Klyubin'05]
+   A_t = ‖f(z,a+δ) − f(z,a)‖ / ‖δ‖    (learned predictor 下的
+                action-sensitivity proxy)        [Klyubin'05]
    critical_t = gA_t · (0.5 + 0.5 · gS_t)         A_t 主门控
    L_cons     = w_t · d(z_clean, z_noisy)         σ 做 enhancer
                                                    w_t 随 critical 递减
    ─ μ 路径保持 LeWM 原状,绕开 hetero-NLL 失败模式
    ─ LeWM+noise (w_t≡const) 与 LeWM-base (α=0) 都是严格特例
-   ─ 贡献: 首个把 epistemic + controllability 联合用于
-           per-state JEPA capacity 分配的方法
+   ─ 贡献: 把 prediction difficulty + action sensitivity 联合用于
+           per-state JEPA consistency / capacity 分配
 ```
 
 ---
@@ -84,13 +117,13 @@ SIGReg 强制 latent 接近高维各向同性 Gaussian，这是一种 *任务无
 *(4c) Static augmentation strong baseline：LeWM+noise。* per-frame image noise consistency training 让 LeWM 在 4 任务上同时把 clean 和 noise eval drop 大幅改善：TwoRoom 93→98.3、PushT 87→90、Reacher 57.7→86、Cube 72.3→73 (本仓 §0.2 / §4.3)；max-std=0.08 下 `predictor_rollout_T8_l2` 改善 5–139×。但 *最优 `std_max` 必须按任务调*：TwoRoom 偏好 0to008、PushT 偏好 0to002、Reacher 偏好 0to006、Cube SWM-base 反而最强。**LeWM+noise 是一个强 baseline / 强 motivation，但它仍是静态 recipe——把全局 trade-off 旋钮搬到了 noise 强度上而已**。
 
 **§5 Convergence — 三条线的共同信号是 *adaptive*，而不是"换一个更好的 prior"。**
-SWM 证明换 prior 解决不了 task heterogeneity；diagnostic toolkit 证明 tradeoff 是一个 per-state / per-transition 的连续轴；LeWM+noise 证明全局 invariance 增强是真实有效的，但需要按状态/任务自适应才能消除手调依赖。**正确的抽象层次是 *adaptive latent resolution*——让模型按状态分配 invariance vs resolution 预算，而不是工程师按任务挑全局旋钮**。这同时回答了 §3 提出的"模型没有 resolution 内禀概念"的根本问题。
+SWM 显示换 prior 不能消除 task heterogeneity；diagnostic toolkit 显示 tradeoff 可以被 per-state / per-transition 指标观测；LeWM+noise 显示全局 invariance 增强是真实有效的，但仍需要按任务选择强度。**正确的抽象层次是 *adaptive latent resolution*——让模型按状态分配 invariance vs resolution 预算，而不是工程师按任务挑全局旋钮**。这同时回答了 §3 提出的"模型没有 resolution 内禀概念"的根本问题。
 
 **§6 First attempt fails informatively — heteroscedastic NLL 因结构性原因 PushT 失败。**
-最自然的 adaptive 候选是给 predictor 加 per-state uncertainty σ，并用 NLL 重加权 prediction loss [Kendall & Gal NeurIPS 2017]——LeWM 是 σ ≡ 0 的严格特例，看似是干净的扩展。Pilot-1B (2026-05-09，本仓 `plan_adaptive_resolution.md` §8.2) 实证：σ 的 calibration 完全成功 (`s_logerr_corr ≈ 0.95`)，但 PushT clean success 从 87 跌到 13，同时 validation MSE 继续下降。机理诊断给出明确解释：(i) `exp(−s)` 把高误差的 contact transition 当成"难样本"降权，而这些 transition *就是* 控制信号 (`transition_resolution_ratio_l2` 0.30→0.10)；(ii) 更深层问题是 prediction difficulty 本身是 *混淆信号*——它叠加了 *可控的* dynamics complexity（应保留分辨率）与 *不可控的* aleatoric visual nuisance（应被抹掉）。任何只用 σ 控制 invariance 的方法因此必然复现 curiosity / uncertainty 学习中的 Noisy TV 病理 [Burda et al. ICLR 2019, "Large-Scale Study of Curiosity-Driven Learning"]：把表征容量浪费在不可控随机源上。这是单 σ controller 在 vision-based control 上的根本结构缺陷。
+最自然的 adaptive 候选是给 predictor 加 per-state uncertainty σ，并用 NLL 重加权 prediction loss [Kendall & Gal NeurIPS 2017]——LeWM 是 σ ≡ 0 的严格特例，看似是干净的扩展。Pilot-1B (2026-05-09，本仓 `plan_adaptive_resolution.md` §8.2) 实证：σ 的 calibration 完全成功 (`s_logerr_corr ≈ 0.95`)，但 PushT clean success 从 87 跌到 13，同时 validation MSE 继续下降。机理诊断给出明确解释：(i) `exp(−s)` 把高误差 transition 当成"难样本"降权，而这些 transition 很可能包含控制关键状态 (`transition_resolution_ratio_l2` 0.30→0.10)；(ii) 更深层问题是 prediction difficulty 本身是 *混淆信号*——它叠加了 *可控的* dynamics complexity（应保留分辨率）与 *不可控的* aleatoric visual nuisance（应被抹掉）。因此，任何只用 σ 控制 invariance 的方法都必须面对 curiosity / uncertainty 学习中的 Noisy TV 风险 [Burda et al. ICLR 2019, "Large-Scale Study of Curiosity-Driven Learning"]：高 uncertainty 可能来自不可控随机源，而不是高价值控制状态。这是单 σ controller 在 vision-based control 上的核心反例。
 
 **§7 Our method — 用 action sensitivity 解耦混淆信号，把干预放在 invariance 端而不是 prediction loss 端。**
-我们引入有限差分形式的 *controllability* 信号 `A_t = ‖f(z, a+δ) − f(z, a)‖ / ‖δ‖`，度量 predictor 对小动作扰动的局部响应——这是 empowerment 框架中 action-conditioned mutual information 的可计算代理 [Klyubin, Polani & Nehaniv IEEE CEC 2005]，与 ICM 的 inverse / forward dynamics curiosity [Pathak et al. ICML 2017] 在 spirit 上同源但落点不同：empowerment 度量的是"动作能改变多少未来"，恰好把 §6 中 σ 的两个混淆成分分开。`A_t` 在 distractor / 视觉 nuisance / 不可控场景动态上自然低，在 contact / 控制关键 transition 上自然高。组合 per-token critical score `critical_t = gA_t · (0.5 + 0.5·gS_t)`，用 `A_t` 做主门控、σ 做 difficulty enhancer，并以此调制 *input-side encoder consistency*：
+我们引入有限差分形式的 action-sensitivity signal `A_t = ‖f(z, a+δ) − f(z, a)‖ / ‖δ‖`，度量 learned predictor 对小动作扰动的局部响应——它是 empowerment 框架中 action-conditioned mutual information 的轻量 proxy [Klyubin, Polani & Nehaniv IEEE CEC 2005]，与 ICM 的 inverse / forward dynamics curiosity [Pathak et al. ICML 2017] 在 spirit 上同源但落点不同：我们不是用 surprise 做探索奖励，而是用 action-conditioned sensitivity 过滤 σ 的混淆成分。预期上，`A_t` 对纯视觉 nuisance / 不可控随机源较低，对 contact / 控制关键 transition 较高；但这必须先由 logging-only gate 验证。组合 per-token critical score `critical_t = gA_t · (0.5 + 0.5·gS_t)`，用 `A_t` 做主门控、σ 做 difficulty enhancer，并以此调制 *input-side encoder consistency*：
 
 ```text
 L_cons = w_t · d(z_clean, z_noisy),   w_t = w_max − (w_max − w_min) · critical_t
@@ -99,7 +132,7 @@ L_cons = w_t · d(z_clean, z_noisy),   w_t = w_max − (w_max − w_min) · crit
 μ 路径保持 LeWM 原始 MSE + SIGReg 不变，从而绕开 §6 的失败模式。这一构造同时是三种已有方法的 *per-state 推广*：相对 SimSiam asymmetric consistency [Chen & He CVPR 2021] 是把 stop-grad consistency 加权；相对 LeWM+noise 全局各向同性 invariance 是把全局 std 拆成 per-state 强度；相对 VICReg / SIGReg 全局 anti-collapse 是局部 invariance 调度。`w_t ≡ const` 退化为 LeWM+noise，`α_cons = 0` 退化为 LeWM-base，二者都是 *falsifiable* 的严格特例。
 
 **§8 Position vs prior art — 我们与撞车风险最高的三条线分别有清晰 delta（详见 plan_v3 §7.4）。**
-PCA++ [arXiv:2511.12278] 在 contrastive SSL 中证明 uniformity 隐式诱导 background-noise robustness；我们在 JEPA-planning 设置下，且发现 uniformity 的实际效果 *本身就受 augmentation pipeline 影响* (§4a)，再用 controllability 解决其 task-dependence。Surprise-Recognition [arXiv:2512.01119] 用 single-step prediction surprise 做 *runtime* 输入过滤；我们做 *training-time* per-state representation budgeting。RobustZero [Li et al. ICML 2025] 在 MuZero 上对 latent state 做 worst-case adversarial training；我们针对 JEPA + CEM，干预 input-side invariance 而非 latent perturbation，且不引入 adversarial inner loop。Heteroscedastic 路线 [Kendall & Gal NeurIPS 2017] 我们已在 §6 给出严格 falsification。**贡献的核心 novelty 不是新的 representation regularizer，而是第一个把 epistemic uncertainty 与 action-conditioned controllability 联合用于 per-state latent capacity 分配的 JEPA world-model 方法**——它直接回应 §3 提出的"模型没有内禀 resolution 概念"的问题。
+PCA++ [arXiv:2511.12278] 在 contrastive SSL 中证明 uniformity 隐式诱导 background-noise robustness；我们在 JEPA-planning 设置下，且发现 uniformity 的实际效果 *本身就受 augmentation pipeline 影响* (§4a)，再用 action sensitivity 处理其 task-dependence。Surprise-Recognition [arXiv:2512.01119] 用 single-step prediction surprise 做 *runtime* 输入过滤；我们做 *training-time* per-state representation budgeting。RobustZero [Li et al. ICML 2025] 在 MuZero 上对 latent state 做 worst-case adversarial training；我们针对 JEPA + CEM，干预 input-side invariance 而非 latent perturbation，且不引入 adversarial inner loop。Heteroscedastic 路线 [Kendall & Gal NeurIPS 2017] 我们已在 §6 给出 PushT 上的强反例。**贡献的核心 novelty 不是新的 representation regularizer，而是把 prediction difficulty 与 action-conditioned local sensitivity 联合起来，控制 JEPA planning latent 的 per-state input-side consistency / capacity allocation**——它直接回应 §3 提出的"模型没有内禀 resolution 概念"的问题。
 
 ---
 
@@ -204,9 +237,11 @@ sigma_probe_loss = smooth_l1(s_hat, log(err_token + eps))
 关键点：
 - `sigma_probe_loss` 只更新 σ head，不反向影响 encoder / predictor mean path。
 - 这一步**不会**改变 latent resolution；它只是检验额外输出头是否能学到 transition difficulty。
-- 如果 σ probe 都学不出稳定结构，NLL 版没有继续做的基础。
+- 如果 σ probe 都学不出稳定结构，后续 action gate / consistency 都没有稳定信号基础。
 
-### 3.2 Stage B：scale-preserving heteroscedastic loss（候选第二步）
+### 3.2 历史候选：scale-preserving heteroscedastic loss（Pilot-1B 已失败）
+
+本节保留是为了说明为什么“不直接用 σ 重加权 prediction loss”。2026-05-09 Pilot-1B 已经验证：scale-preserving 形式能校准 σ，但 PushT clean eval 崩到 13.33，因此它不再是主方法路线，只作为 ablation / negative result。
 
 普通 Gaussian NLL：
 
@@ -232,9 +267,9 @@ loss = hetero_loss + lambda_SIGReg * SIGReg(mu)
 - `mu` path 初始梯度接近 LeWM，SIGReg 权重可先不改。
 - 最优条件是 `exp(s) ≈ err / tau`，σ 学相对 difficulty，而不是任意改变全局 loss scale。
 
-但这一步仍有核心风险：它会 downweight 高误差 transition。若 PushT 的 hard transition 正好是控制关键区域，eval 可能下降。因此 Stage B 必须以 Stage A 的 σ probe 和 transition/action resolution 诊断为前置条件。
+核心风险已经在 Pilot-1B 中发生：它会 downweight 高误差 transition；在 PushT 中这些 transition 很可能包含控制关键区域，导致 clean control 失败。因此后续不再扩大 hetero loss，而是把 σ 从 μ-path 梯度中解耦出来。
 
-### 3.3 Stage C：σ 进入使用逻辑（不是默认）
+### 3.3 σ 进入使用逻辑（不是默认）
 
 如果 σ 只被训练为 calibration probe，它不是 dynamic resolution 方法。要真正影响系统，必须至少进入以下一类逻辑：
 
@@ -246,9 +281,9 @@ loss = hetero_loss + lambda_SIGReg * SIGReg(mu)
 | planner budget | 高 σ rollout 增加 CEM samples / 缩短 horizon | 不改变表示，只改 inference compute |
 | uncertainty gate | 高 σ 时拒绝或降权候选 plan | 可能过度保守 |
 
-因此 Stage C 只能在 Stage A/B 证明 σ 有语义后再做。否则额外 head 只是日志，不是方法。
+因此 σ 进入使用逻辑前必须先通过 probe-only calibration 和 action-gate logging。否则额外 head 只是日志，不是方法；若直接进入 loss weighting，Pilot-1B 已经给出 PushT 反例。
 
-### 3.4 Stage D：Action-Aware Adaptive Consistency（当前首选）
+### 3.4 Action-Aware Adaptive Consistency（当前首选）
 
 真正符合“adaptive latent resolution”的训练介入不应是直接重加权 prediction loss，而应是对 encoder input-side invariance 的局部调节：
 
@@ -372,7 +407,7 @@ NLL/hetero loss 的潜在好处：
 | 风险 | 评估 | 对策 |
 |---|---|---|
 | **σ 退化成全局常数** | Probe 阶段若 PushT 也近似常数，说明额外 head 没有学到有用异质性 | 先不进入 NLL；检查 err target、head capacity、是否需要更长训练 |
-| **NLL 改变 MSE/SIGReg 权重比** | 普通 NLL 初始就是 0.5× MSE，且尺度会随 σ 漂移 | 只用 scale-preserving hetero loss；初始 loss/gradient 对齐 MSE |
+| **NLL 改变 MSE/SIGReg 权重比** | 普通 NLL 初始就是 0.5× MSE，且尺度会随 σ 漂移 | hetero loss 仅作为历史 ablation；若重跑必须保持 scale-preserving，并以 PushT resolution guardrail 拒绝 |
 | **hard-but-important states 被 downweight** | PushT 接触/精细控制可能高误差但高价值 | 必须监控 transition/action resolution；必要时 fallback 到 guarded consistency |
 | **σ 只是 uncertainty，不是 resolution** | calibration 成功不等于 planning 提升 | Stage C 必须明确 σ 的使用逻辑；否则只作为诊断输出 |
 | **Noisy TV / confounder trap** | 高 σ 也可能来自不可控视觉噪声；σ-only consistency 会放弃对噪声的 invariance | consistency gate 必须 action-aware：以 `A_t` 为主门控，σ 只做 enhancer |

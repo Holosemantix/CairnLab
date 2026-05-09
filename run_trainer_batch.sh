@@ -50,6 +50,8 @@ SWEEP_VARS=(
     loss_pred_space loss_pred_type loss_rollout_weight loss_rollout_steps
     loss_hetero_enabled loss_hetero_mode loss_hetero_probe_weight loss_hetero_logvar_hidden_dim
     loss_hetero_s_min loss_hetero_s_max loss_hetero_tau_floor
+    loss_action_gate_enabled loss_action_gate_delta_scale loss_action_gate_num_delta_samples
+    loss_action_gate_warmup_epochs loss_action_gate_ema_momentum
     wm_embed_dim wm_inference_rollout_state_space wm_inference_cost_space wm_inference_cost_type
     image_noise_std_min image_noise_std_max image_noise_noise_prob image_noise_apply_to_val
     # eval / 诊断

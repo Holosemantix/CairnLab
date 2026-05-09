@@ -205,15 +205,29 @@ def compute_action_gate_metrics(
         ctx_emb_d = ctx_emb.detach()
         pred_clean_d = pred_emb_clean.detach()
 
-        A_samples = []
-        for _ in range(K):
-            delta = torch.randn_like(ctx_action_raw) * (delta_scale * action_std)
-            act_pert = ctx_action_raw + delta
-            act_emb_pert = model.action_encoder(act_pert)
-            pred_pert = model.predict(ctx_emb_d, act_emb_pert)
-            diff = (pred_pert - pred_clean_d).pow(2).sum(dim=-1).clamp(min=0).sqrt()
-            delta_norm = delta.pow(2).sum(dim=-1).clamp(min=0).sqrt().clamp(min=delta_norm_floor)
-            A_samples.append(diff / delta_norm)
+        # Freeze BN stats during the K perturbation forwards. Otherwise the
+        # OOD-ish perturbed activations update BatchNorm running mean/var on
+        # every train step, drifting them away from the clean-data distribution.
+        # See plan_adaptive_resolution.md §8.3.6.4.
+        bn_states = []
+        for m in model.modules():
+            if isinstance(m, nn.modules.batchnorm._BatchNorm) and m.training:
+                bn_states.append(m)
+                m.eval()
+        try:
+            A_samples = []
+            for _ in range(K):
+                delta = torch.randn_like(ctx_action_raw) * (delta_scale * action_std)
+                act_pert = ctx_action_raw + delta
+                act_emb_pert = model.action_encoder(act_pert)
+                pred_pert = model.predict(ctx_emb_d, act_emb_pert)
+                diff = (pred_pert - pred_clean_d).pow(2).sum(dim=-1).clamp(min=0).sqrt()
+                delta_norm = delta.pow(2).sum(dim=-1).clamp(min=0).sqrt().clamp(min=delta_norm_floor)
+                A_samples.append(diff / delta_norm)
+        finally:
+            for m in bn_states:
+                m.train()
+
         A_stack = torch.stack(A_samples, dim=0)            # (K, B, T_ctx)
         A_mean = A_stack.mean(dim=0)                       # (B, T_ctx)
         A_cv = A_stack.std(dim=0, unbiased=False) / A_mean.clamp(min=log_a_floor)

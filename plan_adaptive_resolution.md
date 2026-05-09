@@ -7,9 +7,9 @@
 
 ---
 
-## 审稿人版主链（不越界版）
+## 关键逻辑链路
 
-这条链条是 paper 正文里最应该守住的版本。它不把任何中间现象说成定理，只把每一步写成“问题 → 证据 → 排除的替代解释 → 下一步必要设计”。
+这条链路用于明确 adaptive resolution 的核心递进关系：每一步都从前一步暴露的缺口推出下一步设计，而不是把中间诊断直接升级成方法结论。
 
 1. **Planning latent 同时需要 invariance 和 resolution。**
    JEPA world model 不是为了重建像素，而是为了让 CEM 在 latent space 里区分会改变未来控制结果的状态差异。因此 latent 应该对 action-irrelevant visual nuisance 不敏感，同时对 action-relevant transition 保持足够分辨率。这里的核心矛盾不是“鲁棒性越强越好”，而是 **robustness 和 planning precision 共享同一份 latent capacity**。
@@ -18,13 +18,13 @@
    SIGReg、unit-sphere uniformity、embed dimension、全局 image-noise strength 都是在全局层面选一个 invariance-resolution 点。我们的实验不需要证明“某个 prior 总是错的”，只需要证明：四个任务的最优点不同，且 PushT 这类连续接触控制会惩罚过度压缩的 transition/action resolution。这足以推出：**单个全局旋钮不是最终形态**。
 
 3. **LeWM+noise 是强 baseline，也是 adaptive resolution 的动机，而不是反例。**
-   LeWM+noise 已经显著改善 clean 和 noisy eval，说明 input-side invariance 是有效干预；但最优 `std_max` 仍按任务变化。若 reviewer 问“为什么不直接调 std？”，答案不是“调 std 不行”，而是：调 std 是 per-task oracle，不能说明模型知道哪些 token 该 smooth、哪些 token 该保留。我们的目标是把这个 oracle 旋钮拆成 per-state / per-transition controller。
+   LeWM+noise 已经显著改善 clean 和 noisy eval，说明 input-side invariance 是有效干预；但最优 `std_max` 仍按任务变化。问题不是“调 std 不行”，而是调 std 仍是 per-task oracle，不能说明模型知道哪些 token 该 smooth、哪些 token 该保留。我们的目标是把这个 oracle 旋钮拆成 per-state / per-transition controller。
 
 4. **σ head 的正确地位是 prediction-difficulty signal，不是 latent resolution 本身。**
    Pilot-1B 已证明 σ 可以被校准到 prediction error；但同一个实验也证明，把 σ 直接放进 heteroscedastic loss 会把 PushT clean 从 87 降到 13。这是关键反证：**“σ 有语义”不等于“σ 可以单独决定训练权重或分辨率”**。
 
 5. **失败机制给出必要约束：difficulty 必须被 action relevance 过滤。**
-   Prediction difficulty 混合了两类相反需求：controllable dynamics difficulty 应该保留 resolution；aleatoric / visual nuisance 应该增强 invariance。单 σ controller 无法区分这两类信号，所以会被 reviewer 质疑为 Noisy-TV-style confounder。我们的设计必须显式加入 action-conditioned relevance。
+   Prediction difficulty 混合了两类相反需求：controllable dynamics difficulty 应该保留 resolution；aleatoric / visual nuisance 应该增强 invariance。单 σ controller 无法区分这两类信号，会落入 Noisy-TV-style confounder。我们的设计必须显式加入 action-conditioned relevance。
 
 6. **`A_t` 是最小的模型内 action-relevance proxy，但必须先验证。**
    `A_t = ||f(z,a+δ)-f(z,a)|| / ||δ||` 不是“真实 controllability”的定理，而是一个可计算 proxy：在当前 learned predictor 下，小 action 扰动能否改变下一步 latent。它只在三条约束下进入方法主张：(i) `δ` 来自 in-distribution action scale；(ii) gate 全部 stop-grad，不能被模型反向操纵；(iii) logging-only 阶段验证高 `A_t` 与 action-effect / contact / transition displacement 对齐，且多 δ CV 不显示 chaotic extrapolation。
@@ -32,11 +32,11 @@
 7. **最终 intervention 放在 input-side consistency，而不是主 prediction loss。**
    主 MSE + SIGReg 保持 LeWM 原状，避免复现 hetero-NLL 的 hard-transition downweight。`A_t × σ` 只调节 clean/noisy encoder consistency strength：action-insensitive 区域加大 invariance，action-critical 区域降低 consistency pressure。这样 LeWM-base (`alpha_cons=0`) 和 LeWM+noise (`w_t=const`) 都是严格对照，方法收益可以被清楚归因。
 
-**最容易被质疑、必须避免的写法：**
-- 不要写“σ 是 dynamic resolution”；应写“σ 是 prediction-difficulty signal，只有经过 action relevance gate 并进入 consistency 后才参与 resolution allocation”。
-- 不要写“`A_t` 证明 controllability”；应写“`A_t` 是 learned-predictor 下的 local action sensitivity proxy，并用 logging-only 结构证据验收”。
-- 不要写“SWM 失败证明 spherical prior 不好”；应写“SWM 是静态 geometry intervention，显示不同任务对同一 prior 的响应不同”。
-- 不要裸写“首个方法”，除非 Related Work 最终核查后仍成立；更稳的说法是“据我们对最相近工作的对比，现有方法没有把 prediction difficulty 与 action-conditioned sensitivity 联合用于 JEPA planning latent 的 per-state consistency allocation”。
+**写作边界：**
+- `σ` 是 prediction-difficulty signal；只有经过 action relevance gate 并进入 consistency 后，才参与 resolution allocation。
+- `A_t` 是 learned-predictor 下的 local action sensitivity proxy；需要用 logging-only 结构证据验收。
+- SWM 是静态 geometry intervention，用来显示不同任务对同一 prior 的响应不同。
+- Novelty 的稳妥表述是：现有相近工作没有把 prediction difficulty 与 action-conditioned sensitivity 联合用于 JEPA planning latent 的 per-state consistency allocation。
 
 ---
 

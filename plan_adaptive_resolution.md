@@ -152,7 +152,7 @@ loss = hetero_loss + lambda_SIGReg * SIGReg(mu)
 
 因此 Stage C 只能在 Stage A/B 证明 σ 有语义后再做。否则额外 head 只是日志，不是方法。
 
-### 3.5 Stage D：Action-Aware Adaptive Consistency（当前首选）
+### 3.4 Stage D：Action-Aware Adaptive Consistency（当前首选）
 
 真正符合“adaptive latent resolution”的训练介入不应是直接重加权 prediction loss，而应是对 encoder input-side invariance 的局部调节：
 
@@ -183,7 +183,7 @@ w_t = w_max - (w_max - w_min) * stopgrad(critical_t)
 - `critical_t` 和 `w_t` 必须 detach；gate 是 controller，不允许成为 predictor / encoder 的反向捷径。
 - 先做 `weight=0` logging-only，再启用 `L_cons`。
 
-### 3.6 SIGReg 仍然作用在 μ 上
+### 3.5 SIGReg 仍然作用在 μ 上
 
 无论 Stage A/B/C，SIGReg 都只作用在 deterministic μ 上。不要把 SIGReg 推广到 `(μ, σ)` 或 reparameterized sample；那会引入 Gaussian mixture 高阶矩问题，并破坏 LeWM 已验证的 anti-collapse 机制。
 
@@ -438,6 +438,19 @@ loss_total = loss + beta_probe * sigma_probe_loss
 
 #### 8.3.2 第二优先级：Logging-only action-aware gate
 
+实现状态（2026-05-09）：
+- 已加入 `loss.action_gate` config block（`config/train/lewm.yaml`）。
+- `train.py::compute_action_gate_metrics` 在 forward 内 K 次 perturb action → re-predict → 计算 `A_t`、`A_t_cv`、`gA_t`、`critical_t`、`w_t`，全部 `no_grad`。
+- EMA 统计以 `world_model.gate_{log_A,s}_{mean,var}` buffer 持久化；warmup 期不更新 EMA。
+- 与 `loss.hetero.mode=probe` 兼容：σ 关闭时 gate 仅记录 A 相关指标。
+- 推荐运行命令（PushT，叠加 σ probe）：
+  ```bash
+  python train.py data=pusht \
+      output_model_name=pusht_lewm_action_gate_logging \
+      loss.hetero.enabled=true loss.hetero.mode=probe \
+      loss.action_gate.enabled=true
+  ```
+
 先实现 `adaptive_consistency.weight=0`，只记录 gate，不改变训练目标。核心量：
 
 ```text
@@ -451,13 +464,45 @@ w_t = w_max - (w_max - w_min) * critical_t
 实现约束：
 - `delta` 使用 empirical action std 或 batch 内 in-distribution action 差分；不要用任意 OOD random action。
 - `s_t`、`A_t`、`critical_t`、`w_t` 全部 detach。
-- 先 warmup 若干 epoch，只训主 loss + σ probe，再开始记录/使用 gate。
+- 先 warmup 若干 epoch，只训主 loss + σ probe，再开始记录/使用 gate。具体 warmup 判据见 §8.3.2.1。
 - 记录 `adaptive/sigma_mean`、`adaptive/action_sensitivity_mean`、`adaptive/critical_mean`、`adaptive/weight_mean`、`adaptive/corr_sigma_action`、`adaptive/weight_q10_q90`。
+- **额外记录 `A_t` 的多 δ 方差**（见 §8.3.2.2），用于区分 smooth-controllable 与 chaotic 高敏感区域。
 
 进入训练介入前必须看到：
 - high `critical_t` 与 PushT contact / high action-norm / high transition displacement 有结构性关系。
 - 视觉 nuisance 主要提高 σ，不应同步提高 `A_t`。
 - `critical_t` 比 σ-only 更能解释 `id_probe_r2` / action resolution 相关诊断。
+- 高 `A_t` 区域的多 δ 方差不应远大于低 `A_t` 区域；如果显著更大，说明被 chaotic dynamics 污染（详见 §8.3.2.2）。
+
+##### 8.3.2.1 Warmup 判据
+
+`A_t` 的物理意义只有在 predictor 学到了 action conditioning 之后才成立。早期 predictor 几乎忽略 action 时，`A_t ≈ 0` 是 predictor 不成熟而非 state insensitive。因此 logging 只在以下任一条件后启动：
+
+- `validate/id_probe_r2_epoch >= 0.5 * id_probe_r2_LeWM_base`（PushT 取 0.39，TwoRoom 取 0.14；这是 "predictor 学到了一半 action 信息" 的代理）；或
+- 训练经过 `cfg.loss.action_gate.warmup_epochs` epochs（默认 3，等于 LeWM 10-epoch 训练的前 30%）。
+
+在 warmup 期间仍然计算并记录 `A_t`，但不进入 `critical_t` 聚合，也不写入 EMA z-score 统计——避免 z-score baseline 被 action-blind 阶段的统计带偏。
+
+##### 8.3.2.2 区分 smooth-controllable 与 chaotic 的 A_t 方差
+
+`A_t` 高有两种成因：
+- **Smooth controllable**：小 δ → 平滑大响应。多次采样 δ 给出 *方向相关、幅度相近* 的响应，`A_t` 在 δ 上低方差。这是真正的 action critical 区域。
+- **Chaotic / extrapolation**：predictor 在 contact / 边界附近不连续，小 δ → 任意大响应。多次采样 δ 给出高方差。这种区域不该当作"应保留分辨率"的 critical state。
+
+因此在 logging-only 阶段，每个 token 用 `K=4` 个独立 δ 采样：
+
+```text
+A_t^{(k)} = d(f(z, a + δ^{(k)}), f(z, a)) / (||δ^{(k)}|| + eps)   for k=1..K
+A_t_mean = mean_k A_t^{(k)}
+A_t_cv   = std_k A_t^{(k)} / (A_t_mean + eps)   # coefficient of variation
+```
+
+记录 `adaptive/action_sensitivity_cv_mean`、`adaptive/action_sensitivity_cv_high_A_quantile`（高 `A_t_mean` 分位下的 CV）。判定：
+
+- 全局 `cv_mean < 0.5`：predictor 局部光滑，`A_t` 可信。
+- 高 `A_t_mean` 区域的 CV 不显著高于全局 CV：critical 区域不被 chaotic 主导。
+
+如果两者中任一不满足，说明 `A_t` 信号被噪声污染，consistency 训练阶段应改用 `A_t_mean / (1 + α_cv * A_t_cv)` 做 chaos-discount，而不是直接用 raw `A_t`。`α_cv` 默认 1.0。
 
 #### 8.3.3 第三优先级：Action-aware adaptive consistency training
 
@@ -475,6 +520,31 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 - 主 prediction loss 不被 σ 或 `A_t` 降权，避免复现 hetero loss 的 PushT resolution collapse。
 - `w_t` 只控制额外 invariance pressure；action-critical / high-σ 区域少抹细节，visual nuisance / action-insensitive 区域更强 invariance。
 - `alpha_cons` 从小值开始，并以 PushT resolution guardrail 为硬拒绝条件。
+
+##### 超参数预算表（兑现 §8.5.5）
+
+| 名称 | 默认值 | 允许范围 | 进入条件 / early-stop 阈值 |
+|---|---:|---|---|
+| `loss.hetero.probe_weight` (`beta_probe`) | 1.0 | [0.1, 5.0] | probe-only 阶段；`hetero_s_logerr_corr ≥ 0.5` 才进入 §8.3.2。低于 0.3 持续 3 epoch → fallback to detach-deeper probe head |
+| `loss.action_gate.delta_scale` | 0.25 | [0.05, 0.5] | δ 相对 batch 内 action std 的比例。固定值，**不调** |
+| `loss.action_gate.num_delta_samples` (K) | 4 | [2, 8] | 多 δ 方差估计；CV 不可信时 K 可加大到 8 |
+| `loss.action_gate.warmup_epochs` | 3 | [0, 5] | logging 启动门槛（见 §8.3.2.1） |
+| `loss.action_gate.ema_momentum` | 0.99 | [0.95, 0.999] | zscore EMA 平滑系数；固定值，**不调** |
+| `loss.adaptive_consistency.w_min` | 0.2 | [0.0, 0.5] | critical 区域的最小 invariance pressure |
+| `loss.adaptive_consistency.w_max` | 1.0 | [0.5, 1.5] | non-critical 区域的最大 invariance pressure |
+| `loss.adaptive_consistency.alpha_cons` | 0.01 | [0.001, 0.1] | 起始小，每次 +×3 ramp，触发 guardrail 即冻结 |
+| `loss.adaptive_consistency.aug_type` | `gaussian_noise(std=0.04)` | — | 与 LeWM+noise pipeline 复用，避免引入新 augmentation |
+
+**进入下一阶段的边际经验收益要求**：
+
+| 阶段 | 必要条件 | 边际收益要求（PushT） |
+|---|---|---|
+| probe-only → action-gate logging | probe 通过 §8.3.1 判据 | clean ≥ LeWM-base − 1pt（即 ≥ 86）|
+| logging → consistency `alpha=0.01` | §8.3.2 三个结构判据全过 + §8.3.2.2 CV 判据通过 | clean ≥ 86，且 transition_resolution_ratio_l2 ≥ 0.27 |
+| `alpha=0.01` → `alpha=0.03` | guardrail 全部不破 + clean 不跌 > 1pt | robustness（goal+pixels 0.05）较 LeWM-base 提升 ≥ 5pt |
+| `alpha=0.03` → `alpha=0.1` | 同上 | robustness 较 LeWM+noise oracle 接近（差距 ≤ 5pt） |
+
+任一阶段不满足该收益要求 → **冻结当前 alpha，转 ablation/分析**，不再向上 ramp。
 
 #### 8.3.4 备选：σ planner / hetero auxiliary 降级为对照
 
@@ -500,7 +570,7 @@ Guardrail 建议阈值（相对 PushT LeWM-base）：
 | `lewm_sigma_probe_default` | yes | yes | 验证 σ 独立语义，不改 μ |
 | `lewm_action_gate_logging` | yes | yes | `weight=0` 记录 `A_t` / `critical_t`，验证是否过滤 Noisy TV confounder |
 | `lewm_action_aware_consistency_alpha001` | optional | yes | 核心新方法：action-aware gate 控制 encoder consistency |
-| `lewm_sigma_only_consistency_alpha001` | optional | yes | 失败对照：检验 σ-only consistency 是否被视觉噪声误导 |
+| `lewm_sigma_only_consistency_alpha001` | optional | yes | 失败对照：σ 直接当 critical 信号（`critical_t = sigmoid(zscore_ema(s_t))`，**高 σ → 低 w_t → 弱 consistency**），检验是否被视觉噪声误导。这是与 §8.3.3 完全相反方向之外的另一个 sign 选择；本对照固定走"高 σ = 高 resolution 需求"分支，验证 Noisy TV 假设 |
 | `lewm_hetero_alpha001_guarded` | optional | yes | 只作为训练重加权的极小权重对照 |
 
 判定标准：

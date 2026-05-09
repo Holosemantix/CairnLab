@@ -166,6 +166,137 @@ def compute_sigma_probe_loss(
     return sigma_probe_loss, monitors
 
 
+def compute_action_gate_metrics(
+    model,
+    ctx_emb,
+    ctx_action_raw,
+    pred_emb_clean,
+    s_t,
+    *,
+    K: int,
+    delta_scale: float,
+    delta_norm_floor: float,
+    log_a_floor: float,
+    in_warmup: bool,
+    ema_momentum: float,
+    w_min: float = 0.2,
+    w_max: float = 1.0,
+):
+    """Logging-only action-aware adaptive resolution gate.
+
+    Computes per-token action sensitivity A_t, combines with sigma probe s_t,
+    and emits diagnostic gate statistics. Does NOT modify the training loss.
+
+    All compute is under no_grad and EMA buffers are mutated in-place. Caller
+    must provide the model with `gate_log_A_mean`, `gate_log_A_var`,
+    `gate_s_mean`, `gate_s_var` buffers (plus `_inited` flags). See
+    plan_adaptive_resolution.md §8.3.2 for the design rationale.
+
+    Inputs:
+      ctx_emb         (B, T_ctx, D)  — encoder output, used as predictor input
+      ctx_action_raw  (B, T_ctx, action_dim) — raw actions (post nan_to_num)
+      pred_emb_clean  (B, T_ctx, D)  — predictor output on clean actions
+      s_t             (B, T_ctx) or None — clamped sigma from hetero probe
+    """
+    metrics = {}
+    with torch.no_grad():
+        # Per-action-dim std over (B, T_ctx); guards against degenerate dims.
+        action_std = ctx_action_raw.float().std(dim=(0, 1), unbiased=False).clamp(min=1e-6)
+        ctx_emb_d = ctx_emb.detach()
+        pred_clean_d = pred_emb_clean.detach()
+
+        A_samples = []
+        for _ in range(K):
+            delta = torch.randn_like(ctx_action_raw) * (delta_scale * action_std)
+            act_pert = ctx_action_raw + delta
+            act_emb_pert = model.action_encoder(act_pert)
+            pred_pert = model.predict(ctx_emb_d, act_emb_pert)
+            diff = (pred_pert - pred_clean_d).pow(2).sum(dim=-1).clamp(min=0).sqrt()
+            delta_norm = delta.pow(2).sum(dim=-1).clamp(min=0).sqrt().clamp(min=delta_norm_floor)
+            A_samples.append(diff / delta_norm)
+        A_stack = torch.stack(A_samples, dim=0)            # (K, B, T_ctx)
+        A_mean = A_stack.mean(dim=0)                       # (B, T_ctx)
+        A_cv = A_stack.std(dim=0, unbiased=False) / A_mean.clamp(min=log_a_floor)
+        log_A = torch.log(A_mean.clamp(min=log_a_floor))
+
+        # EMA update (outside warmup only).
+        def _ema_update(name: str, x: torch.Tensor):
+            mean_buf = getattr(model, f"gate_{name}_mean")
+            var_buf = getattr(model, f"gate_{name}_var")
+            inited = getattr(model, f"gate_{name}_inited")
+            m_new = x.mean()
+            v_new = x.var(unbiased=False)
+            if inited.item() < 0.5:
+                mean_buf.copy_(m_new)
+                var_buf.copy_(v_new)
+                inited.fill_(1.0)
+            else:
+                mu = ema_momentum
+                mean_buf.mul_(mu).add_(m_new, alpha=1.0 - mu)
+                var_buf.mul_(mu).add_(v_new, alpha=1.0 - mu)
+
+        if not in_warmup:
+            _ema_update("log_A", log_A)
+            if s_t is not None:
+                _ema_update("s", s_t)
+
+        def _zscore(x: torch.Tensor, name: str) -> torch.Tensor:
+            inited = getattr(model, f"gate_{name}_inited").item() > 0.5
+            if inited:
+                m = getattr(model, f"gate_{name}_mean")
+                v = getattr(model, f"gate_{name}_var")
+            else:
+                m = x.mean()
+                v = x.var(unbiased=False)
+            return (x - m) / v.clamp(min=1e-6).sqrt()
+
+        gA = torch.sigmoid(_zscore(log_A, "log_A"))
+        if s_t is not None:
+            gS = torch.sigmoid(_zscore(s_t.detach(), "s"))
+            critical = gA * (0.5 + 0.5 * gS)
+        else:
+            gS = None
+            critical = gA * 0.5
+        w_t = w_max - (w_max - w_min) * critical
+
+        cv_flat = A_cv.reshape(-1)
+        A_mean_flat = A_mean.reshape(-1)
+        thresh = torch.quantile(A_mean_flat, 0.75)
+        high_A_mask = A_mean_flat >= thresh
+        high_cv = cv_flat[high_A_mask].mean() if high_A_mask.any() else cv_flat.mean()
+
+        if s_t is not None:
+            s_flat = s_t.detach().reshape(-1)
+            la_flat = log_A.reshape(-1)
+            sc = s_flat - s_flat.mean()
+            lac = la_flat - la_flat.mean()
+            denom = sc.norm() * lac.norm()
+            corr_sigma_action = (sc * lac).sum() / denom.clamp(min=1e-8)
+        else:
+            corr_sigma_action = log_A.new_tensor(0.0)
+
+        w_flat = w_t.reshape(-1)
+        crit_flat = critical.reshape(-1)
+        metrics = {
+            "adaptive_action_sensitivity_mean": A_mean.mean(),
+            "adaptive_action_sensitivity_std": A_mean.std(unbiased=False),
+            "adaptive_action_sensitivity_log_mean": log_A.mean(),
+            "adaptive_action_sensitivity_cv_mean": cv_flat.mean(),
+            "adaptive_action_sensitivity_cv_high_A": high_cv,
+            "adaptive_gA_mean": gA.mean(),
+            "adaptive_critical_mean": crit_flat.mean(),
+            "adaptive_critical_std": crit_flat.std(unbiased=False),
+            "adaptive_weight_mean": w_flat.mean(),
+            "adaptive_weight_q10": torch.quantile(w_flat, 0.1),
+            "adaptive_weight_q90": torch.quantile(w_flat, 0.9),
+            "adaptive_corr_sigma_action": corr_sigma_action,
+            "adaptive_in_warmup": log_A.new_tensor(1.0 if in_warmup else 0.0),
+        }
+        if gS is not None:
+            metrics["adaptive_gS_mean"] = gS.mean()
+    return metrics
+
+
 def compute_temporal_hinge(output, *, model, cfg):
     """Upper hinge loss on consecutive latent pairs (LeWM variant).
 
@@ -307,6 +438,34 @@ def lejepa_forward(self, batch, stage, cfg):
             output["pred_loss_mse_equiv"] = output["pred_loss"].detach()
             for k, v in probe_monitors.items():
                 output[k] = v
+    gate_cfg = cfg.loss.get("action_gate", {})
+    if gate_cfg.get("enabled", False):
+        warmup_epochs = int(gate_cfg.get("warmup_epochs", 3))
+        current_epoch = int(getattr(self, "current_epoch", 0))
+        in_warmup = current_epoch < warmup_epochs
+        if hetero_enabled and logvar_hat is not None:
+            s_t = logvar_hat.squeeze(-1).clamp(
+                min=hetero_cfg.get("s_min", -4.0),
+                max=hetero_cfg.get("s_max", 4.0),
+            )
+        else:
+            s_t = None
+        gate_metrics = compute_action_gate_metrics(
+            self.model,
+            ctx_emb=ctx_emb,
+            ctx_action_raw=output["action"][:, :ctx_len],
+            pred_emb_clean=pred_emb,
+            s_t=s_t,
+            K=int(gate_cfg.get("num_delta_samples", 4)),
+            delta_scale=float(gate_cfg.get("delta_scale", 0.25)),
+            delta_norm_floor=float(gate_cfg.get("delta_norm_floor", 1e-6)),
+            log_a_floor=float(gate_cfg.get("log_a_floor", 1e-8)),
+            in_warmup=in_warmup,
+            ema_momentum=float(gate_cfg.get("ema_momentum", 0.99)),
+        )
+        for k, v in gate_metrics.items():
+            output[k] = v
+
     output["sigreg_loss"] = self.sigreg(emb.transpose(0, 1))
     output["temporal_hinge_loss"] = compute_temporal_hinge(
         output, model=self.model, cfg=cfg
@@ -383,6 +542,7 @@ def lejepa_forward(self, batch, stage, cfg):
                 )
                 or k.startswith("hetero_")
                 or k.startswith("sigma_probe_")
+                or k.startswith("adaptive_")
                 or k == "pred_loss_mse_equiv"
             )
         )
@@ -506,6 +666,21 @@ def run(cfg):
         pred_proj=predictor_proj,
         pred_logvar_proj=pred_logvar_head,
     )
+    gate_cfg_init = cfg.loss.get("action_gate", {})
+    if gate_cfg_init.get("enabled", False):
+        # Scalar EMA buffers for zscore normalisation of log A_t and s_t.
+        # Stored on world_model so they round-trip with checkpoints.
+        for name in ("log_A", "s"):
+            world_model.register_buffer(
+                f"gate_{name}_mean", torch.zeros(()), persistent=True
+            )
+            world_model.register_buffer(
+                f"gate_{name}_var", torch.ones(()), persistent=True
+            )
+            world_model.register_buffer(
+                f"gate_{name}_inited", torch.zeros(()), persistent=True
+            )
+
     if cfg.loss.temporal_hinge.get("dynamic", {}).get("enabled", False):
         world_model.dynamic_margin_head = nn.Linear(2 * embed_dim, 1)
         nn.init.zeros_(world_model.dynamic_margin_head.weight)

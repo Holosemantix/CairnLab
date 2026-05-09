@@ -129,3 +129,19 @@ loss:
     s_min: -4.0
     s_max: 4.0
     tau_floor: 1.0e-6
+  # Action-aware adaptive resolution gate (logging-only). Computes the
+  # per-token action sensitivity A_t = || f(z, a+δ) - f(z, a) || / ||δ||,
+  # combines with σ_t from the hetero probe head, and emits diagnostic
+  # statistics. Does NOT modify the training loss in this stage. Designed
+  # to ride on top of `loss.hetero.mode=probe` so σ_t is meaningful; if
+  # hetero is off, gS_t falls back to 0.5 (sigma adds no enhancement) and
+  # only A_t-based metrics are informative. See plan_adaptive_resolution.md
+  # §8.3.2 for the full rationale and judgement criteria.
+  action_gate:
+    enabled: false
+    delta_scale: 0.25         # δ ~ N(0, (delta_scale * action_std)^2 I); action_std is per-batch
+    num_delta_samples: 4      # K independent δ draws per token for CV estimation
+    warmup_epochs: 3          # collect-but-don't-aggregate gate during warmup (see §8.3.2.1)
+    ema_momentum: 0.99        # EMA smoothing for zscore statistics
+    delta_norm_floor: 1.0e-6
+    log_a_floor: 1.0e-8

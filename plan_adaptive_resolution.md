@@ -7,6 +7,20 @@
 
 ---
 
+## 论证链 (Core Argument Chain)
+
+1. **Baseline.** LeWM (MSE on μ + SIGReg anti-collapse) 是 4-task 上最强的 JEPA baseline；但 LeWM+noise 的 `image_noise.std_max` 必须按任务手调——*adaptive* latent resolution 要替代的就是这个全局超参 [Maes et al. 2026, arXiv:2603.19312]。
+
+2. **Prediction-loss reweighting 不是答案。** 经典 heteroscedastic NLL `0.5·(err·exp(−s)+s)` [Kendall & Gal, NeurIPS 2017] 在本仓 Pilot-1B (2026-05-09) 让 PushT clean 从 87 跌到 13：σ 学到 prediction difficulty (`s_logerr_corr` ≈ 0.95) 但 `exp(−s)` downweight 把接触瞬间的控制关键 transition 抹掉 (`transition_resolution_ratio_l2` 0.30→0.10)。
+
+3. **σ 是 confounder。** Prediction difficulty 同时含 (a) controllable dynamics difficulty 与 (b) aleatoric visual nuisance；σ-only invariance 控制器会把不可控视觉随机源当作"高分辨率需求"，即经典 Noisy TV trap [Burda, Edwards, Pathak, Storkey, Darrell & Efros, ICLR 2019, "Large-Scale Study of Curiosity-Driven Learning"]。
+
+4. **Action sensitivity 是天然 disambiguator。** `A_t = ||f(z, a+δ) − f(z, a)|| / ||δ||` 仅在 *动作可影响的状态* 上为高，是 empowerment 框架中量化 controllability 的标准构造 [Klyubin, Polani & Nehaniv, IEEE CEC 2005, "Empowerment: A universal agent-centric measure of control"]。组合 `critical_t = gA_t · (0.5 + 0.5·gS_t)` 用 A_t 做主门控、σ 做 difficulty enhancer。
+
+5. **干预 input-side invariance，不动 μ 的 prediction loss。** 用 `critical_t` 调 per-token encoder consistency `L_cons = w_t · d(z_clean, z_noisy)`——这是 SimSiam-style asymmetric consistency [Chen & He, CVPR 2021] 的 *per-state 加权* 推广；与 VICReg/SIGReg 的全局 anti-collapse 正交 [Bardes, Ponce & LeCun, ICLR 2022]。LeWM+noise (`w_t ≡ const`) 与 LeWM-base (`α_cons = 0`) 都是本框架的严格特例，任何系统失败必须能定位到 `A_t / σ` controller 误判，而非方法 ill-defined。
+
+---
+
 ## 0. TL;DR
 
 不要默认假设 heteroscedastic NLL 会优于 MSE。LeWM 的 MSE + SIGReg 已经很强，直接替换成 NLL 会改变 pred loss 与 SIGReg 的相对尺度，而且 NLL 会 downweight 高误差样本；在 PushT 这类任务里，高误差样本可能正是接触/精细控制的关键状态。
@@ -729,7 +743,10 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 - **JEPA / LeWM**: LeCun 2022 ("A Path Towards Autonomous Machine Intelligence"); **Maes et al. 2026, "LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels"** (arXiv:2603.19312, Mar 2026; Lucas Maes / Quentin Le Lidec / Damien Scieur / Yann LeCun / Randall Balestriero)
 - **Heteroscedastic regression**: Kendall & Gal NeurIPS 2017 "What Uncertainties Do We Need in Bayesian Deep Learning"
 - **Variational JEPA (rejected as direct borrow)**: Gögl & Yau 2026 (arXiv:2603.20111, Mar 2026) — tabular only，本工作扩到 vision + multi-step
-- **Anti-collapse 工具线**: SIGReg (Maes et al. 2026), VICReg (Bardes 2022), RankMe (Garrido 2023)
+- **Anti-collapse 工具线**: SIGReg (Maes et al. 2026), VICReg (Bardes, Ponce & LeCun ICLR 2022), RankMe (Garrido 2023)
+- **Noisy TV / aleatoric confounder**: Burda, Edwards, Pathak, Storkey, Darrell & Efros, ICLR 2019, "Large-Scale Study of Curiosity-Driven Learning" — canonical demonstration that uncertainty/curiosity signals attract to uncontrollable stochastic distractors
+- **Empowerment / controllability**: Klyubin, Polani & Nehaniv, IEEE CEC 2005, "Empowerment: A universal agent-centric measure of control" — origin of the action-conditioned mutual-information / sensitivity framing for controllability
+- **Asymmetric consistency**: Chen & He, CVPR 2021, "Exploring Simple Siamese Representation Learning" (SimSiam) — stop-grad + predictor-side asymmetry as anti-collapse without negatives
 
 ---
 

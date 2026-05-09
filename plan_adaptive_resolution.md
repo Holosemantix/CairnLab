@@ -9,17 +9,42 @@
 
 ## 论证链 (Argument Chain)
 
-**Background — 当前世界模型的 latent geometry 由一个全局 trade-off 控制。**
-Joint-Embedding Predictive Architecture (JEPA) 从像素中学习 action-conditioned latent dynamics，其下游价值依赖一个核心性质：latent 必须编码 *任务相关* 的状态差异、同时对 *任务无关* 的视觉 nuisance 保持不变 [LeCun 2022; Maes et al. 2026, "LeWorldModel", arXiv:2603.19312]。当前 SOTA recipe 都是用 *一个全局* 旋钮去实现这个 trade-off——LeWM+noise 的 image-noise consistency 强度、VICReg / SIGReg 的 variance regularizer 权重 [Bardes et al. ICLR 2022; Maes et al. 2026]、或固定的 bottleneck 宽度。
+> 完整研究脉络：从 JEPA latent-space 的根本优势出发，经过 LeWM 的训练稳定化、对 SIGReg 全局先验的反思、表征几何 intervention (SWM) 与 diagnostic toolkit 揭示的 invariance-resolution tradeoff、LeWM+noise 强基线及其手调依赖，收敛到 *adaptive latent resolution* 这一抽象目标；并基于 Pilot-1B 的失败诊断，给出 action-aware 输入端 invariance 的最终方案。
 
-**Problem — 一个全局旋钮无法服务异质状态。**
-不同状态承载的可控信息量本质上不同：在 PushT 中，自由运动帧可以承受激进的 invariance，但接触帧承载的精细 pose 直接决定任务成败。经验上，最优 `image_noise.std_max` 在不同任务之间相差一个数量级（TwoRoom 0.08，PushT 0.02），且在 PushT 内部 clean-vs-robust 的 frontier 是一个手调折中。模型本身没有 *resolution* 这个内禀概念——这个判断只存在于挑旋钮的工程师手里。
+**§1 Background — JEPA 把"做世界模型"的目标拉回 latent space。**
+World-model 学习的关键问题之一是：模型应该重建什么？以 Dreamer 系列为代表的 reconstruction-based 路线在像素端保留尽可能多的细节 [Hafner et al. 2020, 2023]，代价是模型容量被强制分配给视觉 nuisance；Joint-Embedding Predictive Architecture (JEPA) 转而在 latent space 做未来预测，让 encoder 自动滤除任务无关的细节 [LeCun 2022, "A Path Towards Autonomous Machine Intelligence"; Assran et al. CVPR 2023, "I-JEPA"]。这一路线的核心承诺是：latent 应当编码 *任务相关* 的状态差异，对 *任务无关* 的视觉变化保持不变——这是 world-model 推进 planning / control 的前提。
 
-**Motivation — 最自然的修复 (heteroscedastic NLL) 因结构性原因失败。**
-最直接的候选是让模型输出 per-state uncertainty σ 并据此重加权 prediction loss [Kendall & Gal NeurIPS 2017]。本仓 Pilot-1B (2026-05-09) 实证：σ 的 calibration 是成功的 (`s_logerr_corr ≈ 0.95`)，但 PushT clean success 从 87 跌到 13，同时 validation MSE 继续下降——`exp(−s)` 把高误差的 contact transition 当作"难样本"降权，而这些 transition 恰恰 *就是* 控制信号本身 (`transition_resolution_ratio_l2` 0.30 → 0.10)。更深的问题是 prediction difficulty 本身是一个 *混淆信号*：它叠加了 (a) 可控的 dynamics complexity（应该保留分辨率）和 (b) 不可控的 aleatoric visual nuisance（应该被抹掉）。任何只用 σ 的控制器因此必然复现 curiosity / uncertainty 学习中众所周知的 Noisy TV 病理 [Burda et al. ICLR 2019, "Large-Scale Study of Curiosity-Driven Learning"]：把表征容量浪费在不可控随机源上。
+**§2 LeWM — 把 JEPA 训练稳定化的关键一步。**
+JEPA 的实际训练长期受困于 representation collapse：去 reconstruction loss 后没有显式信号阻止 encoder 输出常数。BYOL / SimSiam 用 EMA + stop-grad 提供 asymmetric 防塌缩 [Grill et al. NeurIPS 2020; Chen & He CVPR 2021]，VICReg / Barlow Twins 用 variance-covariance 约束 [Bardes et al. ICLR 2022; Zbontar et al. ICML 2021]，但这些方法在 pixel-conditioned planning 上都需要细致调超参。LeWM (LeWorldModel) [Maes et al. 2026, arXiv:2603.19312] 用 **SIGReg**——一种把 latent 投影后正则到近似各向同性 Gaussian 的 anti-collapse 机制——大幅压缩了 JEPA world model 在 4 任务上稳定训练所需的超参预算，把 LeWM-base 推到 4-task SOTA 起点（TwoRoom 93.0 / PushT 87.3 / Reacher 57.7 / Cube 72.3，本仓 §2.2 / §A）。**这是 JEPA 训练范式真正稳下来的标志性贡献。**
 
-**Our solution — 用 action sensitivity 解耦混淆信号，在 invariance 端而非 prediction loss 端做干预。**
-我们用一个有限差分形式的 *controllability* 信号 `A_t = ‖f(z, a+δ) − f(z, a)‖ / ‖δ‖` 把 difficulty 的两个成分分开——它度量 predictor 对小动作扰动的局部响应，是 empowerment 框架中 action-conditioned mutual information 的可计算代理 [Klyubin, Polani & Nehaniv IEEE CEC 2005]。`A_t` 高 ⇔ 动作选择能改变未来状态；distractor 和不可控场景动态上 `A_t` 自然低。我们把 `A_t`（主门控）和 σ（difficulty enhancer）组合成 per-token critical score `critical_t = gA_t · (0.5 + 0.5 · gS_t)`，并用它去 *调制 input-side 的 encoder consistency*——`L_cons = w_t · d(z_clean, z_noisy)`，`w_t` 随 `critical_t` 递减——而不是去重加权 prediction loss。μ 路径保持 LeWM 的 MSE+SIGReg 目标不变，从而绕开 Motivation 中识别出的失败模式。这一构造是 SimSiam 风格 asymmetric consistency 的 *per-state 加权* 推广 [Chen & He CVPR 2021]，也是 LeWM+noise 全局各向同性 invariance 的 *per-state 推广*：`w_t ≡ const` 退化为 LeWM+noise，`α_cons = 0` 退化为 LeWM-base，二者都是 falsifiable 的严格特例。本工作的 contribution 不是新的表征 regularizer，而是一个有机制依据的 *resolution controller*——据我们所知，这是第一个在 JEPA 世界模型中把 epistemic 信号与 controllability 信号联合用于 per-state latent capacity 分配的方法。
+**§3 Problem — SIGReg 太"粗暴"：一个全局先验无法服务异质任务/状态。**
+SIGReg 强制 latent 接近高维各向同性 Gaussian，这是一种 *任务无关* 的全局几何先验 [Maes et al. 2026]——同样地，VICReg 的 variance / covariance 权重、Wang & Isola ICML 2020 的 uniformity loss、bottleneck 宽度都是单一旋钮的 invariance / capacity 控制。然而 4-task 的实证（本仓 §2.2 / §3.3）显示这种 *one-size-fits-all* 的几何先验在不同任务上 trade-off 完全不同：低维离散导航 (TwoRoom) 受益于更强 clustering / invariance，连续接触控制 (PushT) 则要保留精细的连续状态分辨率。同一个 prior，对一类任务是 feature、对另一类任务就是 bug。问题的本质是：**模型本身没有"resolution"这个内禀概念，全部判断都外包给挑参的工程师**。
+
+**§4 Exploration — 我们做了三条平行验证，三条都指向同一个结论。**
+
+*(4a) Geometry intervention：SWM (spherical world model)。* 我们把 LeWM 的 Euclidean + SIGReg 换成 unit-sphere + uniformity loss [Wang & Isola ICML 2020]，作为对全局几何先验的另一极端选择 (`plan_v2.md` / `README_SWM.md`)。结果不是"球面普遍优于欧式"，而是 trade-off 反向：Cube 上 SWM-base 直接超过 LeWM 全配置 (77.0 vs 73.0)，但 PushT 上 SWM 即使加噪到最佳点仍落后 LeWM 5.3pt——`transition_resolution_ratio_cos` 从 LeWM 的 ~0.07 被压到 SWM 的 ~0.11 但 eval 反而下降，说明球面 normalizer 牺牲了 fine-grained transition 分辨率（本仓 §3.3 凝练画像）。**SWM 的真正贡献因此不是"更好的 prior"，而是把 invariance-resolution tradeoff 暴露成一个可观测、可干预的实验变量。**
+
+*(4b) Diagnostic toolkit：把 latent geometry 变成可测量的对象。* 我们围绕 noise sensitivity 与 task resolution 系统化了一组诊断指标——encoder Jacobian / Lipschitz 代理 [Hoffman 2019; Virmaux & Scaman NeurIPS 2018]、empirical robust radius [Cohen et al. ICML 2019 randomized smoothing 思路迁移]、`clean_nn_cos_dist` (邻域结构) [Sun et al. NeurIPS 2022 KNN-OOD]、`clean_effective_rank` [Garrido et al. 2023, "RankMe"]、`lidar_rank` [Thilak et al. 2024]、`transition_resolution_ratio` (本仓新组合)、`id_probe_r²` [Brandfonbrener et al. NeurIPS 2023; Alain & Bengio ICLR-W 2017]、`predictor_rollout_drift(T)` (本仓新)。Canonical 8-ckpt × 4-task × diagnostic_summary.json 的 Spearman 相关分析（本仓 §6 P0.4–P0.5b）显示：`noise_angle_slope`、`robust_radius_std` 与 noise eval drop 强相关 (\|ρ\|>0.6)；`id_probe_r²`、`transition_resolution_ratio` 与 PushT clean 表现强相关；`effective_rank` 区分 SWM (38–55) 与 LeWM (47–80) 不同 latent 容量分配模式。**几何不是抽象概念，是一组与下游表现可量化挂钩的轴。**
+
+*(4c) Static augmentation strong baseline：LeWM+noise。* per-frame image noise consistency training 让 LeWM 在 4 任务上同时把 clean 和 noise eval drop 大幅改善：TwoRoom 93→98.3、PushT 87→90、Reacher 57.7→86、Cube 72.3→73 (本仓 §0.2 / §4.3)；max-std=0.08 下 `predictor_rollout_T8_l2` 改善 5–139×。但 *最优 `std_max` 必须按任务调*：TwoRoom 偏好 0to008、PushT 偏好 0to002、Reacher 偏好 0to006、Cube SWM-base 反而最强。**LeWM+noise 是一个强 baseline / 强 motivation，但它仍是静态 recipe——把全局 trade-off 旋钮搬到了 noise 强度上而已**。
+
+**§5 Convergence — 三条线的共同信号是 *adaptive*，而不是"换一个更好的 prior"。**
+SWM 证明换 prior 解决不了 task heterogeneity；diagnostic toolkit 证明 tradeoff 是一个 per-state / per-transition 的连续轴；LeWM+noise 证明全局 invariance 增强是真实有效的，但需要按状态/任务自适应才能消除手调依赖。**正确的抽象层次是 *adaptive latent resolution*——让模型按状态分配 invariance vs resolution 预算，而不是工程师按任务挑全局旋钮**。这同时回答了 §3 提出的"模型没有 resolution 内禀概念"的根本问题。
+
+**§6 First attempt fails informatively — heteroscedastic NLL 因结构性原因 PushT 失败。**
+最自然的 adaptive 候选是给 predictor 加 per-state uncertainty σ，并用 NLL 重加权 prediction loss [Kendall & Gal NeurIPS 2017]——LeWM 是 σ ≡ 0 的严格特例，看似是干净的扩展。Pilot-1B (2026-05-09，本仓 `plan_adaptive_resolution.md` §8.2) 实证：σ 的 calibration 完全成功 (`s_logerr_corr ≈ 0.95`)，但 PushT clean success 从 87 跌到 13，同时 validation MSE 继续下降。机理诊断给出明确解释：(i) `exp(−s)` 把高误差的 contact transition 当成"难样本"降权，而这些 transition *就是* 控制信号 (`transition_resolution_ratio_l2` 0.30→0.10)；(ii) 更深层问题是 prediction difficulty 本身是 *混淆信号*——它叠加了 *可控的* dynamics complexity（应保留分辨率）与 *不可控的* aleatoric visual nuisance（应被抹掉）。任何只用 σ 控制 invariance 的方法因此必然复现 curiosity / uncertainty 学习中的 Noisy TV 病理 [Burda et al. ICLR 2019, "Large-Scale Study of Curiosity-Driven Learning"]：把表征容量浪费在不可控随机源上。这是单 σ controller 在 vision-based control 上的根本结构缺陷。
+
+**§7 Our method — 用 action sensitivity 解耦混淆信号，把干预放在 invariance 端而不是 prediction loss 端。**
+我们引入有限差分形式的 *controllability* 信号 `A_t = ‖f(z, a+δ) − f(z, a)‖ / ‖δ‖`，度量 predictor 对小动作扰动的局部响应——这是 empowerment 框架中 action-conditioned mutual information 的可计算代理 [Klyubin, Polani & Nehaniv IEEE CEC 2005]，与 ICM 的 inverse / forward dynamics curiosity [Pathak et al. ICML 2017] 在 spirit 上同源但落点不同：empowerment 度量的是"动作能改变多少未来"，恰好把 §6 中 σ 的两个混淆成分分开。`A_t` 在 distractor / 视觉 nuisance / 不可控场景动态上自然低，在 contact / 控制关键 transition 上自然高。组合 per-token critical score `critical_t = gA_t · (0.5 + 0.5·gS_t)`，用 `A_t` 做主门控、σ 做 difficulty enhancer，并以此调制 *input-side encoder consistency*：
+
+```text
+L_cons = w_t · d(z_clean, z_noisy),   w_t = w_max − (w_max − w_min) · critical_t
+```
+
+μ 路径保持 LeWM 原始 MSE + SIGReg 不变，从而绕开 §6 的失败模式。这一构造同时是三种已有方法的 *per-state 推广*：相对 SimSiam asymmetric consistency [Chen & He CVPR 2021] 是把 stop-grad consistency 加权；相对 LeWM+noise 全局各向同性 invariance 是把全局 std 拆成 per-state 强度；相对 VICReg / SIGReg 全局 anti-collapse 是局部 invariance 调度。`w_t ≡ const` 退化为 LeWM+noise，`α_cons = 0` 退化为 LeWM-base，二者都是 *falsifiable* 的严格特例。
+
+**§8 Position vs prior art — 我们与撞车风险最高的三条线分别有清晰 delta（详见 plan_v3 §7.4）。**
+PCA++ [arXiv:2511.12278] 在 contrastive SSL 中证明 uniformity 隐式诱导 background-noise robustness；我们在 JEPA-planning 设置下，且发现 uniformity 的实际效果 *本身就受 augmentation pipeline 影响* (§4a)，再用 controllability 解决其 task-dependence。Surprise-Recognition [arXiv:2512.01119] 用 single-step prediction surprise 做 *runtime* 输入过滤；我们做 *training-time* per-state representation budgeting。RobustZero [Li et al. ICML 2025] 在 MuZero 上对 latent state 做 worst-case adversarial training；我们针对 JEPA + CEM，干预 input-side invariance 而非 latent perturbation，且不引入 adversarial inner loop。Heteroscedastic 路线 [Kendall & Gal NeurIPS 2017] 我们已在 §6 给出严格 falsification。**贡献的核心 novelty 不是新的 representation regularizer，而是第一个把 epistemic uncertainty 与 action-conditioned controllability 联合用于 per-state latent capacity 分配的 JEPA world-model 方法**——它直接回应 §3 提出的"模型没有内禀 resolution 概念"的问题。
 
 ---
 
@@ -745,10 +770,17 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 - **JEPA / LeWM**: LeCun 2022 ("A Path Towards Autonomous Machine Intelligence"); **Maes et al. 2026, "LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels"** (arXiv:2603.19312, Mar 2026; Lucas Maes / Quentin Le Lidec / Damien Scieur / Yann LeCun / Randall Balestriero)
 - **Heteroscedastic regression**: Kendall & Gal NeurIPS 2017 "What Uncertainties Do We Need in Bayesian Deep Learning"
 - **Variational JEPA (rejected as direct borrow)**: Gögl & Yau 2026 (arXiv:2603.20111, Mar 2026) — tabular only，本工作扩到 vision + multi-step
-- **Anti-collapse 工具线**: SIGReg (Maes et al. 2026), VICReg (Bardes, Ponce & LeCun ICLR 2022), RankMe (Garrido 2023)
+- **Anti-collapse 工具线**: SIGReg (Maes et al. 2026), VICReg (Bardes, Ponce & LeCun ICLR 2022), Barlow Twins (Zbontar et al. ICML 2021), RankMe (Garrido 2023), LiDAR (Thilak 2024), uniformity (Wang & Isola ICML 2020), BYOL (Grill et al. NeurIPS 2020)
+- **Reconstruction-based world models（对照路线）**: Hafner et al. 2020/2023 (Dreamer / DreamerV3), Hansen et al. 2024 (TD-MPC2)
+- **JEPA 路线**: LeCun 2022, "A Path Towards Autonomous Machine Intelligence"; Assran et al. CVPR 2023, "I-JEPA"
+- **Noise / Lipschitz / certified-robustness 诊断**: Hoffman 2019 (Jacobian regularization), Virmaux & Scaman NeurIPS 2018 (Lipschitz spectral bounds), Cohen, Rosenfeld & Kolter ICML 2019 (randomized smoothing → robust radius)
+- **Latent geometry diagnostics**: Sun et al. NeurIPS 2022 (KNN-OOD), Kornblith et al. ICML 2019 (CKA), Ethayarajh EMNLP 2019 (anisotropy), Jing et al. ICLR 2022 (dimensional collapse)
+- **Action probing / inverse dynamics**: Alain & Bengio ICLR-W 2017, Brandfonbrener et al. NeurIPS 2023, Pathak et al. ICML 2017 (ICM)
 - **Noisy TV / aleatoric confounder**: Burda, Edwards, Pathak, Storkey, Darrell & Efros, ICLR 2019, "Large-Scale Study of Curiosity-Driven Learning" — canonical demonstration that uncertainty/curiosity signals attract to uncontrollable stochastic distractors
 - **Empowerment / controllability**: Klyubin, Polani & Nehaniv, IEEE CEC 2005, "Empowerment: A universal agent-centric measure of control" — origin of the action-conditioned mutual-information / sensitivity framing for controllability
 - **Asymmetric consistency**: Chen & He, CVPR 2021, "Exploring Simple Siamese Representation Learning" (SimSiam) — stop-grad + predictor-side asymmetry as anti-collapse without negatives
+- **Heteroscedastic uncertainty**: Kendall & Gal, NeurIPS 2017, "What Uncertainties Do We Need in Bayesian Deep Learning"
+- **撞车风险高的近期工作（必须 differentiate）**: PCA++ (arXiv:2511.12278, Nov 2025) — uniformity ⇒ background-noise robustness in contrastive SSL；Surprise-Recognition (arXiv:2512.01119, Dec 2025) — runtime input filtering by single-step surprise；RobustZero (Li et al. ICML 2025) — adversarial latent-state perturbation in MuZero
 
 ---
 

@@ -1,6 +1,6 @@
 # Adaptive Latent Resolution via Sigma-Conditioned JEPA
 
-> **Status**: 设计阶段，未实现。plan_v3 2026-05-08 审计后，本方案升为下一步主线 Pilot，但本文件已从“直接 NLL 替换 MSE”收紧为分阶段验证。
+> **Status**: Pilot-1B 已完成首轮 TwoRoom + PushT 验证（2026-05-09）。结果支持“σ head 能学到 prediction difficulty”，但否定了“直接用 hetero loss 替换 MSE”作为 PushT 上的主方法：PushT clean eval 从 LeWM-base 87.33/86.00 降到 13.33，诊断显示 transition/action resolution 被严重压缩。下一步主线改为 **probe-only σ + resolution guardrail + σ inference/controller use**，而不是继续加大 hetero loss。
 > **关系**: 不是 plan_v3 的替换，而是 plan_v3 §6 P4 "Adaptive Resolution Method" 的具体化方案。
 > **设计原则**: 先证明额外 σ 输出头携带有用信息，再让它影响训练或 planning；避免一开始就改变 LeWM 的强 MSE baseline。
 > **重要历史记录**: 本文件早期版本曾包含 IB term / aggregate covariance Frobenius / Fisher manifold planning 等多层架构，hyperparameter 数量涨到 4–5 个。经过严格审视后**全部回退**——它们都需要新超参却没有可论证的额外收益。详见 §10 设计回退记录。
@@ -11,12 +11,13 @@
 
 不要默认假设 heteroscedastic NLL 会优于 MSE。LeWM 的 MSE + SIGReg 已经很强，直接替换成 NLL 会改变 pred loss 与 SIGReg 的相对尺度，而且 NLL 会 downweight 高误差样本；在 PushT 这类任务里，高误差样本可能正是接触/精细控制的关键状态。
 
-当前路线（**2026-05-08 更新**：原 Pilot-1A "probe-only σ head" 已折叠为 Pilot-1B 训练时的实时监控量；不再单独训练一轮 detached probe）：
+当前路线（**2026-05-09 更新**：Pilot-1B 已跑完，直接 hetero loss 在 PushT 上失败，因此恢复 probe-only / guarded 路线）：
 
-1. **Pilot-1B：Scale-preserving heteroscedastic loss（Stage B，**首选执行项**）**：直接用 scale-preserving 形式替代 MSE，初始化 `logvar_hat ≡ 0` 让 loss 数值与 LeWM MSE 等价；训练时实时监控 σ 的语义稳定性 + μ-梯度 reweight 比值（详 §3.2 / §7 / §8.1 监控量）。如果 σ 全程退化为常数（PushT 特别关注），等价于"Probe-only 失败"——early-stop 即可，无需另起一轮训练。
-2. **Pilot-2：Use σ in training/planning（Stage C）**：只有当 σ 在 Pilot-1B 中表现出非平凡异质性、PushT clean eval 不退步、weight reweight 比值未失衡时，才考虑让 σ 影响 planning budget、uncertainty gating、或和 noise consistency / guardrail 结合。
+1. **Pilot-1B 结论：Scale-preserving heteroscedastic loss 语义成功、控制失败。** `hetero_s_logerr_corr` 在 TwoRoom/PushT 后期分别约 0.89/0.95，说明 σ head 学到了 prediction difficulty；但 PushT `hetero_weight_q10_q90_ratio` 掉到约 0.008，hard transition 被强 downweight，clean eval 崩到 13.33。
+2. **下一步首选：Probe-only σ / MSE-preserving guarded σ。** μ path 保持 LeWM MSE + SIGReg，σ head detached 学 `log(error)`；若再让 σ 影响训练，必须只作为小权重辅助项并加入 transition/action resolution guardrail。
+3. **Pilot-2：Use σ in inference/controller。** 优先让 σ 进入 planning budget、uncertainty gating、或 noise consistency controller，而不是再直接替换 pred loss。真正的 adaptive resolution 应该利用 σ 分配计算或一致性强度，同时保住 PushT 的连续控制分辨率。
 
-> **为什么跳过原 Pilot-1A？** Probe-only σ head（detached 学 `log(err_token)`、不反传到 μ）只能验证"σ head 容量足够"——这是**廉价 smoke test，不是研究步骤**：(a) logvar head 是个标量小 MLP，容量风险极低；(b) probe 阶段不改变 μ 几何，无法验证 hetero loss 真正的核心风险（PushT 高 error 关键 transition 被 downweight）；(c) 单独训练一轮再切到 Pilot-1B 浪费算力。把"σ↔err 相关性"作为 Pilot-1B 的实时监控指标已足够。
+> **为什么恢复 probe-only？** 2026-05-09 Pilot-1B 已经证明核心风险真实存在：σ calibration 很好，但 PushT 失败。此时 probe-only 不再是“容量 smoke test”，而是把 σ 语义从 μ 几何更新中解耦，避免 hard-but-important transition 被训练权重抹掉。
 
 核心批判点：**额外输出头本身不会自动变成动态分辨率。** 如果 σ 只作为日志或 detached probe，它是诊断量，不改变 μ 几何；如果 σ 进入 NLL，它改变训练梯度，但可能只是学会“忽略难样本”；如果 σ 进入 planner，它才成为决策逻辑的一部分，但会引入新的策略风险。因此必须逐级验证。
 
@@ -250,11 +251,11 @@ NLL/hetero loss 的潜在好处：
 
 ## 8. Pilot 实验计划
 
-> **触发条件**: 已满足。LeWM+noise 已经强于 LeWM-base，但不同任务的最优 noise 强度不同；SWM 没有成为主方法，只保留为 geometry intervention。因此下一步应直接启动 Pilot-1，而不是等待 P0.6 holdout。
+> **历史触发条件**: 已满足。LeWM+noise 已经强于 LeWM-base，但不同任务的最优 noise 强度不同；SWM 没有成为主方法，只保留为 geometry intervention。因此 2026-05-09 已执行 Pilot-1B；结果见 §8.2，下一步不再继续扩大直接 hetero loss。
 
-### 8.1 Pilot-1B: scale-preserving hetero loss（**首选起点**，已合并 Pilot-1A）
+### 8.1 Pilot-1B: scale-preserving hetero loss（已完成的历史设置）
 
-**触发条件**: 已满足。LeWM+noise 已强于 LeWM-base，下一步直接做 hetero loss 验证；σ 语义检验作为本阶段实时监控量（不再单独跑 Pilot-1A）。
+**触发条件**: 已满足并已执行。LeWM+noise 已强于 LeWM-base，因此本轮直接做 hetero loss 验证；σ 语义检验作为本阶段实时监控量（未单独跑 Pilot-1A）。
 
 设置：
 - 配置开关：`loss.hetero.enabled=true`（见 `config/train/lewm.yaml::loss.hetero` block）。
@@ -286,20 +287,193 @@ NLL/hetero loss 的潜在好处：
 - 若 σ 全程退化为常数（`hetero_s_std` ≈ 0），等价于"原 Pilot-1A 失败"——early-stop，回 probe-only 改训练（仅 σ head 单独训）或直接转 guarded consistency。
 - 若 σ 贴边（`hetero_s_abs_max` 长期 = `s_max`），说明 NLL 数值路径不稳；放宽 clamp 或重新设计 scale handling。
 
-### 8.2 Pilot-2: σ 使用逻辑
+### 8.2 Pilot-1B 结果（2026-05-09）
 
-**触发条件**: Pilot-1B 不退步，且 σ 语义稳定。
+运行：
+
+| Task | Run | SwanLab id | Local output |
+|---|---|---|---|
+| TwoRoom | `tworoom_lewm_hetero_default` | `gps6asjv22tmflag9af5m` | `/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_lewm_hetero_default` |
+| PushT | `pusht_lewm_hetero_default` | `tge50bhmtws06xc7n4wtq` | `/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_hetero_default` |
+
+设置：
+- LeWM baseline architecture，`loss.hetero.enabled=true`。
+- `image_noise.std_max=0.0`，不使用 noise training。
+- `s_min=-4.0, s_max=4.0`，`logvar_hat` final layer zero-init。
+- eval 为 epoch 10，`num_eval=300`，seeds 42/43/44 聚合。
+
+#### 8.2.1 训练曲线
+
+| Metric | TwoRoom hetero | PushT hetero | 解释 |
+|---|---:|---:|---|
+| `fit/hetero_s_logerr_corr` tail100 | 0.894 | 0.950 | σ 与 prediction error 强正相关，σ head 语义成立 |
+| `validate/hetero_s_logerr_corr_epoch` last | 0.912 | 0.957 | validation 上同样成立，不是 train-only artifact |
+| `fit/hetero_s_std` tail100 | 1.232 | 1.836 | PushT 的 σ 异质性明显更强 |
+| `fit/hetero_s_abs_max` last | 3.236 | 4.000 | PushT 已贴到 clamp 上限 |
+| `fit/hetero_weight_q10` last | 0.495 | 0.369 | 高 σ / hard token 被 downweight |
+| `fit/hetero_weight_q90` last | 11.026 | 47.802 | low-error token 被大幅 upweight |
+| `fit/hetero_weight_q10_q90_ratio` last | 0.045 | 0.008 | PushT 梯度权重极端失衡 |
+| `fit/pred_loss_mse_equiv` tail100 | 0.0438 | 0.0394 | true MSE-equivalent loss 仍下降，但不保证任务 resolution 保留 |
+| `validate/pred_loss_mse_equiv_epoch` last | 0.0274 | 0.0332 | validation MSE 也下降；失败不是简单 underfit |
+
+关键判定：
+- **σ calibration 成功。** 两个任务 `hetero_s_logerr_corr` 后期都很高，说明 σ head 不是常数，也不是噪声。
+- **PushT reweight 过强。** `q10/q90_ratio` 低到 0.008，远低于 §8.1 的 0.3 警戒线；这正是 hard-but-important transition downweight 风险。
+- **hetero loss 可以为负。** `pred_loss` 后期略为负是公式 `exp(-s) * err + tau * s` 的结果，不代表 prediction quality “负误差”；真实对照应看 `pred_loss_mse_equiv`。
+
+#### 8.2.2 Eval 结果
+
+| Task / model | Clean | goal 0.05 | pixels 0.05 | pixels+goal 0.05 | goal 0.08 | pixels+goal 0.08 |
+|---|---:|---:|---:|---:|---:|---:|
+| TwoRoom LeWM-base | 93.00 | 71.00 | 70.33 | 62.33 | 55.67 | 44.33 |
+| TwoRoom LeWM+noise best (`0to008-p1`) | 98.33 | 98.00 | 98.33 | 98.00 | 98.67 | 98.67 |
+| TwoRoom hetero | **99.67** | 85.33 | 96.67 | 84.67 | 73.33 | 55.33 |
+| PushT LeWM-base | 87.33 / 86.00 | 38.00 | 17.33 | 15.00 | 15.00 | 3.67 |
+| PushT LeWM+noise best (`0to002-p1`) | **90.00** | 85.00 | 87.67 | 86.00 | 83.00 | 70.67 |
+| PushT hetero | **13.33** | 7.67 | 7.67 | 7.67 | 9.67 | 6.00 |
+
+结论：
+- TwoRoom clean 提升到 99.67，符合低维离散任务受益于 stronger invariance / clustering 的预期。
+- TwoRoom hetero 不能替代 noise training：goal/pixels+goal 高噪声仍明显低于 LeWM+noise best。
+- PushT clean 只有 13.33，是方法级失败，不是 robustness tradeoff。
+
+#### 8.2.3 Diagnostics
+
+| Metric | TwoRoom LeWM-base | TwoRoom hetero | PushT LeWM-base | PushT hetero |
+|---|---:|---:|---:|---:|
+| `clean_nn_cos_dist_median` | 0.0449 | 0.0281 | 0.2360 | 0.1051 |
+| `clean_effective_rank` | 47.60 | 33.59 | 76.42 | 42.85 |
+| `transition_resolution_ratio_cos` | 0.5538 | 0.3780 | 0.0868 | 0.0101 |
+| `transition_resolution_ratio_l2` | 0.7216 | 0.6055 | 0.3015 | 0.1023 |
+| `id_probe_r2` | 0.2889 | -0.0573 | 0.7739 | 0.2678 |
+| `action_mean_pred_shift_norm` | 0.5329 | 0.4482 | 0.1283 | 0.0841 |
+| `action_interpolation_endpoint_shift` | 1.0474 | 0.8907 | 0.3361 | 0.1702 |
+| `predictor_rollout_T8_l2` | 18.62 | 17.90 | 18.65 | 14.01 |
+
+机制解释：
+- Hetero loss 在两个任务上都压缩表征：NN distance 降低，effective rank 降低，action-induced shift 降低。
+- TwoRoom 低维、离散、视觉冗余，压缩表征是可接受甚至有利的。
+- PushT 需要连续接触与姿态分辨率；`transition_resolution_ratio_l2` 从 0.3015 掉到 0.1023，`id_probe_r2` 从 0.7739 掉到 0.2678，说明 task-relevant state information 被抹掉。
+- PushT 的 `predictor_rollout_T8_l2` 下降不是好消息：它意味着 latent 更容易预测，但不是更适合控制。预测稳定性是通过牺牲 resolution 得到的。
+
+#### 8.2.4 结论
+
+Pilot-1B 的结果是“语义成功、系统失败”：
+
+1. **σ head 值得保留。** 它稳定学到了 per-transition prediction difficulty。
+2. **直接 hetero training 不适合 PushT。** 它会把 high-error hard transitions 当成低权重样本，而这些 transition 很可能正是 PushT 的接触和精细控制关键区域。
+3. **adaptive resolution 不能只靠 loss reweight。** 真正需要的是：μ 表征保留控制分辨率，σ 作为额外信号去调节 planning / consistency / compute，而不是让 σ 直接决定哪些 transition 不训练。
+
+### 8.3 下一步主线：MSE-preserving σ + PushT resolution guardrail
+
+目标不是“让 hetero loss 变温和一点”这么简单，而是让系统具备 **自适应分辨率**：低价值或不可预测扰动可以被 σ 标记和处理，PushT 的 task-critical continuous state/action resolution 必须保留。
+
+#### 8.3.1 第一优先级：Probe-only σ head（恢复 Stage A，但目的改变）
+
+训练：
+
+```text
+pred_loss = MSE(mu_hat, mu_target)
+loss = pred_loss + lambda_SIGReg * SIGReg(mu)
+
+err_token = mean((mu_hat.detach() - mu_target.detach())^2, dim=-1)
+s_hat = pred_logvar_hat.squeeze(-1)
+sigma_probe_loss = smooth_l1(s_hat, log(err_token + eps))
+
+loss_total = loss + beta_probe * sigma_probe_loss
+```
+
+约束：
+- `sigma_probe_loss` 只更新 σ head；不反传到 encoder / predictor mean path。
+- μ path 必须退化为严格 LeWM baseline，避免 PushT resolution 再次被重加权破坏。
+- 先跑 TwoRoom + PushT；如果 PushT clean 回到 LeWM-base 附近，同时 σ 仍有 `s_logerr_corr >= 0.5`，说明 σ 可以作为独立 adaptive signal 使用。
+
+这一步回答：**能不能在不改变 μ 几何的前提下得到有语义的 σ？**
+
+#### 8.3.2 第二优先级：σ-conditioned planner / controller，而不是训练重加权
+
+优先实现不改变 μ 训练目标的使用逻辑：
+
+| 方案 | 作用 | PushT 风险 | 推荐度 |
+|---|---|---|---|
+| σ-based CEM budget | 高 σ rollout 分配更多 candidates / restarts | 不改 μ，风险低 | 高 |
+| σ uncertainty gate | 对高 σ plan 加轻量 penalty 或截断长 horizon | 可能过保守 | 中 |
+| σ-conditioned noise consistency | 高/低 σ 区域使用不同 consistency 强度 | 需要 guardrail，风险中 | 中 |
+| hetero loss 替换 MSE | 改 μ 梯度分配 | 已在 PushT 失败 | 暂停 |
+
+最小可跑版本：
+
+```text
+train: LeWM MSE + SIGReg + detached sigma probe
+eval/planning: rollout 时累计 mean(sigma_hat)，作为 uncertainty score
+planner: 在候选 plan cost 上加 very small alpha * uncertainty，或高 uncertainty 时增加 CEM samples
+```
+
+先不要让 σ 直接改变 latent cost 的主项；PushT 对 cost surface 很敏感。
+
+#### 8.3.3 第三优先级：如果必须让 σ 进 training，只能做 guarded auxiliary
+
+候选 loss：
+
+```text
+loss = MSE + lambda_SIGReg * SIGReg
+     + beta_probe * sigma_probe_loss
+     + alpha * stopgrad_clip(hetero_loss - MSE)
+```
+
+或更简单：
+
+```text
+loss = (1 - alpha) * MSE + alpha * hetero_loss + lambda_SIGReg * SIGReg
+```
+
+约束：
+- `alpha` 从 0.01 / 0.05 起步，不允许直接 `alpha=1`。
+- `hetero_weight_q10_q90_ratio < 0.1` 立即 early-stop。
+- `hetero_s_abs_max` 贴 `s_max=4` 立即降 `alpha` 或禁用 hetero branch。
+- PushT 必须同时监控 `id_probe_r2`、`transition_resolution_ratio_l2`、`action_mean_pred_shift_norm`。
+
+Guardrail 建议阈值（相对 PushT LeWM-base）：
+
+| Metric | PushT LeWM-base | Stop / reject if |
+|---|---:|---:|
+| `id_probe_r2` | 0.774 | < 0.65 |
+| `transition_resolution_ratio_l2` | 0.301 | < 0.24 |
+| `action_mean_pred_shift_norm` | 0.128 | < 0.10 |
+| clean eval | 87.33 / 86.00 | < 84 |
+
+这些 guardrail 比单看 `pred_loss_mse_equiv` 更重要，因为本轮已经证明 MSE 可以下降但 planning 失败。
+
+#### 8.3.4 最推荐的下一轮实验
+
+只跑两个任务，先不扩到 4-task：
+
+| Experiment | TwoRoom | PushT | 目的 |
+|---|---:|---:|---|
+| `lewm_sigma_probe_default` | yes | yes | 验证 σ 独立语义，不改 μ |
+| `lewm_sigma_probe_planner_uncertainty_alpha001` | optional | yes | 测 σ 进入 planner 是否能改善 PushT noisy robustness |
+| `lewm_hetero_alpha001_guarded` | optional | yes | 只作为训练重加权的极小权重对照 |
+
+判定标准：
+1. PushT clean 必须接近 LeWM-base（≥84）才继续。
+2. σ calibration 必须保持：`validate/hetero_s_logerr_corr_epoch >= 0.5`。
+3. PushT resolution guardrail 不得破。
+4. 若 probe-only 成立但 planner use 无收益，方法降级为 uncertainty diagnostic；若 planner use 有收益，再谈 adaptive resolution 主方法。
+
+### 8.4 Pilot-2: σ 使用逻辑
+
+**触发条件**: Probe-only σ 保持 PushT clean / resolution，且 σ 语义稳定。当前 Pilot-1B 已显示直接 hetero loss 不能作为进入 Pilot-2 的前置成功条件。
 
 可选项：
 - σ-based CEM budget：高 uncertainty rollout 分配更多 samples。
 - σ-based horizon gating：高 uncertainty 长 rollout 降权或截断。
 - σ-conditioned noise consistency：高/低 σ 区域使用不同 consistency 强度，但必须避免新超参膨胀。
 
-这一步才真正检验“额外输出头是否被系统用起来”。如果只停在 Pilot-1A，它是诊断；如果停在 Pilot-1B，它是 loss weighting；进入 Pilot-2 后才是完整 adaptive system。
+这一步才真正检验“额外输出头是否被系统用起来”。如果只停在 probe-only，它是诊断；如果停在 Pilot-1B，它是 loss weighting；进入 Pilot-2 后才是完整 adaptive system。
 
-### 8.3 Validation: 4-task 全套
+### 8.5 Validation: 4-task 全套
 
-**触发条件**: Pilot-1B 或 Pilot-2 通过且经验上至少接近 LeWM+noise oracle。
+**触发条件**: Probe-only + σ 使用逻辑通过，且经验上至少接近 LeWM+noise oracle。
 
 | 项 | 设置 |
 |---|---|
@@ -315,7 +489,7 @@ NLL/hetero loss 的潜在好处：
 
 ### 9.1 与 plan_v3 §6 P4 的关系
 
-本文件现在是 plan_v3 §6 P4 的首选思考路线，但执行上必须分阶段。guarded noise consistency / PI controller 保留为 fallback：只有当 Pilot-1A 显示 σ 没有语义、Pilot-1B 显示 NLL 伤害关键 transition，或 eval 明显退步时再回退。
+本文件现在是 plan_v3 §6 P4 的首选思考路线，但执行上必须分阶段。2026-05-09 Pilot-1B 已触发关键 fallback 条件：直接 hetero loss 伤害 PushT critical transition resolution。后续应优先做 probe-only σ 与 σ inference/controller use；guarded noise consistency / PI controller 仍可作为备选实现。
 
 ### 9.2 与 plan_v2 V1/V2 的关系
 
@@ -366,6 +540,6 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 
 - 本文件供查阅与设计迭代；**不**作为 plan_v3 的替换。
 - 每次新讨论后追加新条目到 §7 风险表 或 §10 回退记录。
-- Pilot-1A 是下一步主线；启动前必读：§3.1（probe loss）+ §8.1（critical signals）。
-- Pilot-1A/1B 通过后，把 §3 §4 §6 合并进 plan_v3 §6 P4；本文件归档。
+- 下一步主线是 §8.3：probe-only σ + PushT resolution guardrail + σ inference/controller use。
+- 后续若 probe-only / Pilot-2 通过，把 §3 §4 §6 §8.3 合并进 plan_v3 §6 P4；本文件归档。
 - **下一次想加新机制前**: 先回看 §10，问自己"它会增加几个超参数？经验收益的证据是什么？"。如果两个问题答不清楚，不加。

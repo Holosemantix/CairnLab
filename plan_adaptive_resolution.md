@@ -7,7 +7,13 @@
 
 ---
 
-## 论证链 (Argument Chain)
+## 论证链 — 太长不看版
+
+JEPA 把 world-model 从像素重建拉回 latent space [LeCun 2022; Assran 2023]，让 encoder 自动滤除任务无关细节。LeWM 用 SIGReg 把 JEPA 训练真正稳定下来，是 4-task 上的当前最强 baseline [Maes 2026]。但 SIGReg 是一个 *任务无关的全局先验*——4 个任务的最优 invariance 强度本质不同（TwoRoom 喜聚簇 / PushT 要分辨率），单一旋钮无法同时服务。我们做了三条平行验证：(a) 把欧式换成球面 (SWM) 不解决问题，反而把 invariance-resolution tradeoff *暴露* 成可干预的实验变量（Cube SWM 赢、PushT SWM 输）；(b) 系统化的 diagnostic toolkit (robust radius / RankMe / ID probe / transition resolution / predictor drift) 证明这个 tradeoff 是 per-state / per-transition 的连续轴 [Cohen 2019; Garrido 2023; Brandfonbrener 2023]；(c) LeWM+noise 是强基线但每任务都得手调 `std_max`。三条线收敛到同一个抽象——**应该让模型按状态自适应分辨率，而不是工程师按任务挑全局旋钮**。最自然的候选 heteroscedastic NLL 在我们的 Pilot-1B 上失败：σ 学得很准 (corr 0.95) 但把 PushT 接触关键 transition 当难样本降权，clean 87→13；根因是 σ 混淆了 controllable dynamics 与 aleatoric visual nuisance，落入 Noisy TV trap [Kendall & Gal 2017; Burda 2019]。**我们的方案**：用 action sensitivity `A_t = ‖f(z, a+δ)−f(z, a)‖/‖δ‖`（empowerment 的有限差分代理 [Klyubin 2005]）作为主门控、σ 作为 difficulty enhancer，组合成 per-token critical score，调制 *input-side encoder consistency* 而非 prediction loss——μ 路径保持 LeWM 原状，绕开失败模式；LeWM+noise (`w_t≡const`) 与 LeWM-base (`α_cons=0`) 都是严格特例。**贡献**是第一个把 epistemic uncertainty 与 action-conditioned controllability 联合用于 per-state JEPA capacity 分配的方法。
+
+---
+
+## 论证链 — 完整版
 
 > 完整研究脉络：从 JEPA latent-space 的根本优势出发，经过 LeWM 的训练稳定化、对 SIGReg 全局先验的反思、表征几何 intervention (SWM) 与 diagnostic toolkit 揭示的 invariance-resolution tradeoff、LeWM+noise 强基线及其手调依赖，收敛到 *adaptive latent resolution* 这一抽象目标；并基于 Pilot-1B 的失败诊断，给出 action-aware 输入端 invariance 的最终方案。
 

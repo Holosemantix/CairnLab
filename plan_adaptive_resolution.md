@@ -1,6 +1,6 @@
-# Adaptive Latent Resolution via Sigma-Conditioned JEPA
+# Action-Aware Adaptive Latent Resolution
 
-> **Status**: Pilot-1B 已完成首轮 TwoRoom + PushT 验证（2026-05-09）。结果支持“σ head 能学到 prediction difficulty”，但否定了“直接用 hetero loss 替换 MSE”作为 PushT 上的主方法：PushT clean eval 从 LeWM-base 87.33/86.00 降到 13.33，诊断显示 transition/action resolution 被严重压缩。下一步主线改为 **probe-only σ + resolution guardrail + σ inference/controller use**，而不是继续加大 hetero loss。
+> **Status**: Pilot-1B 已完成首轮 TwoRoom + PushT 验证（2026-05-09）。结果支持“σ head 能学到 prediction difficulty”，但否定了“直接用 hetero loss 替换 MSE”作为 PushT 上的主方法：PushT clean eval 从 LeWM-base 87.33/86.00 降到 13.33，诊断显示 transition/action resolution 被严重压缩。下一步主线改为 **probe-only σ + action-aware adaptive consistency + resolution guardrail**，而不是继续加大 hetero loss 或只做 σ-only controller。
 > **关系**: 不是 plan_v3 的替换，而是 plan_v3 §6 P4 "Adaptive Resolution Method" 的具体化方案。
 > **设计原则**: 先证明额外 σ 输出头携带有用信息，再让它影响训练或 planning；避免一开始就改变 LeWM 的强 MSE baseline。
 > **重要历史记录**: 本文件早期版本曾包含 IB term / aggregate covariance Frobenius / Fisher manifold planning 等多层架构，hyperparameter 数量涨到 4–5 个。经过严格审视后**全部回退**——它们都需要新超参却没有可论证的额外收益。详见 §10 设计回退记录。
@@ -14,12 +14,12 @@
 当前路线（**2026-05-09 更新**：Pilot-1B 已跑完，直接 hetero loss 在 PushT 上失败，因此恢复 probe-only / guarded 路线）：
 
 1. **Pilot-1B 结论：Scale-preserving heteroscedastic loss 语义成功、控制失败。** `hetero_s_logerr_corr` 在 TwoRoom/PushT 后期分别约 0.89/0.95，说明 σ head 学到了 prediction difficulty；但 PushT `hetero_weight_q10_q90_ratio` 掉到约 0.008，hard transition 被强 downweight，clean eval 崩到 13.33。
-2. **下一步首选：Probe-only σ / MSE-preserving guarded σ。** μ path 保持 LeWM MSE + SIGReg，σ head detached 学 `log(error)`；若再让 σ 影响训练，必须只作为小权重辅助项并加入 transition/action resolution guardrail。
-3. **Pilot-2：Use σ in inference/controller。** 优先让 σ 进入 planning budget、uncertainty gating、或 noise consistency controller，而不是再直接替换 pred loss。真正的 adaptive resolution 应该利用 σ 分配计算或一致性强度，同时保住 PushT 的连续控制分辨率。
+2. **下一步首选：Probe-only σ + action-aware adaptive consistency。** μ path 保持 LeWM MSE + SIGReg，σ head detached 学 `log(error)`；真正改变 encoder resolution 的路径应放在 input-side consistency 上，而不是 prediction-loss reweighting 上。
+3. **σ 不能单独决定 consistency weight。** prediction difficulty 会混合 action-relevant difficulty 和视觉 aleatoric noise；σ-only consistency 会落入 Noisy TV / confounder trap。必须用 action sensitivity `A_t` 作为主门控，σ 只作为 difficulty enhancer。
 
 > **为什么恢复 probe-only？** 2026-05-09 Pilot-1B 已经证明核心风险真实存在：σ calibration 很好，但 PushT 失败。此时 probe-only 不再是“容量 smoke test”，而是把 σ 语义从 μ 几何更新中解耦，避免 hard-but-important transition 被训练权重抹掉。
 
-核心批判点：**额外输出头本身不会自动变成动态分辨率。** 如果 σ 只作为日志或 detached probe，它是诊断量，不改变 μ 几何；如果 σ 进入 NLL，它改变训练梯度，但可能只是学会“忽略难样本”；如果 σ 进入 planner，它才成为决策逻辑的一部分，但会引入新的策略风险。因此必须逐级验证。
+核心批判点：**额外输出头本身不会自动变成动态分辨率。** 如果 σ 只作为日志或 detached probe，它是诊断量，不改变 μ 几何；如果 σ 进入 NLL，它改变训练梯度，但可能只是学会“忽略难样本”；如果只用 σ 调 consistency，它会把背景噪声误判成高分辨率需求。因此必须把 σ 和 action relevance 解耦：`σ_t` 识别 difficulty，`A_t` 识别 controllability / causal relevance。
 
 LeWM 是第一性 baseline。任何 σ 方案都必须先证明至少不破坏 LeWM+noise 的 clean / robustness tradeoff。
 
@@ -145,13 +145,45 @@ loss = hetero_loss + lambda_SIGReg * SIGReg(mu)
 | 使用方式 | 作用 | 风险 |
 |---|---|---|
 | training weight | 通过 hetero loss 改变 μ 的梯度分配 | 可能忽略 hard-but-important states |
-| noise/controller | 高 σ 区域降低/提高 noise consistency 强度 | 需要额外规则，容易变成 controller |
+| σ-only noise/controller | 高 σ 区域降低/提高 noise consistency 强度 | **confounder trap**：高 σ 可能来自视觉 aleatoric noise，而不是 task-critical dynamics |
+| action-aware consistency | 用 action sensitivity 区分 controllable critical states 和不可控视觉噪声 | 最符合 adaptive resolution，但必须先做 logging-only 验证 gate |
 | planner budget | 高 σ rollout 增加 CEM samples / 缩短 horizon | 不改变表示，只改 inference compute |
 | uncertainty gate | 高 σ 时拒绝或降权候选 plan | 可能过度保守 |
 
 因此 Stage C 只能在 Stage A/B 证明 σ 有语义后再做。否则额外 head 只是日志，不是方法。
 
-### 3.4 SIGReg 仍然作用在 μ 上
+### 3.5 Stage D：Action-Aware Adaptive Consistency（当前首选）
+
+真正符合“adaptive latent resolution”的训练介入不应是直接重加权 prediction loss，而应是对 encoder input-side invariance 的局部调节：
+
+```text
+z_clean = enc(x)
+z_noisy = enc(aug(x))
+L_cons = mean(w_t * d(stopgrad(z_clean_t), z_noisy_t))
+```
+
+核心问题是 `w_t` 不能只由 σ 决定。prediction difficulty 同时包含：
+- **Epistemic / dynamics difficulty**：例如 PushT 接触瞬间，应该降低 consistency pressure，保留分辨率。
+- **Aleatoric / visual nuisance**：例如不可控背景噪声，应该提高 consistency pressure，抹掉噪声。
+
+因此定义一个 action-aware criticality：
+
+```text
+A_t = d(f(z_t, a_t + delta), f(z_t, a_t)) / (||delta|| + eps)
+gA_t = sigmoid(zscore_ema(log(A_t + eps)))
+gS_t = sigmoid(zscore_ema(s_t))
+critical_t = gA_t * (0.5 + 0.5 * gS_t)
+w_t = w_max - (w_max - w_min) * stopgrad(critical_t)
+```
+
+设计取舍：
+- `A_t` 是主门控，表示 action-conditioned local sensitivity / controllability。
+- `σ_t` 只作为 difficulty enhancer，避免 σ-only gate 把 Noisy TV 当成高分辨率需求。
+- `delta` 应来自 empirical action std 或 batch 内 in-distribution action 差分，不用任意 OOD random action。
+- `critical_t` 和 `w_t` 必须 detach；gate 是 controller，不允许成为 predictor / encoder 的反向捷径。
+- 先做 `weight=0` logging-only，再启用 `L_cons`。
+
+### 3.6 SIGReg 仍然作用在 μ 上
 
 无论 Stage A/B/C，SIGReg 都只作用在 deterministic μ 上。不要把 SIGReg 推广到 `(μ, σ)` 或 reparameterized sample；那会引入 Gaussian mixture 高阶矩问题，并破坏 LeWM 已验证的 anti-collapse 机制。
 
@@ -167,9 +199,10 @@ loss = hetero_loss + lambda_SIGReg * SIGReg(mu)
 |---|---|---|
 | Probe | 预测 detached error | 否，只是诊断 |
 | Loss weighting | 改变不同 transition 的 μ 梯度 | 可能，但可能忽略关键 hard states |
-| Planner/controller | 影响 CEM budget / gating / consistency strength | 是系统级 adaptive，但需要额外逻辑 |
+| σ-only controller | 影响 CEM budget / gating / consistency strength | 可能，但容易把 aleatoric visual noise 当成 resolution demand |
+| Action-aware consistency | σ 与 action sensitivity 共同控制 encoder invariance | 是 encoder-side adaptive resolution 的当前首选候选 |
 
-所以论文中不能把“加一个 σ head”直接等同于 dynamic resolution。真正要证明的是：σ 与任务相关 difficulty 对齐，并且它进入训练或 inference 后改善了 LeWM+noise 的手调 tradeoff。
+所以论文中不能把“加一个 σ head”直接等同于 dynamic resolution。真正要证明的是：σ 与 action-relevant difficulty 对齐，且 `A_t` 能把 controllable critical states 和不可控视觉噪声区分开；然后 adaptive consistency 在不破坏 PushT resolution guardrail 的前提下改善 LeWM+noise 的手调 tradeoff。
 
 ### 4.2 NLL 的好处和风险
 
@@ -200,8 +233,9 @@ NLL/hetero loss 的潜在好处：
 | LeWM + SIGReg | 无 σ 使用逻辑；等价于 Stage A 中忽略 σ head |
 | SWM (V0 spherical) | 固定单位球几何 prior；无动态 σ |
 | VICReg | 固定 covariance / variance prior；无动态 σ |
+| LeWM + noise | 全局 input-side invariance；无 state/action-aware weighting |
 
-现有方法都没有把 per-transition uncertainty 明确输出并用于训练或 planning。
+现有方法都没有把 per-transition uncertainty 和 action-conditioned local sensitivity 结合起来控制 encoder invariance strength。
 
 ---
 
@@ -220,16 +254,18 @@ NLL/hetero loss 的潜在好处：
 
 ## 6. 论文 Novelty 主张（待 Pilot 验证）
 
-> **Sigma-conditioned JEPA for adaptive latent resolution**: 在 LeWM predictor 上加 scalar σ head，先作为 detached prediction-difficulty probe；若 σ 与 transition difficulty / task resolution 对齐，再用 scale-preserving heteroscedastic loss 或 planner/controller logic 让 σ 影响训练或 inference。LeWM 是 σ 不参与使用逻辑时的严格 baseline。
+> **Action-aware adaptive consistency for latent resolution**: 在 LeWM predictor 上加 detached scalar σ probe 来估计 transition difficulty，同时用 action-conditioned local sensitivity `A_t` 区分 controllable critical states 与不可控视觉噪声；二者共同控制 clean/noisy encoder consistency strength，使简单/冗余区域更 invariant、action-critical 区域保留 resolution。LeWM 与 LeWM+noise 分别是无 σ/A controller 与全局 consistency 的严格 baseline。
 
 这一条成立的前提：
 - Stage A 证明 σ head 学到非平凡、任务相关的 prediction difficulty。
-- Stage B/C 证明使用 σ 后能接近或超过 LeWM+noise oracle，而不是只超过 LeWM-base。
-- σ 的收益不是来自重新调 SIGReg / loss scale。
+- Logging-only 阶段证明 `A_t` 能过滤 σ 中的 aleatoric visual noise，而不是只复述 prediction error。
+- Adaptive consistency 证明使用 `critical_t = f(A_t, σ_t)` 后能接近或超过 LeWM+noise oracle，而不是只超过 LeWM-base。
+- 收益不是来自重新调 SIGReg / loss scale，也不是来自把 hard transitions 的 prediction gradient 降权。
 
 不再主张：
 - “NLL 一定比 MSE 好”。
 - “σ head 自然就是 latent resolution”。
+- “高 σ 就应该保留分辨率”。
 - “不改 planner 就一定能在 inference 自动受益”。
 - IB / Fisher manifold / “诊断 = (μ, σ) 本征轴”等强理论叙事。
 
@@ -243,6 +279,9 @@ NLL/hetero loss 的潜在好处：
 | **NLL 改变 MSE/SIGReg 权重比** | 普通 NLL 初始就是 0.5× MSE，且尺度会随 σ 漂移 | 只用 scale-preserving hetero loss；初始 loss/gradient 对齐 MSE |
 | **hard-but-important states 被 downweight** | PushT 接触/精细控制可能高误差但高价值 | 必须监控 transition/action resolution；必要时 fallback 到 guarded consistency |
 | **σ 只是 uncertainty，不是 resolution** | calibration 成功不等于 planning 提升 | Stage C 必须明确 σ 的使用逻辑；否则只作为诊断输出 |
+| **Noisy TV / confounder trap** | 高 σ 也可能来自不可控视觉噪声；σ-only consistency 会放弃对噪声的 invariance | consistency gate 必须 action-aware：以 `A_t` 为主门控，σ 只做 enhancer |
+| **Action sensitivity OOD** | 任意随机动作可能离开数据分布，导致 `A_t` 反映 predictor extrapolation | `delta` 使用 empirical action std 或 batch 内 in-distribution action 差分；先 logging-only |
+| **Gate 反向捷径** | 若 `critical_t` 不 detach，encoder/predictor 可通过操纵 gate 逃避 consistency | `σ_t`、`A_t`、`critical_t`、`w_t` 全部 stopgrad；warmup 后再启用 consistency |
 | **encoder σ 不可辨识** | encoder σ 无天然监督，和 predictor σ 同时学会互相逃逸 | Pilot-1 不加 encoder σ；只在 predictor σ 成立后再加 |
 | **Multi-step σ propagation 公式不准** | 本最简版**不主张**手写 σ 累积公式；让 predictor σ̂ 自学 multi-step uncertainty | 用 multi-step rollout NLL 做训练监督 |
 | **不超过 LeWM+noise oracle** | 很可能；LeWM+noise 已经很强 | 目标先设为减少手调且接近 oracle；若明显低于 oracle，降级为 analysis/future work |
@@ -364,9 +403,11 @@ Pilot-1B 的结果是“语义成功、系统失败”：
 2. **直接 hetero training 不适合 PushT。** 它会把 high-error hard transitions 当成低权重样本，而这些 transition 很可能正是 PushT 的接触和精细控制关键区域。
 3. **adaptive resolution 不能只靠 loss reweight。** 真正需要的是：μ 表征保留控制分辨率，σ 作为额外信号去调节 planning / consistency / compute，而不是让 σ 直接决定哪些 transition 不训练。
 
-### 8.3 下一步主线：MSE-preserving σ + PushT resolution guardrail
+### 8.3 下一步主线：Probe-only σ + Action-Aware Adaptive Consistency
 
-目标不是“让 hetero loss 变温和一点”这么简单，而是让系统具备 **自适应分辨率**：低价值或不可预测扰动可以被 σ 标记和处理，PushT 的 task-critical continuous state/action resolution 必须保留。
+目标不是“让 hetero loss 变温和一点”这么简单，而是让系统具备 **自适应分辨率**：视觉冗余 / 不可控噪声区域加强 invariance，PushT 的 action-critical continuous state/action resolution 必须保留。
+
+关键修正：`σ_t` 不能单独当作“高分辨率需求”。prediction difficulty 混合了 controllable dynamics difficulty 和 aleatoric visual noise；前者应降低 consistency weight，后者应提高 consistency weight。因此下一步使用 `A_t`（action-conditioned local sensitivity）作为主门控，σ 只作为 difficulty enhancer。
 
 #### 8.3.1 第一优先级：Probe-only σ head（恢复 Stage A，但目的改变）
 
@@ -395,48 +436,49 @@ loss_total = loss + beta_probe * sigma_probe_loss
 
 这一步回答：**能不能在不改变 μ 几何的前提下得到有语义的 σ？**
 
-#### 8.3.2 第二优先级：σ-conditioned planner / controller，而不是训练重加权
+#### 8.3.2 第二优先级：Logging-only action-aware gate
 
-优先实现不改变 μ 训练目标的使用逻辑：
-
-| 方案 | 作用 | PushT 风险 | 推荐度 |
-|---|---|---|---|
-| σ-based CEM budget | 高 σ rollout 分配更多 candidates / restarts | 不改 μ，风险低 | 高 |
-| σ uncertainty gate | 对高 σ plan 加轻量 penalty 或截断长 horizon | 可能过保守 | 中 |
-| σ-conditioned noise consistency | 高/低 σ 区域使用不同 consistency 强度 | 需要 guardrail，风险中 | 中 |
-| hetero loss 替换 MSE | 改 μ 梯度分配 | 已在 PushT 失败 | 暂停 |
-
-最小可跑版本：
+先实现 `adaptive_consistency.weight=0`，只记录 gate，不改变训练目标。核心量：
 
 ```text
-train: LeWM MSE + SIGReg + detached sigma probe
-eval/planning: rollout 时累计 mean(sigma_hat)，作为 uncertainty score
-planner: 在候选 plan cost 上加 very small alpha * uncertainty，或高 uncertainty 时增加 CEM samples
+A_t = d(f(z_t, a_t + delta), f(z_t, a_t)) / (||delta|| + eps)
+gA_t = sigmoid(zscore_ema(log(A_t + eps)))
+gS_t = sigmoid(zscore_ema(s_t))
+critical_t = gA_t * (0.5 + 0.5 * gS_t)
+w_t = w_max - (w_max - w_min) * critical_t
 ```
 
-先不要让 σ 直接改变 latent cost 的主项；PushT 对 cost surface 很敏感。
+实现约束：
+- `delta` 使用 empirical action std 或 batch 内 in-distribution action 差分；不要用任意 OOD random action。
+- `s_t`、`A_t`、`critical_t`、`w_t` 全部 detach。
+- 先 warmup 若干 epoch，只训主 loss + σ probe，再开始记录/使用 gate。
+- 记录 `adaptive/sigma_mean`、`adaptive/action_sensitivity_mean`、`adaptive/critical_mean`、`adaptive/weight_mean`、`adaptive/corr_sigma_action`、`adaptive/weight_q10_q90`。
 
-#### 8.3.3 第三优先级：如果必须让 σ 进 training，只能做 guarded auxiliary
+进入训练介入前必须看到：
+- high `critical_t` 与 PushT contact / high action-norm / high transition displacement 有结构性关系。
+- 视觉 nuisance 主要提高 σ，不应同步提高 `A_t`。
+- `critical_t` 比 σ-only 更能解释 `id_probe_r2` / action resolution 相关诊断。
 
-候选 loss：
+#### 8.3.3 第三优先级：Action-aware adaptive consistency training
+
+只有 logging-only gate 成立后，才启用 encoder-side consistency：
 
 ```text
-loss = MSE + lambda_SIGReg * SIGReg
-     + beta_probe * sigma_probe_loss
-     + alpha * stopgrad_clip(hetero_loss - MSE)
+z_clean = enc(x_clean)
+z_noisy = enc(aug(x_clean))
+L_main = MSE(mu_hat, mu_target) + lambda_SIGReg * SIGReg(mu)
+L_cons = mean(stopgrad(w_t) * d(stopgrad(z_clean_t), z_noisy_t))
+loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 ```
 
-或更简单：
+解释：
+- 主 prediction loss 不被 σ 或 `A_t` 降权，避免复现 hetero loss 的 PushT resolution collapse。
+- `w_t` 只控制额外 invariance pressure；action-critical / high-σ 区域少抹细节，visual nuisance / action-insensitive 区域更强 invariance。
+- `alpha_cons` 从小值开始，并以 PushT resolution guardrail 为硬拒绝条件。
 
-```text
-loss = (1 - alpha) * MSE + alpha * hetero_loss + lambda_SIGReg * SIGReg
-```
+#### 8.3.4 备选：σ planner / hetero auxiliary 降级为对照
 
-约束：
-- `alpha` 从 0.01 / 0.05 起步，不允许直接 `alpha=1`。
-- `hetero_weight_q10_q90_ratio < 0.1` 立即 early-stop。
-- `hetero_s_abs_max` 贴 `s_max=4` 立即降 `alpha` 或禁用 hetero branch。
-- PushT 必须同时监控 `id_probe_r2`、`transition_resolution_ratio_l2`、`action_mean_pred_shift_norm`。
+σ-based planner budget 仍可作为 inference-only 对照，但不再是主线。σ uncertainty penalty 和 hetero loss 只保留为 ablation，因为前者可能让 planner 躲开 contact 区域，后者已在 PushT 上失败。
 
 Guardrail 建议阈值（相对 PushT LeWM-base）：
 
@@ -449,34 +491,113 @@ Guardrail 建议阈值（相对 PushT LeWM-base）：
 
 这些 guardrail 比单看 `pred_loss_mse_equiv` 更重要，因为本轮已经证明 MSE 可以下降但 planning 失败。
 
-#### 8.3.4 最推荐的下一轮实验
+#### 8.3.5 最推荐的下一轮实验
 
 只跑两个任务，先不扩到 4-task：
 
 | Experiment | TwoRoom | PushT | 目的 |
 |---|---:|---:|---|
 | `lewm_sigma_probe_default` | yes | yes | 验证 σ 独立语义，不改 μ |
-| `lewm_sigma_probe_planner_uncertainty_alpha001` | optional | yes | 测 σ 进入 planner 是否能改善 PushT noisy robustness |
+| `lewm_action_gate_logging` | yes | yes | `weight=0` 记录 `A_t` / `critical_t`，验证是否过滤 Noisy TV confounder |
+| `lewm_action_aware_consistency_alpha001` | optional | yes | 核心新方法：action-aware gate 控制 encoder consistency |
+| `lewm_sigma_only_consistency_alpha001` | optional | yes | 失败对照：检验 σ-only consistency 是否被视觉噪声误导 |
 | `lewm_hetero_alpha001_guarded` | optional | yes | 只作为训练重加权的极小权重对照 |
 
 判定标准：
 1. PushT clean 必须接近 LeWM-base（≥84）才继续。
 2. σ calibration 必须保持：`validate/hetero_s_logerr_corr_epoch >= 0.5`。
-3. PushT resolution guardrail 不得破。
-4. 若 probe-only 成立但 planner use 无收益，方法降级为 uncertainty diagnostic；若 planner use 有收益，再谈 adaptive resolution 主方法。
+3. `A_t` / `critical_t` 必须显示 action-relevant 结构；否则不启用 consistency。
+4. PushT resolution guardrail 不得破。
+5. 若 action-aware consistency 无收益，方法降级为 uncertainty/action diagnostic；若有收益，再谈 adaptive resolution 主方法。
 
-### 8.4 Pilot-2: σ 使用逻辑
+### 8.4 Pilot-2: Action-aware σ 使用逻辑
 
 **触发条件**: Probe-only σ 保持 PushT clean / resolution，且 σ 语义稳定。当前 Pilot-1B 已显示直接 hetero loss 不能作为进入 Pilot-2 的前置成功条件。
 
 可选项：
-- σ-based CEM budget：高 uncertainty rollout 分配更多 samples。
-- σ-based horizon gating：高 uncertainty 长 rollout 降权或截断。
-- σ-conditioned noise consistency：高/低 σ 区域使用不同 consistency 强度，但必须避免新超参膨胀。
+- action-aware adaptive consistency：首选，真正作用到 encoder invariance strength。
+- σ-based CEM budget：inference-only 对照，高 uncertainty rollout 分配更多 samples。
+- σ-based horizon gating：降级为风险较高的 planner 对照。
+- hetero loss：仅作为失败路线的小权重 ablation。
 
 这一步才真正检验“额外输出头是否被系统用起来”。如果只停在 probe-only，它是诊断；如果停在 Pilot-1B，它是 loss weighting；进入 Pilot-2 后才是完整 adaptive system。
 
-### 8.5 Validation: 4-task 全套
+### 8.5 待 probe 结果回来后联合分析的开放问题（2026-05-08 预登记）
+
+> 本节是在 `lewm_sigma_probe_default` 结果尚未回来前，对当前叙事和 §8.3 规划的预登记疑问。等 probe 跑完再统一回来落实/反驳，不要先动 §8.3 主体。
+
+#### 8.5.1 Probe-only "calibration 成功"的判据需要更硬
+
+`s_logerr_corr ≥ 0.5` 是必要不充分。probe 用 detached MSE 监督，只要 σ head 容量够，calibration corr 高几乎必然——这只能证明 σ 能 fit residual，不能证明 σ 携带 *超出 per-token MSE* 的可用信号。回看时应额外检查：
+
+- σ 与 contact / goal-edge mask（或 high action-norm 分位）的相关性，有没有系统性结构。
+- σ 在视觉 nuisance 干扰下（goal / pixels noise）相对 clean 输入的漂移方向：是漂向"难"区域（与控制相关）还是漂向"乱"区域（与视觉无关）。
+- σ 的空间/时间结构是否仅是 residual 的 smoother，还是能 anticipate 下一步的 contact onset。
+
+如果只通过 corr 但没有上面任一条结构性证据，probe-only 应只升级为 diagnostic，不进入 §8.3.3 consistency 训练阶段。
+
+#### 8.5.2 Planner uncertainty 的方向风险
+
+旧 §8.3.2 表里"σ uncertainty gate"被标"风险中"，但没明说方向。在 goal-conditioned planning 里把 `α·σ` 加进 cost，相当于让 planner *躲* 高 σ 区域；而 PushT 的 contact / 精细控制恰好是 high-σ。所以：
+
+- 起步首选 **σ-based CEM budget reallocation**（高 σ 增加 samples / restarts），而不是 cost penalty。前者只改 inference compute，不改 cost surface。
+- 如果一定要做 cost-side，应该是 *goal-aware* 的——例如只在远离 goal 时让 σ 起 penalty 作用，靠近 goal 时反而允许进入高 σ contact 区。
+- "σ-conditioned noise consistency" 同理：高 σ 区域是该加强 consistency 还是放松 consistency 是个 sign 问题。当前修正是不用 σ 单独决定方向，而用 action sensitivity `A_t` 过滤 aleatoric visual noise。
+
+#### 8.5.3 σ clamp 与参数化
+
+PushT `s_abs_max` 已经长期顶在 4.0。下一次启用任何 hetero / guarded auxiliary 前需先决定：
+
+- 放宽 `s_max`（直接副作用：极端样本权重更不平衡）。
+- 改 σ 参数化（例如 softplus-style positive scale + 可学习 prior，避免 logvar 双侧发散）。
+- 或保持 4.0 但配合"hetero_s_abs_max 持续顶上限 → 自动降 alpha"的 guard rail。
+
+probe-only 阶段可以顺便看 σ 在 PushT 上的自然分布是否仍贴 clamp，作为后面参数化决策的依据。
+
+#### 8.5.4 TwoRoom hetero +6.7pt 的解释缺口
+
+Pilot-1B 里 TwoRoom hetero clean 99.67 不仅超过 LeWM-base (93)，还超过 LeWM+noise best (98.33)。叙事目前把它一笔带过。这其实是一个独立信号：在低本征维 / 离散 transition 任务上，"downweight 简单样本 + upweight 难样本"反而像 implicit clustering。回看时建议至少跑一组 ablation：
+
+- TwoRoom probe-only：σ probe 不动 μ → 应回落到 LeWM-base 附近。如果仍接近 99.67，说明并非 reweight 在起作用。
+- 如果 probe-only 回落而 hetero 保持 99.67，则该收益机制是"按难度重加权"，可作为 *任务条件化* 的论据——而不是统一 method 的论据。
+
+#### 8.5.5 超参数预算公开化
+
+§10 立了"count hyperparameter"纪律，但当前 §8.3 路径累计：`beta_probe`（probe）→ `alpha_planner`（uncertainty / budget）→ `alpha_hetero`（guarded）。每一阶段应在文档里明列：
+
+- 新增 hyperparam 名、默认值、允许范围、early-stop 阈值。
+- 该阶段相比前一阶段的边际经验收益要求（例如 "PushT clean +2 或 robustness +5"），不达标不进入下一阶段。
+
+否则 §10 的纪律会随阶段松动。
+
+#### 8.5.6 +noise 训练与 adaptive resolution 是否联用（重要叙事问题）
+
+目前的叙事链是：LeWM-base → LeWM+noise（任务最优 std 不同 + 表征/诊断显示 noise 推向 nuisance-invariant 表征）→ 因此需要 adaptive resolution。当前所有 σ pilot 都是 `image_noise.std_max=0.0`，这是为了 ablation 干净，但 **不是最终方法应该长成的样子**。
+
+机制上 +noise 和 σ-adaptive 处于不同位置：
+
+| 机制 | 作用位置 | 物理含义 |
+|---|---|---|
+| image noise / consistency | encoder 输入侧 | 数据增广，强迫 encoder 对 nuisance 不变 |
+| σ probe | predictor 输出侧 | 标注 per-transition 难度 |
+| σ planner use | inference 侧 | 按难度分配 compute / 截断 horizon |
+| action-aware adaptive consistency | encoder 输入侧 + σ/A 反馈回去 | 用 `A_t` 判断 action relevance，再用 σ 增强 criticality，决定 consistency strength |
+
+所以正确的关系不是"二选一"，而是 **noise 是 input-side 的 isotropic 数据增广，σ 是 output-side 的 per-state difficulty 信号，`A_t` 是 controllability filter**，互补。最终方法叙事里应该是：
+
+> LeWM+noise 提供全局 invariance baseline；action-aware σ/A controller 把全局 invariance 拆成 per-state，让模型在 action-critical 难区域少抹细节，在 action-insensitive 视觉冗余区域多抹。
+
+需要补的实验阶梯（在 §8.3 通过后追加）：
+
+1. **Probe-on-noise**：LeWM+noise checkpoint 加 σ probe（μ path 不变）。检查 σ 在 noise 训练下是否仍稳定 calibration、空间分布是否变化。这是最便宜的联用验证，应该尽早做。
+2. **Action-gate-on-noise**：在 LeWM+noise checkpoint 上 logging-only 记录 `A_t` / `critical_t`，确认 noise 训练后 gate 仍能区分 contact 与 visual nuisance。
+3. **Joint training**：只有 1+2 都通过，再考虑 action-aware adaptive consistency / 联合训练。这一步必须额外注意双重 downweight 风险：noise 让 contact transition 更难 → σ-only gate 会错误放松 consistency；因此必须保留 `A_t` 主门控，并在 guardrail 里同时监控 noise level、`A_t` 分布与 resolution 指标。
+
+短期内不需要立刻扩到 4-task；但回看 probe-only 结果时，应同时回答："这个 σ 如果叠到 +noise 训练上还稳吗？`A_t` 是否能过滤 σ 的视觉噪声成分？"——这一条建议直接写进 §8.5.1 的回看 checklist。
+
+---
+
+### 8.6 Validation: 4-task 全套
 
 **触发条件**: Probe-only + σ 使用逻辑通过，且经验上至少接近 LeWM+noise oracle。
 
@@ -486,7 +607,7 @@ Guardrail 建议阈值（相对 PushT LeWM-base）：
 | Seed | 3 |
 | Eval | num_eval=300（每 seed 100） |
 | 对照 | LeWM-base / LeWM+noise shared std / LeWM+noise per-task oracle / 本框架 |
-| Ablation | probe-only vs hetero loss vs σ planning use；scalar σ vs per-dim σ（仅最后考虑） |
+| Ablation | probe-only vs action-gate logging vs action-aware consistency vs σ-only consistency vs hetero loss；scalar σ vs per-dim σ（仅最后考虑） |
 
 ---
 
@@ -494,7 +615,7 @@ Guardrail 建议阈值（相对 PushT LeWM-base）：
 
 ### 9.1 与 plan_v3 §6 P4 的关系
 
-本文件现在是 plan_v3 §6 P4 的首选思考路线，但执行上必须分阶段。2026-05-09 Pilot-1B 已触发关键 fallback 条件：直接 hetero loss 伤害 PushT critical transition resolution。后续应优先做 probe-only σ 与 σ inference/controller use；guarded noise consistency / PI controller 仍可作为备选实现。
+本文件现在是 plan_v3 §6 P4 的首选思考路线，但执行上必须分阶段。2026-05-09 Pilot-1B 已触发关键 fallback 条件：直接 hetero loss 伤害 PushT critical transition resolution。后续应优先做 probe-only σ、action-gate logging、action-aware adaptive consistency；σ planner use / guarded hetero auxiliary 仅作为对照或备选。
 
 ### 9.2 与 plan_v2 V1/V2 的关系
 
@@ -505,7 +626,7 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 
 ### 9.3 与诊断工具的关系
 
-诊断工具**完全不变**，但定位从“独立预测工具”降为“设计约束 + 机制解释”。本框架的 σ̂ 是新增的 per-token / per-transition 诊断量；**事后分析**它和现有诊断的相关性是 nice-to-have，不预设为 a priori 主张。
+诊断工具**完全不变**，但定位从“独立预测工具”降为“设计约束 + 机制解释”。本框架的 σ̂ 是新增的 per-token / per-transition difficulty 诊断量，`A_t` 是在线版 action-effect / controllability 诊断量；**事后分析**它们和现有诊断的相关性是 nice-to-have，不预设为 a priori 主张。
 
 ---
 
@@ -521,6 +642,7 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 | Information Bottleneck term `−β/2·E[log σ²]` | 即便 σ 可以通过 NLL calibration，IB 上界仍会引入 β 新超参数；先不加 |
 | Fisher manifold planning（CEM 用 Mahalanobis cost） | (a) 不是真正 Fisher 距离（仅一阶近似）；(b) σ-drift hallucination 风险（CEM 会优化到高 σ 状态）；(c) 修改 planner 违反 SWM 设计承诺；(d) σ_goal 没明确来源 |
 | σ propagation closed form `σ_{t+k}² ≈ σ_t² + Σσ̂²` | 假设 predictor 误差独立，autoregressive 下严重不成立 |
+| σ-only adaptive consistency | 高 σ 同时包含 dynamics difficulty 和 aleatoric visual noise，会落入 Noisy TV / confounder trap；必须加入 action sensitivity `A_t` |
 | "诊断 = (μ, σ) 框架 2–3 个本征轴" 强主张 | empirical question；提前预设是给论文挖坑 |
 | 多 head GradNorm / PCGrad / Lagrangian | 引入新 hyperparameter + 额外训练复杂度，得不偿失 |
 
@@ -545,6 +667,6 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 
 - 本文件供查阅与设计迭代；**不**作为 plan_v3 的替换。
 - 每次新讨论后追加新条目到 §7 风险表 或 §10 回退记录。
-- 下一步主线是 §8.3：probe-only σ + PushT resolution guardrail + σ inference/controller use。
-- 后续若 probe-only / Pilot-2 通过，把 §3 §4 §6 §8.3 合并进 plan_v3 §6 P4；本文件归档。
+- 下一步主线是 §8.3：probe-only σ + action-gate logging + action-aware adaptive consistency + PushT resolution guardrail。
+- 后续若 action-aware Pilot-2 通过，把 §3 §4 §6 §8.3 合并进 plan_v3 §6 P4；本文件归档。
 - **下一次想加新机制前**: 先回看 §10，问自己"它会增加几个超参数？经验收益的证据是什么？"。如果两个问题答不清楚，不加。

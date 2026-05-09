@@ -7,9 +7,58 @@
 
 ---
 
-## 论证链 — 太长不看版
+## 论证链 — 太长不看版（顺序图）
 
-JEPA 把 world-model 从像素重建拉回 latent space [LeCun 2022; Assran 2023]，让 encoder 自动滤除任务无关细节。LeWM 用 SIGReg 把 JEPA 训练真正稳定下来，是 4-task 上的当前最强 baseline [Maes 2026]。但 SIGReg 是一个 *任务无关的全局先验*——4 个任务的最优 invariance 强度本质不同（TwoRoom 喜聚簇 / PushT 要分辨率），单一旋钮无法同时服务。我们做了三条平行验证：(a) 把欧式换成球面 (SWM) 不解决问题，反而把 invariance-resolution tradeoff *暴露* 成可干预的实验变量（Cube SWM 赢、PushT SWM 输）；(b) 系统化的 diagnostic toolkit (robust radius / RankMe / ID probe / transition resolution / predictor drift) 证明这个 tradeoff 是 per-state / per-transition 的连续轴 [Cohen 2019; Garrido 2023; Brandfonbrener 2023]；(c) LeWM+noise 是强基线但每任务都得手调 `std_max`。三条线收敛到同一个抽象——**应该让模型按状态自适应分辨率，而不是工程师按任务挑全局旋钮**。最自然的候选 heteroscedastic NLL 在我们的 Pilot-1B 上失败：σ 学得很准 (corr 0.95) 但把 PushT 接触关键 transition 当难样本降权，clean 87→13；根因是 σ 混淆了 controllable dynamics 与 aleatoric visual nuisance，落入 Noisy TV trap [Kendall & Gal 2017; Burda 2019]。**我们的方案**：用 action sensitivity `A_t = ‖f(z, a+δ)−f(z, a)‖/‖δ‖`（empowerment 的有限差分代理 [Klyubin 2005]）作为主门控、σ 作为 difficulty enhancer，组合成 per-token critical score，调制 *input-side encoder consistency* 而非 prediction loss——μ 路径保持 LeWM 原状，绕开失败模式；LeWM+noise (`w_t≡const`) 与 LeWM-base (`α_cons=0`) 都是严格特例。**贡献**是第一个把 epistemic uncertainty 与 action-conditioned controllability 联合用于 per-state JEPA capacity 分配的方法。
+```
+┌──────────────────────────────────────────────────────────────┐
+│ JEPA  在 latent space 做未来预测,自动滤除视觉 nuisance       │
+│                                       [LeCun'22; Assran'23]  │
+└────────────────────────────┬─────────────────────────────────┘
+                             │ 难稳定训练 (representation collapse)
+                             ▼
+┌──────────────────────────────────────────────────────────────┐
+│ LeWM = JEPA + SIGReg  各向同性 Gaussian prior 抑制 collapse, │
+│                       4-task 当前最强 baseline   [Maes'26]   │
+└────────────────────────────┬─────────────────────────────────┘
+                             │ SIGReg 是任务无关全局先验
+                             ▼
+        问题: 4 任务 invariance ↔ resolution trade-off 反向
+        TwoRoom 喜聚簇  ▌  PushT 需要 fine-grained 分辨率
+                             │
+        ┌────────────────────┼────────────────────┐
+        ▼                    ▼                    ▼
+   [a] SWM              [b] 诊断工具箱        [c] LeWM+noise
+   换球面 prior         robust_radius/         全局 std,但
+   仍救不了 PushT,      RankMe / ID probe /    每任务最优
+   反而把 tradeoff      trans_res 与 eval      std_max 不同
+   暴露成可干预变量     drop \|ρ\|>0.6          (强基线 ≠ 终点)
+   [Wang&Isola'20]      [Cohen'19;
+                         Garrido'23;
+                         Brandfonbrener'23]
+                             │
+                             ▼
+   收敛: 让模型按状态自适应分辨率, 不是工程师挑全局旋钮
+                             │
+                             ▼
+   候选: heteroscedastic NLL                 [Kendall & Gal'17]
+   Pilot-1B (本仓): σ calibration ✓ (corr 0.95)
+                    PushT clean 87 → 13      ✗
+                    根因: σ 混淆 controllable dynamics
+                          与 aleatoric visual nuisance
+                          → Noisy TV trap     [Burda'19]
+                             │
+                             ▼
+ ★ Ours  A_t × σ → input-side adaptive consistency
+   A_t = ‖f(z,a+δ) − f(z,a)‖ / ‖δ‖    (controllability 信号,
+                empowerment 的有限差分代理)   [Klyubin'05]
+   critical_t = gA_t · (0.5 + 0.5 · gS_t)         A_t 主门控
+   L_cons     = w_t · d(z_clean, z_noisy)         σ 做 enhancer
+                                                   w_t 随 critical 递减
+   ─ μ 路径保持 LeWM 原状,绕开 hetero-NLL 失败模式
+   ─ LeWM+noise (w_t≡const) 与 LeWM-base (α=0) 都是严格特例
+   ─ 贡献: 首个把 epistemic + controllability 联合用于
+           per-state JEPA capacity 分配的方法
+```
 
 ---
 

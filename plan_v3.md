@@ -29,20 +29,23 @@
 
 ### 0.1 清晰路线（paper-facing）
 
-1. **先把诊断做成预测，不是解释。**
-   P0.6 是当前最关键节点：冻结指标和阈值，只看 held-out checkpoint 的诊断输出，提前给出 clean / noisy eval drop 分桶。命中率达标后，`noise_to_nn_ratio`、`empirical robust radius`、`predictor target shift`、`predictor rollout drift` 才能进入论文主图。
+1. **核心问题是 planning latent 的 invariance-resolution tradeoff。**
+   JEPA world model 不需要重建所有像素细节，而是要让 CEM 在 latent space 中区分会改变控制结果的状态差异。因此 latent 同时需要两种能力：对 action-irrelevant visual nuisance 保持 invariance，对 action-relevant transition 保持 resolution。TwoRoom 和 PushT 的相反偏好是主现象：低维离散导航可以受益于聚簇化，连续接触控制会惩罚过度压缩的 transition/action resolution。
 
-2. **主叙事改为 invariance-resolution tradeoff。**
-   TwoRoom 的聚簇化收益和 PushT 的分辨率损失是核心现象；不要再写成“spherical 比 Euclidean 更好”。SWM 是一个暴露 tradeoff 的 intervention，diagnostic toolkit 是主要方法贡献。
+2. **SWM 和 LeWM+noise 的角色是证明静态旋钮不够。**
+   SWM 不是“spherical 比 Euclidean 更好”的主方法，而是一个 geometry intervention：Cube 可以赢，PushT 上限仍低，说明换一个全局 prior 不能通吃。LeWM+noise 是更强的 positive baseline：它证明 input-side invariance 确实有效，但最优 `std_max` 仍按任务变化。两者共同指向同一件事：手调一个全局 geometry/noise 旋钮不是最终形态。
 
-3. **最小方法推进是 guarded noise consistency。**
-   P4 不应继续扫 recipe，而应在 noise consistency 外加 transition/action preservation guardrail，目标是保留 PushT resolution，同时让 TwoRoom 获得 noise smoothing。
+3. **adaptive resolution 的变量不能只靠 σ。**
+   Pilot-1B 已经给出清楚边界：σ head 能校准 prediction difficulty，但 heteroscedastic loss 会在 PushT 上把 clean eval 打到 13.33，并压缩 transition/action resolution。结论不是“σ 没用”，而是“prediction difficulty 不能单独决定 resolution”：它混合了应保留的 controllable dynamics difficulty 和应抹掉的 aleatoric / visual nuisance。
 
-4. **实验门槛。**
-   Paper 主表至少需要：每任务 3 seeds；统一 `num_eval=300` 口径（当前 LeWM 与 SWM 全部 8 模型/任务已在 epoch_10/num_eval=300 对齐；TwoRoom/PushT SWM-base 与 PushT LeWM-0to006-p1 已 3-seed retrain，其余仍需逐步补 3 seeds）；TwoRoom / PushT / Reacher / Cube 四任务诊断与 eval 对齐；P0.6 holdout；重要 ablation 只保留 P3 的 BN/LN/dim 与 P4 guardrail。
+4. **当前方法路线是 probe-only σ + action-aware adaptive consistency。**
+   μ path 保持 LeWM MSE + SIGReg，不再用 σ 重加权主 prediction loss。σ 作为 detached prediction-difficulty signal；`A_t = ||f(z,a+δ)-f(z,a)|| / ||δ||` 作为 learned predictor 下的 local action-sensitivity proxy；二者共同控制 input-side consistency strength。action-insensitive 区域加强 invariance，action-critical 区域降低 consistency pressure。LeWM-base (`alpha_cons=0`) 和 LeWM+noise (`w_t=const`) 是严格对照。
 
-5. **不作为强贡献。**
-   `effective_rank`、LiDAR、CKA、ID probe、Wang-Isola uniformity、randomized smoothing 只能作为 borrowed diagnostics / related primitives；它们现在主要服务于 adaptive resolution 的设计约束和机制解释。若 P0.6 盲分桶通过，可作为附属工具贡献，但不再是主线。
+5. **诊断工具降级为设计约束和机制解释。**
+   `noise_to_nn_ratio`、robust radius、predictor drift、transition resolution、ID probe 等不再包装成主方法，也不直接写成 loss；它们用于确认新方法没有牺牲 PushT resolution、确认 `A_t` 比 σ-only 更能过滤 visual nuisance、解释 robustness 来自 encoder smoothing 还是 predictor/cost surface。P0.6 holdout 可作为 appendix / secondary validation，不作为主线 gating。
+
+6. **实验门槛。**
+   Paper 主表至少需要：每任务 3 seeds；统一 `num_eval=300` 口径；TwoRoom / PushT / Reacher / Cube 四任务诊断与 eval 对齐；核心对照保留 LeWM-base、LeWM+noise shared std、LeWM+noise per-task oracle、σ-only consistency、action-aware adaptive consistency。重要 ablation 只保留 P3 的 BN/LN/dim 与 P4 的 action/resolution guardrail。
 
 ### 0.2 当前审计判断（2026-05-08）
 

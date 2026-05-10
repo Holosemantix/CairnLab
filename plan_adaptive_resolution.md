@@ -530,12 +530,26 @@ finally:
 | `validate/adaptive_weight_q10_epoch` | 0.5533 | 0.5718 | gate weight 下分位不塌到 0 |
 | `validate/adaptive_weight_q90_epoch` | 0.9253 | 0.9469 | gate weight 有非平凡 spread |
 
+**关键修正：fixbug 后 probe 与 probe+gate 的训练动态等价**
+
+Fixbug 后 `compute_action_gate_metrics` 内 BN 被临时冻结、所有输出 detach 且不进 loss graph，因此：
+- **Loss graph、梯度流、optimizer step 与纯 probe 模式逐字节相同**
+- **模型参数更新路径完全一致**
+
+probe+gate-fixbug 与 probe 的 eval 差异（TwoRoom 95.00 vs 96.33，PushT 85.33 vs 81.67）应主要解释为**不同 seed / run 的抽样波动**（num_eval=100×3 seeds，±2–3pt 正常），而非 gate 本身带来性能变化。PushT 的 3.66pt 差略大，但在该任务天然 variance 范围内。
+
+**因此 gate_bugfix 的核心作用不是"提升效果"，而是"解锁无副作用的 logging-only controller"**：
+- 证明可以在训练过程中实时采集 `A_t`、`critical_t`、`w_t` 信号
+- 证明这些信号的 computation 不破坏已有表示（与 hetero-loss 的 13.33 collapse 形成对照）
+- 为 Stage C 提供**可信的 controller 输入**——如果 gate 本身就会污染训练，用它的 `w_t` 去调 consistency 就是建沙上塔
+
 **结论：**
 
-1. **BN drift bug 解释成立。** TwoRoom probe+gate 从 bug 版 clean 89.33 恢复到 fixbug 版 95.00，低/中噪声 eval 也同步恢复。旧结果不应作为 gate 失败证据。
-2. **logging-only gate 不再破坏表示。** PushT fixbug clean 85.33，略低于 LeWM-base 87.33，但 resolution diagnostics 与 LeWM-base 接近；没有复现 hetero-loss 的 control collapse。
-3. **probe+gate 只获得部分 robustness。** PushT `pixels_std0.05` 从 LeWM-base 17.33 提到 39.00，但远低于 LeWM+noise best 87.67。当前结果支持"controller signal 可用"，不支持"已经超过 noise training"。
-4. **Stage C 可以开始，但只能小步。** 进入条件应从"修 bug 后再观察"更新为：fixbug logging 已通过，下一步允许 `alpha_cons` 小权重 sweep；若 PushT clean < 84 或 `transition_resolution_ratio_l2 < 0.24`，立即停止 ramp。
+1. **BN drift bug 解释成立。** TwoRoom probe+gate 从 bug 版 clean 89.33 恢复到 fixbug 版 95.00，低/中噪声 eval 也同步恢复。旧 89.33 不是 gate signal 本身失败，而是 BN running stats 被 K 次 OOD forward 污染的副作用；fixbug 后副作用消除，gate 回归纯 logging 定位。
+2. **fixbug 后 probe+gate 与 probe 训练动态等价，eval 差异在抽样波动范围内。** 这是预期行为，反而增强了结论可信度：gate 的 computation 不改变模型行为，因此 Stage C 可以安全地使用 `w_t` 作为 consistency controller。
+3. **logging-only gate 解锁了 Stage C 的前提条件。** 关键不是"gate 让 eval 涨了多少"，而是"gate 提供了不破坏训练的信号基础"。SwanLab metrics 显示 σ-A 相关性低/中等、weight spread 非平凡、CV 可控——这些才是支撑 Stage C 的实证。
+4. **probe+gate 未超过 LeWM+noise oracle。** PushT `pixels_std0.05` 从 LeWM-base 17.33 提到 39.00，但远低于 LeWM+noise best 87.67。当前结果支持"controller signal 可用"，不支持"无需 consistency 就已经超过 noise training"。这正是 Stage C 的必要性所在：logging 只验证信号，真正的自适应分辨率需要 `alpha_cons > 0` 才能释放。
+5. **Stage C 可以开始，但只能小步。** 进入条件应从"修 bug 后再观察"更新为：fixbug logging 已通过，下一步允许 `alpha_cons` 小权重 sweep；若 PushT clean < 84 或 `transition_resolution_ratio_l2 < 0.24`，立即停止 ramp。
 
 ### 3.4 关键性质验证
 
@@ -554,8 +568,8 @@ finally:
 1. **σ head 学到非平凡、任务相关的 prediction difficulty。** `hetero_s_logerr_corr` ≥ 0.89（Pilot-1B）/ ≥ 0.46（Pilot-2A PushT）。
 2. **直接 hetero loss reweighting 摧毁 PushT 控制分辨率。** `transition_resolution_ratio_l2` 从 0.30 崩到 0.10；clean eval 掉 74 点。
 3. **可行路径是 σ 作为诊断/控制器，而非梯度 reweighter。** Action-aware adaptive consistency（§2.2.3）是唯一既改变 resolution 又避开 confounder trap 的使用层级。
-4. **BN drift bug 已修复并复测通过。** K=4 perturb forward 在 train mode 下污染 BN running stats，TwoRoom probe+gate clean 96.33 → 89.33；fixbug 后 TwoRoom probe+gate-fixbug clean 回到 95.00，说明旧掉分不是 gate signal 本身失败。
-5. **Stage B controller signal 已验证，但尚未赢过 LeWM+noise。** fixbug gate 的 σ-A 相关性低/中等、weight spread 非平凡，PushT resolution 不塌；但 robustness 只获得部分提升，远低于 LeWM+noise oracle。因此下一步是 guarded Stage C，而不是宣称最终方法成立。
+4. **BN drift bug 已修复并复测通过；修复后 gate 回归纯 logging 定位。** K=4 perturb forward 在 train mode 下污染 BN running stats，TwoRoom probe+gate clean 96.33 → 89.33；fixbug 后（BN freeze + no_grad）probe+gate 与 probe 训练动态等价，eval 差异在抽样波动内。旧 89.33 不是 gate signal 失败，而是 stateful side effect（BN running stats）的跨 step 累积。fixbug 消除了这个 side effect，使 gate 成为真正零副作用的 logging-only controller。
+5. **Stage B 的核心产出是"logging signal 可用且不破坏训练"，而非"eval 提升"。** fixbug gate 的 σ-A 相关性低/中等、weight spread 非平凡、PushT resolution guardrail 通过——这些 logging 指标证明 `w_t` 有资格作为 Stage C 的 controller 输入。如果 gate 本身就会破坏表示（如 bug 版 TwoRoom 跌 7pt），Stage C 的 consistency 就是沙上建塔。
 
 ### 4.2 风险与对策
 

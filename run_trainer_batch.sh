@@ -52,6 +52,11 @@ SWEEP_VARS=(
     loss_hetero_s_min loss_hetero_s_max loss_hetero_tau_floor
     loss_action_gate_enabled loss_action_gate_delta_scale loss_action_gate_num_delta_samples
     loss_action_gate_warmup_epochs loss_action_gate_ema_momentum
+    loss_action_gate_w_min loss_action_gate_w_max
+    loss_adaptive_consistency_enabled loss_adaptive_consistency_weight
+    loss_adaptive_consistency_noise_std_min loss_adaptive_consistency_noise_std_max
+    loss_adaptive_consistency_noise_prob loss_adaptive_consistency_distance
+    loss_adaptive_consistency_detach_clean
     wm_embed_dim wm_inference_rollout_state_space wm_inference_cost_space wm_inference_cost_type
     image_noise_std_min image_noise_std_max image_noise_noise_prob image_noise_apply_to_val
     # eval / 诊断

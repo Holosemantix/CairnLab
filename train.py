@@ -308,7 +308,42 @@ def compute_action_gate_metrics(
         }
         if gS is not None:
             metrics["adaptive_gS_mean"] = gS.mean()
+        metrics["_adaptive_weight_tokens"] = w_t.detach()
+        metrics["_adaptive_critical_tokens"] = critical.detach()
     return metrics
+
+
+def apply_pixel_gaussian_noise(x, *, std_min: float, std_max: float, noise_prob: float):
+    """Apply per-frame Gaussian pixel noise to a normalized image tensor."""
+    if std_max <= 0.0 or noise_prob <= 0.0:
+        return x
+    std_min = min(std_min, std_max)
+    noise = torch.randn_like(x)
+    if std_min == std_max:
+        std = x.new_full(x.shape[:2] + (1, 1, 1), float(std_max))
+    else:
+        std = torch.empty(x.shape[:2] + (1, 1, 1), device=x.device, dtype=x.dtype)
+        std.uniform_(float(std_min), float(std_max))
+    if noise_prob < 1.0:
+        keep = torch.rand(x.shape[:2] + (1, 1, 1), device=x.device) < float(noise_prob)
+        std = std * keep.to(dtype=x.dtype)
+    return x + noise * std
+
+
+def adaptive_consistency_loss(clean_emb, noisy_emb, weights, *, distance: str, detach_clean: bool):
+    """Weighted clean/noisy encoder consistency for Stage C."""
+    if detach_clean:
+        clean_emb = clean_emb.detach()
+    distance = distance.lower()
+    if distance == "l2":
+        dist = torch.linalg.vector_norm(noisy_emb - clean_emb, dim=-1)
+    elif distance == "cosine":
+        clean_n = torch.nn.functional.normalize(clean_emb, dim=-1)
+        noisy_n = torch.nn.functional.normalize(noisy_emb, dim=-1)
+        dist = (1.0 - (clean_n * noisy_n).sum(dim=-1)).clamp_min(0.0)
+    else:
+        raise ValueError(f"Unsupported adaptive consistency distance: {distance}")
+    return (weights.detach() * dist).mean(), dist.detach()
 
 
 def compute_temporal_hinge(output, *, model, cfg):
@@ -476,9 +511,45 @@ def lejepa_forward(self, batch, stage, cfg):
             log_a_floor=float(gate_cfg.get("log_a_floor", 1e-8)),
             in_warmup=in_warmup,
             ema_momentum=float(gate_cfg.get("ema_momentum", 0.99)),
+            w_min=float(gate_cfg.get("w_min", 0.2)),
+            w_max=float(gate_cfg.get("w_max", 1.0)),
         )
         for k, v in gate_metrics.items():
             output[k] = v
+
+    cons_cfg = cfg.loss.get("adaptive_consistency", {})
+    cons_weight = float(cons_cfg.get("weight", 0.0))
+    if cons_cfg.get("enabled", False) and cons_weight > 0.0:
+        if cons_cfg.get("require_action_gate", True) and "_adaptive_weight_tokens" not in output:
+            raise RuntimeError(
+                "loss.adaptive_consistency requires loss.action_gate.enabled=true "
+                "unless require_action_gate=false"
+            )
+        clean_pixels = batch["pixels"]
+        noisy_batch = dict(batch)
+        noisy_batch["pixels"] = apply_pixel_gaussian_noise(
+            clean_pixels,
+            std_min=float(cons_cfg.get("noise_std_min", 0.0)),
+            std_max=float(cons_cfg.get("noise_std_max", 0.04)),
+            noise_prob=float(cons_cfg.get("noise_prob", 1.0)),
+        )
+        noisy_emb = self.model.encode(noisy_batch)["emb"][:, :ctx_len]
+        if "_adaptive_weight_tokens" in output:
+            cons_weights = output["_adaptive_weight_tokens"]
+        else:
+            cons_weights = emb.new_ones(emb.shape[:2])[:, :ctx_len]
+        (
+            output["adaptive_consistency_loss"],
+            adaptive_consistency_dist,
+        ) = adaptive_consistency_loss(
+            emb[:, :ctx_len],
+            noisy_emb,
+            cons_weights,
+            distance=cons_cfg.get("distance", "l2"),
+            detach_clean=cons_cfg.get("detach_clean", True),
+        )
+        output["adaptive_consistency_dist_mean"] = adaptive_consistency_dist.mean()
+        output["adaptive_consistency_weight_mean"] = cons_weights.detach().mean()
 
     output["sigreg_loss"] = self.sigreg(emb.transpose(0, 1))
     output["temporal_hinge_loss"] = compute_temporal_hinge(
@@ -537,6 +608,11 @@ def lejepa_forward(self, batch, stage, cfg):
         output["loss"] = (
             output["loss"]
             + hetero_cfg.get("probe_weight", 1.0) * output["sigma_probe_loss"]
+        )
+    if "adaptive_consistency_loss" in output:
+        output["loss"] = (
+            output["loss"]
+            + cons_weight * output["adaptive_consistency_loss"]
         )
     output["temporal_straightness"] = temporal_straightness(emb)
 

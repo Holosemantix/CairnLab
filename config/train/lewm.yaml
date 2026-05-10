@@ -145,3 +145,18 @@ loss:
     ema_momentum: 0.99        # EMA smoothing for zscore statistics
     delta_norm_floor: 1.0e-6
     log_a_floor: 1.0e-8
+    w_min: 0.2
+    w_max: 1.0
+  # Stage C: action-aware adaptive encoder consistency. This keeps the main
+  # LeWM MSE + SIGReg objective unchanged and adds a small clean/noisy encoder
+  # consistency term weighted by the detached action-gate weights. Requires
+  # loss.action_gate.enabled=true for non-uniform weights.
+  adaptive_consistency:
+    enabled: false
+    weight: 0.0
+    noise_std_min: 0.0
+    noise_std_max: 0.04
+    noise_prob: 1.0
+    distance: l2              # l2 or cosine
+    detach_clean: true
+    require_action_gate: true

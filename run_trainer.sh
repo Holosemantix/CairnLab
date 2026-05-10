@@ -29,6 +29,11 @@
 #                             gate; rides on loss_hetero_mode=probe),
 #   loss_action_gate_delta_scale, loss_action_gate_num_delta_samples,
 #   loss_action_gate_warmup_epochs, loss_action_gate_ema_momentum,
+#   loss_action_gate_w_min, loss_action_gate_w_max,
+#   loss_adaptive_consistency_enabled, loss_adaptive_consistency_weight,
+#   loss_adaptive_consistency_noise_std_min/max,
+#   loss_adaptive_consistency_noise_prob, loss_adaptive_consistency_distance,
+#   loss_adaptive_consistency_detach_clean,
 #   seed, wm_embed_dim, wm_inference_*, image_noise_std_min/max/apply_to_val
 #
 # 新增 env vars:
@@ -204,6 +209,15 @@ add_override "loss.action_gate.delta_scale" "${loss_action_gate_delta_scale:-}"
 add_override "loss.action_gate.num_delta_samples" "${loss_action_gate_num_delta_samples:-}"
 add_override "loss.action_gate.warmup_epochs" "${loss_action_gate_warmup_epochs:-}"
 add_override "loss.action_gate.ema_momentum" "${loss_action_gate_ema_momentum:-}"
+add_override "loss.action_gate.w_min" "${loss_action_gate_w_min:-}"
+add_override "loss.action_gate.w_max" "${loss_action_gate_w_max:-}"
+add_override "loss.adaptive_consistency.enabled" "${loss_adaptive_consistency_enabled:-}"
+add_override "loss.adaptive_consistency.weight" "${loss_adaptive_consistency_weight:-}"
+add_override "loss.adaptive_consistency.noise_std_min" "${loss_adaptive_consistency_noise_std_min:-}"
+add_override "loss.adaptive_consistency.noise_std_max" "${loss_adaptive_consistency_noise_std_max:-}"
+add_override "loss.adaptive_consistency.noise_prob" "${loss_adaptive_consistency_noise_prob:-}"
+add_override "loss.adaptive_consistency.distance" "${loss_adaptive_consistency_distance:-}"
+add_override "loss.adaptive_consistency.detach_clean" "${loss_adaptive_consistency_detach_clean:-}"
 add_override "wm.embed_dim" "${wm_embed_dim:-}"
 add_override "wm.inference.rollout_state_space" "${wm_inference_rollout_state_space:-}"
 add_override "wm.inference.cost_space" "${wm_inference_cost_space:-}"

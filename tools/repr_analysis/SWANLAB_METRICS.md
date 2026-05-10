@@ -1,54 +1,150 @@
 # SwanLab Metrics Reading Notes
 
-This note records the working path for reading SwanLab run metrics from this
-repo. Do not commit API keys or paste them into scripts.
+This note records the reliable way to read SwanLab run metrics from this repo.
+Do not commit API keys or paste them into scripts. Prefer passing the key through
+`SWANLAB_API_KEY`.
 
-## Authentication
+## Quick Start
 
-Use the SwanLab Python SDK. The front-end chart APIs may return `401` or `403`
-when called directly with ad-hoc headers, even when the same API key works
-through the SDK.
+Use the SDK, not front-end chart URLs or ad-hoc HTTP headers. The front-end APIs
+often return `401` / `403` even when the same key works through the SDK.
 
 ```bash
 export SWANLAB_API_KEY='...'
-```
-
-The existing temporary environment on this machine already has `swanlab`:
-
-```bash
 /tmp/swanlab-read/bin/python -c 'import swanlab; print(swanlab.__version__)'
 ```
 
-If it is missing, create a throwaway venv under `/tmp` and install `swanlab`.
+If `/tmp/swanlab-read` is missing, create a throwaway venv under `/tmp` and
+install `swanlab`.
 
-## Run Lookup
+## Find Runs
 
-Use the public path format shown in SwanLab URLs:
+Use the public project path shown in SwanLab URLs:
 
 ```python
 import os
 import swanlab
 
 api = swanlab.Api(api_key=os.environ["SWANLAB_API_KEY"])
-run = api.run(path="qunteam/worldmodels/gps6asjv22tmflag9af5m")
 
-print(run.name, run.id, run.state, run.url)
-```
-
-To find a run by name:
-
-```python
 for run in api.runs(path="qunteam/worldmodels"):
-    if "hetero" in run.name:
-        print(run.name, run.id, run.state, run.url)
+    name = run.name or ""
+    if any(s in name.lower() for s in ["hetero", "probe", "gate", "fixbug"]):
+        print(name, run.id, run.state, run.url)
 ```
 
-Known hetero runs from 2026-05-09:
+Known adaptive-resolution runs:
 
 | Run name | Run id |
 |---|---|
 | `tworoom_lewm_hetero_default` | `gps6asjv22tmflag9af5m` |
 | `pusht_lewm_hetero_default` | `tge50bhmtws06xc7n4wtq` |
+| `tworoom_lewm_hetero_probe_default` | `75qiqru0ttwmyy7pwigly` |
+| `pusht_lewm_hetero_probe_default` | `jgqsw29zji110j3gczu03` |
+| `tworoom_lewm_hetero_probe_default_action_gate` | `awokxbepmodp2shcqmynr` |
+| `pusht_lewm_hetero_probe_default_action_gate` | `oezw5j3w0uh3ydxnan63c` |
+| `tworoom_lewm_hetero_probe_default_action_gate_fixbug` | `oub19krd3fbecaav7bgie` |
+| `pusht_lewm_hetero_probe_default_action_gate_fixbug` | `pare2urey6j6nucr9209m` |
+
+Fetch one run directly by id:
+
+```python
+run = api.run(path="qunteam/worldmodels/pare2urey6j6nucr9209m")
+print(run.name, run.id, run.state, run.url)
+```
+
+## Discover Metric Keys First
+
+Always list columns before reading metrics. `run.metrics(keys=[...])` can fail
+the whole request on a missing key with `404 Not Found`, and probing many missing
+keys one by one is slow.
+
+```python
+def list_metric_keys(run):
+    columns, _response = run._client.get(f"/experiment/{run.id}/column")
+    return [item["key"] for item in columns.get("list", [])]
+
+keys = list_metric_keys(run)
+for key in keys:
+    print(key)
+```
+
+In current SwanLab, the no-params `/column` request is the most reliable path.
+Passing `params={"index": 1, "size": 50}` has returned `400 Bad Request` on some
+runs. If the first page looks truncated, use the UI or a small query by exact
+key family rather than assuming pagination parameters are stable.
+
+Lightning metric keys are stage-prefixed:
+
+```text
+fit/hetero_s_logerr_corr
+validate/hetero_s_logerr_corr_epoch
+fit/pred_loss_mse_equiv
+validate/pred_loss_mse_equiv_epoch
+fit/adaptive_corr_sigma_action
+validate/adaptive_corr_sigma_action_epoch
+```
+
+Unprefixed keys such as `hetero_s_logerr_corr` usually return `404`.
+
+## Safe Metric Reader
+
+Use this pattern for day-to-day analysis. It discovers available columns,
+filters requested keys to existing keys, then reads only those keys.
+
+```python
+import os
+import swanlab
+
+api = swanlab.Api(api_key=os.environ["SWANLAB_API_KEY"])
+run = api.run(path="qunteam/worldmodels/pare2urey6j6nucr9209m")
+
+wanted = [
+    "validate/hetero_s_logerr_corr_epoch",
+    "validate/hetero_err_mean_epoch",
+    "validate/pred_loss_epoch",
+    "validate/pred_loss_mse_equiv_epoch",
+    "validate/sigma_probe_loss_epoch",
+    "validate/sigreg_loss_epoch",
+    "validate/loss_epoch",
+    "fit/adaptive_action_sensitivity_mean",
+    "fit/adaptive_action_sensitivity_cv_mean",
+    "fit/adaptive_action_sensitivity_cv_high_A",
+    "fit/adaptive_gA_mean",
+    "fit/adaptive_gS_mean",
+    "fit/adaptive_critical_mean",
+    "fit/adaptive_weight_mean",
+    "fit/adaptive_weight_q10",
+    "fit/adaptive_weight_q90",
+    "fit/adaptive_corr_sigma_action",
+    "fit/adaptive_in_warmup",
+]
+
+available = set(list_metric_keys(run))
+keys = [k for k in wanted if k in available]
+missing = [k for k in wanted if k not in available]
+
+print("RUN", run.name, run.id, run.state)
+print("MISSING", missing)
+
+if keys:
+    df = run.metrics(keys=keys)
+    for key in keys:
+        series = df[key].dropna() if key in df.columns else []
+        if len(series) == 0:
+            print("EMPTY", key)
+            continue
+        tail_n = min(100, len(series))
+        print(
+            key,
+            "n=", len(series),
+            "first=", float(series.iloc[0]),
+            "last=", float(series.iloc[-1]),
+            "min=", float(series.min()),
+            "max=", float(series.max()),
+            "tail_mean=", float(series.tail(tail_n).mean()),
+        )
+```
 
 ## Chart Id To Metric Key
 
@@ -58,7 +154,7 @@ Chart links look like:
 https://swanlab.cn/@qunteam/worldmodels/chart/default/<run_id>/<chart_id>
 ```
 
-Use the authenticated SDK client to map a `chart_id` to its metric key:
+Use the authenticated SDK client to map a chart id to its metric key:
 
 ```python
 chart_id = "kxbr3K_K"
@@ -67,7 +163,7 @@ print(info["title"])
 print([axis["key"] for axis in info["config"]["yAxis"]])
 ```
 
-For the TwoRoom hetero links:
+Known TwoRoom hetero chart ids:
 
 | Chart id | Metric key |
 |---|---|
@@ -77,108 +173,44 @@ For the TwoRoom hetero links:
 | `en8Z6wwj` | `fit/hetero_weight_q90` |
 | `hIYga6BL` | `fit/hetero_s_logerr_corr` |
 
-## List Available Metric Keys
-
-The first page of columns:
-
-```python
-columns, _response = run._client.get(f"/experiment/{run.id}/column")
-for item in columns["list"]:
-    print(item["key"])
-```
-
-If more than 20 keys exist, page through with query params:
-
-```python
-columns, _response = run._client.get(
-    f"/experiment/{run.id}/column",
-    params={"index": 2, "size": 20},
-)
-```
-
-Lightning metrics are usually prefixed by stage:
-
-```text
-fit/hetero_s_logerr_corr
-validate/hetero_s_logerr_corr_epoch
-fit/pred_loss_mse_equiv
-validate/pred_loss_mse_equiv_epoch
-```
-
-Using an unprefixed key such as `hetero_s_logerr_corr` can return `404`.
-
-## Read Metrics
-
-```python
-keys = [
-    "fit/hetero_s_mean",
-    "fit/hetero_s_std",
-    "fit/hetero_s_abs_max",
-    "fit/hetero_weight_q10",
-    "fit/hetero_weight_q90",
-    "fit/hetero_weight_q10_q90_ratio",
-    "fit/hetero_s_logerr_corr",
-    "fit/pred_loss",
-    "fit/pred_loss_mse_equiv",
-    "fit/sigreg_loss",
-    "fit/loss",
-    "validate/hetero_s_logerr_corr_epoch",
-    "validate/hetero_weight_q10_q90_ratio_epoch",
-    "validate/pred_loss_mse_equiv_epoch",
-]
-
-df = run.metrics(keys=keys)
-
-for key in keys:
-    if key not in df.columns:
-        print("MISSING", key)
-        continue
-    series = df[key].dropna()
-    if series.empty:
-        print("EMPTY", key)
-        continue
-    tail_n = min(100, len(series))
-    print(
-        key,
-        "n=", len(series),
-        "first=", float(series.iloc[0]),
-        "last=", float(series.iloc[-1]),
-        "min=", float(series.min()),
-        "max=", float(series.max()),
-        "tail_mean=", float(series.tail(tail_n).mean()),
-    )
-```
-
 ## Direct API Pitfalls
 
-These direct front-end calls can fail even with a valid API key:
+Avoid direct front-end calls unless the SDK path is unavailable:
 
 ```text
 GET /api/experiment/<run_id>/chart/<chart_id>/info
 GET /api/project/<workspace>/<project>/runs/metrics
+GET /api/experiment/<run_id>/column/csv?key=<metric>
 ```
 
 Observed failures:
 
 | Status | Meaning in this workflow | Usual fix |
 |---|---|---|
+| `400 Bad Request` | Column pagination params are not accepted for this run/API version | Use no-params `/column` first |
 | `401 Unauthorized` | Key not accepted by this endpoint/header form | Use `swanlab.Api(api_key=...)` |
 | `403 Forbidden` | Endpoint sees no project READ role | Use SDK authenticated client or confirm workspace access |
-| `404 Not Found` | Metric key is wrong or missing stage prefix | List columns and use exact key |
+| `404 Not Found` | Metric key is wrong, missing, or the run never logged that stage/key | List columns and request only existing keys |
 
-## Hetero Interpretation Checklist
+Do not pass a large guessed key list directly to `run.metrics`. A single
+missing key can fail the whole call.
+
+## Interpretation Checklist
 
 For sigma-conditioned JEPA runs, read these first:
 
 | Metric | What to check |
 |---|---|
-| `fit/hetero_s_logerr_corr` | Whether sigma tracks prediction error; stable positive values mean the head learned difficulty. |
-| `fit/hetero_s_std` and `fit/hetero_s_abs_max` | Whether sigma is non-constant and whether it hits clamp bounds. |
-| `fit/hetero_weight_q10_q90_ratio` | How aggressively easy/hard tokens are reweighted; very small values indicate strong gradient imbalance. |
-| `fit/pred_loss_mse_equiv` vs `fit/pred_loss` | Whether the true MSE keeps improving or hetero loss is only becoming negative through weighting. |
-| `validate/*_epoch` versions | Epoch-level stability and train/validation agreement. |
+| `validate/hetero_s_logerr_corr_epoch` | Whether sigma tracks prediction error on validation. Stable positive values mean the head learned difficulty. |
+| `fit/hetero_s_logerr_corr` | Step-level training version, if logged. |
+| `validate/hetero_s_std_epoch` and `validate/hetero_s_abs_max_epoch` | Whether sigma is non-constant and whether it hits clamp bounds. |
+| `validate/hetero_weight_q10_q90_ratio_epoch` | For hetero-loss runs only. Very small values indicate strong hard/easy gradient imbalance. |
+| `validate/pred_loss_mse_equiv_epoch` vs `validate/pred_loss_epoch` | Whether true MSE keeps improving or hetero loss only improves through weighting. |
+| `fit/adaptive_corr_sigma_action` | Whether sigma and action sensitivity are partially independent. Weak/moderate correlation is expected. |
+| `fit/adaptive_action_sensitivity_cv_high_A` | Whether high-action-sensitivity states are stable enough for a useful gate. |
+| `fit/adaptive_weight_q10`, `fit/adaptive_weight_q90` | Whether the proposed consistency weights have nontrivial spread. |
 
-For PushT, combine these curves with representation diagnostics:
+For PushT, combine SwanLab curves with local representation diagnostics:
 
 ```text
 clean_nn_cos_dist_median

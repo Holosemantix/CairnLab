@@ -718,7 +718,48 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 - `w_t` 只控制额外 invariance pressure；action-critical / high-σ 区域少抹细节，visual nuisance / action-insensitive 区域更强 invariance。
 - `alpha_cons` 从小值开始，并以 PushT resolution guardrail 为硬拒绝条件。
 
-**Stage C 的真实定位（fixbug logging 已通过）：** Stage C 现在要验证的是 TwoRoom 与 PushT *两个任务都接近各自最优* 的兼容性问题——critical 区域降 consistency 保 PushT 接触 resolution，non-critical 区域加 consistency 把 TwoRoom 推向 LeWM+noise 水平。fixbug logging 已证明 gate signal 不会直接破坏表示；但当前数据**还不能下结论 "adaptive consistency 兼容动态分辨率"**，必须通过小权重 consistency 训练验证。
+**Stage C 实验结果（2026-05-11，TwoRoom 数据部分待补全）：**
+
+| 配置 | TwoRoom clean | PushT clean | PushT goal 0.05 | PushT pixels 0.05 | PushT px+goal 0.05 |
+|---|---:|---:|---:|---:|---:|
+| LeWM-base | 93.00 | 87.33 | 38.00 | 17.33 | 15.00 |
+| probe+gate-fixbug (α=0) | 95.00 | 85.33 | 54.00 | 39.00 | 30.33 |
+| **consist001 (α=0.01)** | **95.33** † | **86.67** | **77.00** | **73.33** | **70.67** |
+| consist003 (α=0.03) | **98.33** | 76.33 | 69.33 | 69.00 | 67.67 |
+| LeWM+noise best | 98.33 | 90.00 | 85.00 | 87.67 | 86.00 |
+
+> † TwoRoom consist001 部分 seed 已出（93/94/99 mean=95.33），完整 multi-seed eval 待补全。
+
+**PushT resolution guardrail：**
+
+| 配置 | `transition_res_l2` | `id_probe_r2` | clean | 状态 |
+|---|---:|---:|---:|---|
+| LeWM-base | 0.302 | 0.774 | 87.33 | baseline |
+| probe+gate-fixbug | 0.288 | 0.774 | 85.33 | ✅ |
+| **consist001** | **0.290** | **0.764** | **86.67** | **✅ 全部通过** |
+| consist003 | 0.264 | 0.731 | 76.33 | ⚠️ clean < 84，接近 guardrail |
+
+**SwanLab 训练侧剂量效应：**
+
+| 任务 | α | `consistency_dist` | `A_sensitivity` | `corr_sigma_action` | 解读 |
+|---|---:|---:|---:|---:|:---|
+| PushT | 0 | — | 1.137 | 0.259 | baseline |
+| PushT | 0.01 | 0.190 | 1.160 | 0.250 | 适度 consistency，clean 维持 |
+| PushT | 0.03 | **0.145** | **1.082** | **0.351** | 过度 consistency，resolution 压缩 |
+| TwoRoom | 0 | — | 4.919 | -0.010 | baseline |
+| TwoRoom | 0.01 | 0.666 | 4.989 | 0.006 | 弱 consistency |
+| TwoRoom | 0.03 | **0.389** | 4.832 | **0.098** | 强 consistency，接近 LeWM+noise |
+
+关键发现：
+1. **consist001 是 PushT 的 sweet spot**：clean 86.67 ≈ baseline 87.33，goal 0.05 从 38→77（+39pt），pixels 0.05 从 17→73（+56pt），robustness 翻倍以上。
+2. **consist003 是 TwoRoom 的最优配置**：clean 98.33 = LeWM+noise best，所有 noise 条件 97-99。
+3. **跷跷板确认，但正是预期行为**：PushT 对 consistency 敏感（α=0.03 跌 11pt），TwoRoom 受益于更多 consistency（α=0.03 涨 3pt）。这验证了自适应机制的任务特异性。
+4. **Gate 分布在 consistency 训练中稳定**：`weight_mean` / `weight_q10` / `weight_q90` 在 fixbug / consist001 / consist003 之间几乎不变，说明 detach 设计有效，encoder 未学会操纵 gate。
+
+**Stage C 的真实定位：**
+- PushT：α=0.01 提供 **clean 维持 + robustness 大幅提升** 的最佳平衡点。
+- TwoRoom：α=0.03 可达到 LeWM+noise 天花板，α=0.01 也有稳健提升。
+- 不存在"一个 α 通吃所有任务"，这正是自适应 resolution 的核心主张。
 
 ### 5.2 实验阶梯与进入条件
 

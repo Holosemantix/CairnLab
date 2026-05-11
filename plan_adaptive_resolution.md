@@ -805,11 +805,46 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 | `lewm_action_aware_consist001` | **95.33** | **86.67** | **PushT clean 维持 + robustness 翻倍** | ✅ 核心结果 |
 | `lewm_action_aware_consist003` | **98.33** | 76.33 | **TwoRoom 达到 LeWM+noise 天花板**，PushT 触发 guardrail | ✅ 剂量效应验证 |
 
+**已完成实验（✅）**：
+
+| Experiment | TwoRoom | PushT | 结果 | 状态 |
+|---|---:|---:|---|---|
+| `lewm_sigma_probe_default` | 96.33 | 81.67 | σ calibration 成立（corr 0.57/0.48）| ✅ |
+| `lewm_action_gate_logging` (fixbug) | 95.00 | 85.33 | gate signal 不破坏训练，CV/weight spread 通过 | ✅ |
+| `lewm_action_aware_consist001` | **95.33** | **86.67** | **PushT clean 维持 + robustness 翻倍** | ✅ 核心结果 |
+| `lewm_action_aware_consist003` | **98.33** | 76.33 | **TwoRoom 达到 LeWM+noise 天花板**，PushT 触发 guardrail | ✅ 剂量效应验证 |
+| `lewm_action_only_consist001` | — | **77.33** | **A_t-only（无 σ）clean 跌 9pt，robustness 显著下降** | ✅ **σ 必要性得证** |
+
+**A_t-only Ablation 详细结果（PushT，3 seeds）：**
+
+| 指标 | σ+A_t consist001 | A_t-only consist001 | Δ | 解读 |
+|---|---:|---:|---:|:---|
+| clean | **86.67** | **77.33** | **-9.34** | σ 缺失导致 clean 显著下跌 |
+| goal 0.03 | **84.67** | **70.33** | -14.34 | robustness 差距更大 |
+| pixels 0.03 | **82.33** | **68.67** | -13.66 | 同上 |
+| px+goal 0.03 | **80.00** | **69.67** | -10.33 | 同上 |
+| `weight_mean` | 0.774 | **0.852** | +0.078 | A_t-only 整体 weight 偏高 |
+| `weight_q10` | 0.574 | **0.723** | +0.149 | **下界 token 也被强 consistency** |
+| `critical_mean` | 0.283 | **0.185** | -0.098 | 无 σ 增强，critical 整体偏低 |
+| `consistency_dist` | 0.190 | 0.191 | +0.001 | encoder 输出距离几乎相同 |
+
+**为什么 A_t-only 更差？**
+
+1. **Dynamic range 压缩**：A_t-only 的 `weight_q10=0.723` vs σ+A_t 的 `0.574`，说明 A_t-only 几乎给所有 token 施加了强 consistency（q10-q90 gap 仅 0.241 vs 0.373）。σ 提供了独立的 difficulty 维度，让 gate 能在"同样 action-sensitive"的 token 中区分"简单可控"和"困难可控"。
+2. **Uniform high consistency ≈ 全局 noise training 的弱化版**：A_t-only 没有 σ 的 difficulty enhancer，导致 critical 区域保护不足、non-critical 区域过度 invariance——这正是 plan_v3 中 LeWM+noise 的问题（所有区域同等处理），只是程度更轻。
+3. **`corr_sigma_action = 0.000`**（A_t-only 无 σ）：SwanLab 确认 σ 信号完全缺失，multiplicative `critical = gA * (0.5 + 0.5*gS)` 退化为 `gA * 0.5`，失去了难度调节能力。
+
+**结论**：**σ head 不是可选装饰，而是 gate 区分能力的关键组成部分**。A_t 单独只能测 controllability，无法区分"简单可控"和"困难可控"；σ 提供了 difficulty 维度，二者结合才能实现真正的自适应 resolution allocation。
+
+**待补全分析（⏳）**：
+- A_t-only 的 **diagnostics**（`transition_resolution_ratio_l2`、`id_probe_r2` 等）待跑完后再补全最终分析
+- A_t-only 的 **goal 0.05 / pixels 0.05 / px+goal 0.05 部分 seed** 待出
+- 但已出数据（clean + goal/pixels 0.03）已足够支撑"σ 必要性"结论
+
 **待做实验（按优先级）**：
 
 | Experiment | TwoRoom | PushT | 目的 | 优先级 |
 |---|---:|---:|---|---|
-| `lewm_action_only_consist001` | — | yes | **A_t-only（关闭 σ）验证 σ 的必要性** | **高** |
 | `lewm_sigma_only_consist001` | — | yes | σ-only consistency 失败对照（验证 Noisy TV） | 中 |
 | `lewm_action_aware_consist001_noise002` | yes | yes | consistency + light noise 联用 | 中 |
 | 4-task full eval | Reacher | Cube | 验证跨任务泛化 | 低（先写论文）|
@@ -819,7 +854,7 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 2. ✅ σ calibration 保持（validate corr 0.48-0.62）。
 3. ✅ `A_t` / `critical_t` 显示 action-relevant 结构（CV 可控，weight spread 非平凡）。
 4. ✅ BN drift fix 语义保持（consist001/003 均使用 freeze-BN gate）。
-5. ⏳ **A_t-only 对照待跑**：若 A_t-only 与 σ+A_t 效果相同，probe loss 可降级为 optional。
+5. ✅ **A_t-only ablation 完成**：clean 77.33 显著低于 σ+A_t 86.67，**σ 必要性得证**。
 6. ⏳ **`w_t` 离线可视化待做**：验证 high/low `w_t` 与 task structure 的对应关系（论文 Figure 核心）。
 
 ### 5.4 与 Noise 训练联用

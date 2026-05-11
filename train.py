@@ -300,9 +300,11 @@ def compute_action_gate_metrics(
             critical = gA * 0.5
         w_t = w_max - (w_max - w_min) * critical
 
-        cv_flat = A_cv.reshape(-1)
-        A_mean_flat = A_mean.reshape(-1)
-        thresh = torch.quantile(A_mean_flat.float(), 0.75)
+        # Cast to fp32 for torch.quantile (which rejects half/bf16) and to keep
+        # all downstream metric reductions dtype-uniform under AMP.
+        cv_flat = A_cv.reshape(-1).float()
+        A_mean_flat = A_mean.reshape(-1).float()
+        thresh = torch.quantile(A_mean_flat, 0.75)
         high_A_mask = A_mean_flat >= thresh
         high_cv = cv_flat[high_A_mask].mean() if high_A_mask.any() else cv_flat.mean()
 
@@ -316,8 +318,8 @@ def compute_action_gate_metrics(
         else:
             corr_sigma_action = log_A.new_tensor(0.0)
 
-        w_flat = w_t.reshape(-1)
-        crit_flat = critical.reshape(-1)
+        w_flat = w_t.reshape(-1).float()
+        crit_flat = critical.reshape(-1).float()
         metrics = {
             "adaptive_action_sensitivity_mean": A_mean.mean(),
             "adaptive_action_sensitivity_std": A_mean.std(unbiased=False),

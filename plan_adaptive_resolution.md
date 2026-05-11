@@ -18,12 +18,12 @@
 
 不要默认假设 heteroscedastic NLL 会优于 MSE。LeWM 的 MSE + SIGReg 已经很强，直接替换成 NLL 会改变 pred loss 与 SIGReg 的相对尺度，而且 NLL 会 downweight 高误差样本；在 PushT 这类任务里，高误差样本可能正是接触/精细控制的关键状态。
 
-当前路线（**2026-05-10 更新**：Pilot-1B 已跑完，直接 hetero loss 在 PushT 上失败；Pilot-2B 已验证 probe+gate-fixbug logging 不再破坏表示，因此进入 guarded Stage C 准备阶段）：
+当前路线（**2026-05-11 更新**：Pilot-1B/Pilot-2A/Pilot-2B 已完成，Stage C 已跑完 consist001（α=0.01）/consist003（α=0.03）及 A_t-only ablation。核心结果：PushT α=0.01 为 sweet spot——clean 86.67 ≈ baseline 87.33，robustness 翻倍（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03 达到 LeWM+noise 天花板 98.33。剂量效应精确对应任务特性：action-critical 任务耐受低 α，冗余视觉任务可承受高 α。A_t-only ablation（无 σ）PushT clean 跌 9.34pt，方向性证明 σ 不可缺失；σ-only 失败对照尚待补全。
 
 1. **Pilot-1B 结论：Scale-preserving heteroscedastic loss 语义成功、控制失败。** `hetero_s_logerr_corr` 在 TwoRoom/PushT 后期分别约 0.89/0.95，说明 σ head 学到了 prediction difficulty；但 PushT `hetero_weight_q10_q90_ratio` 掉到约 0.008，hard transition 被强 downweight，clean eval 崩到 13.33。
 2. **下一步首选：Probe-only σ + action-aware adaptive consistency。** μ path 保持 LeWM MSE + SIGReg，σ head detached 学 `log(error)`；真正改变 encoder resolution 的路径应放在 input-side consistency 上，而不是 prediction-loss reweighting 上。
 3. **σ 不能单独决定 consistency weight。** prediction difficulty 会混合 action-relevant difficulty 和视觉 aleatoric noise；σ-only consistency 会落入 Noisy TV / confounder trap。必须用 action sensitivity `A_t` 作为主门控，σ 只作为 difficulty enhancer。
-4. **Pilot-2A/2B 结论（2026-05-09/10，§3.3）**: probe-only 救回 PushT，BN drift fix 后 probe+gate logging 不再破坏 TwoRoom。fixbug full eval：TwoRoom clean 95.00、PushT clean 85.33；PushT resolution diagnostics 与 LeWM-base 基本一致（`transition_resolution_ratio_l2≈0.288`、`id_probe_r2≈0.774`），明显区别于 hetero-loss collapse。Stage B 的 controller signal 已成立；Stage C 只允许小步开启，并以 PushT clean ≥84、`transition_resolution_ratio_l2 ≥0.24` 为硬 guardrail。
+4. **Pilot-2A/2B 结论（2026-05-09/10，§3.3）**: probe-only 救回 PushT，BN drift fix 后 probe+gate logging 不再破坏 TwoRoom。fixbug full eval：TwoRoom clean 95.00、PushT clean 85.33；PushT resolution diagnostics 与 LeWM-base 基本一致（`transition_resolution_ratio_l2≈0.288`、`id_probe_r2≈0.774`），明显区别于 hetero-loss collapse。Stage B 的 controller signal 已成立；Stage C 已完成 sweep，PushT sweet spot α=0.01 通过 guardrail（clean 86.67 ≥ 84，resolution 0.290 ≥ 0.24），TwoRoom α=0.03 达到 LeWM+noise 天花板。不存在单一 α 同时在两任务上达到各自最优，这正是自适应分辨率机制的任务特异性预期。
 
 > **为什么恢复 probe-only？** 2026-05-09 Pilot-1B 已经证明核心风险真实存在：σ calibration 很好，但 PushT 失败。此时 probe-only 不再是"容量 smoke test"，而是把 σ 语义从 μ 几何更新中解耦，避免 hard-but-important transition 被训练权重抹掉。
 
@@ -832,7 +832,7 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 **待补全分析（⏳）**：
 - A_t-only 的 **diagnostics**（`transition_resolution_ratio_l2`、`id_probe_r2` 等）待跑完后再补全最终分析
 - A_t-only 的 **goal 0.05 / pixels 0.05 / px+goal 0.05 部分 seed** 待出
-- 但已出数据（clean + goal/pixels 0.03）已足够支撑"σ 必要性"结论
+- 已出数据（clean + goal/pixels 0.03）方向性支持 σ 不可缺失，但论文级 claim 需等 diagnostics + 完整 noise sweep
 
 **待做实验（按优先级）**：
 

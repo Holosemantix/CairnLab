@@ -181,6 +181,7 @@ def compute_action_gate_metrics(
     ema_momentum: float,
     w_min: float = 0.2,
     w_max: float = 1.0,
+    mode: str = "full",
 ):
     """Logging-only action-aware adaptive resolution gate.
 
@@ -197,41 +198,60 @@ def compute_action_gate_metrics(
       ctx_action_raw  (B, T_ctx, action_dim) — raw actions (post nan_to_num)
       pred_emb_clean  (B, T_ctx, D)  — predictor output on clean actions
       s_t             (B, T_ctx) or None — clamped sigma from hetero probe
+      mode            "full" (default, gA + gS) | "sigma_only" (gS-only ablation;
+                      skips K perturbation forwards, sets gA≡0.5, critical = gS*0.5).
+                      A_t-only is achieved implicitly by mode=full + s_t=None.
     """
+    if mode not in {"full", "sigma_only"}:
+        raise ValueError(f"Unsupported action_gate.mode: {mode}")
+    sigma_only = mode == "sigma_only"
+    if sigma_only and s_t is None:
+        raise RuntimeError(
+            "action_gate.mode=sigma_only requires loss.hetero.enabled=true with mode=probe"
+        )
     metrics = {}
     with torch.no_grad():
-        # Per-action-dim std over (B, T_ctx); guards against degenerate dims.
-        action_std = ctx_action_raw.float().std(dim=(0, 1), unbiased=False).clamp(min=1e-6)
         ctx_emb_d = ctx_emb.detach()
         pred_clean_d = pred_emb_clean.detach()
+        B, T_ctx = ctx_emb_d.shape[:2]
 
-        # Freeze BN stats during the K perturbation forwards. Otherwise the
-        # OOD-ish perturbed activations update BatchNorm running mean/var on
-        # every train step, drifting them away from the clean-data distribution.
-        # See plan_adaptive_resolution.md §8.3.6.4.
-        bn_states = []
-        for m in model.modules():
-            if isinstance(m, nn.modules.batchnorm._BatchNorm) and m.training:
-                bn_states.append(m)
-                m.eval()
-        try:
-            A_samples = []
-            for _ in range(K):
-                delta = torch.randn_like(ctx_action_raw) * (delta_scale * action_std)
-                act_pert = ctx_action_raw + delta
-                act_emb_pert = model.action_encoder(act_pert)
-                pred_pert = model.predict(ctx_emb_d, act_emb_pert)
-                diff = (pred_pert - pred_clean_d).pow(2).sum(dim=-1).clamp(min=0).sqrt()
-                delta_norm = delta.pow(2).sum(dim=-1).clamp(min=0).sqrt().clamp(min=delta_norm_floor)
-                A_samples.append(diff / delta_norm)
-        finally:
-            for m in bn_states:
-                m.train()
+        if sigma_only:
+            # σ-only ablation: skip K perturbation forwards entirely. A-channel
+            # metrics are emitted as zeros so logging schema stays stable.
+            zero_bt = ctx_emb_d.new_zeros(B, T_ctx)
+            A_mean = zero_bt
+            A_cv = zero_bt
+            log_A = zero_bt
+        else:
+            # Per-action-dim std over (B, T_ctx); guards against degenerate dims.
+            action_std = ctx_action_raw.float().std(dim=(0, 1), unbiased=False).clamp(min=1e-6)
+            # Freeze BN stats during the K perturbation forwards. Otherwise the
+            # OOD-ish perturbed activations update BatchNorm running mean/var on
+            # every train step, drifting them away from the clean-data distribution.
+            # See plan_adaptive_resolution.md §8.3.6.4.
+            bn_states = []
+            for m in model.modules():
+                if isinstance(m, nn.modules.batchnorm._BatchNorm) and m.training:
+                    bn_states.append(m)
+                    m.eval()
+            try:
+                A_samples = []
+                for _ in range(K):
+                    delta = torch.randn_like(ctx_action_raw) * (delta_scale * action_std)
+                    act_pert = ctx_action_raw + delta
+                    act_emb_pert = model.action_encoder(act_pert)
+                    pred_pert = model.predict(ctx_emb_d, act_emb_pert)
+                    diff = (pred_pert - pred_clean_d).pow(2).sum(dim=-1).clamp(min=0).sqrt()
+                    delta_norm = delta.pow(2).sum(dim=-1).clamp(min=0).sqrt().clamp(min=delta_norm_floor)
+                    A_samples.append(diff / delta_norm)
+            finally:
+                for m in bn_states:
+                    m.train()
 
-        A_stack = torch.stack(A_samples, dim=0)            # (K, B, T_ctx)
-        A_mean = A_stack.mean(dim=0)                       # (B, T_ctx)
-        A_cv = A_stack.std(dim=0, unbiased=False) / A_mean.clamp(min=log_a_floor)
-        log_A = torch.log(A_mean.clamp(min=log_a_floor))
+            A_stack = torch.stack(A_samples, dim=0)            # (K, B, T_ctx)
+            A_mean = A_stack.mean(dim=0)                       # (B, T_ctx)
+            A_cv = A_stack.std(dim=0, unbiased=False) / A_mean.clamp(min=log_a_floor)
+            log_A = torch.log(A_mean.clamp(min=log_a_floor))
 
         # EMA update (outside warmup only).
         def _ema_update(name: str, x: torch.Tensor):
@@ -250,7 +270,8 @@ def compute_action_gate_metrics(
                 var_buf.mul_(mu).add_(v_new, alpha=1.0 - mu)
 
         if not in_warmup:
-            _ema_update("log_A", log_A)
+            if not sigma_only:
+                _ema_update("log_A", log_A)
             if s_t is not None:
                 _ema_update("s", s_t)
 
@@ -264,10 +285,16 @@ def compute_action_gate_metrics(
                 v = x.var(unbiased=False)
             return (x - m) / v.clamp(min=1e-6).sqrt()
 
-        gA = torch.sigmoid(_zscore(log_A, "log_A"))
+        if sigma_only:
+            gA = ctx_emb_d.new_full((B, T_ctx), 0.5)
+        else:
+            gA = torch.sigmoid(_zscore(log_A, "log_A"))
         if s_t is not None:
             gS = torch.sigmoid(_zscore(s_t.detach(), "s"))
-            critical = gA * (0.5 + 0.5 * gS)
+            if sigma_only:
+                critical = gS * 0.5
+            else:
+                critical = gA * (0.5 + 0.5 * gS)
         else:
             gS = None
             critical = gA * 0.5
@@ -513,6 +540,7 @@ def lejepa_forward(self, batch, stage, cfg):
             ema_momentum=float(gate_cfg.get("ema_momentum", 0.99)),
             w_min=float(gate_cfg.get("w_min", 0.2)),
             w_max=float(gate_cfg.get("w_max", 1.0)),
+            mode=str(gate_cfg.get("mode", "full")),
         )
         for k, v in gate_metrics.items():
             output[k] = v

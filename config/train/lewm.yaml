@@ -139,6 +139,10 @@ loss:
   # §8.3.2 for the full rationale and judgement criteria.
   action_gate:
     enabled: false
+    mode: full                # full = gA + gS (default); sigma_only = σ-only ablation
+                              # (skip K perturb forwards, critical = gS * 0.5, requires
+                              # loss.hetero.enabled=true with mode=probe). A_t-only is
+                              # achieved implicitly by mode=full + loss.hetero.enabled=false.
     delta_scale: 0.25         # δ ~ N(0, (delta_scale * action_std)^2 I); action_std is per-batch
     num_delta_samples: 4      # K independent δ draws per token for CV estimation
     warmup_epochs: 3          # collect-but-don't-aggregate gate during warmup (see §8.3.2.1)

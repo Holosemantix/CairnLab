@@ -302,7 +302,7 @@ def compute_action_gate_metrics(
 
         cv_flat = A_cv.reshape(-1)
         A_mean_flat = A_mean.reshape(-1)
-        thresh = torch.quantile(A_mean_flat, 0.75)
+        thresh = torch.quantile(A_mean_flat.float(), 0.75)
         high_A_mask = A_mean_flat >= thresh
         high_cv = cv_flat[high_A_mask].mean() if high_A_mask.any() else cv_flat.mean()
 

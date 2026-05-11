@@ -6,6 +6,8 @@
 >
 > **Pilot-2B 更新（2026-05-10）**: BN drift fixbug 版已跑完 TwoRoom + PushT full eval。TwoRoom probe+gate-fixbug clean **95.00**（从 bug 版 89.33 恢复到 LeWM-base 附近），PushT clean **85.33**（接近 LeWM-base 87.33，未复现 hetero-loss collapse）。SwanLab validate 指标显示 σ calibration 仍成立（TwoRoom `hetero_s_logerr_corr=0.612`，PushT `0.482`），σ 与 action sensitivity 不是同一信号（TwoRoom `corr_sigma_action=-0.010`，PushT `0.256`），gate weight 有非平凡 spread。结论：**Stage B logging-only controller signal 已验证；下一步可以进入小权重 Stage C，但必须以 PushT clean/resolution guardrail 为硬约束。**
 >
+> **Stage C 更新（2026-05-11）**: `alpha_cons` 小权重 sweep 已跑完（consist001/003）+ A_t-only ablation。**核心结果**：PushT α=0.01 clean **86.67**（≈ baseline 87.33）+ robustness 翻倍（goal 0.05 38→77，pixels 0.05 17→73），resolution guardrail（`transition_resolution_ratio_l2=0.290`，`id_probe_r2=0.764`）全部通过；TwoRoom α=0.03 clean **98.33** = LeWM+noise best (`0to008-p1`) 98.33，px+goal 0.05 97.33（LeWM+noise 98.00）。α=0.03 在 PushT 上触发 guardrail（clean 76.33 < 84），印证任务特异性。A_t-only consist001 PushT clean 77.33 显著低于 σ+A_t 86.67（-9.34pt），**σ 必要性方向性得证**（diagnostics + 部分 0.05/0.08 seed 仍待补回盘）。下一步进入 σ-only ablation 闭合对称证据 + probe-on-noise / consistency-noise 联用。
+>
 > **关系**: 不是 plan_v3 的替换，而是 plan_v3 §6 P4 "Adaptive Resolution Method" 的具体化方案。
 > **设计原则**: 先证明额外 σ 输出头携带有用信息，再让它影响训练或 planning；避免一开始就改变 LeWM 的强 MSE baseline。
 > **重要历史记录**: 本文件早期版本曾包含 IB term / aggregate covariance Frobenius / Fisher manifold planning 等多层架构，hyperparameter 数量涨到 4–5 个。经过严格审视后**全部回退**——它们都需要新超参却没有可论证的额外收益。详见附录 A 设计回退记录。
@@ -498,7 +500,7 @@ finally:
 | Task / model | Clean | goal 0.05 | pixels 0.05 | px+goal 0.05 | goal 0.08 | px+goal 0.08 |
 |---|---:|---:|---:|---:|---:|---:|
 | TwoRoom LeWM-base | 93.00 | 71.00 | 70.33 | 62.33 | 55.67 | 44.33 |
-| TwoRoom LeWM+noise best (`0to005-p1`) | 94.00 | **93.33** | **94.67** | **94.00** | **94.00** | **94.00** |
+| TwoRoom LeWM+noise best (`0to008-p1`) | 98.33 | **98.00** | **98.33** | **98.00** | **98.67** | **98.67** |
 | TwoRoom hetero-loss | **99.67** | 85.33 | 96.67 | 84.67 | 73.33 | 55.33 |
 | TwoRoom probe | 96.33 | 80.67 | 81.00 | 67.00 | 63.67 | 46.00 |
 | TwoRoom probe+gate-bug | 89.33 | 49.00 | 52.00 | 36.67 | 41.67 | 33.00 |
@@ -570,7 +572,7 @@ Fixbug 后 `compute_action_gate_metrics` 内 BN 被临时冻结、所有输出 d
 3. **可行路径是 σ 作为诊断/控制器，而非梯度 reweighter。** Action-aware adaptive consistency（§2.2.3）是唯一既改变 resolution 又避开 confounder trap 的使用层级。
 4. **BN drift bug 已修复并复测通过；修复后 gate 回归纯 logging 定位。** K=4 perturb forward 在 train mode 下污染 BN running stats，TwoRoom probe+gate clean 96.33 → 89.33；fixbug 后（BN freeze + no_grad）probe+gate 与 probe 在主 loss/gradient/optimizer 更新规则上等价，eval 差异不应解释为 gate 改善效果。旧 89.33 不是 gate signal 失败，而是 stateful side effect（BN running stats）的跨 step 累积。fixbug 消除了这个 side effect，使 gate 成为无训练副作用的 logging-only controller。
 5. **Stage B 的核心产出是"logging signal 可用且不破坏训练"，而非"eval 提升"。** fixbug gate 的 σ-A 相关性低/中等、weight spread 非平凡、PushT resolution guardrail 通过——这些 logging 指标证明 `w_t` 有资格作为 Stage C 的 controller 输入。
-6. **Stage C 验证成功，且剂量效应精确对应。** PushT α=0.01（consist001）clean 86.67 ≈ baseline，robustness 翻倍（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03（consist003）clean 98.33 = LeWM+noise best，px+goal 0.05 97.33。更高 α 导致 PushT resolution 压缩（0.290→0.264）而 TwoRoom 继续提升，验证了任务特异性 consistency 需求。
+6. **Stage C 在每个任务各自最优 α 上验证成功，剂量效应方向与 guardrail 一致。** PushT α=0.01（consist001）clean 86.67 ≈ baseline，robustness 翻倍（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03（consist003）clean 98.33 = LeWM+noise best (`0to008-p1`) 98.33，px+goal 0.05 97.33（LeWM+noise 98.00）。更高 α 导致 PushT resolution 压缩（0.290→0.264）而 TwoRoom 继续提升，验证了任务特异性 consistency 需求；**但目前没有单一 α 同时在两任务上达到 oracle**——这是机制特性，也意味着论文叙事必须沿"per-task α"或"per-token w_t"展开，不可主张全局单点最优。
 
 ### 4.2 风险与对策
 
@@ -800,20 +802,11 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 
 | Experiment | TwoRoom | PushT | 结果 | 状态 |
 |---|---:|---:|---|---|
-| `lewm_sigma_probe_default` | 96.33 | 81.67 | σ calibration 成立（corr 0.57/0.48）| ✅ |
+| `lewm_sigma_probe_default` | 96.33 | 81.67 | σ calibration 成立（validate corr 0.62/0.48）| ✅ |
 | `lewm_action_gate_logging` (fixbug) | 95.00 | 85.33 | gate signal 不破坏训练，CV/weight spread 通过 | ✅ |
-| `lewm_action_aware_consist001` | **95.33** | **86.67** | **PushT clean 维持 + robustness 翻倍** | ✅ 核心结果 |
-| `lewm_action_aware_consist003` | **98.33** | 76.33 | **TwoRoom 达到 LeWM+noise 天花板**，PushT 触发 guardrail | ✅ 剂量效应验证 |
-
-**已完成实验（✅）**：
-
-| Experiment | TwoRoom | PushT | 结果 | 状态 |
-|---|---:|---:|---|---|
-| `lewm_sigma_probe_default` | 96.33 | 81.67 | σ calibration 成立（corr 0.57/0.48）| ✅ |
-| `lewm_action_gate_logging` (fixbug) | 95.00 | 85.33 | gate signal 不破坏训练，CV/weight spread 通过 | ✅ |
-| `lewm_action_aware_consist001` | **95.33** | **86.67** | **PushT clean 维持 + robustness 翻倍** | ✅ 核心结果 |
-| `lewm_action_aware_consist003` | **98.33** | 76.33 | **TwoRoom 达到 LeWM+noise 天花板**，PushT 触发 guardrail | ✅ 剂量效应验证 |
-| `lewm_action_only_consist001` | — | **77.33** | **A_t-only（无 σ）clean 跌 9pt，robustness 显著下降** | ✅ **σ 必要性得证** |
+| `lewm_action_aware_consist001` | **95.33** | **86.67** | **PushT clean 维持 + robustness 翻倍**，resolution guardrail 通过 | ✅ 核心结果 |
+| `lewm_action_aware_consist003` | **98.33** | 76.33 | **TwoRoom = LeWM+noise best 98.33**，PushT 触发 guardrail | ✅ 剂量效应验证 |
+| `lewm_action_only_consist001` (A_t-only) | — | **77.33** | **A_t-only clean 跌 9.34pt，robustness 显著下降** | 🟡 σ 必要性方向性得证（部分 seed/diagnostics ⏳）|
 
 **A_t-only Ablation 详细结果（PushT，3 seeds）：**
 
@@ -834,7 +827,7 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 2. **Uniform high consistency ≈ 全局 noise training 的弱化版**：A_t-only 没有 σ 的 difficulty enhancer，导致 critical 区域保护不足、non-critical 区域过度 invariance——这正是 plan_v3 中 LeWM+noise 的问题（所有区域同等处理），只是程度更轻。
 3. **`corr_sigma_action = 0.000`**（A_t-only 无 σ）：SwanLab 确认 σ 信号完全缺失，multiplicative `critical = gA * (0.5 + 0.5*gS)` 退化为 `gA * 0.5`，失去了难度调节能力。
 
-**结论**：**σ head 不是可选装饰，而是 gate 区分能力的关键组成部分**。A_t 单独只能测 controllability，无法区分"简单可控"和"困难可控"；σ 提供了 difficulty 维度，二者结合才能实现真正的自适应 resolution allocation。
+**结论（方向性）**：**σ head 在 α=0.01 剂量下不是可选装饰**。A_t 单独无法区分"简单可控"和"困难可控"，σ 提供 difficulty 维度让 gate 把 high-A 区域中真正 difficult 的子集挑出来。要把这条结论完整化为"σ 与 A_t 缺一不可"，仍需补 σ-only consist001 对照（验证 Noisy TV / aleatoric 误导路径）+ A_t-only 完整 diagnostics（确认 clean 跌 9pt 不是 representation collapse 引起，而是 gate 区分能力丧失）。
 
 **待补全分析（⏳）**：
 - A_t-only 的 **diagnostics**（`transition_resolution_ratio_l2`、`id_probe_r2` 等）待跑完后再补全最终分析
@@ -845,7 +838,10 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 
 | Experiment | TwoRoom | PushT | 目的 | 优先级 |
 |---|---:|---:|---|---|
-| `lewm_sigma_only_consist001` | — | yes | σ-only consistency 失败对照（验证 Noisy TV） | 中 |
+| A_t-only 完整 seed + diagnostics 回盘 | — | yes | 把 SwanLab 上的 77.33 等指标补全 `summary.txt`、跑 0.05/0.08 noise + diagnostics（`transition_resolution_ratio_l2`、`id_probe_r2`）| **高** |
+| `lewm_sigma_only_consist001` | — | yes | σ-only consistency 对照（验证 Noisy TV / confounder trap），与 A_t-only 形成对称证据 | **高** |
+| `w_t` 离线可视化（PushT contact vs free-space）| — | yes | 论文 Figure：验证 high/low `w_t` 与 task structure 对应 | **高** |
+| `lewm_sigma_probe_on_noise`（probe-only 叠 LeWM+noise ckpt）| yes | yes | §5.4 最便宜的联用验证：noise 训练下 σ calibration 是否漂移 | 中 |
 | `lewm_action_aware_consist001_noise002` | yes | yes | consistency + light noise 联用 | 中 |
 | 4-task full eval | Reacher | Cube | 验证跨任务泛化 | 低（先写论文）|
 
@@ -854,7 +850,7 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 2. ✅ σ calibration 保持（validate corr 0.48-0.62）。
 3. ✅ `A_t` / `critical_t` 显示 action-relevant 结构（CV 可控，weight spread 非平凡）。
 4. ✅ BN drift fix 语义保持（consist001/003 均使用 freeze-BN gate）。
-5. ✅ **A_t-only ablation 完成**：clean 77.33 显著低于 σ+A_t 86.67，**σ 必要性得证**。
+5. 🟡 **A_t-only ablation 方向性结论成立，但需补全证据**：SwanLab clean 77.33 显著低于 σ+A_t 86.67（-9.34pt），weight_q10 0.723 vs 0.574 印证 dynamic range 压缩机制。但 (a) `eval_results/summary.txt` 尚未回写完整 0.05/0.08 noise 列 + diagnostics，(b) 对称的 σ-only ablation 尚未做——因此当前只能说"σ 在此剂量下不可缺"，不能完整断言"σ 与 A_t 缺一不可"。下一步需 σ-only consist001 + A_t-only diagnostics 闭合。
 6. ⏳ **`w_t` 离线可视化待做**：验证 high/low `w_t` 与 task structure 的对应关系（论文 Figure 核心）。
 
 ### 5.4 与 Noise 训练联用
@@ -903,9 +899,7 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
    - 或保持 4.0 但配合"hetero_s_abs_max 持续顶上限 → 自动降 alpha"的 guard rail。
    probe-only 阶段可以顺便看 σ 在 PushT 上的自然分布是否仍贴 clamp，作为后面参数化决策的依据。
 
-4. **TwoRoom hetero +6.7pt 的解释缺口。** Pilot-1B 里 TwoRoom hetero clean 99.67 不仅超过 LeWM-base (93)，还超过 LeWM+noise best (98.33)。叙事目前把它一笔带过。这其实是一个独立信号：在低本征维 / 离散 transition 任务上，"downweight 简单样本 + upweight 难样本"反而像 implicit clustering。回看时建议至少跑一组 ablation：
-   - TwoRoom probe-only：σ probe 不动 μ → 应回落到 LeWM-base 附近。如果仍接近 99.67，说明并非 reweight 在起作用。
-   - 如果 probe-only 回落而 hetero 保持 99.67，则该收益机制是"按难度重加权"，可作为 *任务条件化* 的论据——而不是统一 method 的论据。
+4. **TwoRoom hetero +6.7pt 的解释缺口（部分回答）。** Pilot-1B 里 TwoRoom hetero clean 99.67 不仅超过 LeWM-base (93)，还超过 LeWM+noise best `0to008-p1` (98.33)。**当前数据已能部分回答**：TwoRoom probe-only clean 96.33（介于 LeWM-base 93 和 hetero 99.67 之间），说明 99.67 中的约 3.33pt 来自 σ head 本身的容量/正则化效应（probe 不动 μ 但仍涨 3pt），另约 3.34pt 才是 hetero reweight 的 implicit clustering 贡献。叙事上：σ head 在 TwoRoom 这种低本征维任务上有 *独立的* 容量/正则收益；reweight 进一步放大但同时正是 PushT 上崩溃的原因。**仍未答**：probe-only 这 3pt 收益本身是 σ head 增的网络容量、还是 σ head detached loss 的弱隐式正则——两者实验代价高于产出，可作为 ablation 备份不列入主线。
 
 5. **超参数预算公开化。** 附录 A 立了"count hyperparameter"纪律，但当前 §5 路径累计：`beta_probe`（probe）→ `alpha_planner`（uncertainty / budget）→ `alpha_hetero`（guarded）。每一阶段应在文档里明列：
    - 新增 hyperparam 名、默认值、允许范围、early-stop 阈值。
@@ -1018,6 +1012,7 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 
 - 本文件供查阅与设计迭代；**不**作为 plan_v3 的替换。
 - 每次新讨论后追加新条目到 §4.2 风险表 或 附录 A 回退记录。
-- 下一步主线是 §5.1：probe-only σ → action-gate logging → action-aware adaptive consistency + PushT resolution guardrail。
-- 后续若 action-aware Pilot-2 通过，把 §2–§4 和 §5.1–§5.3 合并进 plan_v3 §6 P4；本文件归档。
+- **Stage A→B→C 主线已跑完核心 sweep**（probe→gate logging→consistency consist001/003 + A_t-only ablation）。剩余阻断写论文的实验：**σ-only consist001 对照**、**A_t-only 完整 seed/diagnostics 回盘**、**`w_t` 离线可视化**。之后是 §5.4 probe-on-noise / consistency-noise 联用，最后 4-task 全套。
+- 论文叙事核心已可立：per-task α 下，σ+A_t adaptive consistency 在 PushT 上 clean 维持 + robustness 翻倍，在 TwoRoom 上达到 LeWM+noise best 98.33——但不存在单一 α 同时达到两任务 oracle，这正是 per-token `w_t` 的存在理由。
+- 后续若上述 3 个阻断实验通过，把 §2–§4 和 §5.1–§5.3 合并进 plan_v3 §6 P4；本文件归档。
 - **下一次想加新机制前**: 先回看附录 A，问自己"它会增加几个超参数？经验收益的证据是什么？"。如果两个问题答不清楚，不加。

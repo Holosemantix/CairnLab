@@ -730,6 +730,9 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 | **consist001 (α=0.01)** | **95.33** | **92.00** | **86.67** | **77.00** | **73.33** | **70.67** |
 | consist003 (α=0.03) | **98.33** | **97.33** | 76.33 | 69.33 | 69.00 | 67.67 |
 | LeWM+noise best | 98.33 | 98.00 | 90.00 | 85.00 | 87.67 | 86.00 |
+| A_t-only consist001 (α=0.01) | — | — | **77.33** | — | — | — |
+
+> **A_t-only consist001 备注**：action_gate enabled + adaptive_consistency α=0.01，但 hetero probe 关闭（σ≡0，gS 退化为常数 0.5，critical = gA×0.5）。PushT clean 77.33 ± 2.87，比 σ+A_t consist001（86.67）低 **9.34pt**，方向性证明 σ 提供的 difficulty signal 不可缺失。resolution guardrail 通过（`transition_res_l2=0.261`，`id_probe_r2=0.727`），但 clean 已显著掉点，说明无 σ 时 A_t-only 的 critical 保护不足。
 
 **PushT resolution guardrail：**
 
@@ -739,6 +742,7 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 | probe+gate-fixbug | 0.288 | 0.774 | 85.33 | ✅ |
 | **consist001** | **0.290** | **0.764** | **86.67** | **✅ 全部通过** |
 | consist003 | 0.264 | 0.731 | 76.33 | ⚠️ clean < 84，接近 guardrail |
+| A_t-only consist001 | 0.261 | 0.727 | 77.33 | ⚠️ clean 跌 9.34pt，σ 缺失代价 |
 
 **SwanLab 训练侧剂量效应：**
 
@@ -851,7 +855,21 @@ loss = L_main + beta_probe * sigma_probe_loss + alpha_cons * L_cons
 3. ✅ `A_t` / `critical_t` 显示 action-relevant 结构（CV 可控，weight spread 非平凡）。
 4. ✅ BN drift fix 语义保持（consist001/003 均使用 freeze-BN gate）。
 5. 🟡 **A_t-only ablation 方向性结论成立，但需补全证据**：SwanLab clean 77.33 显著低于 σ+A_t 86.67（-9.34pt），weight_q10 0.723 vs 0.574 印证 dynamic range 压缩机制。但 (a) `eval_results/summary.txt` 尚未回写完整 0.05/0.08 noise 列 + diagnostics，(b) 对称的 σ-only ablation 尚未做——因此当前只能说"σ 在此剂量下不可缺"，不能完整断言"σ 与 A_t 缺一不可"。下一步需 σ-only consist001 + A_t-only diagnostics 闭合。
-6. ⏳ **`w_t` 离线可视化待做**：验证 high/low `w_t` 与 task structure 的对应关系（论文 Figure 核心）。
+6. ✅ **`w_t` 离线可视化已完成**（`pusht_lewm_action_gate_consist001`，256 sequences × history_size=3，768 tokens）。
+
+**关键发现**（见图）：
+- `corr(w_t, action_norm) = +0.587`：**action norm 越大，w_t 越高**（一致性压力越强）。这与 naive 直觉相反，但符合 PushT 的物理结构：free-space 接近阶段 action norm 高但 action sensitivity（A_t）反而低——predictor 在 contact 约束下更稳定；而 free-space 小 action 即可产生大 latent 位移，A_t 更高 → critical 更高 → w_t 更低。
+- `corr(w_t, latent_disp) = -0.592`：**latent displacement 越大，w_t 越低**。这与设计完全一致：transition 剧烈（高 displacement）的区域被标记为 critical，一致性压力减轻以保护分辨率。
+- Quartile 分层：Q1（低 action norm）mean w_t=0.768，Q4（高 action norm）mean w_t=0.898，差值 0.130，动态范围非平凡。
+
+| 图 | 文件 |
+|---|---|
+| w_t vs action norm（hexbin） | `assets/diagnostics/wt_vs_action_norm.png` |
+| w_t vs latent displacement（hexbin） | `assets/diagnostics/wt_vs_latent_disp.png` |
+| 时间序列示例（w_t + action norm） | `assets/diagnostics/wt_timeseries_example.png` |
+| w_t 分布按 action norm 四分位 | `assets/diagnostics/wt_histogram_by_action_norm.png` |
+
+**论文叙事**：`w_t` 不是简单地与 "contact = high action norm" 线性对应，而是与 **action sensitivity / transition difficulty** 对应。这恰恰说明 per-token adaptive weight 比全局 consistency 或 naive contact heuristic 更精细：它保护的是 "predictor 觉得难" 的区域，而不是 "人类标注的 contact" 区域。
 
 ### 5.4 与 Noise 训练联用
 
@@ -1012,7 +1030,7 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 
 - 本文件供查阅与设计迭代；**不**作为 plan_v3 的替换。
 - 每次新讨论后追加新条目到 §4.2 风险表 或 附录 A 回退记录。
-- **Stage A→B→C 主线已跑完核心 sweep**（probe→gate logging→consistency consist001/003 + A_t-only ablation）。剩余阻断写论文的实验：**σ-only consist001 对照**、**A_t-only 完整 seed/diagnostics 回盘**、**`w_t` 离线可视化**。之后是 §5.4 probe-on-noise / consistency-noise 联用，最后 4-task 全套。
+- **Stage A→B→C 主线已跑完核心 sweep**（probe→gate logging→consistency consist001/003 + A_t-only ablation + `w_t` 离线可视化）。剩余阻断写论文的实验：**σ-only consist001 对照**、**A_t-only 完整 seed/diagnostics 回盘**。之后是 §5.4 probe-on-noise / consistency-noise 联用，最后 4-task 全套。
 - 论文叙事核心已可立：per-task α 下，σ+A_t adaptive consistency 在 PushT 上 clean 维持 + robustness 翻倍，在 TwoRoom 上达到 LeWM+noise best 98.33——但不存在单一 α 同时达到两任务 oracle，这正是 per-token `w_t` 的存在理由。
 - 后续若上述 3 个阻断实验通过，把 §2–§4 和 §5.1–§5.3 合并进 plan_v3 §6 P4；本文件归档。
 - **下一次想加新机制前**: 先回看附录 A，问自己"它会增加几个超参数？经验收益的证据是什么？"。如果两个问题答不清楚，不加。

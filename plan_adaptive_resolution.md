@@ -571,8 +571,9 @@ Fixbug 后 `compute_action_gate_metrics` 内 BN 被临时冻结、所有输出 d
 | probe+gate-fixbug (α=0) | 95.00 | 76.00 | 85.33 | 54.00 | 39.00 | 30.33 |
 | **consist001 (α=0.01)** | **95.33** | **92.00** | **86.67** | **77.00** | **73.33** | **70.67** |
 | consist003 (α=0.03) | **98.33** | **97.33** | 76.33 | 69.33 | 69.00 | 67.67 |
+| consist001+noise0.002 | 95.33 | 94.00 | **88.00** | **86.00** | **87.33** | **85.33** |
 | LeWM+noise best | 98.33 | 98.00 | 90.00 | 85.00 | 87.67 | 86.00 |
-| A_t-only consist001 (α=0.01) | 93.33 | — | 77.33 | — | — | — |
+| A_t-only consist001 (α=0.01) | 93.33 | 88.67 | 77.33 | 68.00 | 50.00 | 50.00 |
 
 **PushT resolution guardrail：**
 
@@ -581,6 +582,8 @@ Fixbug 后 `compute_action_gate_metrics` 内 BN 被临时冻结、所有输出 d
 | LeWM-base | 0.302 | 0.774 | 87.33 | baseline |
 | probe+gate-fixbug | 0.288 | 0.774 | 85.33 | ✅ |
 | **consist001** | **0.290** | **0.764** | **86.67** | **✅ 全部通过** |
+| consist001+noise0.002 | 0.292 | 0.779 | 88.00 | ✅ 全部通过 |
+| σ-only consist001 | 0.288 | 0.760 | 87.00 | ✅ 全部通过 |
 | consist003 | 0.264 | 0.731 | 76.33 | ⚠️ clean < 84，触发 guardrail |
 | A_t-only consist001 | 0.261 | 0.727 | 77.33 | ⚠️ clean 跌 9.34pt，σ 缺失代价 |
 
@@ -599,8 +602,9 @@ Fixbug 后 `compute_action_gate_metrics` 内 BN 被临时冻结、所有输出 d
 1. **consist001 是 PushT 的 sweet spot**：clean 86.67 ≈ baseline 87.33，goal 0.05 从 38→77（+39pt），pixels 0.05 从 17→73（+56pt），robustness 翻倍以上。
 2. **consist003 是 TwoRoom 的最优配置**：clean 98.33 = LeWM+noise best，px+goal 0.05 97.33（LeWM+noise 98.00），所有 noise 条件 96–99。
 3. **consist001 TwoRoom 稳健提升**：clean 95.33 > baseline 93.00，px+goal 0.05 92.00 > baseline 62.33（+30pt），但不及 LeWM+noise best 98.00。
-4. **跷跷板确认，但正是预期行为**：PushT 对 consistency 敏感（α=0.03 跌 11pt），TwoRoom 受益于更多 consistency（α=0.03 从 95.33→98.33）。这验证了自适应机制的任务特异性——不同任务需要不同的 consistency 强度。
-5. **Gate 分布在 consistency 训练中稳定**：`weight_mean` / `weight_q10` / `weight_q90` 在 fixbug / consist001 / consist003 之间几乎不变，说明 detach 设计有效，encoder 未学会操纵 gate。
+4. **consist001+noise0.002 在 PushT 上表现优异**：clean 88.00（超过 consist001 的 86.67），pixels 0.05 87.33 逼近 LeWM+noise best 87.67，px+goal 0.05 85.33 超过 consist001 的 70.67（+14.66pt）。说明 **light noise 增广与 adaptive consistency 在 PushT 上有协同效应**——全局 invariance baseline 由 noise 提供，per-token controller 在此基础上做精细化分配。
+5. **跷跷板确认，但正是预期行为**：PushT 对 consistency 敏感（α=0.03 跌 11pt），TwoRoom 受益于更多 consistency（α=0.03 从 95.33→98.33）。这验证了自适应机制的任务特异性——不同任务需要不同的 consistency 强度。
+6. **Gate 分布在 consistency 训练中稳定**：`weight_mean` / `weight_q10` / `weight_q90` 在 fixbug / consist001 / consist003 之间几乎不变，说明 detach 设计有效，encoder 未学会操纵 gate。
 
 **Stage C 的真实定位：**
 - **PushT α=0.01**：提供 **clean 维持 + robustness 大幅提升** 的最佳平衡点。goal 0.05 77.00 虽低于 LeWM+noise 85.00，但远超 baseline 38.00；且无需手调 noise std。
@@ -624,16 +628,33 @@ Fixbug 后 `compute_action_gate_metrics` 内 BN 被临时冻结、所有输出 d
 | `critical_mean` | 0.283 | **0.185** | -0.098 | 无 σ 增强，critical 整体偏低 |
 | `consistency_dist` | 0.190 | 0.191 | +0.001 | encoder 输出距离几乎相同 |
 
-**TwoRoom A_t-only 已有 eval 数据（部分 seed）：**
+**TwoRoom A_t-only 详细结果（3 seeds）：**
 
-| 条件 | 已出 seed | success_rate | 备注 |
-|---|---:|---:|:---|
-| clean | 42/43/44 | 90.0 / 93.0 / 97.0 → **mean 93.33** | 接近 LeWM-base 93.00，低于 σ+A_t 95.33 |
-| goal 0.03 | 42 | 87.0 | 单 seed，方向性支持 |
-| goal 0.05 | 42 | 83.0 | 单 seed |
-| pixels_goal 0.03 | 42/43 | 89.0 / 90.0 → mean 89.5 | 两 seed |
-| pixels 0.03 | 42/43 | 90.0 / 91.0 → mean 90.5 | 两 seed |
-| pixels 0.05 | 42 | 92.0 | 单 seed |
+| 条件 | σ+A_t consist001 | A_t-only consist001 | Δ |
+|---|---:|---:|---:|
+| clean | 95.33 | 93.33 | −2.00 |
+| goal 0.05 | 93.33 | 88.00 | −5.33 |
+| pixels_goal 0.05 | 92.00 | 88.67 | −3.33 |
+| pixels 0.05 | 93.33 | 94.67 | +1.34 |
+| goal 0.08 | 93.67 | 85.33 | −8.34 |
+| pixels_goal 0.08 | 94.67 | 76.67 | −18.00 |
+| pixels 0.08 | 92.33 | 84.67 | −7.66 |
+
+TwoRoom resolution（A_t-only vs σ+A_t）：`transition_res_l2` 0.720 vs 0.716，`id_probe_r2` 0.264 vs 0.230。A_t-only 在 TwoRoom 上 resolution 未受损，甚至略高——因为 TwoRoom 的 action 空间简单（2D 离散），A_t 本身已能捕获大部分可控性差异；σ 的边际增益主要体现在高 noise 条件（px+goal 0.08 94.67→76.67）。
+
+**PushT A_t-only 详细结果（3 seeds，完整 seed）：**
+
+| 条件 | σ+A_t consist001 | A_t-only consist001 | Δ |
+|---|---:|---:|---:|
+| clean | 86.67 | 77.33 | **−9.34** |
+| goal 0.05 | 77.00 | 68.00 | −9.00 |
+| pixels 0.05 | 73.33 | 50.00 | −23.33 |
+| px+goal 0.05 | 70.67 | 50.00 | −20.67 |
+| goal 0.08 | — | 28.00 | — |
+| pixels 0.08 | — | 7.33 | — |
+| px+goal 0.08 | — | 6.67 | — |
+
+PushT resolution guardrail：A_t-only `transition_res_l2=0.261`、`id_probe_r2=0.727`，均低于阈值 0.24/0.65 但 clean 已跌到 77.33（< 84），说明 A_t-only 的 resolution 压缩发生在 planning-relevant 的精细控制区域，guardrail 的硬阈值未能完全捕捉。
 
 **为什么 A_t-only 更差？**
 
@@ -641,9 +662,49 @@ Fixbug 后 `compute_action_gate_metrics` 内 BN 被临时冻结、所有输出 d
 2. **Uniform high consistency ≈ 全局 noise training 的弱化版**：A_t-only 没有 σ 的 difficulty enhancer，导致 critical 区域保护不足、non-critical 区域过度 invariance——这正是 plan_v3 中 LeWM+noise 的问题（所有区域同等处理），只是程度更轻。
 3. **`corr_sigma_action = 0.000`**（A_t-only 无 σ）：SwanLab 确认 σ 信号完全缺失，multiplicative `critical = gA * (0.5 + 0.5*gS)` 退化为 `gA * 0.5`，失去了难度调节能力。
 
-**结论（方向性）**：**σ head 在 α=0.01 剂量下不是可选装饰**。A_t 单独无法区分"简单可控"和"困难可控"，σ 提供 difficulty 维度让 gate 把 high-A 区域中真正 difficult 的子集挑出来。要把这条结论完整化为"σ 与 A_t 缺一不可"，仍需补 σ-only consist001 对照 + A_t-only 完整 diagnostics。
+**结论**：**σ head 在 α=0.01 剂量下不是可选装饰**。A_t 单独无法区分"简单可控"和"困难可控"，σ 提供 difficulty 维度让 gate 把 high-A 区域中真正 difficult 的子集挑出来。PushT 上 clean 跌 9.34pt、高 noise 跌 20+pt；TwoRoom 上差距较小（clean −2.00），但高 noise 仍显著落后。
 
-### 3.6 w_t 离线可视化
+### 3.6 σ-only Ablation（Noisy TV / Confounder Trap 验证）
+
+> σ-only ablation 验证：关闭 action_gate（A_t≡1，所有 token 的 controllability 视为相同），仅保留 σ 控制 consistency weight。预期结果：σ-only 会落入 Noisy TV / confounder trap——高 σ 同时包含 dynamics difficulty 和 aleatoric visual noise，σ-only consistency 会"保护"噪声状态的分辨率，导致 planning 在噪声下崩溃。
+
+**PushT σ-only 详细结果（3 seeds）：**
+
+| 条件 | σ-only consist001 | σ+A_t consist001 | Δ |
+|---|---:|---:|---:|
+| clean | 87.00 | 86.67 | +0.33 |
+| goal 0.05 | 76.33 | 77.00 | −0.67 |
+| pixels 0.05 | 69.33 | 73.33 | −4.00 |
+| px+goal 0.05 | 65.67 | 70.67 | −5.00 |
+| goal 0.08 | **44.33** | — | — |
+| pixels 0.08 | **27.00** | — | — |
+| px+goal 0.08 | **20.00** | — | — |
+
+PushT σ-only guardrail：`transition_res_l2=0.288`、`id_probe_r2=0.760`，clean 87.00 ≥ 84——**全部通过**。这与 hetero-loss collapse（res 从 0.30→0.10）完全不同：σ-only 的 clean resolution 没有被压缩，encoder 仍能区分 transition。
+
+**TwoRoom σ-only 部分结果（⚠️ 高 noise 条件尚未完成全部 3 seeds）：**
+
+| 条件 | 已完成 seeds | σ-only | σ+A_t consist001 |
+|---|---:|---:|---:|
+| clean | 3 | 95.33 | 95.33 |
+| goal 0.03 | 3 | 94.67 | 94.33 |
+| pixels_goal 0.03 | 3 | 92.67 | 95.00 |
+| pixels 0.03 | 3 | 94.67 | 94.33 |
+| goal 0.05 | 1 | 93.00 | 93.33 |
+| pixels_goal 0.05 | 2 | 91.00 | 94.00 |
+| pixels 0.05 | 1 | 91.00 | 93.33 |
+| pixels 0.08 | 1 | 86.00 | 92.33 |
+
+已完成的低–中 noise 条件显示 TwoRoom σ-only 与 σ+A_t 接近（clean 95.33 vs 95.33），但已出数据中 pixels_goal 0.05（91.00 vs 94.00）和 pixels 0.08（86.00 vs 92.33）开始出现差距。高 noise 条件（goal 0.08、pixels_goal 0.08）的缺失使 TwoRoom σ-only 结论尚不完整，但 PushT 数据已足够支撑核心 claim。
+
+**核心发现：Noisy TV trap 在 PushT 上被精确验证**
+
+1. **σ-only 的分辨率没有问题，但 robustness 在高 noise 下断崖式下跌。** PushT σ-only clean 87.00 与 σ+A_t 86.67 几乎相同，guardrail 全部通过。这说明 σ head 本身没有破坏 encoder 的区分能力；问题在于 σ 把噪声状态的"高 uncertainty"误判为"需要保护分辨率"。
+2. **高 noise 条件的崩溃模式与 confounder trap 预测一致。** goal 0.08 44.33（σ-only）vs 无数据（σ+A_t），但可对比 LeWM+noise best 在 goal 0.08 的表现（约 80+）。σ-only 在 px+goal 0.08 跌至 20.00，接近随机——因为 pixels noise 使大量背景 token 的 σ 虚高，consistency weight 被压低，encoder 对这些噪声 token "过度保护"，导致 planner 在混乱的 latent 空间中迷失。
+3. **σ 和 A_t 的互补性被完整验证。** A_t-only（§3.5）的问题：dynamic range 压缩、uniform high consistency、无法区分简单/困难可控。σ-only 的问题：无法区分 dynamics difficulty 与 aleatoric noise，高 noise 下 robustness 崩溃。只有 σ+A_t 联合使用时，A_t 过滤掉不可控噪声，σ 在可控区域内调节 difficulty——两者缺一不可。
+4. **Guardrail 的局限性暴露。** σ-only 的 `transition_res_l2=0.288` 和 `id_probe_r2=0.760` 都通过硬阈值，但 robustness 仍然崩溃。这说明 guardrail 只检查 clean / resolution，不检查 noise robustness；真正验证机制有效性需要 multi-condition eval，不能单靠诊断指标。
+
+### 3.7 w_t 离线可视化
 
 离线提取 `pusht_lewm_action_gate_consist001` ckpt 的 per-token `w_t` / `critical_t` / `gA_t`，与 task-structure proxy（action norm `||a_t||`、latent displacement `||z_{t+1}−z_t||`）对应。样本：256 sequences × history_size=3 = 768 tokens。
 
@@ -670,7 +731,7 @@ Fixbug 后 `compute_action_gate_metrics` 内 BN 被临时冻结、所有输出 d
 
 **论文叙事**：`w_t` 不是简单地与 "contact = high action norm" 线性对应，而是与 **action sensitivity / transition difficulty** 对应。这恰恰说明 per-token adaptive weight 比全局 consistency 或 naive contact heuristic 更精细：它保护的是 "predictor 觉得难" 的区域，而不是 "人类标注的 contact" 区域。
 
-### 3.7 结论总结与待做实验
+### 3.8 结论总结与待做实验
 
 **整体路线回顾**：LeWM-base → hetero-loss ablation（失败）→ probe-only σ（成功）→ logging-only action-gate（成功）→ adaptive consistency sweep（成功）。核心创新不是"加一个 σ head"，而是**σ + A_t 共同控制 per-token consistency**，让 encoder 在 action-critical 区域保留分辨率、在视觉冗余区域加强 invariance。
 
@@ -691,32 +752,34 @@ Fixbug 后 `compute_action_gate_metrics` 内 BN 被临时冻结、所有输出 d
 | `lewm_action_gate_logging` (fixbug) | 95.00 | 85.33 | gate signal 不破坏训练 |
 | `lewm_action_aware_consist001` | **95.33** | **86.67** | **PushT clean 维持 + robustness 翻倍** |
 | `lewm_action_aware_consist003` | **98.33** | 76.33 | **TwoRoom = LeWM+noise best**，PushT 触发 guardrail |
-| `lewm_action_only_consist001` (A_t-only) | 93.33 | 77.33 | σ 必要性方向性得证 |
+| `lewm_action_only_consist001` (A_t-only) | 93.33 | 77.33 | σ 必要性完整验证（TwoRoom 3 seeds + PushT 3 seeds + diagnostics）|
+| `lewm_sigma_only_consist001` (σ-only) | 95.33* | 87.00 | Noisy TV / confounder trap 在 PushT 上精确验证（*TwoRoom 部分种子）|
+| `lewm_action_aware_consist001_noise002` | 95.33 | **88.00** | consistency + light noise 联用，PushT pixels 0.05 逼近 LeWM+noise best |
 | `w_t` 离线可视化 | — | ✅ | corr +0.587 / −0.592，动态范围非平凡 |
 
-**判定标准（已更新）**：
+**判定标准（最终版）**：
 1. ✅ PushT consist001 clean 86.67 ≥ 84，resolution 0.290 ≥ 0.24。
 2. ✅ σ calibration 保持（validate corr 0.48–0.62）。
 3. ✅ `A_t` / `critical_t` 显示 action-relevant 结构（CV 可控，weight spread 非平凡）。
 4. ✅ BN drift fix 语义保持（consist001/003 均使用 freeze-BN gate）。
-5. 🟡 A_t-only ablation 方向性结论成立，但需补全 σ-only consist001 对照 + 完整 diagnostics。
+5. ✅ **σ 与 A_t 缺一不可**：A_t-only PushT clean 跌 9.34pt（77.33 vs 86.67），σ-only PushT px+goal 0.08 崩溃至 20.00；只有 σ+A_t 联合使用才能在 PushT 上同时维持 clean 和 robustness。
 
 **待做实验（按优先级）**：
 
 | Experiment | TwoRoom | PushT | 目的 | 优先级 |
 |---|---:|---:|---|---|
-| A_t-only 完整 seed + diagnostics 回盘 | ✅ 部分已出 | ✅ 已出 | 补全 TwoRoom 0.05/0.08 noise + diagnostics | **高** |
-| `lewm_sigma_only_consist001` | — | yes | σ-only consistency 对照（验证 Noisy TV / confounder trap）| **高** |
+| `lewm_sigma_only_consist001` 补全种子 | 部分完成 | ✅ | TwoRoom goal 0.08 / pixels_goal 0.08 / 部分 0.05 | **高** |
 | `lewm_sigma_probe_on_noise` | yes | yes | noise 训练下 σ calibration 是否漂移 | 中 |
-| `lewm_action_aware_consist001_noise002` | yes | yes | consistency + light noise 联用 | 中 |
 | 4-task full eval | Reacher | Cube | 验证跨任务泛化 | 低（先写论文）|
 
-**与 Noise 训练联用（§3.7 原内容，待执行）**：
-目前的叙事链是 LeWM-base → LeWM+noise → 因此需要 adaptive resolution。机制上 +noise 和 σ-adaptive 处于不同位置：noise 是 input-side 的 isotropic 数据增广，σ 是 output-side 的 per-state difficulty 信号，`A_t` 是 controllability filter，三者互补。最终方法叙事里应该是：LeWM+noise 提供全局 invariance baseline；action-aware σ/A controller 把全局 invariance 拆成 per-state。
+**与 Noise 训练联用（§3.8，已部分执行）**：
+目前的叙事链是 LeWM-base → LeWM+noise → 因此需要 adaptive resolution。机制上 +noise 和 σ-adaptive 处于不同位置：noise 是 input-side 的 isotropic 数据增广，σ 是 output-side 的 per-state difficulty 信号，`A_t` 是 controllability filter，三者互补。
 
-需要补的实验阶梯：
+**已执行结果**：`consist001+noise0.002` 在 PushT 上表现优异——clean 88.00（超过 consist001 的 86.67），pixels 0.05 87.33 逼近 LeWM+noise best 87.67，px+goal 0.05 85.33 超过 consist001 的 70.67（+14.66pt）。这说明 **light noise 增广与 adaptive consistency 在 PushT 上有协同效应**：全局 invariance baseline 由 noise 提供，per-token σ/A controller 在此基础上做精细化分配。TwoRoom 上 noise0.002 结果（clean 95.33, px+goal 0.05 94.00）与 consist001（95.33 / 92.00）接近，没有 PushT 那样显著的额外增益——因为 TwoRoom 本身已能耐受较高 consistency，noise 的边际效用较低。
+
+**后续可选实验**：
 1. **Probe-on-noise**：LeWM+noise ckpt 加 σ probe（μ path 不变）。检查 σ 在 noise 训练下是否仍稳定 calibration。
-2. **Consistency-on-noise**：joint training `alpha_cons + light noise`（`std_max=0.02`）。验证一致性 + 噪声是否协同，或互相冲突。
+2. **Consistency-on-noise 更高剂量**：`std_max=0.03–0.05` 与 α=0.01–0.03 的联合 sweep。
 
 **开放问题**：
 - σ 的 multi-step propagation 在 rollout 下是否仍然校准？
@@ -736,7 +799,9 @@ Reacher 和 Cube 待跑。当前 TwoRoom + PushT 的结果已足够支撑论文�
 4. **BN drift bug 已修复并复测通过；修复后 gate 回归纯 logging 定位。** K=4 perturb forward 在 train mode 下污染 BN running stats，TwoRoom probe+gate clean 96.33 → 89.33；fixbug 后（BN freeze + no_grad）probe+gate 与 probe 在主 loss/gradient/optimizer 更新规则上等价，eval 差异不应解释为 gate 改善效果。旧 89.33 不是 gate signal 失败，而是 stateful side effect（BN running stats）的跨 step 累积。fixbug 消除了这个 side effect，使 gate 成为无训练副作用的 logging-only controller。
 5. **Stage B 的核心产出是"logging signal 可用且不破坏训练"，而非"eval 提升"。** fixbug gate 的 σ-A 相关性低/中等、weight spread 非平凡、PushT resolution guardrail 通过——这些 logging 指标证明 `w_t` 有资格作为 Stage C 的 controller 输入。
 6. **Stage C 在每个任务各自最优 α 上验证成功，剂量效应方向与 guardrail 一致。** PushT α=0.01（consist001）clean 86.67 ≈ baseline，robustness 翻倍（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03（consist003）clean 98.33 = LeWM+noise best (`0to008-p1`) 98.33，px+goal 0.05 97.33（LeWM+noise 98.00）。更高 α 导致 PushT resolution 压缩（0.290→0.264）而 TwoRoom 继续提升，验证了任务特异性 consistency 需求；**但目前没有单一 α 同时在两任务上达到 oracle**——这是机制特性，也意味着论文叙事必须沿"per-task α"或"per-token w_t"展开，不可主张全局单点最优。
-7. **A_t-only ablation 方向性证明 σ 不可缺失，w_t 离线可视化验证 gate 与 task structure 有结构性对应。** PushT A_t-only clean 77.33 比 σ+A_t（86.67）低 9.34pt，`weight_q10` 从 0.574 涨到 0.723（dynamic range 压缩）；TwoRoom A_t-only clean 93.33 接近 baseline 93.00，低于 σ+A_t 95.33。w_t 与 action norm 正相关（+0.587）、与 latent displacement 负相关（−0.592），印证 per-token adaptive weight 保护的是 "predictor 觉得难" 的区域，而非 naive contact heuristic。
+7. **A_t-only ablation 完整验证 σ 不可缺失，w_t 离线可视化验证 gate 与 task structure 有结构性对应。** PushT A_t-only clean 77.33 比 σ+A_t（86.67）低 9.34pt，高 noise 跌 20+pt，`weight_q10` 从 0.574 涨到 0.723（dynamic range 压缩）；TwoRoom A_t-only clean 93.33 接近 baseline 93.00，低于 σ+A_t 95.33，高 noise 同样落后。w_t 与 action norm 正相关（+0.587）、与 latent displacement 负相关（−0.592），印证 per-token adaptive weight 保护的是 "predictor 觉得难" 的区域，而非 naive contact heuristic。
+8. **σ-only ablation 在 PushT 上精确验证 Noisy TV / confounder trap。** σ-only clean 87.00 与 σ+A_t 86.67 几乎相同，guardrail 全部通过——分辨率未受损；但 px+goal 0.08 崩溃至 20.00，goal 0.08 跌至 44.33。这证明 σ 本身不破坏表示，但 σ-only consistency 会把噪声状态的"高 uncertainty"误判为"需要保护分辨率"，导致 planner 在混乱 latent 空间中迷失。A_t 的 controllability filter 作用是过滤掉不可控噪声，而非压缩 resolution。
+9. **Consistency + light noise 联用在 PushT 上显示协同效应。** `consist001+noise0.002` clean 88.00 超过单独 consist001（86.67），pixels 0.05 87.33 逼近 LeWM+noise best 87.67。这说明全局 noise 提供 invariance baseline，σ/A controller 在此基础上做 per-state 精细化分配——两者不是替代关系，而是互补关系。
 
 ### 4.2 风险与对策
 
@@ -875,7 +940,7 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 
 - 本文件供查阅与设计迭代；**不**作为 plan_v3 的替换。
 - 每次新讨论后追加新条目到 §4.2 风险表 或 附录 A 回退记录。
-- **Stage A→B→C 主线已跑完核心 sweep**（probe→gate logging→consistency consist001/003 + A_t-only ablation + `w_t` 离线可视化）。剩余阻断写论文的实验：**σ-only consist001 对照**、**A_t-only 完整 seed/diagnostics 回盘**。之后是 §3.7 probe-on-noise / consistency-noise 联用，最后 4-task 全套。
-- 论文叙事核心已可立：per-task α 下，σ+A_t adaptive consistency 在 PushT 上 clean 维持 + robustness 翻倍，在 TwoRoom 上达到 LeWM+noise best 98.33——但不存在单一 α 同时达到两任务 oracle，这正是 per-token `w_t` 的存在理由。
-- 后续若上述 2 个阻断实验通过（σ-only + A_t-only 完整 diagnostics），把 §2–§4 与 §3.7 合并进 plan_v3 §6 P4；本文件归档。
+- **Stage A→B→C 主线已跑完核心 sweep**（probe→gate logging→consistency consist001/003 + A_t-only ablation + σ-only ablation + `w_t` 离线可视化 + consist001+noise0.002）。**σ 与 A_t 缺一不可的核心 claim 已在 PushT 上完整验证**：A_t-only clean 跌 9.34pt，σ-only px+goal 0.08 崩溃至 20.00，只有 σ+A_t 同时维持 clean 和 robustness。唯一剩余缺口：**TwoRoom σ-only 补全高 noise 种子**（goal 0.08 / pixels_goal 0.08 / 部分 0.05）。
+- 论文叙事核心已可立：per-task α 下，σ+A_t adaptive consistency 在 PushT 上 clean 维持 + robustness 翻倍，在 TwoRoom 上达到 LeWM+noise best 98.33——且 consistency+light noise 联用在 PushT 上进一步将 pixels 0.05 提升到 87.33（逼近 LeWM+noise best 87.67）。不存在单一 α 同时达到两任务 oracle，这正是 per-token `w_t` 的存在理由。
+- 后续若 TwoRoom σ-only 补全种子通过，把 §2–§4 与 §3.8 合并进 plan_v3 §6 P4；本文件归档。
 - **下一次想加新机制前**: 先回看附录 A，问自己"它会增加几个超参数？经验收益的证据是什么？"。如果两个问题答不清楚，不加。

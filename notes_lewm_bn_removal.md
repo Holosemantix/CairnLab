@@ -1,7 +1,7 @@
 # LeWM 去 BN 的可行性与诊断
 
 > **状态**：未决，留作后续实验候选。本文记录"去掉 LeWM projection head 末端 BatchNorm1d"的动机、已观察现象、机制分析与诊断 / 实验建议。
-> **关系**：与 plan_v3 / plan_adaptive_resolution 主线无强依赖；属"BN train/test 不一致"这条独立线索。
+> **关系**：与 research_notebook_swm / plan_adaptive_resolution 主线无强依赖；属"BN train/test 不一致"这条独立线索。
 > **触发场景**：用户尝试 `encoder.projection_head.norm_fn=none` 训练，发现 SIGReg loss 居高不下、加权无效、target.detach() 也无效，怀疑梯度被掐断。
 
 ---
@@ -124,7 +124,7 @@ with torch.no_grad():
    - 若是 SIGReg knots 失配（最可能）：先试 **方案 A (LayerNorm)**，10 epoch full eval；不够再上 **方案 D**。
    - 若是 collapse：BN 本身在做 anti-collapse，去 BN 必须配 **L2-normalize（SWM）** 或 stop-grad + 非对称架构（LeWM 的 SimSiam-style 已有 `loss.target_stop_grad`，但需要同时加 predictor 路径不对称）。
    - 若是梯度断流：检查 head 之间梯度量级，调 `gradient_clip_val`。
-3. 任何方案落地前都要证明**不退步于 LeWM-base**（TwoRoom 93 / PushT 87.33 / Reacher 57.67 / Cube 72.33，详 plan_v3 §2.2）。
+3. 任何方案落地前都要证明**不退步于 LeWM-base**（TwoRoom 93 / PushT 87.33 / Reacher 57.67 / Cube 72.33，详 research_notebook_swm §2.2）。
 
 ---
 
@@ -134,7 +134,7 @@ with torch.no_grad():
 
 - 用户实际观察的失败现象有清晰机制解释（SIGReg knots 失配）。
 - 解决方案 A/D 都需要先完成诊断 + 小规模验证。
-- LeWM+noise 已经是强 baseline（plan_v3 §0），动 projector 架构有引入回退风险。
+- LeWM+noise 已经是强 baseline（research_notebook_swm §0），动 projector 架构有引入回退风险。
 - BN 的 train/test 不一致虽真实但量级小（1–2 epoch 后稳定），改动收益不明。
 
 **保留为后续候选**：如果 sigma-conditioned JEPA Pilot-1B 落地后想进一步追求架构简化（去除 train/test gap），再回来按 §6 顺序做。
@@ -143,6 +143,6 @@ with torch.no_grad():
 
 ## 8. 维护说明
 
-- 本文件不影响 plan_v3 / plan_adaptive_resolution 主线，单独存在以便后续单点决策。
+- 本文件不影响 research_notebook_swm / plan_adaptive_resolution 主线，单独存在以便后续单点决策。
 - 实验落地时把诊断结果与方案选择追加到 §4 / §5 / §6 对应位置。
 - 如方案 A/D 跑出正/负结论，更新 §7"现状结论"段。

@@ -1,6 +1,8 @@
-# 球面世界模型实验计划 V3
+# SWM 探索与 LeWM Noise Sweep 研究笔记
 
-> 当前定位：本文不是单纯记录"SWM 是否强于 LeWM"，而是整理一个更稳定的研究路线：**world model 的 latent geometry 如何匹配 planning 任务的状态分辨率需求**。原始设计见 `plan_v2.md`，完整流水实验见 `experiments.md`。
+> **本文档定位**：研究笔记，非论文主稿。涵盖 (1) SWM 球面世界模型探索路线（V0 已完成，V1/V2 未推进），(2) Contribution 1 (LeWM+noise) 的完整 4-task noise sweep + SWM 对照数据，(3) 诊断工具栈与 canonical-8 相关性分析。
+>
+> 论文主稿见 `plan_adaptive_resolution.md`（σ+A_t adaptive consistency = Contribution 2）；其附录 E 已抽取 TwoRoom + PushT 的 LeWM noise sweep 表作为论文 Contribution 1 详表。Reacher / Cube 数据 + SWM 对照保留在本文档 §4。原始设计见 `plan_v2.md`，流水实验见 `experiments.md`。
 
 ---
 
@@ -95,7 +97,7 @@ mu(o) = z / ||z||,  mu in S^{d-1}
 
 ### 3.3 当前 plan 内 "SWM-base" 默认配置（V0）
 
-> **注**：这是 plan_v3 中所有 SWM-base 数据点使用的 SWM-base ckpt 配置。它**不是**历史旧 4-task benchmark（90.8/89.8/74.0/66.0）使用的 SWM 配置——那批 ckpt 用 `lambda_0p1`、`无 temporal_masked`，已不可追溯。当前配置在 TwoRoom 与 PushT 上曾出现旧 single-seed clean=69.7/80.0；20260507 同 config retrain 后修正为 88.33/85.67。它仍低于早期 90.8/89.8 数字，差距可能来自 config、eval 口径和 seed 差异；跨历史 config 只能定性参考，不能直接作为方法优劣证据。
+> **注**：这是 research_notebook_swm 中所有 SWM-base 数据点使用的 SWM-base ckpt 配置。它**不是**历史旧 4-task benchmark（90.8/89.8/74.0/66.0）使用的 SWM 配置——那批 ckpt 用 `lambda_0p1`、`无 temporal_masked`，已不可追溯。当前配置在 TwoRoom 与 PushT 上曾出现旧 single-seed clean=69.7/80.0；20260507 同 config retrain 后修正为 88.33/85.67。它仍低于早期 90.8/89.8 数字，差距可能来自 config、eval 口径和 seed 差异；跨历史 config 只能定性参考，不能直接作为方法优劣证据。
 
 ```yaml
 wm:
@@ -981,7 +983,7 @@ P2 的原始假设是：SWM noise failure 是一种可通过标准方法（噪�
 | SWM 论文是否可写 | 4 任务 clean 至少 2 个任务 SWM > LeWM，或明确给出"SWM 是任务依赖的"叙事 | ⚠️ 当前 1 个（Cube），需 PushT 修复或接受"非全局"叙事 |
 
 **论文撰写入口**：
-- 先写 P0/P2/P4 的完整中文技术报告（作为 `plan_v3.md` 与 `plan_adaptive_resolution.md` 的精炼版）。
+- 先写 P0/P2/P4 的完整中文技术报告（作为 `research_notebook_swm.md` 与 `plan_adaptive_resolution.md` 的精炼版）。
 - 再写 NeurIPS/ICML 风格的英文论文（引言 + 方法 + 实验 + 讨论）。
 - 关键约束：不能把"旧 4 任务平均叙事"当作标题级结论；标题必须是"Task-Dependent Spherical World Models"或"Adaptive Spherical Representations for Visual Planning"。
 
@@ -1204,8 +1206,8 @@ repr_analysis/
 
 | 文件 | 路径 |
 |---|---|
-| 原始流水账计划（仅历史参考） | `plan_v3.md` 版本历史（git log） |
-| 当前重组版 | `plan_v3.md` |
+| 原始流水账计划（仅历史参考） | `research_notebook_swm.md` 版本历史（git log） |
+| 当前重组版 | `research_notebook_swm.md` |
 | 自适应分辨率子计划 | `plan_adaptive_resolution.md` |
 | 评估主脚本 | `eval.py` |
 | 训练主脚本（LeWM） | `train.py` |

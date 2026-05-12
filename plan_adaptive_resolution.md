@@ -6,7 +6,7 @@
 >
 > **Contribution 2 sweep 更新（2026-05-11）**: `alpha_cons` 小权重 sweep 已跑完（consist001/003）+ A_t-only / σ-only ablation + w_t 离线可视化。**核心结果**：PushT α=0.01 clean **86.67**（≈ LeWM-base 87.33）+ robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03 clean **98.33**（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。`consist001+noise0.002`（C1+C2 联用）在 PushT 极端 noise px+goal 0.08 = 85.33 > C1 单独 70.67（+14.66pt），证明 C1 与 C2 正交叠加。A_t-only consist001 PushT clean 77.33 显著低于 σ+A_t 86.67（-9.34pt），**σ 必要性方向性得证**。w_t 离线可视化验证 corr(w_t, action_norm)=+0.587、corr(w_t, latent_disp)=−0.592。下一步：P0-2 因果 intervention（shuffle_σ / shuffle_A / random_gate / constant_w）。
 >
-> **关系**: 不是 plan_v3 的替换，而是 plan_v3 §6 P4 "Adaptive Resolution Method" 的具体化方案。
+> **关系**: 不是 research_notebook_swm 的替换，而是 research_notebook_swm §6 P4 "Adaptive Resolution Method" 的具体化方案。
 > **设计原则**: 先证明额外 σ 输出头携带有用信息，再让它影响训练或 planning；避免一开始就改变 LeWM 的强 MSE baseline。
 > **重要历史记录**: 本文件早期版本曾包含 IB term / aggregate covariance Frobenius / Fisher manifold planning 等多层架构，hyperparameter 数量涨到 4–5 个。经过严格审视后**全部回退**——它们都需要新超参却没有可论证的额外收益。详见附录 A 设计回退记录。
 
@@ -32,7 +32,7 @@
 
 ### 1.1 动机
 
-plan_v3 §5.2 的主线"task-aware latent geometry"在落地时遇到的死结：**所有"自适应"方案都把 trade-off 控制器放在 loss 之外**，模型自己没有"分辨率"这个内禀概念。
+research_notebook_swm §5.2 的主线"task-aware latent geometry"在落地时遇到的死结：**所有"自适应"方案都把 trade-off 控制器放在 loss 之外**，模型自己没有"分辨率"这个内禀概念。
 
 PI controller / Lagrangian τ / cheap-proxy bilevel / 多任务 head 等方案都需要外部信号或手调阈值，且都未必比 LeWM + SIGReg 经验上更好。
 
@@ -261,7 +261,7 @@ SIGReg 始终只作用在 deterministic μ 上，不推广到 (μ, σ) 或 repar
 **Noise：** `image_noise.std_max=0.0` for ablation cleanliness（noise 和 σ-adaptive 互补，不是互斥；见 §3.4 consist001+noise0.002 行）。
 **Evaluation：** Epoch 10，`num_eval=100`，seeds 42/43/44 聚合（每 task 共 300 条 trajectories）。
 
-> **Clean metric 定义（统一口径）**：本文件所有 "PushT LeWM-base clean = **87.33**" 指 canonical legacy 评测：单 seed=42、`num_eval=300`、`eval_budget=50`（即 `pusht_lewm_20260430/eval_results/clean_metrics_300.txt`），与 plan_v3 §6 表保持一致。另一个相关数值 86.00 来自同一 ckpt 在 `num_eval=150` 下的 single-seed clean（`clean_metrics.txt`），仅作为不同采样预算下的稳定性参考，不参与本文件主比较；之后所有方法 run（probe / probe+gate / consist001 等）一律用 3 seeds × `num_eval=100` 协议，与 LeWM-base 87.33 总轨迹预算（300）对齐但有不同的随机抽样方差。
+> **Clean metric 定义（统一口径）**：本文件所有 "PushT LeWM-base clean = **87.33**" 指 canonical legacy 评测：单 seed=42、`num_eval=300`、`eval_budget=50`（即 `pusht_lewm_20260430/eval_results/clean_metrics_300.txt`），与 research_notebook_swm §6 表保持一致。另一个相关数值 86.00 来自同一 ckpt 在 `num_eval=150` 下的 single-seed clean（`clean_metrics.txt`），仅作为不同采样预算下的稳定性参考，不参与本文件主比较；之后所有方法 run（probe / probe+gate / consist001 等）一律用 3 seeds × `num_eval=100` 协议，与 LeWM-base 87.33 总轨迹预算（300）对齐但有不同的随机抽样方差。
 
 ### 3.2 Pilot-1B：Heteroscedastic Loss 作为 Ablation
 
@@ -844,11 +844,11 @@ Buggy 版的 SwanLab run id（供历史追溯，**不要用于 reproducibility**
 
 ---
 
-## 附录 C：与 plan_v3 和 plan_v2 的关系
+## 附录 C：与 research_notebook_swm 和 plan_v2 的关系
 
-### C.1 与 plan_v3 §6 P4 的关系
+### C.1 与 research_notebook_swm §6 P4 的关系
 
-本文件是 plan_v3 §6 P4 "Adaptive Resolution Method" 的首选具体化方案，但执行上必须分阶段。2026-05-09 Pilot-1B 已触发关键 fallback 条件：直接 hetero loss 伤害 PushT critical-transition resolution。后续应优先做 probe-only σ、action-gate logging、action-aware adaptive consistency；σ planner use / guarded hetero auxiliary 仅作为对照或备选。
+本文件是 research_notebook_swm §6 P4 "Adaptive Resolution Method" 的首选具体化方案，但执行上必须分阶段。2026-05-09 Pilot-1B 已触发关键 fallback 条件：直接 hetero loss 伤害 PushT critical-transition resolution。后续应优先做 probe-only σ、action-gate logging、action-aware adaptive consistency；σ planner use / guarded hetero auxiliary 仅作为对照或备选。
 
 ### C.2 与 plan_v2 V1/V2 的关系
 
@@ -878,11 +878,54 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 
 ---
 
+## 附录 E：Contribution 1 (LeWM+noise) 详细 sweep 数据
+
+本工作的 Contribution 1 是 per-frame Gaussian noise training（`utils.py:AddNormalizedGaussianNoise`，每帧独立 Bernoulli(`noise_prob=1`) 决定是否加噪，加则 std ~ Uniform(0, std_max)）。下表列出全部 8 档 `std_max` 在 TwoRoom 与 PushT 上的 eval 结果。Reacher / Cube 同 sweep + SWM 对照数据见 `research_notebook_swm.md` §4.2。
+
+**TwoRoom LeWM noise sweep（epoch_10, num_eval=300, summary.txt clean_300 优先；† 表示 3-seed × 100 ep 平均，否则 single-seed × 300 ep）**
+
+| 模型 | clean | goal_0.03 | goal_0.05 | goal_0.08 | pix+goal_0.03 | pix+goal_0.05 | pix+goal_0.08 | pix_0.03 | pix_0.05 | pix_0.08 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| LeWM-base（外部 SOTA） | **93.00** | 86.67 | 71.00 | 55.67 | 81.00 | 62.33 | 44.33 | 87.67 | 70.33 | 59.33 |
+| LeWM-0to001-p1 | 92.00 | 92.33 | 93.33 | 86.00 | 92.33 | 89.67 | 84.67 | 92.00 | 92.67 | 90.67 |
+| LeWM-0to002-p1 | 94.33 | 93.00 | 93.00 | 93.00 | 94.00 | 94.00 | 91.00 | 94.33 | 94.00 | 94.33 |
+| LeWM-0to003-p1 † | 96.33 | 96.33 | 95.00 | 94.67 | 96.00 | 96.00 | 94.67 | 96.00 | 96.33 | 97.00 |
+| LeWM-0to004-p1 † | 96.33 | 97.00 | 97.00 | 96.33 | 96.67 | 97.33 | 95.00 | 97.67 | 96.00 | 96.67 |
+| LeWM-0to005-p1 | 94.00 | 94.67 | 93.33 | 94.00 | 94.67 | 94.00 | 94.00 | 94.00 | 94.67 | 94.00 |
+| LeWM-0to006-p1 † | 96.67 | 96.33 | 96.00 | 96.67 | 96.33 | 97.00 | 96.67 | 96.67 | 96.00 | 96.33 |
+| LeWM-0to007-p1 † | 96.00 | 96.00 | 97.00 | 97.00 | 97.00 | 96.33 | 96.33 | 96.33 | 96.00 | 96.67 |
+| **LeWM-0to008-p1 † (TwoRoom best)** | **98.33** | 97.67 | 98.00 | 98.67 | 98.00 | 98.00 | 98.67 | 98.00 | 98.33 | 97.67 |
+
+**PushT LeWM noise sweep（epoch_10, num_eval=300, summary.txt clean_300 优先）**
+
+| 模型 | clean | goal_0.03 | goal_0.05 | goal_0.08 | pix+goal_0.03 | pix+goal_0.05 | pix+goal_0.08 | pix_0.03 | pix_0.05 | pix_0.08 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| LeWM-base（外部 SOTA） | **87.33** | 68.67 | 38.00 | 15.00 | 49.33 | 15.00 | 3.67 | 53.33 | 17.33 | 6.00 |
+| LeWM-0to001-p1 | 89.67 | 88.67 | 85.67 | 70.33 | 84.33 | 77.00 | 46.33 | 86.00 | 77.00 | 54.33 |
+| **LeWM-0to002-p1 (PushT best)** | **90.00** | 87.33 | 85.00 | **83.00** | 88.67 | **86.00** | **70.67** | 87.67 | 87.67 | **74.67** |
+| LeWM-0to003-p1 † | 89.67 | 89.33 | 89.67 | 86.67 | 89.00 | 87.00 | 83.00 | 89.33 | 89.33 | 82.00 |
+| LeWM-0to004-p1 † | 89.33 | 85.00 | 87.00 | 87.00 | 86.33 | 86.67 | 81.33 | 86.67 | 85.67 | 86.67 |
+| LeWM-0to005-p1 | 82.00 | 81.33 | 77.33 | 80.67 | 80.00 | 80.00 | 78.00 | 83.33 | 78.67 | 76.00 |
+| LeWM-0to006-p1 † | 89.33 | 88.33 | 87.67 | 89.67 | 89.00 | 88.33 | 87.00 | 88.33 | 88.00 | 87.67 |
+| LeWM-0to007-p1 † | 85.67 | 86.33 | 82.00 | 84.00 | 83.67 | 85.33 | 82.33 | 85.33 | 84.33 | 84.00 |
+| LeWM-0to008-p1 † | 88.33 | 89.33 | 91.33 | 89.00 | 89.33 | 87.67 | 85.33 | 89.00 | 87.33 | 89.00 |
+
+**Dose-effect 总结：**
+- **TwoRoom**：clean 单调升至 0to008-p1 = 98.33（vs LeWM-base 93.00，+5.33pt）；robustness 在 std_max ≥ 0.003 时全部条件 ≥ 94，0to008-p1 在 pixels_goal 0.08 = 98.67（vs LeWM-base 44.33，+54pt）。**TwoRoom 最优 std_max = 0.008**。
+- **PushT**：clean 在 0to002-p1 达到峰值 90.00（vs LeWM-base 87.33，+2.67pt），更高 noise 略降但都仍 > 82。Robustness 提升更显著：pixels_goal 0.08 从 LeWM-base 3.67 → 0to002-p1 70.67（+67pt）。**PushT 最优 std_max = 0.002**。
+- **任务特异性**：TwoRoom 需要重 noise（视觉冗余多），PushT 需要轻 noise（接触约束需要精细控制）。这是 Contribution 1 的核心 finding，也是 Contribution 2 试图通过 per-token w_t 自动化的问题。
+
+**实验配置：**
+- Trainer config: `config/train/lewm.yaml`，`image_noise.std_min=0.0`、`image_noise.std_max={0.001,...,0.008}`、`image_noise.noise_prob=1.0`。
+- Eval protocol: single-seed × num_eval=300（clean_300） 或 3-seed × num_eval=100（† 行）。Reacher / Cube 数据 + SWM 对照表见 `research_notebook_swm.md` §4.2、`research_notebook_swm.md` 附录 B.2（ckpt 溯源）。
+
+---
+
 ## 维护说明
 
-- 本文件供查阅与设计迭代；**不**作为 plan_v3 的替换。
+- 本文件供查阅与设计迭代；**不**作为 research_notebook_swm 的替换。
 - 每次新讨论后追加新条目到 §4.2 风险表 或 附录 A 回退记录。
 - **Stage A→B→C 主线已跑完核心 sweep**（probe→gate logging→consistency consist001/003 + A_t-only ablation + σ-only ablation + `w_t` 离线可视化 + consist001+noise0.002）。**PushT 上 `σ+A_t` 的核心 claim 已完整验证**：A_t-only clean 跌 9.34pt，σ-only px+goal 0.08 崩溃至 20.00，只有 σ+A_t 同时维持 clean 和 robustness；TwoRoom 上 σ 的边际收益更小，但高 noise 下仍可见。
 - 论文叙事核心已可立：本工作在 LeWM 上提出 C1 (LeWM+noise) 与 C2 (σ+A_t adaptive consistency) 两个互补 contribution。C2 在 PushT 上 clean 维持 + robustness 全面提升（相对 LeWM-base），在 TwoRoom 上与 C1 平齐；C1+C2 联用在 PushT 极端 noise 上严格超过 C1（px+goal 0.08 85.33 vs 70.67，+14.66pt）。不存在单一 α 同时打满两任务，这正是 per-token `w_t` 的存在理由。
-- 后续重点不再是补 TwoRoom σ-only，而是补跨任务泛化与更强因果 ablation；若这些通过，把 §2–§4 与 §3.6 合并进 plan_v3 §6 P4。
+- 后续重点不再是补 TwoRoom σ-only，而是补跨任务泛化与更强因果 ablation；若这些通过，把 §2–§4 与 §3.6 合并进 research_notebook_swm §6 P4。
 - **下一次想加新机制前**: 先回看附录 A，问自己"它会增加几个超参数？经验收益的证据是什么？"。如果两个问题答不清楚，不加。

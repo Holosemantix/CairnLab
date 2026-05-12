@@ -821,6 +821,58 @@ done
 | **Logging-only diagnostic 的 stateful side-effect 风险**（train-mode BN / Dropout 等） | 任意需要 train-mode forward 的诊断（如 gate 内 K 次 perturb forward）都可能通过 BN running stats 等 stateful buffer 间接影响主训练。 | gate 内 K 次 perturb forward 在 freeze-BN 下执行；adaptive consistency 保持该语义。实例与诊断细节见附录 A.1。 |
 | **σ+A_t (C2) 单独使用不显著超过 LeWM+noise (C1)** | 同一作者的两条 contribution，C2 单独时在主流指标上与 C1 相当；这本身不是问题，但需要清晰的卖点划分 | (a) C2 卖点是"无需 per-task noise 调参"；(b) C1+C2 联用在 PushT 极端 noise 上 +14.66pt，证明二者正交叠加；(c) reviewer 若仍要求"C2 单独超过 C1"，回退到把 C1+C2 联用作为论文主线 |
 
+### 4.2.1 Future Discussion：Weighted-SIGReg as a Risky Ablation
+
+前一轮讨论中出现过一个看似优雅的替代方向：**不再额外加 `L_cons`，而是直接用 `critical_t` 去调制 SIGReg 的 repulsion 强度**，把"表达体积该分给谁"的问题直接打到 anti-collapse regularizer 里。这个方向**值得作为 future discussion / risky ablation 记录**，但当前不进入主线，原因有三：
+
+1. **它不等价于 adaptive consistency。** `L_cons` 是 clean/noisy 配对上的显式 input-side invariance；SIGReg 是 batch-level anti-collapse prior。前者是 pairwise attraction，后者是 global repulsion。给 SIGReg 加权，最多是在重分配"谁被推开得更多"，并不能自然替代"同一状态的两个 view 应靠近"这一机制。
+2. **它会重新打开 μ-path gradient reallocation 的风险。** 虽然 Weighted-SIGReg 不像 hetero NLL 那样直接改 prediction loss，但本质上仍然是在用 `critical_t` 重写 deterministic μ 的 regularization 梯度分布。PushT 上已经有足够证据说明："hard/errorful" 与 "不重要" 不等价，因此任何 loss-side / reg-side reweight 都应被视作高风险。
+3. **当前 SIGReg 实现不是简单 variance penalty。** LeWM 里的 `SIGReg` 是 random projection 下对 Gaussian target characteristic function 的 Epps-Pulley matching（见 `module.py::SIGReg`），因此不能把 "weighted variance" 直接叫做 "weighted SIGReg"。若要严谨试验，必须先定义加权经验 characteristic function。
+
+如果未来要把它作为 ablation 跑，推荐只做 **blend** 而不是 **hard replace**。定义 detached repulsion weight：
+
+```math
+r_{t,b} = \mathrm{clip}\!\left(1 + \eta\,(c_{t,b} - \bar c_t),\ r_{\min},\ r_{\max}\right),
+\qquad
+\pi_{t,b} = \frac{r_{t,b}}{\sum_{j=1}^{B} r_{t,j}}
+```
+
+其中 `c_{t,b}` 是 detached `critical_t`，`r_min > 0` 用来防止 effective sample size 崩掉。对每个随机投影 `a_m` 与积分节点 `u_k`，令
+
+```math
+y_{t,b,m} = a_m^\top z_{t,b},
+\qquad
+\hat{\phi}^{\,w}_{t,m}(u_k) = \sum_{b=1}^{B} \pi_{t,b} e^{i u_k y_{t,b,m}}
+```
+
+则 weighted-SIGReg 可写为
+
+```math
+L_{\mathrm{wSIG}} =
+\frac{1}{TM}\sum_{t=1}^{T}\sum_{m=1}^{M}
+N_{\mathrm{eff},t}
+\sum_k \omega_k
+\left|
+\hat{\phi}^{\,w}_{t,m}(u_k) - \phi_{\mathcal N(0,1)}(u_k)
+\right|^2,
+\qquad
+N_{\mathrm{eff},t} = \frac{1}{\sum_b \pi_{t,b}^2}
+```
+
+最稳妥的训练式不是替掉原始 SIGReg，而是
+
+```math
+L_{\text{total}} =
+L_{\text{pred}}
++ \lambda_{\text{sig}}
+\big[(1-\beta_{\text{ws}})L_{\text{SIG}} + \beta_{\text{ws}}L_{\text{wSIG}}\big]
++ \beta_{\text{probe}}L_{\text{probe}}
+```
+
+其中 `critical_t` 全部 detach，且仅在 probe warmup 后启用。它的论文定位应当是：
+- **risky ablation**：测试 "仅靠重分配 anti-collapse repulsion，是否能替代 adaptive consistency"；
+- **future discussion**：若它在 TwoRoom 这类冗余视觉任务上有效、但在 PushT 这类 action-critical 连续控制上失败，则反而会强化本文主线结论：**adaptive invariance 与 anti-collapse budget allocation 不是同一件事。**
+
 ### 4.3 诊断工具的角色定位
 
 之前版本主张"17 个诊断指标 = (μ, σ) 框架的 2–3 个本征轴"。**这个主张过于激进**——它假设所有诊断都能被 (μ, σ) 解释，且压缩比可观。这是 empirical question，需要 Pilot-1 数据验证。
@@ -901,6 +953,7 @@ Buggy 版的 SwanLab run id（供历史追溯，**不要用于 reproducibility**
 |---|---|
 | EMA target encoder | 违反 LeWM 单 encoder 哲学；SIGReg 已经替代了 EMA 的 anti-collapse 功能 |
 | 把 SIGReg 推广到 stochastic (μ, σ) via reparametrization | Gaussian mixture 高阶矩与 heteroscedasticity 冲突，需要"deliberate weakening"——把 SIGReg 砍到只剩二阶矩。这就是放弃了 SIGReg 大半价值 |
+| Weighted-SIGReg（用 `critical_t` 调制 SIGReg repulsion） | 可作为 future discussion / risky ablation，但不能替代主线 AAAC：`L_cons` 提供的是显式 input-side invariance，而 SIGReg 只是在 batch aggregate 上防 collapse；同时它仍属 reg-side gradient reallocation，PushT 风险高 |
 | Aggregate covariance Frobenius regularizer | 替代上一项，但额外引入 λ_agg；和 LeWM 比超参数 +1 |
 | Information Bottleneck term `−β/2·E[log σ²]` | 即便 σ 可以通过 NLL calibration，IB 上界仍会引入 β 新超参数；先不加 |
 | Fisher manifold planning（CEM 用 Mahalanobis cost） | (a) 不是真正 Fisher 距离（仅一阶近似）；(b) σ-drift hallucination 风险（CEM 会优化到高 σ 状态）；(c) 修改 planner 引入新接口，违反"不改 inference 路径"的最小改动约束；(d) σ_goal 没明确来源 |

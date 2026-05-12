@@ -739,7 +739,7 @@ TwoRoom σ-only 与 σ+A_t 在 clean / 中噪声条件上几乎重合，高噪�
 
 **论文叙事**：`w_t` 不是简单地与 "contact = high action norm" 线性对应，而是与 **action sensitivity / transition difficulty** 对应。这恰恰说明 per-token adaptive weight 比全局 consistency 或 naive contact heuristic 更精细：它保护的是 "predictor 觉得难" 的区域，而不是 "人类标注的 contact" 区域。
 
-### 3.8 结论总结与待做实验
+### 3.8 结论总结与顶会主表路线图
 
 **整体路线回顾**：LeWM-base → hetero-loss ablation（失败）→ probe-only σ（成功）→ logging-only action-gate（成功）→ adaptive consistency sweep（成功）。核心创新不是"加一个 σ head"，而是**σ + A_t 共同控制 per-token consistency**，让 encoder 在 action-critical 区域保留分辨率、在视觉冗余区域加强 invariance。
 
@@ -772,51 +772,81 @@ TwoRoom σ-only 与 σ+A_t 在 clean / 中噪声条件上几乎重合，高噪�
 4. ✅ BN drift fix 语义保持（consist001/003 均使用 freeze-BN gate）。
 5. ✅ **σ 与 A_t 在 PushT 上缺一不可**：A_t-only PushT clean 跌 9.34pt（77.33 vs 86.67），σ-only PushT px+goal 0.08 崩溃至 20.00（vs σ+A_t 37.00）；只有 σ+A_t 联合使用才能在 PushT 上同时维持 clean（86.67）和 robustness（goal 0.08 63.00，px+goal 0.08 37.00）。TwoRoom 上这个结论更弱。
 
-**待做实验（按优先级）**：
+**与 Noise 训练联用（已验证 + 待扩）**：
+机制上 +noise 和 σ-adaptive 处于不同位置：noise 是 input-side 的 isotropic 数据增广，σ 是 output-side 的 per-state difficulty 信号，`A_t` 是 controllability filter，三者互补。`consist001+noise0.002` 在 PushT 上 clean 88.00（超过单独 consist001 的 86.67）、pixels 0.05 87.33 逼近 LeWM+noise best 87.67、px+goal 0.05 85.33 超过 consist001 的 70.67（+14.66pt），印证 **light noise + adaptive consistency 在 PushT 上协同**；TwoRoom 上 noise0.002（clean 95.33, px+goal 0.05 94.00）与 consist001（95.33 / 92.00）接近，noise 的边际效用较低。下一步剂量 sweep（`std_max=0.03–0.05` × α=0.01–0.03）列入 P3-2。
 
-| Experiment | TwoRoom | PushT | 目的 | 优先级 |
-|---|---:|---:|---|---|
-| **因果 intervention 四件套**（`loss.action_gate.intervention=` `shuffle_sigma` / `shuffle_action` / `random_gate` / `constant_w`） | yes | yes | 把 controller 必要性从 "ablation 对照" 升到 "intervention 因果"；shuffle_σ/A 应 degrade 到 σ-only / A_t-only 水平，random_gate 应 degrade 到 LeWM-base 水平，constant_w 应失去 robustness 增益 | **最高（P0-2）** |
-| 跨任务覆盖（Reacher + Cube 至少补一个，σ+A_t consist001 + A_t-only + σ-only 三连） | — | — | 验证剂量效应不是 PushT/TwoRoom 巧合 | **高（P0-1）** |
-| 5 seeds 升级 + 统一 protocol（100×5 或 300×3） | yes | yes | 主表 reviewer 要求 | 高 |
-| Uncertainty-only gate 邻近对照（dropout var / predictor ensemble var 替换 σ） | yes | yes | 防止 reviewer 说 "你的 σ 只是变相的 epistemic uncertainty" | 中 |
-| Global consistency 对照（per-batch scalar w，非 per-token） | yes | yes | 防止 reviewer 说 "adaptive 不重要，加 consistency 就够了" | 中 |
-| `lewm_sigma_probe_on_noise` | yes | yes | noise 训练下 σ calibration 是否漂移 | 中 |
-| w_t 可视化 figure（PushT trajectory 上 w_t 时间序列 + contact 标注） | — | yes | 顶会必有的 qualitative figure | 中 |
+#### 3.8.1 通往顶会主表的工作清单（P0 → P3）
 
-> **Intervention 实现说明（2026-05-12 落地）**：`loss.action_gate.intervention` 配置开关已加入（`config/train/lewm.yaml:140`，`train.py:compute_action_gate_metrics`）。四个值的语义：
-> - `shuffle_sigma`：对 s_t 在 (B,T) flatten 维 `randperm` 后再做 zscore；保留 σ 的边缘分布，破坏 σ↔state 对应。期望 `corr_sigma_action` 跌至 ~0。
-> - `shuffle_action`：对 log_A 做同样处理。
-> - `random_gate`：直接把 `critical` 替换成 `U(0,1)`，再算 w_t。
-> - `constant_w`：把 per-token w_t 拍平成当前 batch 的标量均值，保留 mean consistency 强度，只杀 per-token spread。
->
-> 训练命令示例（PushT shuffle_σ）：
-> ```bash
-> python train.py data=pusht \
->   loss.hetero.enabled=true loss.hetero.mode=probe \
->   loss.action_gate.enabled=true loss.action_gate.intervention=shuffle_sigma \
->   loss.adaptive_consistency.enabled=true loss.adaptive_consistency.weight=0.01 \
->   loss.adaptive_consistency.noise_std_max=0.04 \
->   experiment.name=pusht_lewm_consist001_shuffle_sigma
-> ```
-> 4 interventions × 2 tasks × 3 seeds = 24 个新 run，复用 consist001 配方。
+按"缺这块论文是否还能投顶会"的严苛标准分层。P0 必须在投稿前完成，P1 决定主表是否经得住 reviewer，P2 是写作期能补上的元数据/figure 工作，P3 是锦上添花的扩展。
 
-**与 Noise 训练联用（§3.8，已部分执行）**：
-目前的叙事链是 LeWM-base → LeWM+noise → 因此需要 adaptive resolution。机制上 +noise 和 σ-adaptive 处于不同位置：noise 是 input-side 的 isotropic 数据增广，σ 是 output-side 的 per-state difficulty 信号，`A_t` 是 controllability filter，三者互补。
+##### P0 — 不做的话方法本体站不住
 
-**已执行结果**：`consist001+noise0.002` 在 PushT 上表现优异——clean 88.00（超过 consist001 的 86.67），pixels 0.05 87.33 逼近 LeWM+noise best 87.67，px+goal 0.05 85.33 超过 consist001 的 70.67（+14.66pt）。这说明 **light noise 增广与 adaptive consistency 在 PushT 上有协同效应**：全局 invariance baseline 由 noise 提供，per-token σ/A controller 在此基础上做精细化分配。TwoRoom 上 noise0.002 结果（clean 95.33, px+goal 0.05 94.00）与 consist001（95.33 / 92.00）接近，没有 PushT 那样显著的额外增益——因为 TwoRoom 本身已能耐受较高 consistency，noise 的边际效用较低。
+| ID | 任务 | 状态 | 备注 |
+|---|---|---|---|
+| **P0-1** | 跨任务覆盖 ≥ 4（再补 1 个 continuous-control，1 个视觉冗余 / 长 horizon；σ+A_t consist001 + A_t-only + σ-only 三连） | 未开始 | Reacher（已有 LeWM-noise ckpt 可对比）/ Cube 二选一优先；目的不是再赢一次，而是验"action-critical 耐受低 α、冗余视觉耐受高 α"的剂量效应不是 PushT/TwoRoom 巧合 |
+| **P0-2** | 因果 intervention 四件套（`loss.action_gate.intervention=` `shuffle_sigma` / `shuffle_action` / `random_gate` / `constant_w`） | 代码已落地（`train.py:compute_action_gate_metrics`，`config/train/lewm.yaml:140`），未跑 | 4 interventions × 2 tasks × 3 seeds = 24 个 run；复用 consist001 配方。预期：shuffle_σ → A_t-only 水平、shuffle_A → σ-only 水平、random_gate → ≈ LeWM-base、constant_w 失去 robustness 增益 |
 
-**后续可选实验**：
-1. **Probe-on-noise**：LeWM+noise ckpt 加 σ probe（μ path 不变）。检查 σ 在 noise 训练下是否仍稳定 calibration。
-2. **Consistency-on-noise 更高剂量**：`std_max=0.03–0.05` 与 α=0.01–0.03 的联合 sweep。
+**P0-2 Intervention 语义与启动命令**（落地于 2026-05-12）：
 
-**开放问题**：
+| Intervention | 干预位置 | 期望破坏 | 期望 sanity diagnostic |
+|---|---|---|---|
+| `shuffle_sigma` | s_t 在 (B,T) 维 `randperm` 后再 zscore | σ↔state 对应（保留 σ 边缘分布） | `corr_sigma_action → 0` |
+| `shuffle_action` | log_A 同样处理 | A_t↔state 对应 | `corr_sigma_action` 失去任何结构性正负 |
+| `random_gate` | 把 `critical` 替换成 `U(0,1)`，重算 w_t | σ 与 A 信号全部 | `adaptive_critical_mean → 0.5`，`q10-q90 → ~0.8`（理论值） |
+| `constant_w` | w_t 拍平成当前 batch 标量均值 | per-token spread（保留 mean pressure） | `adaptive_weight_q10 == adaptive_weight_q90` |
+
+```bash
+# PushT 全套 intervention sweep（α=0.01 复用 consist001）
+for iv in shuffle_sigma shuffle_action random_gate constant_w; do
+  for s in 42 43 44; do
+    python train.py data=pusht seed=$s \
+      loss.hetero.enabled=true loss.hetero.mode=probe \
+      loss.action_gate.enabled=true loss.action_gate.intervention=$iv \
+      loss.adaptive_consistency.enabled=true loss.adaptive_consistency.weight=0.01 \
+      loss.adaptive_consistency.noise_std_max=0.04 \
+      experiment.name=pusht_lewm_consist001_${iv}_seed${s}
+  done
+done
+# TwoRoom 同套，α 改 0.03 与 consist003 对齐
+```
+
+##### P1 — protocol & baseline 不到位 reviewer 主表就不认
+
+| ID | 任务 | 备注 |
+|---|---|---|
+| **P1-1** | 5 seeds 升级 + 统一 eval protocol（100×5 = 500 traj 或 300×3 = 900 traj，全文一套不可混用） | 当前 3 seeds × 100 traj = 300 traj，PushT 上 std=2.4–5.9，差异 ≤5pt 时 reviewer 会要求 ≥5 seeds |
+| **P1-2** | Uncertainty-only gate 邻近对照（dropout variance / predictor ensemble var 替换 σ，复用 action_gate 框架） | 防 reviewer 说"你的 σ 只是变相的 epistemic uncertainty"；如果 dropout-var 也能 work，叙事须扩成"任何 per-token difficulty 信号 + A_t 都成立"，而不是"σ 不可替代" |
+| **P1-3** | Global consistency 对照（per-batch 标量 w 而非 per-token，等价 `constant_w` 的另一种实现） | 防 reviewer 说"adaptive 不重要，加 consistency 就够了" |
+| **P1-4** | `lewm_sigma_probe_on_noise`：LeWM+noise ckpt 加 σ probe，μ-path 不变 | 检查 σ 在 noise 训练下是否仍稳定 calibration |
+
+##### P2 — 写作期 reproducibility / figure / claim 收缩
+
+| ID | 任务 | 备注 |
+|---|---|---|
+| **P2-1** | 钉死所有 run 的 SwanLab run id（不只 PushT probe / probe+gate，所有 consist001/003、A_t-only、σ-only、noise002、intervention） | 2026-05-12 已补 §3.3 PushT probe 重名 caveat；其余仍待 audit。reviewer 检 metadata 会一眼抓重名 |
+| **P2-2** | 全文 claim 收缩：把"σ 与 A_t 缺一不可"统一改成"在 action-critical 连续控制（PushT）上 σ 与 A_t 缺一不可；TwoRoom 上 σ 是边际增益" | 主线段落已部分收缩，主表 / 摘要 / abstract / introduction 仍要再扫一遍 |
+| **P2-3** | w_t qualitative figure：PushT trajectory 上 w_t 时间序列 + contact 时刻标注（3–5 条 episode） | 顶会必有的图。现有 `tools/repr_analysis/visualize_wt.py` 是 offline 工具，需扩成 per-trajectory 时间序列 + 关键帧叠图 |
+| **P2-4** | 理论侧 1 页：解释 `critical = gA · (0.5 + 0.5·gS)` 为何不是 σ/A 的线性组合 | sketch 形式：noise-vs-difficulty decomposition，从 confounder trap 角度论证为何必须 multiplicative |
+
+##### P3 — 锦上添花扩展
+
+| ID | 任务 | 备注 |
+|---|---|---|
+| **P3-1** | 跨任务固定 α / 归一化 α 实验（同一组超参数通吃 ≥ 3 任务） | 若成立，叙事从"per-task α"升级到"adaptive resolution 是 universal mechanism" |
+| **P3-2** | Consistency-on-noise 更高剂量 sweep：`std_max=0.03–0.05` × α=0.01–0.03 | 把 §3.8 已观察到的协同效应扩成正式 sweep table |
+| **P3-3** | 外部 baseline placement：Dreamer-V3 actor variance / TD-MPC2 reward-conditioned consistency 与本工作 per-token σ+A 在 latent JEPA 上的对比 | 帮 reviewer 把工作放进领域版图，不是必需 |
+
+##### Sprint 建议
+
+1. **本周**：起 P0-2 全套 intervention sweep（24 runs，复用现有 consist001 配方，无需新 ckpt 准备）。同期写 P2-3 的 w_t figure 脚本。
+2. **下周**：根据 P0-2 结果调整 §3.5/§3.6 的 claim 强度；起 P0-1 的 1 个新任务三连（先选 Reacher，已有 LeWM-noise 对照）。
+3. **2–3 周后**：跑 P1-1 的 5-seeds 主表升级 + P1-2/P1-3 的邻近对照。
+4. P2 系列穿插在写作周完成；P3 视投稿截止决定是否补。
+
+**开放问题（与上述 todo 解耦的研究问题）**：
 - σ 的 multi-step propagation 在 rollout 下是否仍然校准？
 - A_t 的 local sensitivity 与任务全局结构（如 door crossing in TwoRoom）是否有系统性对应？
 - 是否需要一个 encoder-side input-sensitivity head（§2.1.3）来闭合 encoder→controller 的反馈环？
-
-**4-Task 全套验证**：
-Reacher 和 Cube 待跑。当前 TwoRoom + PushT 的结果已足够支撑论文核心 claim；4-task 验证在论文初稿后再补。
 
 ## 4. 讨论
 

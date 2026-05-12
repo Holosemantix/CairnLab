@@ -567,6 +567,18 @@ Fixbug 后 `compute_action_gate_metrics` 内 BN 被临时冻结、所有输出 d
 
 ### 3.4 Stage C：Adaptive Consistency Sweep
 
+**Runs（SwanLab IDs，所有 Stage C 与下游 ablation；§3.5/§3.6 复用此表）：**
+
+| 配置 | TwoRoom run | TwoRoom SwanLab ID | PushT run | PushT SwanLab ID |
+|---|---|---|---|---|
+| consist001 (σ+A_t, α=0.01) | `tworoom_lewm_hetero_probe_default_action_gate_fixbug_consist001` | `6lhne7qj16c88f63j8nbi` | `pusht_lewm_hetero_probe_default_action_gate_fixbug_consist001` | `l30d65eeitquz5w66sdxf` |
+| consist003 (σ+A_t, α=0.03) | `tworoom_lewm_hetero_probe_default_action_gate_fixbug_consist003` | `xzlrurz6cg2wjsexvbikj` | `pusht_lewm_hetero_probe_default_action_gate_fixbug_consist003` | `d8txwleadjc65hpxfonbv` |
+| A_t-only consist001 (no σ) | `tworoom_lewm_action_gate_consist001` | `njpedt4qhnkwqusmrmcwh` | `pusht_lewm_action_gate_consist001` | `3r7dqveremqonvq59ay4m` |
+| σ-only consist001 (no A_t) | `tworoom_lewm_sigma_only_consist001` | `fch0616cntn26vs2mu3op` | `pusht_lewm_sigma_only_consist001` | `6tdi95u1d39dqwcdtpoy3` |
+| consist001 + noise0.002 | `tworoom_lewm_hetero_probe_action_gate_consist001_noise_0to002_p1` | `pw8g20f8n0a69m6o1f32z` | `pusht_lewm_hetero_probe_action_gate_consist001_noise_0to002_p1` | `2sl811ap1hb8sar1uy4un` |
+
+所有 SwanLab path 为 `qunteam/worldmodels/<run_id>`，URL 模板 `https://swanlab.cn/@qunteam/worldmodels/runs/<run_id>/chart`。Stage A/B 的 run id（hetero_default / probe_default / probe+gate / probe+gate-fixbug）见 §3.2 / §3.3 / §3.3 fixbug 表，本文件全部主要 run 至此 SwanLab id 全部钉死，reviewer / 外部协作者可按 id 直接复现。
+
 **Stage C 实验结果（2026-05-11，3 seeds × 100 episodes）：**
 
 | 配置 | TwoRoom clean | TwoRoom px+goal 0.05 | PushT clean | PushT goal 0.05 | PushT pixels 0.05 | PushT px+goal 0.05 |
@@ -823,7 +835,7 @@ done
 
 | ID | 任务 | 备注 |
 |---|---|---|
-| **P2-1** | 钉死所有 run 的 SwanLab run id（不只 PushT probe / probe+gate，所有 consist001/003、A_t-only、σ-only、noise002、intervention） | 2026-05-12 已补 §3.3 PushT probe 重名 caveat；其余仍待 audit。reviewer 检 metadata 会一眼抓重名 |
+| **P2-1** | 钉死所有 run 的 SwanLab run id（不只 PushT probe / probe+gate，所有 consist001/003、A_t-only、σ-only、noise002、intervention） | ✅ 已完成（2026-05-12）：§3.3 PushT probe 重名 caveat + §3.4 顶部新增 Stage C 全量 run id 表，覆盖 consist001/003、A_t-only、σ-only、noise002 共 10 个 run；P0-2 intervention sweep 跑完后再补一轮 |
 | **P2-2** | 全文 claim 收缩：把"σ 与 A_t 缺一不可"统一改成"在 action-critical 连续控制（PushT）上 σ 与 A_t 缺一不可；TwoRoom 上 σ 是边际增益" | 主线段落已部分收缩，主表 / 摘要 / abstract / introduction 仍要再扫一遍 |
 | **P2-3** | w_t qualitative figure：PushT trajectory 上 w_t 时间序列 + contact 时刻标注（3–5 条 episode） | 顶会必有的图。现有 `tools/repr_analysis/visualize_wt.py` 是 offline 工具，需扩成 per-trajectory 时间序列 + 关键帧叠图 |
 | **P2-4** | 理论侧 1 页：解释 `critical = gA · (0.5 + 0.5·gS)` 为何不是 σ/A 的线性组合 | sketch 形式：noise-vs-difficulty decomposition，从 confounder trap 角度论证为何必须 multiplicative |

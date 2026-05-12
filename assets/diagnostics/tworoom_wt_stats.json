@@ -1,0 +1,9 @@
+{
+  "n_tokens": 768,
+  "w_mean": 0.8199010491371155,
+  "w_std": 0.08939377218484879,
+  "corr_w_action_norm": -0.021233579777595293,
+  "corr_w_latent_disp": -0.38448634039923824,
+  "has_sigma": false,
+  "quartiles": {}
+}

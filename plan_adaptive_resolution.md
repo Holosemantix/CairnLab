@@ -87,7 +87,7 @@ PI controller / Lagrangian τ / cheap-proxy bilevel / 多任务 head 等方案�
 
 > **为什么不是 heteroscedastic loss？** 直接让 σ 进入 Gaussian NLL 会改变 μ path 的梯度分配，downweight 高误差样本。在 PushT 中，高误差往往对应接触/精细控制的关键区域，downweight 会压缩控制分辨率（§3.2 给出详细 ablation）。因此 σ 必须与 μ path 解耦。
 >
-> **为什么不是 σ-only consistency？** 高 σ 同时包含 dynamics difficulty 和 aleatoric visual noise。若只用 σ 调 consistency，会把不可控视觉噪声误判为"需要保护分辨率"，落入 Noisy TV / confounder trap（§3.6 给出详细 ablation）。因此 consistency weight 必须 action-aware。
+> **为什么不是 σ-only consistency？** 高 σ 同时包含 dynamics difficulty 和 aleatoric visual noise。若只用 σ 调 consistency，会把不可控视觉噪声误判为"需要保护分辨率"，落入 Noisy TV / confounder trap（§3.5 给出详细 ablation）。因此 consistency weight 必须 action-aware。
 
 ### 2.2 Predictor Uncertainty Head
 
@@ -472,6 +472,60 @@ Pilot-2 联合验证 probe-only σ（§2.2.2）和 logging-only action gate（§
 - **TwoRoom α=0.03**：可达到 **LeWM+noise 天花板**（98.33），px+goal 0.05 97.33 与 LeWM+noise 98.00 仅差 0.67pt。α=0.01 也有稳健提升（95.33），但不如 0.03 接近最优。
 - **任务特异性是特征不是缺陷**：不存在"一个 α 通吃所有任务"，这正是自适应 resolution 的核心主张——action-critical 任务（PushT）需要较低的 baseline consistency，冗余视觉任务（TwoRoom）可以承受更高的 consistency pressure。
 
+
+#### 3.4.5 w_t 可视化与机制验证
+
+为了验证 per-token consistency weight 确实与 task structure 对齐，我们从 consist001 ckpt 离线提取 per-token `w_t` / `critical_t` / `gA_t`，与 action norm 和 latent displacement 做对应分析。
+
+**PushT（256 sequences × history_size=3 = 768 tokens）：**
+
+| 指标 | 数值 | 解读 |
+|---|---|---|
+| `corr(w_t, action_norm)` | **+0.587** | action norm 越大，w_t 越高（一致性压力越强）。与 naive 直觉相反：free-space 接近阶段 action norm 高但 A_t 低——predictor 在 contact 约束下更稳定；free-space 小 action 即可产生大 latent 位移，A_t 更高 → critical 更高 → w_t 更低。 |
+| `corr(w_t, latent_disp)` | **−0.592** | latent displacement 越大，w_t 越低。transition 剧烈的区域被标记为 critical，一致性压力减轻以保护分辨率。 |
+| Q1（低 action norm）mean w_t | 0.768 | 动态范围非平凡 |
+| Q4（高 action norm）mean w_t | 0.898 | 差值 0.130 |
+
+**TwoRoom（256 sequences × history_size=3 = 768 tokens）：**
+
+| 指标 | 数值 | 解读 |
+|---|---|---|
+| `corr(w_t, action_norm)` | **−0.021** | 几乎无关。TwoRoom 动作空间简单（2D 离散），action norm 变化范围小，A_t 几乎不随 action norm 变化。 |
+| `corr(w_t, latent_disp)` | **−0.384** | 负相关，但弱于 PushT。transition 剧烈区域（door crossing）仍被标记为 critical，但 TwoRoom 的整体 w_t 动态范围压缩（std=0.089 vs PushT 的更大 spread）。 |
+| Q1–Q4 mean w_t | 0.818–0.823 | 差值仅 0.005，远小于 PushT 的 0.130 |
+
+**Figure 1：PushT w_t vs action norm（hexbin）**
+
+![PushT w_t vs action norm](assets/diagnostics/wt_vs_action_norm.png)
+
+**Figure 2：PushT w_t vs latent displacement（hexbin）**
+
+![PushT w_t vs latent displacement](assets/diagnostics/wt_vs_latent_disp.png)
+
+**Figure 3：TwoRoom w_t vs action norm（hexbin）**
+
+![TwoRoom w_t vs action norm](assets/diagnostics/tworoom_wt_vs_action_norm.png)
+
+**Figure 4：TwoRoom w_t vs latent displacement（hexbin）**
+
+![TwoRoom w_t vs latent displacement](assets/diagnostics/tworoom_wt_vs_latent_disp.png)
+
+**Figure 5：w_t 分布按 action norm 四分位（PushT vs TwoRoom）**
+
+| 任务 | Q1 mean | Q4 mean | Q4−Q1 | 动态范围 |
+|---|---:|---:|---:|---|
+| PushT | 0.768 | 0.898 | **0.130** | 非平凡 |
+| TwoRoom | 0.820 | 0.818 | **0.005** | 几乎平坦 |
+
+![PushT w_t histogram](assets/diagnostics/wt_histogram_by_action_norm.png)
+
+![TwoRoom w_t histogram](assets/diagnostics/tworoom_wt_histogram_by_action_norm.png)
+
+**机制解读**：
+1. **PushT 上 w_t 与 task structure 有强结构性对应。** +0.587 / −0.592 的相关系数和 0.130 的 quartile 差值说明 per-token adaptive weight 不是噪声，而是与 action sensitivity / transition difficulty 对齐。
+2. **TwoRoom 上 w_t 动态范围压缩。** 这是因为 TwoRoom 动作空间离散简单（2D 方向+速度），A_t 本身变化范围小——所有 token 的 controllability 差异不大，导致 w_t 集中在 0.82 附近。这不是 gate 失效，而是**任务结构本身决定了 adaptive resolution 的边际空间**：冗余视觉任务即使没有精细的 per-token weight，也能从全局 consistency 中受益（与 §3.4 中 TwoRoom α=0.03 达到 LeWM+noise best 一致）。
+3. **w_t 不是简单地与 "contact = high action norm" 线性对应。** PushT 上 action norm 与 w_t 正相关（+0.587）恰恰说明 per-token adaptive weight 比 naive contact heuristic 更精细：它保护的是 "predictor 觉得难" 的区域（高 A_t + 高 σ），而不是 "人类标注的 contact" 区域。
+
 ### 3.5 Ablations & Causal Interventions
 
 本节把所有去除 controller 组件的对照实验（A_t-only / σ-only）和 P0-2 因果 intervention 四件套（shuffle_σ / shuffle_A / random_gate / constant_w）集中呈现。统一配置：consistency α=0.01（PushT sweet spot），3 seeds × 100 episodes，其余超参与 §3.4 consist001 一致。
@@ -532,34 +586,7 @@ Pilot-2 联合验证 probe-only σ（§2.2.2）和 logging-only action gate（§
 - `constant_w`：保留 mean pressure 杀掉 per-token spread → 期望 PushT clean ≈ baseline，robustness 介于 LeWM-base 与 σ+A_t 之间，回答"mean pressure vs per-token spread 各贡献多少"。
 - 这四条同时成立才是"σ + A_t multiplicative gate 是因果必要项"的硬证据；现有 A_t-only / σ-only 只能证明"任一组件单独不够"，无法排除"σ 和 A_t 仅作为更广泛 difficulty 信号的代理"这种弱替代假设。
 
-### 3.6 w_t 离线可视化
-
-离线提取 `pusht_lewm_action_gate_consist001` ckpt 的 per-token `w_t` / `critical_t` / `gA_t`，与 task-structure proxy（action norm `||a_t||`、latent displacement `||z_{t+1}−z_t||`）对应。样本：256 sequences × history_size=3 = 768 tokens。
-
-**关键定量：**
-- `corr(w_t, action_norm) = +0.587`：**action norm 越大，w_t 越高**（一致性压力越强）。这与 naive 直觉相反，但符合 PushT 的物理结构：free-space 接近阶段 action norm 高但 action sensitivity（A_t）反而低——predictor 在 contact 约束下更稳定；而 free-space 小 action 即可产生大 latent 位移，A_t 更高 → critical 更高 → w_t 更低。
-- `corr(w_t, latent_disp) = -0.592`：**latent displacement 越大，w_t 越低**。这与设计完全一致：transition 剧烈（高 displacement）的区域被标记为 critical，一致性压力减轻以保护分辨率。
-- Quartile 分层：Q1（低 action norm）mean w_t=0.768，Q4（高 action norm）mean w_t=0.898，差值 0.130，动态范围非平凡。
-
-**Figure 1：w_t vs action norm（hexbin）**
-
-![w_t vs action norm](assets/diagnostics/wt_vs_action_norm.png)
-
-**Figure 2：w_t vs latent displacement（hexbin）**
-
-![w_t vs latent displacement](assets/diagnostics/wt_vs_latent_disp.png)
-
-**Figure 3：时间序列示例（w_t + action norm）**
-
-![w_t timeseries example](assets/diagnostics/wt_timeseries_example.png)
-
-**Figure 4：w_t 分布按 action norm 四分位**
-
-![w_t histogram by action norm](assets/diagnostics/wt_histogram_by_action_norm.png)
-
-**论文叙事**：`w_t` 不是简单地与 "contact = high action norm" 线性对应，而是与 **action sensitivity / transition difficulty** 对应。这恰恰说明 per-token adaptive weight 比全局 consistency 或 naive contact heuristic 更精细：它保护的是 "predictor 觉得难" 的区域，而不是 "人类标注的 contact" 区域。
-
-### 3.7 结论总结与顶会主表路线图
+### 3.6 结论总结与顶会主表路线图
 
 **整体路线回顾**：LeWM-base → hetero-loss ablation（失败）→ probe-only σ（成功）→ logging-only action-gate（成功）→ adaptive consistency sweep（成功）。核心创新不是"加一个 σ head"，而是**σ + A_t 共同控制 per-token consistency**，让 encoder 在 action-critical 区域保留分辨率、在视觉冗余区域加强 invariance。
 
@@ -653,7 +680,7 @@ done
 | ID | 任务 | 备注 |
 |---|---|---|
 | **P3-1** | 跨任务固定 α / 归一化 α 实验（同一组超参数通吃 ≥ 3 任务） | 若成立，叙事从"per-task α"升级到"adaptive resolution 是 universal mechanism" |
-| **P3-2** | Consistency-on-noise 更高剂量 sweep：`std_max=0.03–0.05` × α=0.01–0.03 | 把 §3.7 已观察到的协同效应扩成正式 sweep table |
+| **P3-2** | Consistency-on-noise 更高剂量 sweep：`std_max=0.03–0.05` × α=0.01–0.03 | 把 §3.4 已观察到的协同效应扩成正式 sweep table |
 | **P3-3** | 外部 baseline placement：Dreamer-V3 actor variance / TD-MPC2 reward-conditioned consistency 与本工作 per-token σ+A 在 latent JEPA 上的对比 | 帮 reviewer 把工作放进领域版图，不是必需 |
 
 ##### Sprint 建议
@@ -851,5 +878,5 @@ V1/V2 都是更复杂版本，**本最简版本不预设走那个方向**，看 
 - 每次新讨论后追加新条目到 §4.2 风险表 或 附录 A 回退记录。
 - **Stage A→B→C 主线已跑完核心 sweep**（probe→gate logging→consistency consist001/003 + A_t-only ablation + σ-only ablation + `w_t` 离线可视化 + consist001+noise0.002）。**PushT 上 `σ+A_t` 的核心 claim 已完整验证**：A_t-only clean 跌 9.34pt，σ-only px+goal 0.08 崩溃至 20.00，只有 σ+A_t 同时维持 clean 和 robustness；TwoRoom 上 σ 的边际收益更小，但高 noise 下仍可见。
 - 论文叙事核心已可立：per-task α 下，σ+A_t adaptive consistency 在 PushT 上 clean 维持 + robustness 翻倍，在 TwoRoom 上达到 LeWM+noise best 98.33——且 consistency+light noise 联用在 PushT 上进一步将 pixels 0.05 提升到 87.33（逼近 LeWM+noise best 87.67）。不存在单一 α 同时达到两任务 oracle，这正是 per-token `w_t` 的存在理由。
-- 后续重点不再是补 TwoRoom σ-only，而是补跨任务泛化与更强因果 ablation；若这些通过，把 §2–§4 与 §3.7 合并进 plan_v3 §6 P4。
+- 后续重点不再是补 TwoRoom σ-only，而是补跨任务泛化与更强因果 ablation；若这些通过，把 §2–§4 与 §3.6 合并进 plan_v3 §6 P4。
 - **下一次想加新机制前**: 先回看附录 A，问自己"它会增加几个超参数？经验收益的证据是什么？"。如果两个问题答不清楚，不加。

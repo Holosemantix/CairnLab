@@ -143,6 +143,12 @@ loss:
                               # (skip K perturb forwards, critical = gS * 0.5, requires
                               # loss.hetero.enabled=true with mode=probe). A_t-only is
                               # achieved implicitly by mode=full + loss.hetero.enabled=false.
+    intervention: none        # Causal-necessity controls for paper §6 P0-2. One of:
+                              #   none           — real σ+A_t (default).
+                              #   shuffle_sigma  — permute s_t over (B,T) before z-score.
+                              #   shuffle_action — permute log_A over (B,T) before z-score.
+                              #   random_gate    — critical ~ U(0,1) (replaces σ/A entirely).
+                              #   constant_w     — scalar batch-mean w_t (kills per-token spread).
     delta_scale: 0.25         # δ ~ N(0, (delta_scale * action_std)^2 I); action_std is per-batch
     num_delta_samples: 4      # K independent δ draws per token for CV estimation
     warmup_epochs: 3          # collect-but-don't-aggregate gate during warmup (see §8.3.2.1)

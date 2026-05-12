@@ -182,6 +182,7 @@ def compute_action_gate_metrics(
     w_min: float = 0.2,
     w_max: float = 1.0,
     mode: str = "full",
+    intervention: str = "none",
 ):
     """Logging-only action-aware adaptive resolution gate.
 
@@ -201,9 +202,22 @@ def compute_action_gate_metrics(
       mode            "full" (default, gA + gS) | "sigma_only" (gS-only ablation;
                       skips K perturbation forwards, sets gA≡0.5, critical = gS*0.5).
                       A_t-only is achieved implicitly by mode=full + s_t=None.
+      intervention    Causal-necessity controls (plan_adaptive_resolution.md §6 P0-2):
+                        "none"           — real σ+A_t (default).
+                        "shuffle_sigma"  — permute s_t over the flattened (B,T) dim
+                                           before z-scoring, breaking σ↔state mapping
+                                           while preserving the σ marginal.
+                        "shuffle_action" — permute log_A over (B,T) before z-scoring.
+                        "random_gate"    — replace `critical` with Uniform[0,1] of
+                                           the same shape (kills σ and A signals).
+                        "constant_w"     — replace per-token w_t with a scalar equal
+                                           to its current batch mean (preserves overall
+                                           consistency pressure, kills per-token spread).
     """
     if mode not in {"full", "sigma_only"}:
         raise ValueError(f"Unsupported action_gate.mode: {mode}")
+    if intervention not in {"none", "shuffle_sigma", "shuffle_action", "random_gate", "constant_w"}:
+        raise ValueError(f"Unsupported action_gate.intervention: {intervention}")
     sigma_only = mode == "sigma_only"
     if sigma_only and s_t is None:
         raise RuntimeError(
@@ -253,6 +267,18 @@ def compute_action_gate_metrics(
             A_cv = A_stack.std(dim=0, unbiased=False) / A_mean.clamp(min=log_a_floor)
             log_A = torch.log(A_mean.clamp(min=log_a_floor))
 
+        # Intervention: shuffle σ↔state or A_t↔state correspondence at the
+        # input of the gate. EMA and zscore stats then track the shuffled
+        # marginal; corr_sigma_action diagnostic should drop near zero.
+        if intervention == "shuffle_sigma" and s_t is not None:
+            s_flat_shuf = s_t.detach().reshape(-1)
+            perm = torch.randperm(s_flat_shuf.numel(), device=s_flat_shuf.device)
+            s_t = s_flat_shuf[perm].reshape(s_t.shape)
+        elif intervention == "shuffle_action" and not sigma_only:
+            la_flat = log_A.reshape(-1)
+            perm = torch.randperm(la_flat.numel(), device=la_flat.device)
+            log_A = la_flat[perm].reshape(log_A.shape)
+
         # EMA update (outside warmup only).
         def _ema_update(name: str, x: torch.Tensor):
             mean_buf = getattr(model, f"gate_{name}_mean")
@@ -299,6 +325,15 @@ def compute_action_gate_metrics(
             gS = None
             critical = gA * 0.5
         w_t = w_max - (w_max - w_min) * critical
+
+        # Intervention: replace per-token w_t to test controller-side necessity.
+        # random_gate: critical ~ U(0,1) (kills σ/A signal entirely).
+        # constant_w: scalar batch-mean w_t (kills per-token spread, preserves mean pressure).
+        if intervention == "random_gate":
+            critical = torch.rand_like(critical)
+            w_t = w_max - (w_max - w_min) * critical
+        elif intervention == "constant_w":
+            w_t = w_t.mean().expand_as(w_t).contiguous()
 
         # Cast to fp32 for torch.quantile (which rejects half/bf16) and to keep
         # all downstream metric reductions dtype-uniform under AMP.
@@ -543,6 +578,7 @@ def lejepa_forward(self, batch, stage, cfg):
             w_min=float(gate_cfg.get("w_min", 0.2)),
             w_max=float(gate_cfg.get("w_max", 1.0)),
             mode=str(gate_cfg.get("mode", "full")),
+            intervention=str(gate_cfg.get("intervention", "none")),
         )
         for k, v in gate_metrics.items():
             output[k] = v

@@ -776,9 +776,30 @@ TwoRoom σ-only 与 σ+A_t 在 clean / 中噪声条件上几乎重合，高噪�
 
 | Experiment | TwoRoom | PushT | 目的 | 优先级 |
 |---|---:|---:|---|---|
-| `lewm_sigma_only_consist001` 补全种子 | 部分完成 | ✅ | TwoRoom goal 0.08 / pixels_goal 0.08 / 部分 0.05 | **高** |
+| **因果 intervention 四件套**（`loss.action_gate.intervention=` `shuffle_sigma` / `shuffle_action` / `random_gate` / `constant_w`） | yes | yes | 把 controller 必要性从 "ablation 对照" 升到 "intervention 因果"；shuffle_σ/A 应 degrade 到 σ-only / A_t-only 水平，random_gate 应 degrade 到 LeWM-base 水平，constant_w 应失去 robustness 增益 | **最高（P0-2）** |
+| 跨任务覆盖（Reacher + Cube 至少补一个，σ+A_t consist001 + A_t-only + σ-only 三连） | — | — | 验证剂量效应不是 PushT/TwoRoom 巧合 | **高（P0-1）** |
+| 5 seeds 升级 + 统一 protocol（100×5 或 300×3） | yes | yes | 主表 reviewer 要求 | 高 |
+| Uncertainty-only gate 邻近对照（dropout var / predictor ensemble var 替换 σ） | yes | yes | 防止 reviewer 说 "你的 σ 只是变相的 epistemic uncertainty" | 中 |
+| Global consistency 对照（per-batch scalar w，非 per-token） | yes | yes | 防止 reviewer 说 "adaptive 不重要，加 consistency 就够了" | 中 |
 | `lewm_sigma_probe_on_noise` | yes | yes | noise 训练下 σ calibration 是否漂移 | 中 |
-| 4-task full eval | Reacher | Cube | 验证跨任务泛化 | 低（先写论文）|
+| w_t 可视化 figure（PushT trajectory 上 w_t 时间序列 + contact 标注） | — | yes | 顶会必有的 qualitative figure | 中 |
+
+> **Intervention 实现说明（2026-05-12 落地）**：`loss.action_gate.intervention` 配置开关已加入（`config/train/lewm.yaml:140`，`train.py:compute_action_gate_metrics`）。四个值的语义：
+> - `shuffle_sigma`：对 s_t 在 (B,T) flatten 维 `randperm` 后再做 zscore；保留 σ 的边缘分布，破坏 σ↔state 对应。期望 `corr_sigma_action` 跌至 ~0。
+> - `shuffle_action`：对 log_A 做同样处理。
+> - `random_gate`：直接把 `critical` 替换成 `U(0,1)`，再算 w_t。
+> - `constant_w`：把 per-token w_t 拍平成当前 batch 的标量均值，保留 mean consistency 强度，只杀 per-token spread。
+>
+> 训练命令示例（PushT shuffle_σ）：
+> ```bash
+> python train.py data=pusht \
+>   loss.hetero.enabled=true loss.hetero.mode=probe \
+>   loss.action_gate.enabled=true loss.action_gate.intervention=shuffle_sigma \
+>   loss.adaptive_consistency.enabled=true loss.adaptive_consistency.weight=0.01 \
+>   loss.adaptive_consistency.noise_std_max=0.04 \
+>   experiment.name=pusht_lewm_consist001_shuffle_sigma
+> ```
+> 4 interventions × 2 tasks × 3 seeds = 24 个新 run，复用 consist001 配方。
 
 **与 Noise 训练联用（§3.8，已部分执行）**：
 目前的叙事链是 LeWM-base → LeWM+noise → 因此需要 adaptive resolution。机制上 +noise 和 σ-adaptive 处于不同位置：noise 是 input-side 的 isotropic 数据增广，σ 是 output-side 的 per-state difficulty 信号，`A_t` 是 controllability filter，三者互补。

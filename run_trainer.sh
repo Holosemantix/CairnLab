@@ -29,6 +29,10 @@
 #                             gate; rides on loss_hetero_mode=probe),
 #   loss_action_gate_mode (full | sigma_only; sigma_only skips A_t perturb
 #                          and sets critical=gS*0.5, requires hetero_mode=probe),
+#   loss_action_gate_intervention (none | shuffle_sigma | shuffle_action |
+#                                  random_gate | constant_w; causal-necessity
+#                                  controls, see plan_adaptive_resolution.md
+#                                  §3.8.1 P0-2),
 #   loss_action_gate_delta_scale, loss_action_gate_num_delta_samples,
 #   loss_action_gate_warmup_epochs, loss_action_gate_ema_momentum,
 #   loss_action_gate_w_min, loss_action_gate_w_max,
@@ -208,6 +212,7 @@ add_override "loss.hetero.s_max" "${loss_hetero_s_max:-}"
 add_override "loss.hetero.tau_floor" "${loss_hetero_tau_floor:-}"
 add_override "loss.action_gate.enabled" "${loss_action_gate_enabled:-}"
 add_override "loss.action_gate.mode" "${loss_action_gate_mode:-}"
+add_override "loss.action_gate.intervention" "${loss_action_gate_intervention:-}"
 add_override "loss.action_gate.delta_scale" "${loss_action_gate_delta_scale:-}"
 add_override "loss.action_gate.num_delta_samples" "${loss_action_gate_num_delta_samples:-}"
 add_override "loss.action_gate.warmup_epochs" "${loss_action_gate_warmup_epochs:-}"

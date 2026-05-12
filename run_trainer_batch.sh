@@ -50,7 +50,8 @@ SWEEP_VARS=(
     loss_pred_space loss_pred_type loss_rollout_weight loss_rollout_steps
     loss_hetero_enabled loss_hetero_mode loss_hetero_probe_weight loss_hetero_logvar_hidden_dim
     loss_hetero_s_min loss_hetero_s_max loss_hetero_tau_floor
-    loss_action_gate_enabled loss_action_gate_mode loss_action_gate_delta_scale loss_action_gate_num_delta_samples
+    loss_action_gate_enabled loss_action_gate_mode loss_action_gate_intervention
+    loss_action_gate_delta_scale loss_action_gate_num_delta_samples
     loss_action_gate_warmup_epochs loss_action_gate_ema_momentum
     loss_action_gate_w_min loss_action_gate_w_max
     loss_adaptive_consistency_enabled loss_adaptive_consistency_weight

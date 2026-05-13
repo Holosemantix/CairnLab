@@ -733,7 +733,7 @@ PushT 是接触主导、连续控制任务，C1 的 per-task 调参成本和 C2 
 | LeWM-base | 87.33 | 38.00 | 17.33 | 15.00 | 15.00 | 6.00 | 3.67 |
 | **C1 单独 best (LeWM+noise 0to002-p1)** | **90.00** | 85.00 | 87.67 | 86.00 | 83.00 | 74.67 | 70.67 |
 | C2 单独 (AAAC consist001) | 86.67 | 77.00 | 73.33 | 70.67 | 63.00 | 44.67 | 37.00 |
-| **C1+C2 联用 (consist001+noise0.002)** | 88.00 | 86.00 | 87.33 | **85.33** | **87.33** | — | **85.33** |
+| **C1+C2 联用 (consist001+noise0.002)** | 88.00 | 86.00 | 87.33 | **85.33** | **87.33** | **75.33** | **85.33** |
 
 关键观察：
 
@@ -799,7 +799,7 @@ TwoRoom 上的"联用 dominate"暂时不成立——但 consist001+noise0.002 �
 | `lewm_sigma_only_consist001` (σ-only) | 95.33 | 87.00 | Noisy TV / confounder trap 在 PushT 上精确验证|
 | `lewm_action_aware_consist001_noise002` | 95.33 | **88.00** | C1+C2 联用，PushT px+goal 0.08 85.33 > C1 单独 70.67（+14.66pt） |
 | 因果干预四件套（shuffle_σ / shuffle_A / random_gate / constant_w） | 见 §3.6.2 | 见 §3.6.2 | PushT 四项干预全部 degrade，证明 σ+A_t multiplicative gate 因果必要；TwoRoom constant_w 略胜 σ+A_t 基线 |
-| `w_t` 离线可视化 | — | ✅ | corr +0.587 / −0.592，动态范围非平凡 |
+| `w_t` 离线可视化 | ✅ | ✅ | PushT corr +0.587 / −0.592；TwoRoom corr −0.021 / −0.384，动态范围非平凡 |
 
 **判定标准（最终版）**：
 1. ✅ PushT consist001 clean 86.67 ≥ 84，resolution 0.290 ≥ 0.24。

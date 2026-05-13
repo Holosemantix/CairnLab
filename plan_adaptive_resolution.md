@@ -1,8 +1,8 @@
 # Action-Aware Adaptive Latent Resolution
 
-> **Status**: Pilot-1B 已完成首轮 TwoRoom + PushT 验证（2026-05-09）。结果支持"σ head 能学到 prediction difficulty"，但否定了"直接用 hetero loss 替换 MSE"作为 PushT 上的主方法：PushT clean eval 从 LeWM-base 87.33（canonical clean，见 §3 metric 定义）降到 13.33，诊断显示 transition/action resolution 被严重压缩。下一步主线改为 **probe-only σ + action-aware adaptive consistency + resolution guardrail**，而不是继续加大 hetero loss 或只做 σ-only controller。
+> **Status**（2026-05-09）：直接异方差损失训练（hetero loss）已完成首轮 TwoRoom + PushT 验证。结果支持"σ head 能学到 prediction difficulty"，但否定了"直接用 hetero loss 替换 MSE"作为 PushT 上的主方法：PushT clean eval 从 LeWM-base 87.33 降到 13.33，诊断显示 transition/action resolution 被严重压缩。下一步主线改为 **probe-only σ + action-aware adaptive consistency + resolution guardrail**。
 >
-> **Pilot-2 更新（2026-05-09/10）**: probe-only 救回 PushT（clean 81.67 ≈ LeWM-base 87.33），probe+gate logging 不破坏 TwoRoom（clean 95.00），三个结构判据全部通过——TwoRoom `hetero_s_logerr_corr=0.612` / PushT `0.482`，TwoRoom `corr_sigma_action=−0.010` / PushT `0.256`，gate weight q10/q90 = 0.55/0.93。**Stage B logging-only controller signal 已验证；下一步进入小权重 Stage C，但必须以 PushT clean/resolution guardrail 为硬约束。**
+> **Probe-only + Gate logging 更新（2026-05-09/10）**：probe-only 救回 PushT（clean 81.67 ≈ LeWM-base 87.33），probe+gate logging 不破坏 TwoRoom（clean 95.00），三个结构判据全部通过。gate logging（α=0，仅记录不进入 loss）验证成功；下一步进入小权重 consistency，但必须以 PushT clean/resolution guardrail 为硬约束。
 >
 > **Contribution 2 sweep + 因果干预更新（2026-05-12）**: `alpha_cons` 小权重 sweep（consist001/003）+ A_t-only / σ-only ablation + 因果干预四件套（shuffle_σ / shuffle_A / random_gate / constant_w）+ w_t 离线可视化全部跑完。**核心结果**：PushT α=0.01 clean **86.67**（≈ LeWM-base 87.33）+ robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03 clean **98.33**（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。`consist001+noise0.002`（C1+C2 联用）在 PushT 极端 noise px+goal 0.08 = 85.33 > C1 单独 70.67（+14.66pt），证明 C1 与 C2 正交叠加。**因果干预完整证明 PushT 上 σ+A_t multiplicative gate 是因果必要项**：shuffle_A clean 跌至 78.33（≈ A_t-only），shuffle_σ robustness 退化至 30.33，random_gate / constant_w 在极端 noise 退化到 ≈ LeWM-base 量级（px+goal 0.08 ≈ 10）。**TwoRoom 上 constant_w (96.33 / 80.00) 反而略胜 σ+A_t baseline (95.33 / 74.00)**——明确把 paper claim 收缩为"per-token gate 的因果必要性是 contact-heavy 连续控制任务（PushT）特性"。w_t 离线可视化验证 corr(w_t, action_norm)=+0.587、corr(w_t, latent_disp)=−0.592。
 >
@@ -376,7 +376,7 @@ LeWM-base 在 clean 上表现良好，但只要 visual std=0.05 加到 pixels+go
 
 #### 3.3.4 结论与转向
 
-Pilot-1B 的结果是**语义成功、系统失败**：
+直接异方差损失训练（§3.3）的结果是**语义成功、系统失败**：
 
 1. **σ head 值得保留。** 它稳定学到了 per-transition prediction difficulty。
 2. **直接 hetero training 不适合 PushT。** 它会把 high-error hard transitions 当成低权重样本，而这些 transition 很可能正是 PushT 的接触和精细控制关键区域。
@@ -759,7 +759,7 @@ C1 和 C2 在 pipeline 中占据不同位置：
 | C2 单独 best (consist003) | 98.33 | 97.33 |
 | C1+C2 联用 (consist001+noise0.002, α=0.01) | 95.33 | 94.00 |
 
-TwoRoom 上的"联用 dominate"暂时不成立——但 consist001+noise0.002 用的是 PushT 最优 α=0.01，**TwoRoom 应该用 α=0.03（consist003）配合 noise**，该联用版本（`consist003+noise0.00X`）目前未跑。已列入 §3.8.1 P3-2 sweep。
+TwoRoom 上的"联用 dominate"暂时不成立——但 consist001+noise0.002 用的是 PushT 最优 α=0.01，**TwoRoom 应该用 α=0.03（consist003）配合 noise**，该联用版本（`consist003+noise0.00X`）目前未跑。已列入 §3.8.1 工作清单中的 consistency-on-noise 更高剂量 sweep。
 
 **§3.6.2 的因果干预结果（特别是 TwoRoom constant_w 96.33 略胜 σ+A_t baseline 95.33）进一步解释了这条缺口**：TwoRoom 上 per-token gate 信号本身就不是关键，per-token spread 杀掉反而略好；因此 C2 (consist001 α=0.01) 在 TwoRoom 上对 C1 的"叠加价值"自然较弱。要在 TwoRoom 上做出联用 dominate，需要更高 α (consist003) 才能让 C2 真正贡献结构化 consistency 压力，而不是当前 α=0.01 主要依赖于 noise term。
 
@@ -810,54 +810,54 @@ TwoRoom 上的"联用 dominate"暂时不成立——但 consist001+noise0.002 �
 6. ✅ **因果干预证明 σ+A_t multiplicative gate 是 PushT 上的因果必要项**：shuffle_σ / shuffle_A / random_gate / constant_w 四项干预全部 degrade（px+goal 0.08 8.33–30.33 vs baseline 37.00），且 sanity diagnostic 按设计行为（corr→0，q10=q90，critical_mean=0.50）。shuffle_A clean 跌 8.34pt 直接打到 A_t-only 水平，定量印证 A_t 是 multiplicative gate 主门控。
 
 **Contribution 1 + Contribution 2 联用（已验证 + 待扩）**：
-机制上 C1（input-side global noise）与 C2（output-side per-token σ+A_t）处于不同位置：noise 提供 isotropic invariance baseline，σ+A_t 在此基础上做 per-state 精细化分配，三者互补。`consist001+noise0.002` 在 PushT 上 clean 88.00（> C2 单独 86.67、> C1 单独需调到 0to002-p1 才 90.00）、pixels 0.05 87.33 ≈ C1 (87.67)、**px+goal 0.08 85.33 > C1 (70.67) 14.66pt**，印证 **C1+C2 联用严格超过任一单独**；TwoRoom 上 noise0.002（clean 95.33, px+goal 0.05 94.00）与 consist001（95.33 / 92.00）接近，C1 的边际效用较低。下一步剂量 sweep（`std_max=0.03–0.05` × α=0.01–0.03）列入 P3-2。
+机制上 C1（input-side global noise）与 C2（output-side per-token σ+A_t）处于不同位置：noise 提供 isotropic invariance baseline，σ+A_t 在此基础上做 per-state 精细化分配，三者互补。`consist001+noise0.002` 在 PushT 上 clean 88.00（> C2 单独 86.67、> C1 单独需调到 0to002-p1 才 90.00）、pixels 0.05 87.33 ≈ C1 (87.67)、**px+goal 0.08 85.33 > C1 (70.67) 14.66pt**，印证 **C1+C2 联用严格超过任一单独**；TwoRoom 上 noise0.002（clean 95.33, px+goal 0.05 94.00）与 consist001（95.33 / 92.00）接近，C1 的边际效用较低。下一步剂量 sweep（`std_max=0.03–0.05` × α=0.01–0.03）列入 §3.8.1 工作清单。
 
-#### 3.8.1 通往顶会主表的工作清单（P0 → P3）
+#### 3.8.1 通往顶会主表的工作清单（按紧急度分层）
 
-按"缺这块论文是否还能投顶会"的严苛标准分层。P0 必须在投稿前完成，P1 决定主表是否经得住 reviewer，P2 是写作期能补上的元数据/figure 工作，P3 是锦上添花的扩展。
+按"缺这块论文是否还能投顶会"的严苛标准分层。第一层必须在投稿前完成，第二层决定主表是否经得住 reviewer，第三层是写作期能补上的元数据/figure 工作，第四层是锦上添花的扩展。
 
-##### 已完成里程碑（P0 级）
+##### 已完成里程碑（方法本体级）
 
 - **因果干预四件套（shuffle_σ / shuffle_A / random_gate / constant_w）**（2026-05-12，§3.6.0–§3.6.4）：PushT 上四项干预全部 degrade，证明 σ+A_t multiplicative gate 是因果必要项；shuffle_A clean 跌 8.34pt 印证 A_t 是 multiplicative gate 主门控。TwoRoom 上 constant_w 略胜 σ+A_t baseline，把 paper claim 收缩到"per-token gate 因果必要性是 contact-heavy 任务特性"。实验设计与启动命令见 §3.6.0。
 
-##### P0 — 不做的话方法本体站不住
+##### 第一层 — 不做的话方法本体站不住
 
 | ID | 任务 | 状态 | 备注 |
 |---|---|---|---|
-| **P0-1** | 跨任务覆盖 ≥ 4（再补 1 个 continuous-control，1 个视觉冗余 / 长 horizon；σ+A_t consist001 + A_t-only + σ-only 三连） | 未开始 | Reacher（已有 LeWM-noise ckpt 可对比）/ Cube 二选一优先；目的不是再赢一次，而是验"action-critical 耐受低 α、冗余视觉耐受高 α"的剂量效应不是 PushT/TwoRoom 巧合 |
+| 跨任务覆盖 ≥ 4 | 再补 1 个 continuous-control，1 个视觉冗余 / 长 horizon；σ+A_t consist001 + A_t-only + σ-only 三连 | 未开始 | Reacher（已有 LeWM-noise ckpt 可对比）/ Cube 二选一优先；目的不是再赢一次，而是验"action-critical 耐受低 α、冗余视觉耐受高 α"的剂量效应不是 PushT/TwoRoom 巧合 |
 
-##### P1 — protocol & baseline 不到位 reviewer 主表就不认
-
-| ID | 任务 | 备注 |
-|---|---|---|
-| **P1-1** | 5 seeds 升级 + 统一 eval protocol（100×5 = 500 traj 或 300×3 = 900 traj，全文一套不可混用） | 当前 3 seeds × 100 traj = 300 traj，PushT 上 std=2.4–5.9，差异 ≤5pt 时 reviewer 会要求 ≥5 seeds |
-| **P1-2** | Uncertainty-only gate 邻近对照（dropout variance / predictor ensemble var 替换 σ，复用 action_gate 框架） | 防 reviewer 说"你的 σ 只是变相的 epistemic uncertainty"；如果 dropout-var 也能 work，叙事须扩成"任何 per-token difficulty 信号 + A_t 都成立"，而不是"σ 不可替代" |
-| **P1-3** | Global consistency 对照（per-batch 标量 w 而非 per-token，等价 `constant_w` 的另一种实现） | 防 reviewer 说"adaptive 不重要，加 consistency 就够了" |
-| **P1-4** | `lewm_sigma_probe_on_noise`：LeWM+noise ckpt 加 σ probe，μ-path 不变 | 检查 σ 在 noise 训练下是否仍稳定 calibration |
-
-##### P2 — 写作期 reproducibility / figure / claim 收缩
+##### 第二层 — protocol & baseline 不到位 reviewer 主表就不认
 
 | ID | 任务 | 备注 |
 |---|---|---|
-| **P2-1** | 钉死所有 run 的 SwanLab run id（不只 PushT probe / probe+gate，所有 consist001/003、A_t-only、σ-only、noise002、intervention） | ✅ 已完成（2026-05-12）：§3.4 PushT probe 重名 caveat + §3.5.1 全量 run id 表（10 个）+ §3.6.3 因果干预 run id 表（8 个），全文 26 个主要 run 全部钉死 |
-| **P2-2** | 全文 claim 收缩：把"σ 与 A_t 缺一不可"统一改成"在 action-critical 连续控制（PushT）上 σ 与 A_t 缺一不可；TwoRoom 上 σ 是边际增益" | 主线段落已部分收缩，主表 / 摘要 / abstract / introduction 仍要再扫一遍 |
-| **P2-3** | w_t qualitative figure：PushT trajectory 上 w_t 时间序列 + contact 时刻标注（3–5 条 episode） | 顶会必有的图。现有 `tools/repr_analysis/visualize_wt.py` 是 offline 工具，需扩成 per-trajectory 时间序列 + 关键帧叠图 |
-| **P2-4** | 理论侧 1 页：解释 `critical = gA · (0.5 + 0.5·gS)` 为何不是 σ/A 的线性组合 | sketch 形式：noise-vs-difficulty decomposition，从 confounder trap 角度论证为何必须 multiplicative |
+| 5 seeds 升级 + 统一 eval protocol | 100×5 = 500 traj 或 300×3 = 900 traj，全文一套不可混用 | 当前 3 seeds × 100 traj = 300 traj，PushT 上 std=2.4–5.9，差异 ≤5pt 时 reviewer 会要求 ≥5 seeds |
+| Uncertainty-only gate 邻近对照 | dropout variance / predictor ensemble var 替换 σ，复用 action_gate 框架 | 防 reviewer 说"你的 σ 只是变相的 epistemic uncertainty"；如果 dropout-var 也能 work，叙事须扩成"任何 per-token difficulty 信号 + A_t 都成立"，而不是"σ 不可替代" |
+| Global consistency 对照 | per-batch 标量 w 而非 per-token，等价 `constant_w` 的另一种实现 | 防 reviewer 说"adaptive 不重要，加 consistency 就够了" |
+| σ probe on noise ckpt | LeWM+noise ckpt 加 σ probe，μ-path 不变 | 检查 σ 在 noise 训练下是否仍稳定 calibration |
 
-##### P3 — 锦上添花扩展
+##### 第三层 — 写作期 reproducibility / figure / claim 收缩
 
 | ID | 任务 | 备注 |
 |---|---|---|
-| **P3-1** | 跨任务固定 α / 归一化 α 实验（同一组超参数通吃 ≥ 3 任务） | 若成立，叙事从"per-task α"升级到"adaptive resolution 是 universal mechanism" |
-| **P3-2** | Consistency-on-noise 更高剂量 sweep：`std_max=0.03–0.05` × α=0.01–0.03（同时补 TwoRoom consist003+noise 联用） | 把 §3.7 已建立的 PushT C1+C2 正交性扩到 TwoRoom；正式 sweep table |
-| **P3-3** | 外部 baseline placement：Dreamer-V3 actor variance / TD-MPC2 reward-conditioned consistency 与本工作 per-token σ+A 在 latent JEPA 上的对比 | 帮 reviewer 把工作放进领域版图，不是必需 |
+| 钉死所有 run 的 SwanLab run id | 不只 PushT probe / probe+gate，所有 consist001/003、A_t-only、σ-only、noise002、intervention | ✅ 已完成（2026-05-12）：§3.4 PushT probe 重名 caveat + §3.5.1 全量 run id 表（10 个）+ §3.6.3 因果干预 run id 表（8 个），全文 26 个主要 run 全部钉死 |
+| 全文 claim 收缩 | 把"σ 与 A_t 缺一不可"统一改成"在 action-critical 连续控制（PushT）上 σ 与 A_t 缺一不可；TwoRoom 上 σ 是边际增益" | 主线段落已部分收缩，主表 / 摘要 / abstract / introduction 仍要再扫一遍 |
+| w_t qualitative figure | PushT trajectory 上 w_t 时间序列 + contact 时刻标注（3–5 条 episode） | 顶会必有的图。现有 `tools/repr_analysis/visualize_wt.py` 是 offline 工具，需扩成 per-trajectory 时间序列 + 关键帧叠图 |
+| 理论侧 1 页 | 解释 `critical = gA · (0.5 + 0.5·gS)` 为何不是 σ/A 的线性组合 | sketch 形式：noise-vs-difficulty decomposition，从 confounder trap 角度论证为何必须 multiplicative |
+
+##### 第四层 — 锦上添花扩展
+
+| ID | 任务 | 备注 |
+|---|---|---|
+| 跨任务固定 α / 归一化 α 实验 | 同一组超参数通吃 ≥ 3 任务 | 若成立，叙事从"per-task α"升级到"adaptive resolution 是 universal mechanism" |
+| Consistency-on-noise 更高剂量 sweep | `std_max=0.03–0.05` × α=0.01–0.03（同时补 TwoRoom consist003+noise 联用） | 把 §3.7 已建立的 PushT C1+C2 正交性扩到 TwoRoom；正式 sweep table |
+| 外部 baseline placement | Dreamer-V3 actor variance / TD-MPC2 reward-conditioned consistency 与本工作 per-token σ+A 在 latent JEPA 上的对比 | 帮 reviewer 把工作放进领域版图，不是必需 |
 
 ##### Sprint 建议
 
-1. **本周**：~~起因果干预四件套全套 sweep~~ ✅ 已跑完（2026-05-12，§3.6.2）；写 P2-3 的 w_t figure 脚本；起 P0-1 的 1 个新任务三连（先选 Reacher，已有 LeWM-noise 对照）。
-2. **下周**：根据 P0-1 结果检查 PushT 上 σ+A_t 因果必要性是否在第三个任务上重现，巩固 "contact-heavy 任务上 per-token gate 因果必要" 这一 claim；同期补 TwoRoom consist003+noise 联用 sweep (P3-2)。
-3. **2–3 周后**：跑 P1-1 的 5-seeds 主表升级 + P1-2/P1-3 的邻近对照。
-4. P2 系列穿插在写作周完成；P3 视投稿截止决定是否补。
+1. **本周**：~~起因果干预四件套全套 sweep~~ ✅ 已跑完（2026-05-12，§3.6.2）；写 w_t qualitative figure 脚本；起跨任务扩展实验（1 个新任务三连，先选 Reacher，已有 LeWM-noise 对照）。
+2. **下周**：根据跨任务扩展实验结果检查 PushT 上 σ+A_t 因果必要性是否在第三个任务上重现，巩固 "contact-heavy 任务上 per-token gate 因果必要" 这一 claim；同期补 TwoRoom consist003+noise 联用 sweep。
+3. **2–3 周后**：跑 5-seeds 主表升级 +邻近对照（dropout-variance / global-consistency）。
+4. 第三层工作穿插在写作周完成；第四层视投稿截止决定是否补。
 
 **开放问题（与上述 todo 解耦的研究问题）**：
 - σ 的 multi-step propagation 在 rollout 下是否仍然校准？
@@ -888,7 +888,7 @@ TwoRoom 上的"联用 dominate"暂时不成立——但 consist001+noise0.002 �
 | **Noisy TV / confounder trap** | 高 σ 也可能来自不可控视觉噪声；σ-only consistency 会放弃对噪声的 invariance | consistency gate 必须 action-aware：以 `A_t` 为主门控，σ 只做 enhancer |
 | **Action sensitivity OOD** | 任意随机动作可能离开数据分布，导致 `A_t` 反映 predictor extrapolation | `delta` 使用 empirical action std 或 batch 内 in-distribution action 差分；先 logging-only |
 | **Gate 反向捷径** | 若 `critical_t` 不 detach，encoder/predictor 可通过操纵 gate 逃避 consistency | `σ_t`、`A_t`、`critical_t`、`w_t` 全部 stopgrad；warmup 后再启用 consistency |
-| **encoder σ 不可辨识** | encoder σ 无天然监督，和 predictor σ 同时学会互相逃逸 | Pilot-1 不加 encoder σ；只在 predictor σ 成立后再加 |
+| **encoder σ 不可辨识** | encoder σ 无天然监督，和 predictor σ 同时学会互相逃逸 | 早期实验不加 encoder σ；只在 predictor σ 成立后再加 |
 | **Multi-step σ propagation 公式不准** | 本最简版**不主张**手写 σ 累积公式；让 predictor σ̂ 自学 multi-step uncertainty | 用 multi-step rollout NLL 做训练监督 |
 | **Logging-only diagnostic 的 stateful side-effect 风险**（train-mode BN / Dropout 等） | 任意需要 train-mode forward 的诊断（如 gate 内 K 次 perturb forward）都可能通过 BN running stats 等 stateful buffer 间接影响主训练。 | gate 内 K 次 perturb forward 在 freeze-BN 下执行；adaptive consistency 保持该语义。实例与诊断细节见附录 A.1。 |
 | **σ+A_t (C2) 单独使用不显著超过 LeWM+noise (C1)** | 同一作者的两条 contribution，C2 单独时在主流指标上与 C1 相当；这本身不是问题，但需要清晰的卖点划分 | (a) C2 卖点是"无需 per-task noise 调参"；(b) C1+C2 联用在 PushT 极端 noise 上 +14.66pt，证明二者正交叠加；(c) reviewer 若仍要求"C2 单独超过 C1"，回退到把 C1+C2 联用作为论文主线 |
@@ -947,14 +947,14 @@ L_{\text{pred}}
 
 ### 4.3 诊断工具的角色定位
 
-之前版本主张"17 个诊断指标 = (μ, σ) 框架的 2–3 个本征轴"。**这个主张过于激进**——它假设所有诊断都能被 (μ, σ) 解释，且压缩比可观。这是 empirical question，需要 Pilot-1 数据验证。
+之前版本主张"17 个诊断指标 = (μ, σ) 框架的 2–3 个本征轴"。**这个主张过于激进**——它假设所有诊断都能被 (μ, σ) 解释，且压缩比可观。这是 empirical question，需要早期实验数据验证。
 
 本最简版的诚实主张：
 - predictor σ̂ 输出本身**就是**新增的 per-transition 诊断量
 - 现有诊断（`clean_nn_dist`, `effective_rank`, `transition_resolution_ratio` 等）和 σ̂ 的相关性是**值得测的事后分析**，但不作为 a priori 的论文主张
 - 如果实证发现 σ̂ 和某些诊断高相关 → 加分项；如果不相关 → σ̂ 提供独立的新信息，也是加分项
 
-→ **诊断工具的价值主要是设计约束和机制解释**，不再要求先证明它们能独立预测 eval。它们与本框架的成败解耦：即使 P0.6 盲分桶不强，σ-head 仍可能作为更直接的 adaptive resolution 方法成立。
+→ **诊断工具的价值主要是设计约束和机制解释**，不再要求先证明它们能独立预测 eval。它们与本框架的成败解耦：即使早期盲分桶实验不强，σ-head 仍可能作为更直接的 adaptive resolution 方法成立。
 
 ### 4.4 论文 Novelty 主张与边界
 
@@ -990,7 +990,7 @@ L_{\text{pred}}
 
 ### A.1 BN drift via gate perturb forward（2026-05-09 发现，2026-05-10 已修）
 
-**症状：** Pilot-2A 原始 logging-only gate 跑出 TwoRoom probe+gate clean 89.33（vs probe-only 96.33，跌 7pt），PushT probe+gate clean 87.00（基本不变）。表观上"gate 信号本身破坏 TwoRoom 训练"。
+**症状：** 原始 logging-only gate（未修复 BN drift 前）跑出 TwoRoom probe+gate clean 89.33（vs probe-only 96.33，跌 7pt），PushT probe+gate clean 87.00（基本不变）。表观上"gate 信号本身破坏 TwoRoom 训练"。
 
 **根因：** `train.py::compute_action_gate_metrics` 内 K=4 次 `model.predict(ctx_emb_d, act_emb_pert)` 在 `model.training=True` 下执行。`projector` 与 `predictor_proj` 默认 `nn.BatchNorm1d`（`config/train/lewm.yaml::encoder.projection_head.norm_fn=batchnorm1d`），每次 perturb forward 都用 OOD-ish 扰动 activation 更新 BN running mean/var。每个 train step BN 统计被多走了 K 次偏离主分布的 forward。TwoRoom 表征空间小、视觉多样性低，BN 统计有效样本数对此敏感；PushT 视觉多样性主导 BN 统计，K=4 perturb 占比可忽略。
 
@@ -1036,7 +1036,7 @@ Buggy 版的 SwanLab run id（供历史追溯，**不要用于 reproducibility**
 
 **核心教训**：
 1. **每加一项都要数 hyperparameter**——如果新增 hyperparameter > 0 而经验收益不明，回退。
-2. **数学优雅 ≠ 经验有效**：Fisher / IB 等理论框架在论文里好讲，但 Pilot 没跑过的情况下都是 speculative。
+2. **数学优雅 ≠ 经验有效**：Fisher / IB 等理论框架在论文里好讲，但没经过实验验证的情况下都是 speculative。
 3. **Contribution 1 (LeWM+noise) 是同一作者的强 input-side baseline**：Contribution 2 的核心卖点不是单独打败 C1，而是 (a) 无需 per-task noise 调参就匹配 C1 主流指标，(b) 与 light noise 联用时在极端 OOD 严格超过 C1。
 4. **简单主张更稳**：1 条 novelty + 充分实证 > 4 条互相依赖的理论叠塔。
 

@@ -4,7 +4,7 @@
 >
 > **Pilot-2 更新（2026-05-09/10）**: probe-only 救回 PushT（clean 81.67 ≈ LeWM-base 87.33），probe+gate logging 不破坏 TwoRoom（clean 95.00），三个结构判据全部通过——TwoRoom `hetero_s_logerr_corr=0.612` / PushT `0.482`，TwoRoom `corr_sigma_action=−0.010` / PushT `0.256`，gate weight q10/q90 = 0.55/0.93。**Stage B logging-only controller signal 已验证；下一步进入小权重 Stage C，但必须以 PushT clean/resolution guardrail 为硬约束。**
 >
-> **Contribution 2 sweep + P0-2 intervention 更新（2026-05-12）**: `alpha_cons` 小权重 sweep（consist001/003）+ A_t-only / σ-only ablation + P0-2 四件套因果 intervention + w_t 离线可视化全部跑完。**核心结果**：PushT α=0.01 clean **86.67**（≈ LeWM-base 87.33）+ robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03 clean **98.33**（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。`consist001+noise0.002`（C1+C2 联用）在 PushT 极端 noise px+goal 0.08 = 85.33 > C1 单独 70.67（+14.66pt），证明 C1 与 C2 正交叠加。**P0-2 因果 intervention 完整证明 PushT 上 σ+A_t multiplicative gate 是因果必要项**：shuffle_A clean 跌至 78.33（≈ A_t-only），shuffle_σ robustness 退化至 30.33，random_gate / constant_w 在极端 noise 退化到 ≈ LeWM-base 量级（px+goal 0.08 ≈ 10）。**TwoRoom 上 constant_w (96.33 / 80.00) 反而略胜 σ+A_t baseline (95.33 / 74.00)**——明确把 paper claim 收缩为"per-token gate 的因果必要性是 contact-heavy 连续控制任务（PushT）特性"。w_t 离线可视化验证 corr(w_t, action_norm)=+0.587、corr(w_t, latent_disp)=−0.592。
+> **Contribution 2 sweep + 因果干预更新（2026-05-12）**: `alpha_cons` 小权重 sweep（consist001/003）+ A_t-only / σ-only ablation + 因果干预四件套（shuffle_σ / shuffle_A / random_gate / constant_w）+ w_t 离线可视化全部跑完。**核心结果**：PushT α=0.01 clean **86.67**（≈ LeWM-base 87.33）+ robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03 clean **98.33**（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。`consist001+noise0.002`（C1+C2 联用）在 PushT 极端 noise px+goal 0.08 = 85.33 > C1 单独 70.67（+14.66pt），证明 C1 与 C2 正交叠加。**因果干预完整证明 PushT 上 σ+A_t multiplicative gate 是因果必要项**：shuffle_A clean 跌至 78.33（≈ A_t-only），shuffle_σ robustness 退化至 30.33，random_gate / constant_w 在极端 noise 退化到 ≈ LeWM-base 量级（px+goal 0.08 ≈ 10）。**TwoRoom 上 constant_w (96.33 / 80.00) 反而略胜 σ+A_t baseline (95.33 / 74.00)**——明确把 paper claim 收缩为"per-token gate 的因果必要性是 contact-heavy 连续控制任务（PushT）特性"。w_t 离线可视化验证 corr(w_t, action_norm)=+0.587、corr(w_t, latent_disp)=−0.592。
 >
 > **关系**: 不是 research_notebook_swm 的替换，而是 research_notebook_swm §6 P4 "Adaptive Resolution Method" 的具体化方案。
 > **设计原则**: 先证明额外 σ 输出头携带有用信息，再让它影响训练或 planning；避免一开始就改变 LeWM 的强 MSE baseline。
@@ -481,7 +481,7 @@ Pilot-1B 的结果是**语义成功、系统失败**：
 | consist003 (α=0.03, ours, Contribution 2) | **98.33** | **97.33** | 76.33 | 69.33 | 69.00 | 67.67 |
 | **consist001+noise0.002 (ours, C1+C2 联用)** | 95.33 | 94.00 | **88.00** | **86.00** | **87.33** | **85.33** |
 
-> 所有非 "LeWM-base" 行皆为本工作贡献：LeWM+noise 是 Contribution 1（input-side noise training），consist00X 是 Contribution 2（σ+A_t adaptive consistency），最后一行展示二者联用（详见 §3.7）。A_t-only / σ-only / P0-2 intervention 的对照实验集中在 §3.6。
+> 所有非 "LeWM-base" 行皆为本工作贡献：LeWM+noise 是 Contribution 1（input-side noise training），consist00X 是 Contribution 2（σ+A_t adaptive consistency），最后一行展示二者联用（详见 §3.7）。A_t-only / σ-only / 因果干预（shuffle_σ / shuffle_A / random_gate / constant_w）的对照实验集中在 §3.6。
 
 #### 3.5.3 分辨率护栏检查
 
@@ -578,11 +578,11 @@ Pilot-1B 的结果是**语义成功、系统失败**：
 
 ### 3.6 消融实验与因果干预
 
-本节把所有去除 controller 组件的对照实验（A_t-only / σ-only）和 P0-2 因果 intervention 四件套（shuffle_σ / shuffle_A / random_gate / constant_w）集中呈现。
+本节把所有去除 controller 组件的对照实验（A_t-only / σ-only）和因果干预四件套（shuffle_σ / shuffle_A / random_gate / constant_w）集中呈现。
 
-#### 3.6.0 P0-2 因果干预实验设计
+#### 3.6.0 因果干预实验设计
 
-P0-2 通过破坏 σ 或 A_t 与 state 的对应关系，检验 σ+A_t multiplicative gate 是否为因果必要项。四种 intervention 的语义如下：
+因果干预通过破坏 σ 或 A_t 与 state 的对应关系，检验 σ+A_t multiplicative gate 是否为因果必要项。四种 intervention 的语义如下：
 
 | Intervention | 干预位置 | 期望破坏 | 期望 sanity diagnostic |
 |---|---|---|---|
@@ -616,10 +616,10 @@ done
 | **σ+A_t consist001（full）** | **86.67** | **77.00** | **70.67** | **37.00** | 0.574 | 0.250 |
 | A_t-only consist001（σ off） | 77.33 | 68.00 | 50.00 | 6.67 | 0.723 | 0.000 |
 | σ-only consist001（A_t off） | 87.00 | 76.33 | 65.67 | 20.00 | — | — |
-| shuffle_σ (P0-2) | 86.67 | 79.67 | 64.00 | 30.33 | 0.589 | **−0.003** ✓ |
-| shuffle_A (P0-2) | 78.33 | 69.33 | 51.00 | 18.33 | 0.583 | **0.000** ✓ |
-| random_gate (P0-2) | 85.00 | 72.00 | 54.33 | 10.33 | 0.282 | 0.251 (`crit_mean=0.50` ✓) |
-| constant_w (P0-2) | 85.67 | 70.33 | 45.67 | 8.33 | **0.779 = q90** ✓ | 0.263 |
+| shuffle_σ | 86.67 | 79.67 | 64.00 | 30.33 | 0.589 | **−0.003** ✓ |
+| shuffle_A | 78.33 | 69.33 | 51.00 | 18.33 | 0.583 | **0.000** ✓ |
+| random_gate | 85.00 | 72.00 | 54.33 | 10.33 | 0.282 | 0.251 (`crit_mean=0.50` ✓) |
+| constant_w | 85.67 | 70.33 | 45.67 | 8.33 | **0.779 = q90** ✓ | 0.263 |
 
 **TwoRoom 主表（α=0.01）：**
 
@@ -629,10 +629,10 @@ done
 | σ+A_t consist001 | **95.33** | **93.67** | **92.00** | 74.00 |
 | A_t-only consist001 | 93.33 | 88.00 | 88.67 | 76.67 |
 | σ-only consist001 | **95.33** | 93.00 | 91.67 | **80.00** |
-| shuffle_σ (P0-2) | 92.00 | 88.67 | 89.33 | 72.67 |
-| shuffle_A (P0-2) | 94.67 | 90.67 | 92.00 | 76.67 |
-| random_gate (P0-2) | 92.33 | 92.67 | 91.00 | 76.33 |
-| constant_w (P0-2) | **96.33** | **95.00** | 91.67 | **80.00** |
+| shuffle_σ | 92.00 | 88.67 | 89.33 | 72.67 |
+| shuffle_A | 94.67 | 90.67 | 92.00 | 76.67 |
+| random_gate | 92.33 | 92.67 | 91.00 | 76.33 |
+| constant_w | **96.33** | **95.00** | 91.67 | **80.00** |
 
 > α=0.03 下 TwoRoom σ+A_t consist003 clean 98.33（见 §3.5），是 TwoRoom 的最优配置；本表对齐 α=0.01 以隔离"哪个 controller 组件不可缺"这个变量。
 
@@ -643,10 +643,10 @@ done
 | σ+A_t consist001 | **0.290** | **0.764** | 86.67 | ✅ 全部通过 |
 | σ-only consist001 | 0.288 | 0.760 | 87.00 | ✅ 全部通过；但 high-noise eval 崩溃（见主表） |
 | A_t-only consist001 | 0.261 | 0.727 | 77.33 | ⚠️ res / probe 高于硬阈值 0.24/0.65，但 clean < 84 已触发 |
-| shuffle_σ (P0-2) | 0.288 | 0.757 | 86.67 | ✅ res / probe 与 σ+A_t 几乎一致；clean 维持，但 robustness 全面退化（见主表） |
-| shuffle_A (P0-2) | 0.269 | 0.751 | 78.33 | ⚠️ clean 跌 8.34pt，与 A_t-only (77.33) 同档 |
-| random_gate (P0-2) | 0.280 | 0.773 | 85.00 | clean 维持但 robustness 极差（px+goal 0.08 跌至 10.33） |
-| constant_w (P0-2) | 0.274 | 0.763 | 85.67 | clean 几乎不损但 high-noise 接近 LeWM-base 水平 |
+| shuffle_σ | 0.288 | 0.757 | 86.67 | ✅ res / probe 与 σ+A_t 几乎一致；clean 维持，但 robustness 全面退化（见主表） |
+| shuffle_A | 0.269 | 0.751 | 78.33 | ⚠️ clean 跌 8.34pt，与 A_t-only (77.33) 同档 |
+| random_gate | 0.280 | 0.773 | 85.00 | clean 维持但 robustness 极差（px+goal 0.08 跌至 10.33） |
+| constant_w | 0.274 | 0.763 | 85.67 | clean 几乎不损但 high-noise 接近 LeWM-base 水平 |
 
 #### 3.6.1 机制解读
 
@@ -661,7 +661,7 @@ done
 
 **Guardrail 自身的局限。** σ-only 通过 res / probe 硬阈值但 high-noise eval 崩，A_t-only 通过 res / probe 但 clean 已不达标，说明 §B.2 那套阈值只是"是否破坏 encoder 几何"的下界检查，不是"机制是否有效"的充分判据。任何宣称生效的 controller 都需要同时通过 clean / mid-noise / high-noise 三维评测。
 
-#### 3.6.2 P0-2 因果干预：实测结果
+#### 3.6.2 因果干预：实测结果
 
 四个 intervention 在 sanity diagnostic 上全部按设计行为：`shuffle_σ` / `shuffle_A` 训练侧 `corr_σA` 跌到 ≈0（PushT −0.003 / 0.000；TwoRoom 0.001 / 0.001）；`random_gate` 训练侧 `critical_mean=0.50` 且 `q10/q90 spread` 保留；`constant_w` 训练侧 `q10 == q90`（PushT 0.7788、TwoRoom 0.7316），confirms gate 信号确实被替换。SwanLab run id 见 §3.6.3。
 
@@ -697,7 +697,7 @@ constant_w 在 TwoRoom 上 px+goal 0.08 = 80.00 比 σ+A_t baseline 74.00 高 6p
 - **结合 §3.5 的 consist003 (α=0.03) 数据**——consist003 σ+A_t 是 98.33 clean——TwoRoom 上更高 α 的 σ+A_t 仍是最优，但**在固定 α=0.01 下，constant_w 优于 σ+A_t**，意味着 TwoRoom 上的提升主要来自 mean consistency pressure，per-token 调节贡献有限甚至略有副作用（在低 α 剂量下）。
 - 这是 paper claim 收缩的硬证据：**σ+A_t per-token mechanism 的 value-add 是 task-specific，集中在 contact-heavy 连续控制（PushT），在简单视觉冗余任务（TwoRoom）上不必要甚至略有反向**。
 
-#### 3.6.3 P0-2 干预运行的 SwanLab 标识
+#### 3.6.3 因果干预运行的 SwanLab 标识
 
 | Task | Intervention | Run name | SwanLab ID |
 |---|---|---|---|
@@ -710,7 +710,7 @@ constant_w 在 TwoRoom 上 px+goal 0.08 = 80.00 比 σ+A_t baseline 74.00 高 6p
 | TwoRoom | random_gate | `tworoom_lewm_hetero_probe_action_gate_consist001_random_gate` | `zi5386eau66vdnj99210p` |
 | TwoRoom | constant_w | `tworoom_lewm_hetero_probe_action_gate_consist001_constant_w` | `twybmg8c4uz9a1fe6q904` |
 
-#### 3.6.4 P0-2 的论文叙事意义
+#### 3.6.4 因果干预的论文叙事意义
 
 - **PushT 上 σ+A_t multiplicative gate 是因果必要项**：四个 intervention 在 PushT 极端 noise 上全部退化（10.33–30.33 vs baseline 37.00），其中 random_gate / constant_w 退化到接近 LeWM-base 量级，shuffle_σ / shuffle_A 退化到介于 σ-only / A_t-only 之间。reviewer 无法用"σ 和 A_t 仅作为某种 difficulty 信号的代理"质疑——任何打破 σ↔state 或 A↔state 对应的扰动都会显著破坏 robustness。
 - **A_t 是 multiplicative gate 的主门控**：shuffle_A clean 跌 8.34pt（与 A_t-only 持平），shuffle_σ clean 不动。这定量印证 §2.3.5 公式 `critical = gA·(0.5 + 0.5·gS)` 把 gA 放在乘积主因子位置的设计选择。
@@ -761,18 +761,18 @@ C1 和 C2 在 pipeline 中占据不同位置：
 
 TwoRoom 上的"联用 dominate"暂时不成立——但 consist001+noise0.002 用的是 PushT 最优 α=0.01，**TwoRoom 应该用 α=0.03（consist003）配合 noise**，该联用版本（`consist003+noise0.00X`）目前未跑。已列入 §3.8.1 P3-2 sweep。
 
-**§3.6.2 的 P0-2 结果（特别是 TwoRoom constant_w 96.33 略胜 σ+A_t baseline 95.33）进一步解释了这条缺口**：TwoRoom 上 per-token gate 信号本身就不是关键，per-token spread 杀掉反而略好；因此 C2 (consist001 α=0.01) 在 TwoRoom 上对 C1 的"叠加价值"自然较弱。要在 TwoRoom 上做出联用 dominate，需要更高 α (consist003) 才能让 C2 真正贡献结构化 consistency 压力，而不是当前 α=0.01 主要依赖于 noise term。
+**§3.6.2 的因果干预结果（特别是 TwoRoom constant_w 96.33 略胜 σ+A_t baseline 95.33）进一步解释了这条缺口**：TwoRoom 上 per-token gate 信号本身就不是关键，per-token spread 杀掉反而略好；因此 C2 (consist001 α=0.01) 在 TwoRoom 上对 C1 的"叠加价值"自然较弱。要在 TwoRoom 上做出联用 dominate，需要更高 α (consist003) 才能让 C2 真正贡献结构化 consistency 压力，而不是当前 α=0.01 主要依赖于 noise term。
 
 #### 3.7.5 论文 Takeaway
 
-**C1+C2 不是替代关系而是叠加关系**——这是本节的核心 claim，由 PushT 极端 OOD 上的 +14.66pt 经验证据支持。§3.6.2 P0-2 因果 intervention 进一步证明 PushT 上 σ+A_t multiplicative gate 是因果必要项，把 C2 的方法学分量钉死。论文叙事意义：
+**C1+C2 不是替代关系而是叠加关系**——这是本节的核心 claim，由 PushT 极端 OOD 上的 +14.66pt 经验证据支持。§3.6.2 的因果干预结果进一步证明 PushT 上 σ+A_t multiplicative gate 是因果必要项，把 C2 的方法学分量钉死。论文叙事意义：
 
 - 单独说"AAAC 打败 noise training"是错的——数据不支持，会被 reviewer 直接质疑。
 - 单独说"AAAC 不需要调参"是错的——AAAC 也有 per-task α。
 - 单独说"AAAC 在所有任务上都需要"也是错的——§3.6.2 TwoRoom 上 constant_w 略胜 σ+A_t，per-token mechanism 的因果必要性是 contact-heavy 任务特性。
 - 真正能立的是 "**AAAC 在 PushT 这类 contact-heavy 连续控制任务上提供机制上不同、与 noise training 正交的 per-token controller，且经因果 intervention 证明 σ+A_t multiplicative gate 不可替代；二者叠加在 PushT 极端 OOD 上严格超过任一单独 +14.66pt**"。这一表述既诚实又有 method-grade 贡献分量。
 
-剩余 paper-grade 工作：(a) TwoRoom 上补 consist003+noise sweep 验证联用 dominate；(b) ~~P0-2 因果 intervention~~ ✅ 已完成 (§3.6.2)，证明 σ+A_t multiplicative gate 是 PushT 上的因果必要项。
+剩余 paper-grade 工作：(a) TwoRoom 上补 consist003+noise sweep 验证联用 dominate；(b) ~~因果干预四件套~~ ✅ 已完成 (§3.6.2)，证明 σ+A_t multiplicative gate 是 PushT 上的因果必要项。
 
 ### 3.8 结论与顶会主表路线图
 
@@ -798,7 +798,7 @@ TwoRoom 上的"联用 dominate"暂时不成立——但 consist001+noise0.002 �
 | `lewm_action_only_consist001` (A_t-only) | 93.33 | 77.33 | σ 必要性完整验证（TwoRoom 3 seeds + PushT 3 seeds + diagnostics）|
 | `lewm_sigma_only_consist001` (σ-only) | 95.33 | 87.00 | Noisy TV / confounder trap 在 PushT 上精确验证|
 | `lewm_action_aware_consist001_noise002` | 95.33 | **88.00** | C1+C2 联用，PushT px+goal 0.08 85.33 > C1 单独 70.67（+14.66pt） |
-| P0-2 因果 intervention 四件套 | 见 §3.6.2 | 见 §3.6.2 | PushT 四项干预全部 degrade，证明 σ+A_t multiplicative gate 因果必要；TwoRoom constant_w 略胜 σ+A_t 基线 |
+| 因果干预四件套（shuffle_σ / shuffle_A / random_gate / constant_w） | 见 §3.6.2 | 见 §3.6.2 | PushT 四项干预全部 degrade，证明 σ+A_t multiplicative gate 因果必要；TwoRoom constant_w 略胜 σ+A_t 基线 |
 | `w_t` 离线可视化 | — | ✅ | corr +0.587 / −0.592，动态范围非平凡 |
 
 **判定标准（最终版）**：
@@ -807,7 +807,7 @@ TwoRoom 上的"联用 dominate"暂时不成立——但 consist001+noise0.002 �
 3. ✅ `A_t` / `critical_t` 显示 action-relevant 结构（CV 可控，weight spread 非平凡）。
 4. ✅ Freeze-BN gate 语义在 consist001/003 中保持一致。
 5. ✅ **σ 与 A_t 在 PushT 上缺一不可**：A_t-only PushT clean 跌 9.34pt（77.33 vs 86.67），σ-only PushT px+goal 0.08 崩溃至 20.00（vs σ+A_t 37.00）；只有 σ+A_t 联合使用才能在 PushT 上同时维持 clean（86.67）和 robustness（goal 0.08 63.00，px+goal 0.08 37.00）。TwoRoom 上这个结论更弱。
-6. ✅ **P0-2 因果干预证明 σ+A_t multiplicative gate 是 PushT 上的因果必要项**：shuffle_σ / shuffle_A / random_gate / constant_w 四项干预全部 degrade（px+goal 0.08 8.33–30.33 vs baseline 37.00），且 sanity diagnostic 按设计行为（corr→0，q10=q90，critical_mean=0.50）。shuffle_A clean 跌 8.34pt 直接打到 A_t-only 水平，定量印证 A_t 是 multiplicative gate 主门控。
+6. ✅ **因果干预证明 σ+A_t multiplicative gate 是 PushT 上的因果必要项**：shuffle_σ / shuffle_A / random_gate / constant_w 四项干预全部 degrade（px+goal 0.08 8.33–30.33 vs baseline 37.00），且 sanity diagnostic 按设计行为（corr→0，q10=q90，critical_mean=0.50）。shuffle_A clean 跌 8.34pt 直接打到 A_t-only 水平，定量印证 A_t 是 multiplicative gate 主门控。
 
 **Contribution 1 + Contribution 2 联用（已验证 + 待扩）**：
 机制上 C1（input-side global noise）与 C2（output-side per-token σ+A_t）处于不同位置：noise 提供 isotropic invariance baseline，σ+A_t 在此基础上做 per-state 精细化分配，三者互补。`consist001+noise0.002` 在 PushT 上 clean 88.00（> C2 单独 86.67、> C1 单独需调到 0to002-p1 才 90.00）、pixels 0.05 87.33 ≈ C1 (87.67)、**px+goal 0.08 85.33 > C1 (70.67) 14.66pt**，印证 **C1+C2 联用严格超过任一单独**；TwoRoom 上 noise0.002（clean 95.33, px+goal 0.05 94.00）与 consist001（95.33 / 92.00）接近，C1 的边际效用较低。下一步剂量 sweep（`std_max=0.03–0.05` × α=0.01–0.03）列入 P3-2。
@@ -818,7 +818,7 @@ TwoRoom 上的"联用 dominate"暂时不成立——但 consist001+noise0.002 �
 
 ##### 已完成里程碑（P0 级）
 
-- **P0-2 因果 intervention 四件套**（2026-05-12，§3.6.0–§3.6.4）：PushT 上四项干预全部 degrade，证明 σ+A_t multiplicative gate 是因果必要项；shuffle_A clean 跌 8.34pt 印证 A_t 是 multiplicative gate 主门控。TwoRoom 上 constant_w 略胜 σ+A_t baseline，把 paper claim 收缩到"per-token gate 因果必要性是 contact-heavy 任务特性"。实验设计与启动命令见 §3.6.0。
+- **因果干预四件套（shuffle_σ / shuffle_A / random_gate / constant_w）**（2026-05-12，§3.6.0–§3.6.4）：PushT 上四项干预全部 degrade，证明 σ+A_t multiplicative gate 是因果必要项；shuffle_A clean 跌 8.34pt 印证 A_t 是 multiplicative gate 主门控。TwoRoom 上 constant_w 略胜 σ+A_t baseline，把 paper claim 收缩到"per-token gate 因果必要性是 contact-heavy 任务特性"。实验设计与启动命令见 §3.6.0。
 
 ##### P0 — 不做的话方法本体站不住
 
@@ -839,7 +839,7 @@ TwoRoom 上的"联用 dominate"暂时不成立——但 consist001+noise0.002 �
 
 | ID | 任务 | 备注 |
 |---|---|---|
-| **P2-1** | 钉死所有 run 的 SwanLab run id（不只 PushT probe / probe+gate，所有 consist001/003、A_t-only、σ-only、noise002、intervention） | ✅ 已完成（2026-05-12）：§3.4 PushT probe 重名 caveat + §3.5.1 Stage C 全量 run id 表（10 个）+ §3.6.3 P0-2 intervention run id 表（8 个），全文 26 个主要 run 全部钉死 |
+| **P2-1** | 钉死所有 run 的 SwanLab run id（不只 PushT probe / probe+gate，所有 consist001/003、A_t-only、σ-only、noise002、intervention） | ✅ 已完成（2026-05-12）：§3.4 PushT probe 重名 caveat + §3.5.1 全量 run id 表（10 个）+ §3.6.3 因果干预 run id 表（8 个），全文 26 个主要 run 全部钉死 |
 | **P2-2** | 全文 claim 收缩：把"σ 与 A_t 缺一不可"统一改成"在 action-critical 连续控制（PushT）上 σ 与 A_t 缺一不可；TwoRoom 上 σ 是边际增益" | 主线段落已部分收缩，主表 / 摘要 / abstract / introduction 仍要再扫一遍 |
 | **P2-3** | w_t qualitative figure：PushT trajectory 上 w_t 时间序列 + contact 时刻标注（3–5 条 episode） | 顶会必有的图。现有 `tools/repr_analysis/visualize_wt.py` 是 offline 工具，需扩成 per-trajectory 时间序列 + 关键帧叠图 |
 | **P2-4** | 理论侧 1 页：解释 `critical = gA · (0.5 + 0.5·gS)` 为何不是 σ/A 的线性组合 | sketch 形式：noise-vs-difficulty decomposition，从 confounder trap 角度论证为何必须 multiplicative |
@@ -854,7 +854,7 @@ TwoRoom 上的"联用 dominate"暂时不成立——但 consist001+noise0.002 �
 
 ##### Sprint 建议
 
-1. **本周**：~~起 P0-2 全套 intervention sweep~~ ✅ 已跑完（2026-05-12，§3.6.2）；写 P2-3 的 w_t figure 脚本；起 P0-1 的 1 个新任务三连（先选 Reacher，已有 LeWM-noise 对照）。
+1. **本周**：~~起因果干预四件套全套 sweep~~ ✅ 已跑完（2026-05-12，§3.6.2）；写 P2-3 的 w_t figure 脚本；起 P0-1 的 1 个新任务三连（先选 Reacher，已有 LeWM-noise 对照）。
 2. **下周**：根据 P0-1 结果检查 PushT 上 σ+A_t 因果必要性是否在第三个任务上重现，巩固 "contact-heavy 任务上 per-token gate 因果必要" 这一 claim；同期补 TwoRoom consist003+noise 联用 sweep (P3-2)。
 3. **2–3 周后**：跑 P1-1 的 5-seeds 主表升级 + P1-2/P1-3 的邻近对照。
 4. P2 系列穿插在写作周完成；P3 视投稿截止决定是否补。

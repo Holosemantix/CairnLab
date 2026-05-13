@@ -149,8 +149,13 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def build_episode_dataset(dataset_name: str, img_size: int):
-    dataset = swm.data.HDF5Dataset(dataset_name, transform=None)
+def build_episode_dataset(dataset_name: str, img_size: int, frameskip: int = 5):
+    dataset = swm.data.HDF5Dataset(
+        dataset_name,
+        num_steps=1,
+        frameskip=frameskip,
+        transform=None,
+    )
     transform = spt.data.transforms.Compose(
         get_img_preprocessor("pixels", "pixels", img_size),
         get_column_normalizer(dataset, "action", "action"),
@@ -181,9 +186,11 @@ def load_episode(
     proc_samples = [dataset[int(idx)] for idx in row_indices.tolist()]
     raw_samples = [raw_dataset[int(idx)] for idx in row_indices.tolist()]
 
-    pixels = torch.stack([sample["pixels"] for sample in proc_samples], dim=0).to(device)
+    # Single-frame samples may have a leading batch dim (1, C, H, W) from the
+    # image preprocessor.  Use cat(dim=0) to collapse it robustly.
+    pixels = torch.cat([sample["pixels"] for sample in proc_samples], dim=0).to(device)
     action = torch.nan_to_num(
-        torch.stack([sample["action"] for sample in proc_samples], dim=0),
+        torch.cat([sample["action"] for sample in proc_samples], dim=0),
         0.0,
     ).to(device)
     raw_pixels = np.stack([np.asarray(sample["pixels"]) for sample in raw_samples], axis=0)
@@ -217,6 +224,8 @@ def sample_episode_ids(raw_dataset, *, n_episodes: int, seed: int, history_size:
 
 def to_display_image(raw_pixels: np.ndarray) -> np.ndarray:
     arr = np.asarray(raw_pixels)
+    if arr.ndim == 4 and arr.shape[0] == 1:
+        arr = arr.squeeze(0)
     if arr.ndim != 3:
         raise ValueError(f"Expected image with ndim=3, got shape={arr.shape}")
     if arr.shape[0] in {1, 3} and arr.shape[-1] not in {1, 3}:
@@ -579,8 +588,13 @@ def run_aggregate_analysis(args, model, history_size: int, save_dir: Path):
 
 
 def run_trajectory_analysis(args, model, history_size: int, save_dir: Path):
-    dataset = build_episode_dataset(args.dataset, args.img_size)
-    raw_dataset = swm.data.HDF5Dataset(args.dataset, transform=None)
+    dataset = build_episode_dataset(args.dataset, args.img_size, frameskip=args.frameskip)
+    raw_dataset = swm.data.HDF5Dataset(
+        args.dataset,
+        num_steps=1,
+        frameskip=args.frameskip,
+        transform=None,
+    )
 
     if args.episode_ids:
         episode_ids = [int(ep_id) for ep_id in args.episode_ids]

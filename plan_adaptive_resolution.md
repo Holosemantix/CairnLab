@@ -601,6 +601,28 @@ LeWM-base 在 clean 上表现良好，但只要 visual std=0.05 加到 pixels+go
 
 **English write-up (paper language).** These figures pin down the core mechanistic conclusion of the adaptive controller. First, on PushT the gate is not learning a noisy token reweighting scheme, nor is it collapsing into a simple contact detector; it aligns with the intersection of predictor difficulty and action sensitivity, and therefore selectively relaxes consistency pressure in regions where latent transitions are abrupt and planning depends most on preserved resolution. Second, the same analysis on TwoRoom shows a strongly compressed per-token spread, fully consistent with the result in §3.6 that the global consistency baseline slightly outperforms the per-token gate there: in visually redundant tasks with simple action structure, most of the benefit comes from the mean consistency pressure rather than fine-grained token-wise allocation. Third, the visualization therefore provides the most direct mechanism-level support for the paper claim: **the extra value of the per-token $\sigma + A_t$ gate is task-specific and is concentrated in contact-heavy continuous-control tasks; when the task does not require fine-grained resolution allocation, global consistency is already close to optimal.**
 
+#### 3.5.1 Per-episode $w_t$ 时间序列与关键帧分析
+
+上述 aggregate 统计验证了 gate 与 task structure 的系统性对应。为了进一步展示**单个 episode 内** $w_t$ 如何随时间演化、是否与动作关键事件对齐，我们从训练集随机抽取 5 条完整 trajectory，用滑动 context window 重新计算每一步的 $w_t$ / $critical_t$，并叠加关键帧（salient steps 由 $critical_t$ 峰值选出）。
+
+**PushT（episode 8200，corr($w_t$, $||a_t||$)=0.784）**
+
+*Caption.* 上图：蓝色 $w_t$ 与红色 $critical_t$ 呈镜像关系（$w_t = 1 - \alpha \cdot critical_t$）；橙色 $||a_t||$ 在 $t \approx 124$ 处出现显著峰值，对应 $critical_t$ 同步跃升、$w_t$ 跌至局部最低（$w \approx 0.40$），此时 T 形块与目标发生接触/推动。关键帧显示 $t=48,61,68$ 等高 $critical_t$ 时刻均对应 agent 末端执行器靠近或接触 T 形块的姿态。这说明 per-token gate 在**接触约束最紧、predictor 最敏感**的时刻主动降低 consistency pressure，保护 planning-relevant 分辨率。
+
+*English caption.* Top panel: blue $w_t$ and red $critical_t$ are mirror images ($w_t = 1 - \alpha \cdot critical_t$); orange $||a_t||$ peaks around $t \approx 124$, where $critical_t$ jumps and $w_t$ drops to a local minimum ($w \approx 0.40$) exactly when the T-block makes contact with the target. Keyframes at $t=48,61,68$ show the end-effector approaching or touching the T-block. The per-token gate thus relaxes consistency pressure precisely at the moments of tightest contact constraint and highest predictor sensitivity, preserving planning-relevant resolution.
+
+![PushT trajectory w_t](assets/diagnostics/pusht_wt_traj/wt_episode_8200.png)
+
+**TwoRoom（episode 4388，corr($w_t$, $||a_t||$)=0.095）**
+
+*Caption.* TwoRoom 上 $w_t$ 曲线整体更为平坦（$w_{\text{mean}}=0.708$，$\text{std}=0.106$），$critical_t$ 波动幅度明显小于 PushT。关键帧显示高 $critical_t$ 时刻（$t=28,46,55,74$）对应 agent 穿越 doorway 或接近目标点，但这些 transition 的 $w_t$ 下降幅度有限（最低仍维持在 $w \approx 0.51$）。这与 aggregate 统计一致：TwoRoom 动作空间简单、controllability 差异小，per-token adaptive resolution 的动态空间被任务结构本身压缩，global consistency 已能覆盖大部分收益。
+
+*English caption.* On TwoRoom the $w_t$ curve is much flatter ($w_{\text{mean}}=0.708$, $\text{std}=0.106$) and $critical_t$ oscillates less than on PushT. Keyframes show high-$critical_t$ moments ($t=28,46,55,74$) correspond to doorway crossings or target approaches, yet the $w_t$ dip is modest (minimum still $w \approx 0.51$). This matches the aggregate statistics: TwoRoom's simple action space and small controllability differences compress the dynamic range of per-token adaptive resolution, and global consistency already captures most of the benefit.
+
+![TwoRoom trajectory w_t](assets/diagnostics/tworoom_wt_traj/wt_episode_4388.png)
+
+**Takeaway.** Per-episode 时间序列进一步证实 aggregate 统计的结论：PushT 上 $w_t$ 与 action-critical 事件有显著时序对齐，per-token gate 的因果价值体现在**接触约束紧、predictor 敏感**的局部时刻；TwoRoom 上 $w_t$ 变化平缓，任务结构本身决定了 fine-grained resolution allocation 的边际收益有限。两组图共同为 "per-token $\sigma+A_t$ gate 的额外价值是 task-specific 的" 提供了从统计到定性的完整证据链。
+
 ### 3.6 消融实验与因果干预
 
 本节把所有去除 controller 组件的对照实验（A_t-only / σ-only）和因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）集中呈现。

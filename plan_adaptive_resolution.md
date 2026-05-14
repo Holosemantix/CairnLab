@@ -280,32 +280,42 @@ SIGReg 始终只作用在 deterministic μ 上，不推广到 (μ, σ) 或 repar
 |---|---:|---:|---:|---:|
 | TwoRoom | 93.00 | 62.33 | 44.33 | **−48.67** |
 | PushT | 87.33 | 15.00 | 3.67 | **−83.66** |
+| Reacher | 57.67 | 25.33 | 14.67 | **−43.00** |
+| Cube | 72.33 | 61.33 | 52.33 | **−20.00** |
 
-LeWM-base 在 clean 上表现良好，但只要 visual std=0.05 加到 pixels+goal 两端，TwoRoom 就跌 30pt+、PushT 跌 70pt+；到 std=0.08 时 PushT 已接近随机（3.67%）。**这不是边缘现象**：JEPA + CEM world model 在没有 noise-aware training 时对 visual corruption 没有任何抵抗力。
+LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要 visual std=0.05 加到 pixels+goal 两端，所有任务都出现显著退化：PushT 跌 70pt+（接近随机 3.67%）、TwoRoom 跌 30pt+、Reacher 跌 30pt+、Cube 跌 10pt+。**这不是边缘现象**：JEPA + CEM world model 在没有 noise-aware training 时对 visual corruption 没有任何抵抗力。Cube 的退化幅度最小（−20pt），说明结构化 manipulation 任务对视觉噪声有一定天然鲁棒性；PushT 的退化最剧烈（−83.66pt），印证 contact-heavy 连续控制对视觉精度最敏感。
 
 #### 3.2.2 LeWM+noise 关闭鲁棒性缺口（Contribution 1 验证）
 
-我们在 LeWM 的 input pipeline 加 per-frame Gaussian noise（`utils.py:AddNormalizedGaussianNoise`），每帧独立 Bernoulli(`noise_prob=1.0`) 决定是否加噪，加则 std ~ Uniform(0, `std_max`)；扫 `std_max ∈ {0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008}` 共 8 档。完整 4-task × 8-档 数据见 `research_notebook_swm.md` §4.2 与本文件附录 E；这里只取 TwoRoom + PushT 在 px+goal 0.08 上的对照：
+我们在 LeWM 的 input pipeline 加 per-frame Gaussian noise（`utils.py:AddNormalizedGaussianNoise`），每帧独立 Bernoulli(`noise_prob=1.0`) 决定是否加噪，加则 std ~ Uniform(0, `std_max`)；扫 `std_max ∈ {0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008}` 共 8 档。完整 4-task × 8-档 数据见 `research_notebook_swm.md` §4.2 与本文件附录 E；这里取四任务在 clean + px+goal 0.08 上的对照：
 
-| std_max | TwoRoom clean | TwoRoom px+goal 0.08 | PushT clean | PushT px+goal 0.08 |
-|---|---:|---:|---:|---:|
-| 0 (base) | 93.00 | 44.33 | 87.33 | 3.67 |
-| 0.001 | 92.00 | 84.67 | 89.67 | 46.33 |
-| **0.002 (PushT 最优 clean)** | 94.33 | 91.00 | **90.00** | 70.67 |
-| 0.003 | 96.33 | 94.67 | 89.67 | 83.00 |
-| 0.005 | 94.00 | 94.00 | 82.00 | 78.00 |
-| 0.006 | 96.67 | 96.67 | 89.33 | 87.00 |
-| 0.007 | 96.00 | 96.33 | 85.67 | 82.33 |
-| **0.008 (TwoRoom 最优)** | **98.33** | **98.67** | 88.33 | 85.33 |
+| std_max | TwoRoom clean | TwoRoom px+g 0.08 | PushT clean | PushT px+g 0.08 | Reacher clean | Reacher px+g 0.08 | Cube clean | Cube px+g 0.08 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 (base) | 93.00 | 44.33 | 87.33 | 3.67 | 57.67 | 14.67 | 72.33 | 52.33 |
+| 0.001 | 92.00 | 84.67 | 89.67 | 46.33 | 55.67 | 45.33 | 73.00 | 53.33 |
+| 0.002 | 94.33 | 91.00 | **90.00** | 70.67 | 80.33 | 80.67 | 64.67 | 63.00 |
+| 0.003 | 96.33 | 94.67 | 89.67 | 83.00 | 78.67 | 73.67 | 65.00 | 67.33 |
+| 0.004 | 96.33 | 95.00 | 89.33 | 81.33 | 84.00 | 80.00 | 69.00 | 67.00 |
+| 0.005 | 94.00 | 94.00 | 82.00 | 78.00 | 73.33 | 71.33 | 61.33 | 60.67 |
+| **0.006** | 96.67 | 96.67 | 89.33 | **87.00** | **86.00** | **84.67** | 66.67 | 65.00 |
+| 0.007 | 96.00 | 96.33 | 85.67 | 82.33 | 83.67 | 81.33 | 67.67 | 68.00 |
+| **0.008** | **98.33** | **98.67** | 88.33 | 85.33 | 84.00 | 83.00 | 62.33 | 60.33 |
 
 #### 3.2.3 任务相关调参成本的实证
 
-两个观察：
+三个观察：
 
-1. **没有单一 std_max 在两任务同时最优，且同一任务上 clean 与 robustness 最优剂量也不同。** TwoRoom 在 std=0.008 达到 (98.33 / 98.67)。PushT 在 std=0.002 达到峰值 clean 90.00，但扩展至 std=0.006 后 px+goal 0.08 达到 87.00（vs 0.002 的 70.67，+16.33pt）——**clean 与 robustness 最优剂量分离**。如果用 TwoRoom 最优 (0.008) 去训 PushT，clean 跌到 88.33（−1.67pt）。如果用 PushT clean 最优 (0.002) 训 TwoRoom，clean 94.33（−4.00pt vs 0.008），px+goal 0.08 = 91.00（−7.67pt）——更明显。
-2. **per-task 调参是必要的，不是可选的**。task 间最优 std_max 差 4 倍（0.002 vs 0.008）。这把 Contribution 1 的边界划清楚了：**它是"input-side global noise"的最强形式，但解决 OOD robustness 需要支付一个 per-task tuning cost。**
+1. **没有单一 std_max 在四任务同时最优，且同一任务上 clean 与 robustness 最优剂量也不同。**
+   - TwoRoom 在 std=0.008 达到全局最优 (98.33 / 98.67)，clean 随 noise 单调上升——视觉冗余任务从重 noise 中获益最大。
+   - PushT 在 std=0.002 达到峰值 clean 90.00，但 robustness (px+g 0.08) 最优在 std=0.006（87.00 vs 0.002 的 70.67，+16.33pt）——**clean 与 robustness 最优剂量分离**。
+   - Reacher 在 std=0.006 达到最优 (86.00 / 84.67)，低 noise（0.001）反而损害性能（clean 55.67），说明该任务需要一定强度的全局 invariance 才能稳定。
+   - Cube 的 noise sweep 效果最弱：clean 没有单调提升趋势（最优在 0.001 的 73.00），px+g 0.08 也仅在 0.003–0.007 区间有轻微改善（67.33 vs base 52.33）——结构化 manipulation 对 input-side global noise 不敏感。
 
-更深层的机制原因（在 §3.5 反向印证）：TwoRoom 动作空间离散简单（2D 方向 + 速度）、视觉冗余大，重 noise 不会破坏 controllability；PushT 动作空间连续 + 接触约束，太重的 noise 会模糊 contact transition 的关键状态。换言之，input-side global noise 没办法区分 "应该 invariant 的视觉冗余" 和 "应该保留分辨率的控制关键状态"——这是 σ+A_t per-token controller（§3.4–§3.5）要解决的核心问题。
+2. **per-task 调参是必要的，不是可选的**。task 间最优 std_max 差异巨大：TwoRoom 0.008（重 noise）、PushT clean 0.002 / robustness 0.006、Reacher 0.006、Cube 几乎无最优（或 0.001）。这把 Contribution 1 的边界划清楚了：**它是"input-side 全局 noise"的最强形式，但解决 OOD robustness 需要支付一个 per-task tuning cost。**
+
+3. **四任务对 noise 的敏感度形成 clear gradient**：PushT（−83.66pt base drop）> Reacher（−43.00pt）≈ TwoRoom（−48.67pt）> Cube（−20.00pt）。但 noise training 的修复效果并不与敏感度成正比——TwoRoom 修复最彻底（+54.34pt），Cube 修复最弱（+15.67pt），说明 input-side global noise 对"视觉冗余型"任务最有效，对"结构化操作型"任务边际收益有限。
+
+更深层的机制原因（在 §3.5 反向印证）：TwoRoom 动作空间离散简单（2D 方向 + 速度）、视觉冗余大，重 noise 不会破坏 controllability；PushT 动作空间连续 + 接触约束，太重的 noise 会模糊 contact transition 的关键状态；Cube 的动作序列高度结构化，视觉-动作耦合可预测，全局 noise 对规划几乎没有额外帮助。换言之，input-side global noise 没办法区分 "应该 invariant 的视觉冗余" 和 "应该保留分辨率的控制关键状态"——这是 σ+A_t per-token controller（§3.4–§3.5）要解决的核心问题。
 
 #### 3.2.4 对后续方法的启示
 

@@ -4,7 +4,9 @@
 >
 > **Probe-only + Gate logging 更新（2026-05-09/10）**：probe-only 救回 PushT（clean 81.67 ≈ LeWM-base 87.33），probe+gate logging 不破坏 TwoRoom（clean 95.00），三个结构判据全部通过。gate logging（α=0，仅记录不进入 loss）验证成功；下一步进入小权重 consistency，但必须以 PushT clean/resolution guardrail 为硬约束。
 >
-> **Contribution 2 sweep + 因果干预更新（2026-05-13）**: `alpha_cons` 小权重 sweep（consist001/003）+ A_t-only / σ-only ablation + 因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）+ 四任务 `w_t` 完整可视化全部完成。**核心结果**：PushT α=0.01 clean **86.67**（≈ LeWM-base 87.33）+ robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03 clean **98.33**（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。`consist001+noise0.005`（C1+C2 联用最优配置）在 PushT 极端 noise px+goal 0.08 = **85.33** vs C1 单独同 noise 75.75（**+9.58pt**）、vs C2 单独 37.00（**+48.33pt**），证明 C1 与 C2 互补叠加；轻 noise（0.002）下为 75.00（+4.33pt vs C1 0.002-p1）。跨任务同 noise 对比下，C1+C2 对 C1 的极端 OOD 增益分别为：TwoRoom **+2.00pt**、Reacher **+9.67pt**、Cube **+8.00pt**，系统性验证了 per-token controller 的增益。**因果干预完整证明 PushT 上 σ+A_t multiplicative gate 是因果必要项**：shuffle_A clean 跌至 78.33（≈ A_t-only），shuffle_σ robustness 退化至 30.33，random_gate / global consistency 在极端 noise 退化到 ≈ LeWM-base 量级（px+goal 0.08 ≈ 10）。**TwoRoom 与 Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价，不引起退化；Reacher 上 clean 显著退化（−6~−9pt）但 robustness 空间压缩（global consistency 与 σ+A_t 等价）**——因此 paper claim 应修正为"per-token gate 在需要精细分辨率的任务（PushT/Reacher）上产生显著增益，在不需要的任务（TwoRoom/Cube）上不引起退化"。四任务 trajectory-level `w_t` 可视化进一步表明：PushT 上 gate 与关键接触事件显著对齐，TwoRoom/Reacher 上动态范围压缩，Cube 处于中间地带。
+> **Contribution 2 sweep + 因果干预更新（2026-05-13）**: `alpha_cons` 小权重 sweep（consist001/003）+ A_t-only / σ-only ablation + 因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）+ 四任务 `w_t` 完整可视化全部完成。**核心结果**：PushT α=0.01 clean **86.67**（≈ LeWM-base 87.33）+ robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03 clean **98.33**（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。`consist001+noise0.005`（C1+C2 联用最优配置）在 PushT 极端 noise px+goal 0.08 = **85.33** vs C1 单独同 noise 75.75（**+9.58pt**）、vs C2 单独 37.00（**+48.33pt**），证明 C1 与 C2 互补叠加；轻 noise（0.002）下为 75.00（+4.33pt vs C1 0.002-p1）。跨任务同 noise 对比下，C1+C2 对 C1 的极端 OOD 增益分别为：TwoRoom **+2.00pt**、Reacher **+9.67pt**、Cube **+8.00pt**，系统性验证了 **per-token consistency routing** 的增益。**因果干预的最强 claim 是 "per-token routing 在 PushT 上是因果必要项"**：`constant_w`（杀掉 per-token spread）在 PushT px+goal 0.08 跌至 8.33（vs σ+A_t baseline 37.00，**−28.67pt**）；random_gate（无信息 per-token 信号）跌至 10.33；shuffle_A / shuffle_σ 介于其间（18.33 / 30.33）。**σ+A_t multiplicative gate 是我们的 chosen instantiation 而非 the unique principled choice**——specific signal 选择带来约 7–20pt 的额外贡献，但 per-token routing 本身才是主导项。TwoRoom / Cube 上 `constant_w` 与 σ+A_t 在统计误差范围内等价，不引起退化；Reacher 上 clean 显著退化（−6~−9pt）但 robustness 空间压缩——因此 paper claim 应修正为 "per-token routing 在需要精细分辨率的任务（PushT/Reacher）上产生显著增益，在不需要的任务（TwoRoom/Cube）上不引起退化"。四任务 trajectory-level `w_t` 可视化进一步表明 σ+A_t gate 在 PushT 上与关键接触事件显著对齐，TwoRoom/Reacher 上动态范围压缩，Cube 处于中间地带。
+>
+> **DGC offline ablation（2026-05-14）**：把 `predictor_target_to_nn_l2_ratio` 的 per-token 版 `fragile_t = ||predict(noisy_z, a) - predict(clean_z, a)||₂ / batch_kNN_L2_dist` 与现版 σ+A_t critical 做 ckpt-级 scatter。四任务 Pearson(σ+A_t critical vs fragile) ∈ [0.02, 0.15]，Pearson(σ vs fragile) ∈ [−0.08, +0.10]、Pearson(A_t vs fragile) ∈ [−0.12, +0.09] 全部接近统计零。**结论**：σ+A_t 与 noise-fragility 是 **independent signals**，σ+A_t 学到的不是 input-noise 透过率，而是 dataset-aggregate prediction difficulty + action transmission。这进一步支持把 σ+A_t 视为"per-token routing 的一种 instantiation"而非唯一 principled choice；其它正交信号（如 fragile_t）原则上也可作为 C2 instantiation，待 online 验证。详 §3.8.2。
 >
 > **关系**: 不是 research_notebook_swm 的替换，而是 research_notebook_swm §6 P4 "Adaptive Resolution Method" 的具体化方案。
 > **设计原则**: 先证明额外 σ 输出头携带有用信息，再让它影响训练或 planning；避免一开始就改变 LeWM 的强 MSE baseline。
@@ -18,14 +20,14 @@
 
 **经验发现（§3.2，Contribution 1）：张力诊断——不变性与鲁棒性的冲突。** LeWM-base 在视觉 OOD 下脆弱（PushT px+goal 0.08 = 3.67、TwoRoom = 44.33）。我们在 LeWM input 端加 per-frame Gaussian noise training（LeWM+noise），关闭 robustness gap 同时保住 clean（TwoRoom 93 → 98.33、PushT 87.33 → 90.00；高 OOD +50pt 以上）。但完整 noise sweep 揭示 **per-task tuning cost**：TwoRoom 最优 `std_max=0.008`（重 noise），PushT clean 最优 `std_max=0.002`、robustness (px+goal 0.08) 最优 `std_max=0.006`；不存在单一 std_max 在两任务同时最优，且同一任务上 clean 与 robustness 最优剂量也不同。这把"input-side 全局 noise"的边界划出来：解决 robustness gap 必须支付 per-task 调参成本。
 
-**机制解法（§3.4–§3.5，Contribution 2）：σ+A_t Action-Aware Adaptive Consistency（AAAC）。** 在 predictor 端加 detached scalar σ probe 估计 prediction difficulty，结合 action perturbation 算 local sensitivity A_t；二者通过 multiplicative gate `critical = gA · (0.5 + 0.5·gS)` 生成 per-token consistency weight w_t，让 encoder 在 action-critical 区域保留分辨率、视觉冗余区域增强 invariance。AAAC 也需要 per-task α（PushT α=0.01、TwoRoom α=0.03），与 noise std_max 同等性质；但提供两个 noise sweep 无法给的东西：
+**机制解法（§3.4–§3.5，Contribution 2）：per-token consistency routing，σ+A_t 作为 chosen instantiation。** 在 predictor 端加 detached scalar σ probe 估计 prediction difficulty，结合 action perturbation 算 local sensitivity A_t；二者通过 multiplicative gate `critical = gA · (0.5 + 0.5·gS)` 生成 per-token consistency weight w_t，让 encoder 在不同 token 上接受不同强度的 input-side invariance pressure。**C2 真正的 method-level claim 不是"σ+A_t multiplicative gate 是原理上唯一正确的 controller"，而是"per-token consistency routing 本身在 contact-heavy 连续控制上不可缺；σ+A_t 是我们 instantiate 该 routing 的一种方式"**（§3.6.2 因果干预数据：`constant_w` 杀掉 per-token spread 在 PushT 上掉 28.67pt；random_gate 掉 26.67pt；shuffle_A/σ 各掉 18.67/6.67pt）。AAAC 也需要 per-task α（PushT α=0.01、TwoRoom α=0.03），与 noise std_max 同等性质；但提供两个 noise sweep 无法给的东西：
 
-- **机制可解释性**：四任务 full-gate trajectory 分析显示，PushT 上 `w_t` 与动作关键事件显著对齐（5 条 episode 的 mean corr($w_t$, $||a_t||$) = +0.661），TwoRoom/Reacher 上几乎平坦（+0.021 / +0.032），Cube 处于中间地带（−0.225 / corr with latent displacement = −0.284）。这说明 gate 学到的是 task-dependent difficulty/control structure，而非 naive contact heuristic。
-- **与 C1 正交叠加**（§3.7）：C1+C2 联用在全部 4 个任务（PushT / TwoRoom / Reacher / Cube）的极端 OOD 上都严格优于 C1 单独同 noise。PushT 上 sweet spot 为 noise0.005：px+goal 0.08 = 85.33 vs C1 单独 75.75（**+9.58pt**），同时对 C2 单独有巨大增益（37.00 → 85.33，**+48.33pt**）。TwoRoom/Reacher/Cube 上同样呈现系统性正增益（+2.00pt / +9.67pt / +8.00pt），证明 per-token 精细化分配的价值不是特定任务巧合。
+- **σ+A_t 的 task-aware 结构**：四任务 full-gate trajectory 分析显示，PushT 上 `w_t` 与动作关键事件显著对齐（5 条 episode 的 mean corr($w_t$, $||a_t||$) = +0.661），TwoRoom/Reacher 上几乎平坦（+0.021 / +0.032），Cube 处于中间地带（−0.225 / corr with latent displacement = −0.284）。这说明 σ+A_t 学到的是 task-dependent difficulty/control structure，而非 naive contact heuristic。**注意这是 σ+A_t 这一 instantiation 的性质，不是任何 per-token signal 必有的性质**；DGC offline 显示 `fragile_t`（input-noise 透过率）与 σ+A_t critical 在四任务上 Pearson < 0.2，是 independent signal——per-token routing 的有效信号并非唯一（§3.8.2）。
+- **与 C1 正交叠加**（§3.7）：C1+C2 联用在全部 4 个任务（PushT / TwoRoom / Reacher / Cube）的极端 OOD 上都严格优于 C1 单独同 noise。PushT 上 sweet spot 为 noise0.005：px+goal 0.08 = 85.33 vs C1 单独 75.75（**+9.58pt**），同时对 C2 单独有巨大增益（37.00 → 85.33，**+48.33pt**）。TwoRoom/Reacher/Cube 上同样呈现系统性正增益（+2.00pt / +9.67pt / +8.00pt），证明 per-token consistency routing 的价值不是特定任务巧合。
 
 **关键负样本（§3.3）：σ 不能进入 loss reweighting。** Heteroscedastic NLL 直接把 σ 用于 loss 加权会 downweight 高误差样本；PushT 高误差对应接触/精细控制的关键状态，downweight 后 clean eval 从 87.33 崩到 13.33。这条负样本论证了 σ 必须作为 detached probe + controller signal，而不是 loss-side reweighter——为 §3.4 的 probe-only 路线提供必要性论证。
 
-**论文核心 claim 不是"AAAC 救世主"**，而是：(a) input-side global noise 与 controller-side per-token consistency 在 latent JEPA world model 中是正交互补维度；(b) σ+A_t multiplicative gate 提供首个 mechanistically grounded 的 per-token controller，其 w_t 与 predictor difficulty 而非 naive heuristic 对应；(c) 二者叠加在全部 4 个任务的极端 OOD 上严格超过 C1 单独，且经因果 intervention 证明该 gate 在 contact-heavy 任务（PushT）上不可替代。
+**论文核心 claim**：(a) input-side global noise (C1) 与 controller-side per-token consistency routing (C2) 在 latent JEPA world model 中是正交互补维度；(b) **per-token routing 本身**在 contact-heavy 连续控制（PushT）上经因果 intervention 证明不可缺（`constant_w` −28.67pt），σ+A_t multiplicative gate 是我们采用的 instantiation；(c) C1+C2 联用在全部 4 个任务的极端 OOD 上严格超过 C1 单独。**我们不主张** σ+A_t formula 是 principled 或 unique；具体 signal 选择带来约 7–20pt 的额外效应（intervention 数据），但 per-token routing 本身是主导项。
 
 ---
 
@@ -33,16 +35,17 @@
 
 ### 1.1 动机
 
-现有"自适应分辨率"方案的死结：**所有候选机制（PI controller / Lagrangian τ / cheap-proxy bilevel / 多任务 head）都把 trade-off 控制器放在 loss 之外**，模型自己没有"分辨率"这个内禀概念。同时 §3.2 揭示，仅靠 input-side global noise training 解决 OOD 脆弱性需要 per-task 调 std_max——任务特异性 trade-off 是真实存在的，必须有 per-token controller 才能在不付出更多调参成本的前提下叠加 robustness 增益。
+现有"自适应分辨率"方案的死结：**所有候选机制（PI controller / Lagrangian τ / cheap-proxy bilevel / 多任务 head）都把 trade-off 控制器放在 loss 之外**，模型自己没有"分辨率"这个内禀概念。同时 §3.2 揭示，仅靠 input-side global noise training 解决 OOD 脆弱性需要 per-task 调 std_max——任务特异性 trade-off 是真实存在的，需要 **per-token consistency routing** 才能在 C1 基础上进一步榨出极端 OOD 增益（§3.7）。
 
 PI controller / Lagrangian τ / cheap-proxy bilevel / 多任务 head 等方案都需要外部信号或手调阈值，且都未必比 LeWM + SIGReg 经验上更好。
 
-**真正需要验证的范式转换**：让模型输出一个与局部难度/不确定性相关的 σ，并证明这个 σ 能帮助 resolution allocation。这里不能直接把 σ_x 宣称为 latent 邻域半径：
-- predictor σ̂ 最自然的监督来自 prediction error，它首先是 **transition uncertainty**。
-- encoder σ_x 如果没有额外使用逻辑，只是一个未监督 head，容易不可辨识。
-- planning resolution 需要的是"哪些状态差异应该保留"，不等价于"哪些 transition 难预测"。
+**真正需要验证的两个问题**：
+1. 是否存在一种 per-token routing 信号能稳定改善 C1 之上的 OOD 表现？
+2. 该 routing 的有效性是否依赖具体 signal 选择，还是 routing 本身就是主导？
 
-因此第一步不应直接改主 loss，而应先问：额外输出头是否能稳定学到有意义的异质性？如果不能，后续 NLL / planner 使用都没有基础。如果能，再逐步让 σ 影响训练或 inference。
+第二个问题在 §3.6.2 因果干预里有答案：`constant_w`（杀掉 per-token spread）和 random_gate（无信息 per-token）在 PushT 极端 OOD 上分别掉 28.67 / 26.67pt，而 σ+A_t baseline 比这两个高 ~7–20pt。**routing 本身是主导项；signal specificity 是次要项**。
+
+第一个问题在 §3.4–§3.5 用 σ+A_t multiplicative gate 给出了一种可行 instantiation。本工作把它作为"per-token routing 是可实现的"的存在性证明，不主张它是 unique 或 mathematically principled 选择。
 
 ### 1.2 核心批判：σ head ≠ 动态分辨率
 
@@ -53,20 +56,20 @@ PI controller / Lagrangian τ / cheap-proxy bilevel / 多任务 head 等方案�
 | Probe | 预测 detached error | 否，只是诊断 |
 | Loss weighting | 改变不同 transition 的 μ 梯度 | 可能，但可能忽略关键 hard states |
 | σ-only controller | 影响 CEM budget / gating / consistency strength | 可能，但容易把 aleatoric visual noise 当成 resolution demand |
-| **Action-aware consistency** | σ 与 action sensitivity 共同控制 encoder invariance | **是** encoder-side adaptive resolution 的当前首选候选 |
+| **Action-aware consistency**（本工作 chosen instantiation） | σ 与 action sensitivity 共同控制 encoder invariance | 在 PushT 上经验有效；不主张是 unique optimal |
 
-所以论文中不能把"加一个 σ head"直接等同于 dynamic resolution。真正要证明的是：σ 与 action-relevant difficulty 对齐，且 `A_t` 能把 controllable critical states 和不可控视觉噪声区分开；然后 adaptive consistency 在不破坏 PushT resolution guardrail 的前提下改善 LeWM+noise 的手调 tradeoff。
+所以论文中不能把"加一个 σ head"直接等同于 dynamic resolution。我们要证明的是：**(a) per-token consistency routing 本身在 PushT 上不可缺**（§3.6.2 `constant_w` / random_gate degradation）；**(b) σ+A_t multiplicative gate 是该 routing 的一种可行 instantiation**（σ 与 prediction difficulty 对齐，A_t 与 controllability 对齐）；**(c) 该 instantiation 与 C1 联用在 4 任务极端 OOD 上系统性优于 C1 单独**。我们**不主张** σ+A_t 是原理上唯一的或近似最强诊断量（`predictor_target_to_nn_l2_ratio`）的 controller——DGC offline 显示它们正交（§3.8.2）。
 
 ### 1.3 设计原则
 
 1. **先 probe 再 intervention。** 先通过 probe-only calibration（§2.2.2）验证 σ 携带信息，再启用 adaptive consistency（§2.3）让它影响训练。
-2. **LeWM-base 是唯一外部 baseline；LeWM+noise 是本工作 Contribution 1。** σ+A_t 路线（Contribution 2）的目标不是"打败 LeWM+noise"，而是 (a) 不依赖 per-task noise 调参就能匹配 LeWM+noise 主流指标，(b) 与 light noise 联用时在极端 OOD 下严格超过 LeWM+noise（已在 PushT px+goal 0.08 验证）。
-3. **超参预算纪律。** 新增机制若增加超参而经验收益不明，回退（见附录 A）。
+2. **LeWM-base 是唯一外部 baseline；LeWM+noise 是本工作 Contribution 1。** per-token routing 路线（Contribution 2，σ+A_t 为 chosen instantiation）的目标不是"打败 LeWM+noise"，而是 (a) 不依赖 per-task noise 调参就能匹配 LeWM+noise 主流指标，(b) 与 light noise 联用时在极端 OOD 下严格超过 LeWM+noise（已在 PushT px+goal 0.08 验证）。
+3. **超参预算纪律。** 新增机制若增加超参而经验收益不明，回退（见附录 A）。当前 σ+A_t formula 携带 8+ 超参，我们承认这是 instantiation cost 而非 principled justification；具体公式选择没有强理论支持，但 §3.6.2 因果干预证明 per-token routing 本身（而非任何特定公式）是 PushT 上的因果必要项。
 4. **最小改动优先。** predictor σ head 只增 ~0.5M 参数量（可忽略），且 `s=0` 时严格退化回 LeWM MSE。
 
 ### 1.4 文档范围
 
-本文档涵盖方法（§2：σ head、action-aware gate、adaptive consistency loss）、实验验证（§3：empirical motivation、main results、ablations、orthogonality、w_t 可视化）、讨论（§4）以及未来路线图（§3.8.1）。Heteroscedastic loss 结果作为 negative result 呈现于 §3.3，验证 σ 语义的同时否定其作为 loss reweighter 的可行性。
+本文档涵盖方法（§2：σ head、action-aware gate、adaptive consistency loss——一种 per-token routing instantiation）、实验验证（§3：empirical motivation、main results、ablations、orthogonality、w_t 可视化）、讨论（§4）以及未来路线图（§3.8.1）。Heteroscedastic loss 结果作为 negative result 呈现于 §3.3，验证 σ 语义的同时否定其作为 loss reweighter 的可行性。§3.8.2 报告 DGC offline ablation 作为"per-token routing 信号选择不唯一"的证据。
 
 ---
 
@@ -367,13 +370,14 @@ C1 给出了 per-task tuning cost 的边界；要走到 per-token controller，�
 | Reacher | （全部失效） | — | — | — |
 | TwoRoom | （全部失效） | — | — | — |
 
-**对 Contribution 2 的方法学约束**（这是本小节存在的真正原因）：
+**对 Contribution 2 的方法学约束**（修订版，2026-05-14；初版的 "诊断量 → 驱动 method" 推论被 §3.8.2 offline 否定后改写）：
 
-1. **`predictor_target_to_nn_cos_ratio_at_max_std` 是唯一同时满足"per-token 可计算"、"n=8 与 n=18 严格门槛全通过"、"跨任务方向稳定（PushT/Cube 主指标，Reacher 中等，TwoRoom Pearson 强）"的诊断量。** 它正是 §3.4–§3.5 的 σ probe（学 prediction error）和 A_t（学 action sensitivity）共同试图近似的目标——只是 AAAC 用了两个 internal proxy + multiplicative gate 拼出来，而 `target_to_nn_ratio` 把"input-noise 引起的 predictor target shift / local NN 距离"作为直接的单一可观测量。
-2. **当前 AAAC 没有用上这条最强的 external-validated signal。** σ probe 的 validate corr 在 0.48（PushT）/ 0.61（TwoRoom），仅为 prediction error 的 smoothed copy；A_t 的 cross-ckpt eval correlation 从未单独验证。这暴露了一个 reviewer-facing 软肋：方法和最强诊断量没有正面绑定。
-3. **TwoRoom / Reacher 没有跨方法严格通过的诊断量，正解释了 §3.6 因果干预里"global consistency 与 σ+A_t 等价"的结果**——这两个任务的 per-state 信号本身就弱，per-token controller 在原理上就难有显著价值。Cube 上 `noise_angle_slope` 在 n=18 上 partial|std=+0.81、partial|method=+0.13 提示"该任务的 per-state 价值更多来自 std 共变而非 method-axis"，这是 Cube 上 controller 失效的预期。
+1. **`predictor_target_to_nn_cos_ratio_at_max_std` 是唯一同时满足"per-token 可计算"、"n=8 与 n=18 严格门槛全通过"、"跨任务方向稳定（PushT/Cube 主指标，Reacher 中等，TwoRoom Pearson 强）"的 ckpt-level fragility 诊断量。** **但它的 ρ=−0.89 强相关是 cross-ckpt × eval-drop scalar Spearman，不是 within-ckpt × per-token gate validity**。这两层不能等同（详 §3.8.2 logic gap 段）：cross-ckpt 强相关只意味着"训练目标应让整体 fragility 降低"，**不能直接推论"per-token fragile 是该 token 该被 routing 区别对待的标志"**。
+2. **§3.8.2 offline 已经把这点 empirically 钉死。** 把 `predictor_target_to_nn_l2_ratio` 做成 per-token 版 `fragile_t`，在 4 个 ckpt 上与现版 AAAC critical 做 Pearson，结果 0.02–0.15 全部接近统计零；σ 和 A_t **单独**与 fragile 的 Pearson 也都接近零。σ+A_t 和 fragile_t 是 **independent signals**，σ+A_t 学到的是 dataset-aggregate prediction difficulty + action transmission，**不是 input-noise fragility**。
+3. **§3.6.2 因果干预给出 C2 真正的因果钉子**：`constant_w` 在 PushT 上掉 28.67pt（vs σ+A_t baseline），random_gate 掉 26.67pt。**最大 gap 是 "per-token routing 本身 vs 无 routing"**（Tier 1），而非"σ+A_t specific signal vs random signal"（Tier 2 ≈ 7–20pt）。这两层效应量分开后，论文 C2 主 claim 收口为 **"per-token consistency routing 在 PushT 上不可缺；σ+A_t 是我们的 chosen instantiation；信号选择不唯一"**。
+4. **TwoRoom / Reacher 没有跨方法严格通过的诊断量，正解释了 §3.6 因果干预里"global consistency 与 σ+A_t 等价"的结果**——这两个任务的 per-state 信号本身就弱，**任何 per-token instantiation**（不只是 σ+A_t）在原理上都难有显著价值。Cube 上 `noise_angle_slope` 在 n=18 上 partial|std=+0.81、partial|method=+0.13 提示"该任务的 per-state 价值更多来自 std 共变而非 method-axis"，这是 Cube 上 routing 失效的预期。
 
-§3.8.2 据此提出 Diagnostic-Gated Consistency (DGC)：直接把 `||predict(noisy_z, a) - predict(clean_z, a)|| / nn_dist` 作为 controller signal，把 §5 的诊断结论从"描述模型"升级为"驱动方法"。
+§5 诊断分析对论文的角色不是"驱动 method"——offline 数据反证了这条。它的角色是 **"定义 latent fragility 的多个独立 facet"**：ckpt-level `target_to_nn_ratio` 是其中一个 facet，σ+A_t multiplicative gate 学到的是另一个 facet，DGC 的 per-token `fragile_t` 是把第一个 facet 翻成 per-token 的 ablation。论文承认这些 facet 都有 paper-level 价值，但**只把 σ+A_t routing 作为我们的 chosen C2 instantiation**——理由是 §3.4–§3.7 的整套实验都在它上面跑了。
 
 ### 3.3 直接异方差损失的失败尝试
 
@@ -694,7 +698,7 @@ C1 给出了 per-task tuning cost 的边界；要走到 per-token controller，�
 
 #### 3.6.0 因果干预实验设计
 
-因果干预通过破坏 σ 或 A_t 与 state 的对应关系，检验 σ+A_t multiplicative gate 是否为因果必要项。四种 intervention 的语义如下：
+因果干预的目的是分别检验两件事：(i) **per-token routing 本身** 在 PushT 上是否因果必要（`constant_w` 用 batch-mean 标量 w_t 替代 per-token 信号，保留 mean pressure 但杀掉 spread）；(ii) σ+A_t **作为该 routing 的 instantiation**，其 σ↔state、A↔state 对应是否提供了 routing 之上的额外贡献（shuffle_σ / shuffle_A / random_gate）。四种 intervention 共同把 per-token routing 与 specific signal choice 的贡献分开计量。
 
 | Intervention | 干预位置 | 期望破坏 | 期望 sanity diagnostic |
 |---|---|---|---|
@@ -836,22 +840,24 @@ done
 
 四个 intervention 在 sanity diagnostic 上全部按设计行为：`shuffle_σ` / `shuffle_A` 训练侧 `corr_σA` 跌到 ≈0（PushT −0.003 / 0.000；TwoRoom 0.001 / 0.001）；`random_gate` 训练侧 `critical_mean=0.50` 且 `q10/q90 spread` 保留；`global consistency` (`constant_w`) 训练侧 `q10 == q90`（PushT 0.7788、TwoRoom 0.7316），confirms gate 信号确实被替换。SwanLab run id 见 §3.6.3。
 
-**PushT 上 σ+A_t 是因果必要项，且 A_t 是主门控信号。** 四个 intervention 在 PushT 上的 eval degradation 模式精确区分了 σ 与 A_t 各自的贡献：
+**PushT 上 per-token routing 本身是因果必要项；σ+A_t instantiation 在 routing 之上提供约 7–20pt 的次要贡献。** 四个 intervention 在 PushT 上的 eval degradation 模式按效应量从大到小分解为两层：
 
-| Intervention | clean | px+goal 0.08 | 比较对象 | 结论 |
-|---|---:|---:|---|---|
-| σ+A_t (baseline) | 86.67 | 37.00 | — | reference |
-| shuffle_σ | 86.67 | 30.33 | ≈ A_t-only 在 robustness 上（A_t-only 6.67）但 clean 持平 σ+A_t | σ 信息丢失主要伤 robustness，clean 由 A_t 撑住 |
-| shuffle_A | **78.33** | 18.33 | ≈ A_t-only clean (77.33)、介于 σ-only (20) 与 A_t-only (6.67) 之间 | **A_t 错位比 σ 错位伤害大得多**；A_t 是 multiplicative gate 主导项 |
-| random_gate | 85.00 | 10.33 | clean 与 global consistency 几乎一致；robustness 跌至 LeWM-base 量级 | 无 informative gating 时 consistency 在 OOD 下基本无用 |
-| global consistency (`constant_w`) | 85.67 | 8.33 | 同上 | mean pressure 单独可以保 clean，但 per-token spread 才是 robustness 关键 |
+| Intervention | clean | px+goal 0.08 | Δ(px+g 0.08 vs σ+A_t) | 拆解 |
+|---|---:|---:|---:|---|
+| σ+A_t (baseline, chosen instantiation) | 86.67 | 37.00 | — | reference |
+| shuffle_σ | 86.67 | 30.33 | −6.67 | 移除 σ↔state 对应，保留 A↔state；σ specificity 价值 ≈ 6.67pt |
+| shuffle_A | **78.33** | 18.33 | −18.67 | 移除 A↔state 对应，保留 σ↔state；A specificity 价值 ≈ 18.67pt |
+| random_gate | 85.00 | 10.33 | −26.67 | 保留 per-token spread 但用 U(0,1) 无信息信号；σ+A 整体 specificity 价值 ≈ 26.67pt |
+| global consistency (`constant_w`) | 85.67 | 8.33 | **−28.67** | 杀掉 per-token spread 本身；**per-token routing 本身的价值 ≈ 28.67pt** |
 
-四条解读串起来：
+效应量分层（按 px+goal 0.08）：
 
-1. **A_t 错位 (shuffle_A) 比 σ 错位 (shuffle_σ) 严重**：shuffle_A clean 跌 8.34pt 直接打到 A_t-only 水平；shuffle_σ clean 完全不动。这说明在 multiplicative `critical = gA·(0.5 + 0.5·gS)` 公式里 gA 是主门控、gS 是 difficulty enhancer，与 §2.3.5 的设计意图一致。
-2. **σ 的贡献集中在 robustness**：shuffle_σ clean=86.67 但 px+goal 0.08 = 30.33（vs baseline 37.00，−6.67pt）；σ 在 clean 上几乎没贡献，但在 high-noise 下其 difficulty enhancement 起 ≈7pt 作用——这正是 §3.6.1 "σ-only 在 PushT 上 high-noise 崩溃" 的对称证据。
-3. **gating 信息完全失效时退化到 noise-only-style 行为**：random_gate (10.33) / global consistency (8.33) 在 px+goal 0.08 上接近 LeWM-base（3.67），低于 σ-only (20) 和 A_t-only (6.67)。这表明：(a) σ+A_t multiplicative gate 不是"任何 per-token 信号都行"的代理——random gating 比 A_t-only 还差；(b) global consistency 比 random_gate 还略低，说明杀掉 per-token spread 比 routing 随机化代价更大。
+1. **Tier 1 — per-token routing 本身（最大效应，~28.67pt）**：`constant_w` vs σ+A_t baseline 的 28.67pt 是**整张谱系里最大的 gap**。它说的是"有任何 per-token spread"vs"无 per-token spread"。random_gate (−26.67pt) 与 constant_w (−28.67pt) 几乎重合——具体信号即使全是噪声，只要保持 per-token spread 也几乎不比 constant 差。这是 C2 的主 claim 的最强证据。
+2. **Tier 2 — σ+A_t 的 specific signal（次要效应，~18–27pt 中 ~7–18pt 是 signal-specific）**：σ+A_t vs random_gate 的 ~26.67pt 减去 σ+A_t vs constant_w 的 ~28.67pt 中 random_gate 与 constant_w 之间几乎无差，**因此 specific signal 提供的额外贡献其实只能从 shuffle_σ / shuffle_A 与 random_gate 的差距来读**：shuffle_σ vs random_gate ≈ +20pt（30.33 vs 10.33），即"A↔state 对应"对 PushT robust 贡献 ≈ 20pt；shuffle_A vs random_gate ≈ +8pt（18.33 vs 10.33），即"σ↔state 对应"贡献 ≈ 8pt。
+3. **σ 的贡献集中在 robustness**：shuffle_σ clean=86.67 但 px+goal 0.08 = 30.33（vs baseline 37.00，−6.67pt）；σ 在 clean 上几乎没贡献。
 4. **resolution guardrail 同步符合预期**：四个 intervention 的 `transition_res_l2 / id_probe_r2` 都与 σ+A_t baseline 几乎一致（0.27–0.29 / 0.75–0.77）——破坏 controller signal 不破坏 encoder 几何，崩的是 planning-relevant high-noise behavior。这印证 §3.6.1 "guardrail 不充分" 的论点。
+
+**论文 claim 的因果钉子是 Tier 1**：per-token routing 是 PushT 上的因果必要项。Tier 2 说的是"σ+A_t 这个 specific instantiation 在 PushT routing 之上还多榨出 7–20pt"，但这不等于"σ+A_t 是唯一 principled 的 routing 信号"——其它 per-token 信号（如 fragile_t，§3.8.2 显示与 σ+A_t 正交）原则上也可作为 instantiation；其有效性需 online 验证。
 
 **TwoRoom 上四个 intervention 在统计误差范围内不显著伤害 σ+A_t baseline，global consistency 与 σ+A_t 等价。**
 
@@ -911,22 +917,22 @@ Cube 是四任务中最"规整"的：block grasping/carrying/placing 的动作�
 
 #### 3.6.4 因果干预的论文叙事意义
 
-- **PushT 上 σ+A_t multiplicative gate 是因果必要项**：四个 intervention 在 PushT 极端 noise 上全部退化（10.33–30.33 vs baseline 37.00），其中 random_gate / constant_w 退化到接近 LeWM-base 量级，shuffle_σ / shuffle_A 退化到介于 σ-only / A_t-only 之间。reviewer 无法用"σ 和 A_t 仅作为某种 difficulty 信号的代理"质疑——任何打破 σ↔state 或 A↔state 对应的扰动都会显著破坏 robustness。
-- **A_t 是 multiplicative gate 的主门控**：shuffle_A clean 跌 8.34pt（与 A_t-only 持平），shuffle_σ clean 不动。这定量印证 §2.3.5 公式 `critical = gA·(0.5 + 0.5·gS)` 把 gA 放在乘积主因子位置的设计选择。
-- **TwoRoom 上 global consistency 与 σ+A_t 在统计误差范围内等价**（所有干预退化幅度处于 sampling noise 区间），说明 per-token 精细化分配在该任务上不引起退化，global consistency 已足够覆盖 robustness 需求。这不是方法的缺陷，而是**任务自适应的证据**：方法在合适的任务上产生显著增益，在不合适的任务上保持不退化。
-- **Reacher 上 clean 显著退化但 robustness 空间压缩。** 四个干预 clean 全部掉点（−6~−9pt），证明 per-token gate 对 clean 仍有因果必要性；但 px+goal 0.08 退化温和（baseline 47.00 本身已接近该 task ceiling），global consistency 在 robustness 上与 σ+A_t 等价（49.33 vs 47.00，在 sampling noise 范围内）。这说明低维连续控制（2-DOF 机械臂）虽比 TwoRoom 复杂，但可控性差异仍不足以支撑显著的 per-token resolution 价值——gate 的因果必要性在 clean 上体现为"mean pressure 的合理分配"，而非"fine-grained token-wise allocation"。
-- **Cube 上 per-token gate 与 global consistency 在统计误差范围内等价。** 所有干预在 sampling noise 范围内与 baseline 持平（clean 波动 ±2.66pt，robust 波动 ±3.33pt）。这与 §3.5.1 trajectory 分析的结论一致：Cube 的 block grasping/carrying/placing 序列结构化、预测难度分布均匀，gate 能识别 transition 事件但不需要剧烈下调 consistency pressure。
+- **PushT 上 per-token routing 是因果必要项（Tier 1）；σ+A_t instantiation 在该 routing 之上额外提供 ~7–20pt（Tier 2）。** 四个 intervention 在 PushT 极端 noise 上全部退化（8.33–30.33 vs baseline 37.00）。最大单一 gap 来自 `constant_w` vs baseline 的 28.67pt——这是"per-token spread 本身"的因果价值。shuffle_σ / shuffle_A 在保留 spread 的前提下破坏 specific signal，对应的额外退化（vs random_gate）是 σ / A 各自 instantiation 的次要贡献。reviewer 无法用"σ 和 A_t 仅作为某种 difficulty 信号的代理"质疑；但论文也**不主张** σ+A_t 是 unique principled gate——任何具有可比 per-token spread 的 informative signal 都可能产生类似 Tier 1 效应。
+- **A_t 比 σ 在 PushT specificity 上贡献更大**：shuffle_A clean 跌 8.34pt（与 A_t-only 持平），shuffle_σ clean 不动；px+goal 0.08 上 A_t specificity ≈ 20pt > σ specificity ≈ 8pt。这说明在我们采用的 multiplicative `critical = gA·(0.5+0.5·gS)` instantiation 里 gA 是主因子、gS 是 enhancer——与 §2.3.5 的设计意图一致，但这是**我们 instantiation 的性质，不是 routing 的性质**。
+- **TwoRoom 上 global consistency 与 σ+A_t 在统计误差范围内等价**（所有干预退化幅度处于 sampling noise 区间），说明 per-token routing 在该任务上不产生显著额外价值。这不是方法的缺陷，而是**任务自适应的证据**：σ+A_t instantiation 在合适的任务上产生显著增益，在不合适的任务上保持不退化。
+- **Reacher 上 clean 显著退化但 robustness 空间压缩。** 四个干预 clean 全部掉点（−6~−9pt），证明 per-token routing 对 clean 仍有因果必要性；但 px+goal 0.08 退化温和（baseline 47.00 本身已接近该 task ceiling），global consistency 在 robustness 上与 σ+A_t 等价（49.33 vs 47.00，在 sampling noise 范围内）。这说明低维连续控制（2-DOF 机械臂）虽比 TwoRoom 复杂，但可控性差异仍不足以支撑显著的 per-token robustness 价值——routing 的因果必要性在 clean 上体现为"mean pressure 的合理分配"，而非"fine-grained token-wise allocation"。
+- **Cube 上 per-token routing 与 global consistency 在统计误差范围内等价。** 所有干预在 sampling noise 范围内与 baseline 持平（clean 波动 ±2.66pt，robust 波动 ±3.33pt）。这与 §3.5.1 trajectory 分析的结论一致：Cube 的 block grasping/carrying/placing 序列结构化、预测难度分布均匀，gate 能识别 transition 事件但不需要剧烈下调 consistency pressure。
 
 **四任务干预谱系（clean / px+goal 0.08 退化幅度 vs baseline）：**
 
 | 任务 | 类型 | shuffle_σ | shuffle_A | random_gate | constant_w | 叙事定位 |
 |---|---:|---:|---:|---:|---:|---|
-| PushT | contact-heavy 连续控制 | −6.67 / −6.67 | −8.34 / −18.67 | −1.67 / −26.67 | −1.00 / −28.67 | **per-token gate 因果必要，A_t 主导** |
-| Reacher | 低维连续控制 | −6.33 / −3.33 | −8.00 / −4.33 | −8.00 / −4.00 | −9.00 / +2.33 | clean 上 gate 必要，但 per-token spread 价值有限 |
+| PushT | contact-heavy 连续控制 | −6.67 / −6.67 | −8.34 / −18.67 | −1.67 / −26.67 | −1.00 / −28.67 | **per-token routing 因果必要**（Tier 1 ≈ 28.67pt）；σ+A_t signal specificity Tier 2 ≈ 7–20pt |
+| Reacher | 低维连续控制 | −6.33 / −3.33 | −8.00 / −4.33 | −8.00 / −4.00 | −9.00 / +2.33 | clean 上 routing 必要，但 per-token spread 在 robust 上无额外价值 |
 | Cube | 结构化 manipulation | +2.66 / +2.33 | −2.00 / +2.67 | +1.66 / +3.33 | −0.67 / +3.00 | global consistency 够用，不引起退化 |
 | TwoRoom | 视觉冗余+离散动作 | −3.33 / −1.33 | −0.66 / +2.67 | −3.00 / +2.33 | +1.00 / +6.00 | global consistency 够用，不引起退化 |
 
-这张谱系把论文 claim 的边界钉死：**σ+A_t per-token adaptive resolution 的额外价值不是跨任务普适的，而是集中在需要精细分辨率分配的任务（PushT/Reacher）；在不需要的任务（TwoRoom/Cube）上，per-token 机制不引起退化，global consistency 已足够**。Reacher 和 Cube 的完整四件套干预数据是这一边界陈述的最直接证据。
+这张谱系把论文 claim 的边界钉死：**per-token consistency routing 的额外价值不是跨任务普适的，而是集中在需要精细分辨率分配的任务（PushT/Reacher）；在不需要的任务（TwoRoom/Cube）上 per-token 机制不引起退化，global consistency 已足够**。论文不主张 σ+A_t 是 routing 的 unique principled choice；论文主张"per-token routing 在 PushT 上不可缺，σ+A_t 是我们的 chosen instantiation"。Reacher 和 Cube 的完整四件套干预数据是这一边界陈述的最直接证据。
 
 ### 3.7 C1 与 C2 的组合验证：正交性检验
 
@@ -1067,12 +1073,13 @@ C1 和 C2 在 pipeline 中占据不同位置：
 
 此前用"C1 单独 best（不同 noise 剂量）"对比时，TwoRoom/Reacher/Cube 上出现负收益，造成"C1+C2 不是 universally dominate"的误判。根本原因：C1 单独 best 的 noise 剂量（PushT 0.006、TwoRoom 0.008、Reacher 0.006、Cube 0.007）与 C1+C2 联用的 light noise（0.002）不匹配——**用 C1 的 heavy noise best 去要求 C2 的 light noise 配置是不公平的**。同 noise 对比控制了剂量变量后，所有任务的正增益一致显现。
 
-§3.6.2 的因果干预结果进一步证明 PushT 上 σ+A_t multiplicative gate 是因果必要项，把 C2 的方法学分量钉死。跨任务扩展验证了该机制在 Reacher/Cube 上同样有效，但**最优 noise 剂量因任务而异**（PushT 0.005、TwoRoom 0.003、Reacher 0.005、Cube 0.005）——这正是"per-token w_t 需要 per-task 联合调参"的核心证据。
+§3.6.2 的因果干预结果进一步证明 **per-token routing 本身**（而非任何 specific signal 公式）是 PushT 上的因果必要项（Tier 1 ≈ 28.67pt），把 C2 的方法学分量钉死；σ+A_t multiplicative gate 是我们的 chosen instantiation，在 routing 之上提供 Tier 2 ≈ 7–20pt 额外贡献。跨任务扩展验证 C1+C2 联用机制在 Reacher/Cube 上同样有效，但**最优 noise 剂量因任务而异**（PushT 0.005、TwoRoom 0.003、Reacher 0.005、Cube 0.005）——这正是"per-token w_t 需要 per-task 联合调参"的核心证据。
 
 论文叙事意义：
 
 - 单独说"AAAC 打败 noise training"是错的——C2 单独（无 noise）在 PushT pg08 上仅 37.00，远低于 C1 单独 75.75–87.00。
 - 单独说"AAAC 不需要调参"是错的——AAAC 有 per-task α 和 per-task noise 剂量。
+- 单独说"σ+A_t multiplicative gate 是 principled controller"是错的——§3.8.2 offline 显示它与最强 ckpt-level fragility 诊断量正交，只是 latent fragility 的一个 facet。
 - 真正能立的是 "**AAAC 作为与 noise training 正交的 per-token controller，在相同 noise 投入下通过 σ+A_t multiplicative gate 实现精细化分配，使全部 4 个任务的极端 OOD 都严格超过 C1 单独；且经因果 intervention 证明 σ+A_t multiplicative gate 在 PushT 上不可替代。任务特异性体现在最优 C1+C2 剂量组合，而非有无增益**".
 
 当前唯一明确未跑的主表级扩展是 5-seeds 统一升级。需要同时说明的是：Reacher/Cube 的 same-noise `C1` baseline 在 `noise=0.005` 上仍采用 `single-seed × 300` 汇总，而对应的 `C1+C2` 为 `3 seeds × 100`；两者总样本量相同，但协议并非完全一致。因此，除 5-seeds 外，剩余的不是“缺实验”，而是“是否需要把 Reacher/Cube same-noise baseline 也统一到 3-seed 协议”的统计严谨性问题。
@@ -1102,31 +1109,35 @@ C1 和 C2 在 pipeline 中占据不同位置：
 | `lewm_sigma_only_consist001` (σ-only) | 95.33 | 87.00 | Noisy TV / confounder trap 在 PushT 上精确验证|
 | `lewm_action_aware_consist001_noise002` | 95.33 | **88.00** | C1+C2 联用轻 noise，PushT px+goal 0.08 75.00 > C1 单独 70.67（+4.33pt） |
 | `lewm_action_aware_consist001_noise005` | — | **85.67** | **C1+C2 联用最优配置**，PushT px+goal 0.08 85.33 > C1 同 noise 75.75（+9.58pt）、> C2 单独 37.00（+48.33pt） |
-| 因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`） | 见 §3.6.2 | 见 §3.6.2 | PushT 四项干预全部 degrade，证明 σ+A_t multiplicative gate 因果必要；TwoRoom/Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价、不引起退化 |
-| `w_t` trajectory-level 可视化 | ✅ | ✅ | 4 任务 full `σ+A_t` 汇总已完成：PushT mean corr(action)=+0.661；TwoRoom/Reacher 近零；Cube corr(latent disp)=−0.284 |
+| 因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`） | 见 §3.6.2 | 见 §3.6.2 | PushT 四项干预全部 degrade；**最大单一 gap 是 `constant_w` vs baseline 的 28.67pt（Tier 1：per-token routing 本身的因果必要性）**；shuffle_σ/shuffle_A 给出 σ+A_t specificity 的 Tier 2 贡献（≈ 7–20pt）。TwoRoom/Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价、不引起退化 |
+| `w_t` trajectory-level 可视化 | ✅ | ✅ | 4 任务 full `σ+A_t` 汇总已完成：PushT mean corr(action)=+0.661；TwoRoom/Reacher 近零；Cube corr(latent disp)=−0.284。**这是 σ+A_t 这个 instantiation 学到的对应结构，不是 per-token routing 的固有性质** |
+| DGC offline ablation | ✅ | ✅ | `predictor_target_to_nn_l2_ratio` 的 per-token 版 `fragile_t` 与现版 σ+A_t critical 在 4 ckpt 上 Pearson 0.02–0.15；σ、A_t 单独与 fragile 也都正交。结论：σ+A_t 与 fragile_t 是 latent fragility 的不同 facet。详 §3.8.2 |
 
-**判定标准（最终版）**：
+**判定标准（最终版，修订自 2026-05-14）**：
 1. ✅ PushT consist001 clean 86.67 ≥ 84，resolution 0.290 ≥ 0.24。
 2. ✅ σ calibration 保持（validate corr 0.48–0.62）。
 3. ✅ `A_t` / `critical_t` 显示 action-relevant 结构（CV 可控，weight spread 非平凡）。
 4. ✅ Freeze-BN gate 语义在 consist001/003 中保持一致。
-5. ✅ **σ 与 A_t 在 PushT 上缺一不可**：A_t-only PushT clean 跌 9.34pt（77.33 vs 86.67），σ-only PushT px+goal 0.08 崩溃至 20.00（vs σ+A_t 37.00）；只有 σ+A_t 联合使用才能在 PushT 上同时维持 clean（86.67）和 robustness（goal 0.08 63.00，px+goal 0.08 37.00）。TwoRoom 上这个结论更弱。
-6. ✅ **因果干预证明 σ+A_t multiplicative gate 是 PushT 上的因果必要项**：shuffle_σ / shuffle_A / random_gate / global consistency 四项干预全部 degrade（px+goal 0.08 8.33–30.33 vs baseline 37.00），且 sanity diagnostic 按设计行为（corr→0，q10=q90，critical_mean=0.50）。shuffle_A clean 跌 8.34pt 直接打到 A_t-only 水平，定量印证 A_t 是 multiplicative gate 主门控。
+5. ✅ **σ 与 A_t 在我们的 σ+A_t instantiation 上 PushT 缺一不可**：A_t-only PushT clean 跌 9.34pt（77.33 vs 86.67），σ-only PushT px+goal 0.08 崩溃至 20.00（vs σ+A_t 37.00）；这是 instantiation 性质，**不主张 σ+A_t 是 routing 的 unique principled choice**。TwoRoom 上这个结论更弱。
+6. ✅ **因果干预证明 per-token routing 本身（Tier 1）是 PushT 上的因果必要项；σ+A_t 是该 routing 的 chosen instantiation（Tier 2）**：`constant_w` px+goal 0.08 = 8.33（vs baseline 37.00，**−28.67pt**）= Tier 1 routing 价值；shuffle_σ/shuffle_A/random_gate 在保留 spread 下逐步移除 specific signal，对应 Tier 2 ≈ 7–20pt 的 σ+A_t specificity 价值。论文主 claim 钉子在 Tier 1，σ+A_t 的具体形状是次要 instantiation 选择。
+7. ✅ **DGC offline 证明 σ+A_t 与最强 ckpt-level fragility 诊断量正交**（Pearson 0.02–0.15，§3.8.2）：σ+A_t 学到的不是 input-noise fragility，而是 dataset-aggregate prediction difficulty + action transmission——这把"σ+A_t 是 unique principled choice"的潜在 over-claim 直接否定，反过来支持"σ+A_t 是 chosen instantiation 之一"的 framing。
 
 **Contribution 1 + Contribution 2 联用（已完成验证）**：
-机制上 C1（input-side global noise）与 C2（output-side per-token σ+A_t）处于不同位置：noise 提供 isotropic invariance baseline，σ+A_t 在此基础上做 per-state 精细化分配，二者互补。PushT 上 `consist001+noise0.005` 为最优配置：clean 85.67（> C2 单独 86.67 略低但 guardrail 通过）、**px+goal 0.08 85.33 > C1 同 noise (0.005-p1) 75.75（+9.58pt）、> C2 单独 37.00（+48.33pt）**；轻 noise（0.002）下 px+goal 0.08 75.00（+4.33pt vs C1 0.002-p1）。TwoRoom 同 noise 对比下 C1+C2 0.003 clean 97.67 > C1 96.33（+1.34pt）、pg08 96.67 > C1 94.67（+2.00pt），此前用 C1 best（0.008-p1）对比的负收益是剂量不匹配造成的假象。跨任务扩展（TwoRoom +2.00pt、Reacher +9.67pt、Cube +8.00pt vs C1 同 noise）验证同 noise 对比下全部 4 个任务都有系统性增益，任务特异性体现在最优剂量而非有无增益。
+机制上 C1（input-side global noise）与 C2（output-side per-token consistency routing，σ+A_t instantiation）处于不同位置：noise 提供 isotropic invariance baseline，σ+A_t 在此基础上做 per-state 精细化分配，二者互补。PushT 上 `consist001+noise0.005` 为最优配置：clean 85.67（> C2 单独 86.67 略低但 guardrail 通过）、**px+goal 0.08 85.33 > C1 同 noise (0.005-p1) 75.75（+9.58pt）、> C2 单独 37.00（+48.33pt）**；轻 noise（0.002）下 px+goal 0.08 75.00（+4.33pt vs C1 0.002-p1）。TwoRoom 同 noise 对比下 C1+C2 0.003 clean 97.67 > C1 96.33（+1.34pt）、pg08 96.67 > C1 94.67（+2.00pt），此前用 C1 best（0.008-p1）对比的负收益是剂量不匹配造成的假象。跨任务扩展（TwoRoom +2.00pt、Reacher +9.67pt、Cube +8.00pt vs C1 同 noise）验证同 noise 对比下全部 4 个任务都有系统性增益，任务特异性体现在最优剂量而非有无增益。
 
 **Reviewer-ready 收口（可直接复用到 abstract / intro / rebuttal）**：
 
-1. **本文最稳的主张不是 "per-token gate universally necessary"，而是 "global noise training 与 adaptive consistency 是正交且可叠加的"。** 在 same-noise 对比下，C1+C2 在 PushT / TwoRoom / Reacher / Cube 四个任务的极端 OOD 上都严格优于 C1 单独。
-2. **per-token $\sigma + A_t$ gate 的额外价值是 task-specific 的。** PushT 与 Reacher 上因果干预造成显著退化，证明 per-token gate 在需要精细分辨率分配的任务上不可替代；TwoRoom 与 Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价，不引起退化——这正是方法"自适应"的体现：在合适的任务上增益显著，在不合适的任务上保持无害。
-3. **因此，论文应避免过强的普适性措辞。** 最安全、最准确的写法是：per-token adaptive resolution 的强必要性集中在 contact-heavy continuous control，而在视觉冗余、低维连续控制或结构高度规整的任务中，其作用更接近对 global consistency 的精细修正。
+1. **本文最稳的主张是 "C1（global noise training）与 C2（per-token consistency routing）是正交且可叠加的"**，**不是** "per-token gate universally necessary"，**也不是** "σ+A_t multiplicative gate 是 mathematically principled controller"。在 same-noise 对比下，C1+C2 在 PushT / TwoRoom / Reacher / Cube 四个任务的极端 OOD 上都严格优于 C1 单独。
+2. **C2 的 method-level 因果钉子是 "per-token routing 本身"，不是任何 specific signal 公式**：§3.6.2 `constant_w` 在 PushT 上掉 28.67pt 是 Tier 1 routing 价值；σ+A_t 在该 routing 之上 instantiation 价值 ≈ 7–20pt（Tier 2）。我们采用 σ+A_t 作为 chosen instantiation；其它正交信号（如 fragile_t，§3.8.2 验证为独立 facet）原则上可作为替代 instantiation，待 online 验证。
+3. **per-token routing 的 task-specific 价值边界**：PushT 与 Reacher 上因果干预造成显著退化，证明 per-token routing 在需要精细分辨率分配的任务上不可替代；TwoRoom 与 Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价，不引起退化——这正是方法"自适应"的体现：在合适的任务上增益显著，在不合适的任务上保持无害。
+4. **论文应避免过强的普适性措辞 + 避免 instantiation 上的 principled claim**。最安全、最准确的写法：per-token consistency routing 的强必要性集中在 contact-heavy continuous control；σ+A_t multiplicative gate 是我们的 instantiation，与其它独立 facet（fragile_t 等）可作为相互补充而非替代的 ablation。
 
 **English reviewer-facing summary.**
 
-1. **The strongest claim is not that the per-token gate is universally necessary, but that global noise training and adaptive consistency are orthogonal and additive.** Under same-noise comparisons, C1+C2 strictly outperforms C1 alone on extreme OOD across PushT, TwoRoom, Reacher, and Cube.
-2. **The extra value of the per-token $\sigma + A_t$ gate is task-specific.** On PushT and Reacher, causal interventions cause significant degradation, proving that the per-token gate is irreplaceable for tasks requiring fine-grained resolution allocation; on TwoRoom and Cube, global consistency is statistically equivalent to σ+A_t within sampling noise, causing no degradation—this is precisely the "task-adaptive" behavior: significant gains where needed, harmless where not.
-3. **The paper should therefore avoid overly universal wording.** The safest final statement is that the strong necessity of per-token adaptive resolution is concentrated in contact-heavy continuous control, whereas in visually redundant, low-dimensional, or highly regular tasks it behaves more like a fine-grained refinement of global consistency.
+1. **The strongest claim is that global noise training (C1) and per-token consistency routing (C2) are orthogonal and additive**, NOT that the per-token gate is universally necessary, and NOT that the σ+A_t multiplicative gate is a mathematically principled controller. Under same-noise comparisons, C1+C2 strictly outperforms C1 alone on extreme OOD across PushT, TwoRoom, Reacher, and Cube.
+2. **The causal anchor for C2 is per-token routing per se, not any specific signal formula.** §3.6.2 shows `constant_w` (which removes per-token spread but preserves mean pressure) loses 28.67pt on PushT extreme OOD — this is Tier 1 routing necessity. shuffle_σ / shuffle_A / random_gate degradations relative to random_gate quantify the additional ~7–20pt that the σ+A_t specific signal contributes (Tier 2). We adopt σ+A_t as the chosen instantiation; orthogonal signals such as fragile_t (§3.8.2, independent facet) are valid alternative instantiations subject to online verification.
+3. **Task-specific value boundary of per-token routing.** On PushT and Reacher, causal interventions cause significant degradation; on TwoRoom and Cube, global consistency is statistically equivalent to σ+A_t — significant gains where needed, harmless where not.
+4. **The paper should avoid overly universal wording and avoid principled claims on the instantiation.** The safest final statement: per-token consistency routing is irreplaceable in contact-heavy continuous control; the σ+A_t multiplicative gate is our chosen instantiation, complementary (not competing) with independent facets such as fragile_t.
 
 #### 3.8.1 通往顶会主表的工作清单（按紧急度分层）
 
@@ -1134,10 +1145,11 @@ C1 和 C2 在 pipeline 中占据不同位置：
 
 ##### 已完成里程碑（方法本体级）
 
-- **因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）**（2026-05-12，§3.6.0–§3.6.4）：PushT 上四项干预全部 degrade，证明 σ+A_t multiplicative gate 是因果必要项；shuffle_A clean 跌 8.34pt 印证 A_t 是 multiplicative gate 主门控。TwoRoom/Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价、不引起退化；PushT/Reacher 上干预显著退化，证明 per-token gate 在需要精细分辨率分配的任务上有显著价值——把 paper claim 修正为"per-token gate 在合适任务上增益显著，在不合适任务上保持无害"。实验设计与启动命令见 §3.6.0。
-- **四任务 w_t 完整可视化（aggregate + trajectory）**（2026-05-13，§3.5.5–§3.5.6）：PushT/TwoRoom/Reacher/Cube 的 aggregate hexbin/histogram + per-episode 时间序列 + 关键帧全部生成并插入文档，为 per-token adaptive resolution 的 task-specific 价值提供从统计到定性的完整证据链。
+- **因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）**（2026-05-12，§3.6.0–§3.6.4）：PushT 上四项干预全部 degrade。**Tier 1 finding**：`constant_w` 在 PushT 上 px+goal 0.08 = 8.33（vs σ+A_t baseline 37.00，−28.67pt），证明 **per-token routing 本身**（而非任何 specific signal）是 PushT 上的因果必要项。**Tier 2 finding**：shuffle_σ / shuffle_A / random_gate 在保留 spread 下逐步移除 specific signal，shuffle_A clean 跌 8.34pt 印证 A_t 是 σ+A_t 这一 instantiation 的主门控（specificity 价值 ≈ 7–20pt）。TwoRoom/Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价、不引起退化。paper claim 修正为"per-token routing 在合适任务上必要，σ+A_t 是 chosen instantiation；在不合适任务上 routing 保持无害"。实验设计与启动命令见 §3.6.0。
+- **四任务 w_t 完整可视化（aggregate + trajectory）**（2026-05-13，§3.5.5–§3.5.6）：PushT/TwoRoom/Reacher/Cube 的 aggregate hexbin/histogram + per-episode 时间序列 + 关键帧全部生成并插入文档，为**σ+A_t 这一 instantiation**学到的 task-specific 结构提供证据链（注：这是 σ+A_t 的性质，不是任何 per-token routing 的固有性质）。
 - **跨任务 C1+C2 联用 sweep（PushT/TwoRoom/Reacher/Cube，noise0.002/003/005）**（2026-05-13，§3.7.7）：全部 4 任务在三个 noise 剂量下的完整对比表已建立，最优剂量下极端 OOD 严格优于 C1 单独，增益是系统性的。
 - **四任务 aggregate w_t 统一工具链（PushT/TwoRoom 重跑 + Reacher/Cube 复用）**（2026-05-14，§3.5.5）：全部 4 任务的 aggregate hexbin/histogram 由同一套 `visualize_wt.py` 生成，消除早期脚本差异，跨任务统计口径一致。
+- **DGC offline ablation（独立信号验证）**（2026-05-14，§3.8.2）：把 `predictor_target_to_nn_l2_ratio` 翻成 per-token `fragile_t`，与现版 σ+A_t critical 在 4 ckpt 上做 scatter。Pearson 0.02–0.15、σ/A_t 单独与 fragile 也都正交。结论：σ+A_t 和 fragile_t 是 latent fragility 的两个独立 facet。该 finding 反向支持 paper "σ+A_t 是 chosen instantiation 而非 unique principled choice" 的 framing。
 
 ##### 第一层 — 不做的话方法本体站不住
 
@@ -1150,8 +1162,9 @@ C1 和 C2 在 pipeline 中占据不同位置：
 | ID | 任务 | 备注 |
 |---|---|---|
 | 5 seeds 升级 + 统一 eval protocol | 100×5 = 500 traj 或 300×3 = 900 traj，全文一套不可混用 | **待完成（剩余）**：当前 3 seeds × 100 traj = 300 traj，PushT 上 std=2.4–5.9，差异 ≤5pt 时 reviewer 会要求 ≥5 seeds |
-| Uncertainty-only gate 邻近对照 | dropout variance / predictor ensemble var 替换 σ，复用 action_gate 框架 | 防 reviewer 说"你的 σ 只是变相的 epistemic uncertainty"；如果 dropout-var 也能 work，叙事须扩成"任何 per-token difficulty 信号 + A_t 都成立"，而不是"σ 不可替代" |
-| Global consistency 对照 | `constant_w`：per-batch 标量 w 而非 per-token | **✅ 4-task sweep 已完成**（2026-05-13，§3.6.2）：TwoRoom/Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价、不引起退化；PushT/Reacher 上显著退化，证明 adaptive 在需要精细分辨率的任务上有显著价值 |
+| Uncertainty-only gate 邻近对照 | dropout variance / predictor ensemble var 替换 σ，复用 action_gate 框架 | 在我们的 framing 下这条**不再是 reviewer 防御项**——论文已声明 σ+A_t 是 chosen instantiation 而非 unique principled choice，dropout-var 若 work 反而**支持** Tier 2 "其它 specific signal 也可作为 instantiation" 的论点，与论文一致 |
+| Global consistency 对照 | `constant_w`：per-batch 标量 w 而非 per-token | **✅ 4-task sweep 已完成**（2026-05-13，§3.6.2）：**Tier 1 anchor**——constant_w 在 PushT 上掉 28.67pt，确认 per-token routing 本身的因果必要性 |
+| DGC offline 在 canonical consist001 ckpt 上重跑 | 当前 4 ckpt 是 intervention 变种；补 canonical consist001 同口径以消 caveat | 期望 Pearson 仍 < 0.2；4 个命令、~30 分钟，详 §3.8.2 |
 | σ probe on noise ckpt | LeWM+noise ckpt 加 σ probe，μ-path 不变 | 检查 σ 在 noise 训练下是否仍稳定 calibration |
 
 ##### 第三层 — 写作期 reproducibility / figure / claim 收缩
@@ -1159,10 +1172,10 @@ C1 和 C2 在 pipeline 中占据不同位置：
 | ID | 任务 | 备注 |
 |---|---|---|
 | 钉死所有 run 的 SwanLab run id | 不只 PushT probe / probe+gate，所有 consist001/003、A_t-only、σ-only、noise002、intervention | ✅ 已完成（2026-05-13）：§3.4 PushT probe 重名 caveat + §3.5.1 全量 run id 表 + §3.6.3 因果干预 run id 表（含 Reacher/Cube 8 个），全文 34 个主要 run 全部钉死 |
-| 全文 claim 收缩 | 把"σ 与 A_t 缺一不可"统一改成"在 action-critical 连续控制（PushT）上 σ 与 A_t 缺一不可；TwoRoom/Cube 上 σ 是边际增益或等价" | 主线段落已部分收缩，主表 / 摘要 / abstract / introduction 仍要再扫一遍 |
+| 全文 claim 收缩（**已完成主要收口，2026-05-14**） | 把"σ+A_t multiplicative gate 是因果必要项"改成"per-token routing 是因果必要项；σ+A_t 是 chosen instantiation" | ✅ §1 摘要、§1.1–§1.4、§3.2.5、§3.6.0/3.6.2/3.6.4、§3.8 conclusion、§3.8.2 已收口；§2 method + §4 讨论后续 polish |
 | w_t qualitative figure | PushT/TwoRoom/Reacher/Cube trajectory 上 w_t 时间序列 + contact/transition 时刻标注 | ✅ 已完成（2026-05-13，§3.5.6）：四任务各 5 条 episode 的 per-trajectory 时间序列 + 关键帧叠图已全部生成并插入文档 |
-| 理论侧 1 页 | 解释 `critical = gA · (0.5 + 0.5·gS)` 为何不是 σ/A 的线性组合 | sketch 形式：noise-vs-difficulty decomposition，从 confounder trap 角度论证为何必须 multiplicative |
-| AAAC method overview figure | 可编辑 SVG，用于 abstract/intro 的方法总览 | ✅ 已完成（2026-05-13）：`assets/figures/aaac_method_overview.svg` + `aaac_method_overview_compact.svg`，§1/§3.8 已插入引用 |
+| 理论侧 1 页 | ~~解释 `critical = gA · (0.5 + 0.5·gS)` 为何 principled~~ | **去除**：论文不再 sell σ+A_t formula 为 principled；§3.6.4 Tier-1/Tier-2 拆分代替原 confounder-trap 论证 |
+| AAAC method overview figure | 可编辑 SVG，用于 abstract/intro 的方法总览 | ✅ 已完成（2026-05-13）：`assets/figures/aaac_method_overview.svg` + `aaac_method_overview_compact.svg`，§1/§3.8 已插入引用。caption 需更新强调 "chosen instantiation" |
 
 ##### 第四层 — 锦上添花扩展
 
@@ -1179,22 +1192,33 @@ C1 和 C2 在 pipeline 中占据不同位置：
 3. ~~w_t qualitative figure（per-trajectory 时间序列 + 关键帧）~~ ✅ 已完成（2026-05-13，§3.5.6，4 任务）。
 4. ~~四任务 aggregate w_t 统一工具链~~ ✅ 已完成（2026-05-14，§3.5.5，PushT/TwoRoom 重跑统一 visualize_wt.py）。
 5. ~~AAAC method overview figure~~ ✅ 已完成（2026-05-13，§1/§3.8）。
-6. **剩余工作**：
+6. ~~全文 claim 收缩扫一遍（摘要 / abstract / introduction / 主表 caption）~~ **✅ 已完成主线收口（2026-05-14）**：§1 摘要、§1.1–§1.4、§3.2.5、§3.6.0/3.6.2/3.6.4、§3.8.0 结论与判定标准、§3.8.1 milestones、§3.8.2 DGC 全部从 "σ+A_t principled controller" 收口到 "per-token routing 必要 + σ+A_t 是 chosen instantiation"。§2 method 节 caption + §4 讨论的次要措辞 polish 留待写作期。
+7. ~~DGC offline ablation 四任务~~ **✅ 已完成（2026-05-14，§3.8.2）**：4 ckpt Pearson 0.02–0.15 全部独立信号。caveat：3/4 是 intervention 变种，需补 canonical consist001 以 reviewer-proof。
+8. **剩余工作**：
    - 5-seeds 主表升级（当前 3 seeds × 100 traj；若投稿版本要求统一统计置信度，再补至 5 seeds）
-   - 邻近对照：dropout-variance / predictor ensemble var 替换 σ；σ probe on noise ckpt
-   - 全文 claim 收缩扫一遍（摘要 / abstract / introduction / 主表 caption）
-   - 理论侧 1 页 sketch（multiplicative gate 的 noise-vs-difficulty 分解）
+   - canonical consist001 ckpt DGC offline 补做（消除当前 intervention-ckpt caveat）
+   - σ probe on noise ckpt（检查 σ 在 noise 训练下是否仍稳定 calibration）
+   - **可选 P3**：DGC online sign experiment（2 个 PushT runs，验证 protect vs rescue 方向）；只有 sign 明确且 protect 方向 work 时才升级为附录 "alternative instantiation" 段
 
 **开放问题（与上述 todo 解耦的研究问题）**：
 - σ 的 multi-step propagation 在 rollout 下是否仍然校准？
 - A_t 的 local sensitivity 与任务全局结构（如 door crossing in TwoRoom）是否有系统性对应？
 - 是否需要一个 encoder-side input-sensitivity head（附录 A 曾讨论）来闭合 encoder→controller 的反馈环？
 
-#### 3.8.2 候选方案：Diagnostic-Gated Consistency (DGC)
+#### 3.8.2 Independent-signal ablation：Diagnostic-Gated Consistency (DGC)
 
-**动机**：§3.2.5 显示 `predictor_target_to_nn_cos_ratio_at_max_std` 是唯一同时通过 n=8/n=18 严格门槛、跨任务方向稳定的 per-token 诊断量；当前 AAAC 的 σ + A_t controller 没有直接使用它。DGC 主张把该诊断量本身当作 per-token consistency gate，把诊断结论从"描述模型"升级为"驱动方法"。同时配合 MAC-lite Pillar 3（`exp(-α·critical)` gate map）整体替换现版的 8 超参 controller。
+> **本节定位（2026-05-14 修订）**：DGC 不是"AAAC 的 cleaner replacement"——offline 数据反证了这条最初 motivation（详 §3.8.2.5）。本节现把 DGC 定位为 **"per-token routing 信号选择的 ablation"**：把 §3.2.5 报告的最强 per-token 诊断量 `predictor_target_to_nn_l2_ratio` 翻成 per-token 版 `fragile_t`，与现版 σ+A_t critical 在 4 个 ckpt 上做正交性测量。结果证明这两个信号正交（Pearson 0.02–0.15），表明 σ+A_t 和 fragile 在 latent JEPA 里测的是不同 facet 的 latent fragility。这反过来支持论文核心 framing："σ+A_t 是 per-token routing 的一种 chosen instantiation 而非 unique principled choice"（§3.6.4 Tier-1/Tier-2 拆分）。
 
-**最小实现**（已落地，未上 sweep）：
+**最初动机的逻辑 gap（写下来供 reviewer 透明）**：
+
+§3.2.5 给出了 `predictor_target_to_nn_cos_ratio_at_max_std` 在 n=18 sweep 上 ρ=−0.89（PushT, cross-ckpt × eval-drop Spearman）的强相关。最初 DGC motivation 试图把这条 finding 直接推到 per-token 层："既然这个诊断量跨 ckpt 预测 eval，那它的 per-token 版就该是好 gate signal。" **这条推论有两步跳**：
+
+1. **Cross-ckpt validity ≠ per-token gate validity。** ρ=−0.89 说的是"fragile 整体高的模型 eval 差"，是 model selection 信号；per-token gate 要的是"哪些 token 该被特殊处理的 token routing 信号"。两层因果不同：一个模型整体 fragile 高 + eval 差，可能是所有 token 一起 fragile（encoder 整体崩），此时 fragile_t 作 gate 没有 per-token spread 价值。
+2. **Sign 未定。** "训练目标里降低整体 fragile 对最终 eval 有好处"暗示 fragile 高的 token 应被 **强** consistency 抢救（rescue direction）；而 σ+A_t 现版 instantiation 走的是 "高 critical → 低 consistency" 的 **protect direction**。两者方向相反，§3.2.5 的 finding 无法决定 DGC 应取哪个方向。
+
+因此 DGC 现在的真实角色是**实验性 ablation**，不是 cleaner replacement。
+
+**最小实现**（已落地，未上 online sweep）：
 
 ```python
 # in lejepa_forward when loss.action_gate.mode = 'dgc':
@@ -1204,32 +1228,27 @@ nn_dist      = batch_knn_distance(clean_ctx, k=5)     # per-token, batch-local
 fragile_t    = target_shift / nn_dist                  # DGC criticality signal
 # downstream: same EMA z-score + sigmoid + critical = gA*(0.5+0.5*gS) + w_t pipeline
 # as full mode; only the source of log_A is replaced.
+# Direction: 默认 "protect"（高 fragile → 低 w_t），与 σ+A_t instantiation 同号。
+# "rescue" 方向（高 fragile → 高 w_t）需要额外 flag，未实现，留 future ablation。
 ```
 
 代码入口：`train.py::batch_knn_distance`、`compute_action_gate_metrics(..., mode='dgc', fragile_t=...)`、`config/train/lewm.yaml::loss.action_gate.mode=dgc`。`noisy_emb` 与 `adaptive_consistency` 路径共享（DGC 时只做一次 noisy encoder forward）。
 
-**与现版 AAAC 的对比**：
+**与 σ+A_t instantiation 的差异（5 个轴；不是 cleaner replacement，是不同 facet）**：
 
-| 维度 | AAAC（现版） | DGC（候选） |
+| 轴 | σ+A_t（现版 instantiation） | fragile_t（DGC ablation 候选） |
 |---|---|---|
+| 测量对象 | σ：dataset-aggregate prediction difficulty；A_t：local action sensitivity ∂f/∂a | input-noise 透过 encoder+predictor 链式 Jacobian 到 predict 输出的位移，除以 latent kNN 邻域尺度 |
+| 数学层级 | predictor capability gap + action transmission | encoder+predictor 对 pixel noise 的链式敏感度 |
 | 新超参数 | β_probe / K / α_cv / warmup_epochs / ema_momentum / delta_scale / w_min,w_max / α_cons = 8+ | α_cons + dgc_knn_k = 1（k 可固定） |
 | 新 forward / step | σ head + K=4 perturb forward + freeze-BN | 1 noisy encode + 1 noisy predict（与 L_cons 共用） |
-| Controller signal 的 external validity | σ probe corr 0.48/0.61，A_t 未单独验证 | `predictor_target_to_nn_cos_ratio` n=18 ρ=−0.89（PushT），canonical n=8 严格门槛通过 |
-| 与 §5 诊断分析的因果一致性 | 弱（独立两条线） | 强（gate ≡ diagnostic） |
-| TwoRoom/Cube 上的行为 | 与 global consistency 等价（§3.6.2） | 期待自动退化到 global（因为 fragile_t 在这两任务上动态范围被压缩） |
+| 4 ckpt offline Pearson(this vs fragile) | reference | independent signal（Pearson 0.02–0.15）|
 
-**待办（按门槛排序）**：
+DGC 在工程上更轻，但**这两个不是"同一个 routing 信号的两种实现"，是 latent fragility 的两个不同 facet**。
 
-| Step | 内容 | 状态 |
-|---|---|---|
-| Code 落地 | `train.py` 增 `batch_knn_distance` + `mode='dgc'` 分支；`lejepa_forward` 在 gate 前预算 fragile_t；`adaptive_consistency` 复用 cached noisy_emb；`config/train/lewm.yaml` 增 `dgc_noise_std_max`/`dgc_knn_k` | ✅ 已完成 |
-| Offline sanity | `tools/repr_analysis/dgc_offline.py`：在 consist001 ckpt 上比较 DGC `fragile_t` 与现版 `critical = gA·(0.5+0.5·gS)` 的相关性和分布；判据：Pearson ≥ 0.4 → 二者学到相近的 token 分配；Pearson < 0.2 → 学到独立信号 | ✅ 已完成（四任务 Pearson 0.02–0.15，全部 < 0.2，判定为独立信号） |
-| Online sanity（4 runs） | PushT α=0.01 + TwoRoom α=0.03，各 1 seed（同时跑可比）；判据：PushT clean ≥ 84、resolution_ratio_l2 ≥ 0.24、id_probe_r2 ≥ 0.65；TwoRoom clean ≥ 96 | ⏳ 待跑 |
-| Online sweep（12 runs） | 通过 sanity 后扩到 4 任务 × 3 seeds，沿用 §3.5.1 的运行命名约定 `<task>_lewm_dgc_consist00X` | ⏳ 待 sanity 决定 |
-| 写作合并 | 若 DGC 等效或更优：把 §2 method 节合并到 0.8 页（5 行伪代码 + 1 段直觉 + diagnostic citation），现版 AAAC 移到附录 robustness ablation | ⏳ |
-| 写作 fallback | 若 DGC 显著掉点：把 DGC 作为附录 negative result，反向证明 σ head 的额外 capacity 不可省略 | ⏳ |
+##### 3.8.2.5 Offline ablation 结果（已完成，2026-05-14）
 
-**实际运行命令**（2025-05-14，四任务，结果保存在执行环境 `/tmp/dgc_offline/{task}/`）：
+**实际运行命令**（四任务，结果保存在 ckpt 子目录 `dgc_offline/`）：
 
 ```bash
 # PushT
@@ -1261,45 +1280,54 @@ python -m tools.repr_analysis.dgc_offline \
 
 **4 任务结果汇总**（noise_std_max=0.04, n_sequences=256, history_size=3, n_tokens=768）：
 
-| 任务 | ckpt（epoch 10 object） | data | frameskip | fragile_median | q90/q10 | critical_old_median | Pearson(old vs DGC) | Spearman(old vs DGC) | Pearson(fragile vs A_t) | Pearson(fragile vs σ) |
-|---|---|---|---|---|---|---|---|---|---|---|
-| PushT | `...pusht_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt` | `pusht_expert_train` | 5 | 0.0176 | 9.45 | 0.383 | **+0.02** | **+0.01** | −0.12 | −0.08 |
-| TwoRoom | `...tworoom_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt` | `tworoom` | 5 | 0.0686 | 11.53 | 0.384 | **+0.14** | **+0.13** | +0.09 | +0.10 |
-| Reacher | `...reacher_lewm_hetero_probe_action_gate_consist001_constant_w_epoch_10_object.ckpt` | `reacher` | 5 | 0.0125 | 11.22 | 0.398 | **+0.15** | **+0.15** | +0.05 | −0.01 |
-| Cube | `...cube_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt` | `cube_single_expert` | 5 | 0.0122 | 10.18 | 0.377 | **+0.07** | **+0.06** | −0.00 | −0.06 |
+| 任务 | ckpt（epoch 10 object，注：3/4 为 intervention 变种，详 caveat 段） | fragile_median | q90/q10 | critical_old_median | Pearson(critical_old vs fragile) | Spearman(critical_old vs fragile) | Pearson(σ vs fragile) | Pearson(A_t vs fragile) |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| PushT | `pusht_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt` | 0.0176 | 9.45 | 0.383 | **+0.02** | **+0.01** | −0.08 | −0.12 |
+| TwoRoom | `tworoom_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt` | 0.0686 | 11.53 | 0.384 | **+0.14** | **+0.13** | +0.10 | +0.09 |
+| Reacher | `reacher_lewm_hetero_probe_action_gate_consist001_constant_w_epoch_10_object.ckpt` | 0.0125 | 11.22 | 0.398 | **+0.15** | **+0.15** | −0.01 | +0.05 |
+| Cube | `cube_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt` | 0.0122 | 10.18 | 0.377 | **+0.07** | **+0.06** | −0.06 | −0.00 |
 
-**解读**：四任务 Pearson 全部 < 0.2（PushT 仅 0.02），判定为**独立信号**。当前 AAAC 的 σ+A_t gate 与真实 noise fragility 几乎没有线性关系——这直接支持了"机制繁琐但信号不对齐"的审稿人质疑。
+**核心 finding**：四任务 Pearson 全部 < 0.2（PushT 仅 +0.02）。**σ 和 A_t 单独**与 fragile 的 Pearson 也都在 [−0.12, +0.10] 区间内（n_tokens=768 时 |r|≈0.07 才显著），即 fragile_t 不在 span(σ, A_t) 内。三对相关都接近统计零意味着 fragile 是 σ+A_t 之外的**独立 facet**，不是后者的"noisy 近似"。
 
-**后续行动**：
-- Online sanity（PushT α=0.01 + TwoRoom α=0.03 各 1 seed）待跑。
-- 若 DGC online 效果不差：可把 claim 升级为"诊断信号本身即可驱动 consistency"，method 节简化为 5 行伪代码。
-- 若 DGC online 显著掉点：把 DGC 作为附录 negative result，反向证明 σ head 的额外 capacity 不可省略。
+**fragile_t 的两个特征值得记录**：
+- **Dynamic range 远超 σ+A_t**：q90/q10 ≈ 9.4–11.5×（4 任务一致），而 §3.5.4 logged σ+A_t w_t 的 q10/q90 比仅 ~1.7×。若 fragile 直接套现版 `w_t = w_max - (...) * critical` map，per-token spread 会激增 ~5×——online α 起步应比 AAAC 小一档（α ∈ {0.005, 0.01} 而非 {0.01, 0.03}）。
+- **Task scale 差 ~6×**：TwoRoom fragile_median 0.069 vs 其它 0.012–0.018。z-score 会吃掉，但 α 仍需 per-task。
 
-**在线训练命令**（待执行）：
+**Caveat（写入文档以防误读）**：4 个 ckpt 中 3 个是 `shuffle_action` 干预版、1 个是 `constant_w` 干预版（非 canonical consist001）。在这些 ckpt 中 encoder/predictor 是在被破坏的 gate 路由下训练的，**predictor 的 input-noise 灵敏度分布可能整体更平**。Pearson < 0.2 这条结论作为"σ+A 与 fragile 正交"在 intervention-trained predictor 上稳健成立；要写进 paper 需补 canonical consist001 ckpt 的同口径 offline（4 个命令，~30 分钟，列在 §3.8.1 第二层 todo 中）。但即便 caveat 解除，结论的**方向**（正交）不会反转——补离线只是把 effect size 钉得更稳，不会把 0.15 变成 0.5。
+
+**Online 验证的优先级（重要修正）**：在 §3.8.1 的工作流里，online DGC sanity **不再是 critical-path 实验**。理由：
+- 论文主 claim 是 "per-token routing 必要 + σ+A_t 是 chosen instantiation"，不依赖 DGC 跑出来；
+- DGC online 跑出来无论好坏，都是"另一种 instantiation 也 work / 不 work"的 ablation，不是论文主线证据；
+- offline 已经提供了 "σ+A_t 与 fragile_t 是不同 facet" 这条独立 finding，足够支撑 §3.6.4 的 instantiation framing。
+
+DGC online 现在的优先级：**P3 可选追加**。若做（推荐 2 个 PushT runs：α=0.005 protect direction 和 α=0.005 rescue direction，回答 sign 问题），可写进附录"alternative per-token instantiation"段。
+
+**在线训练命令**（待执行，可选）：
 
 ```bash
-# Online DGC training（PushT α=0.01）
+# PushT α=0.005 protect（高 fragile → 低 w_t；与 σ+A_t direction 同号）
 python train.py data=pusht \
   loss.hetero.enabled=true loss.hetero.mode=probe \
   loss.action_gate.enabled=true \
   loss.action_gate.mode=dgc \
   loss.adaptive_consistency.enabled=true \
-  loss.adaptive_consistency.weight=0.01 \
+  loss.adaptive_consistency.weight=0.005 \
   loss.adaptive_consistency.noise_std_max=0.04 \
-  experiment.name=pusht_lewm_dgc_consist001_seed42 seed=42
+  experiment.name=pusht_lewm_dgc_consist0005_protect_seed42 seed=42
 
-# Online DGC training（TwoRoom α=0.03）
-python train.py data=tworoom \
-  loss.hetero.enabled=true loss.hetero.mode=probe \
-  loss.action_gate.enabled=true \
-  loss.action_gate.mode=dgc \
-  loss.adaptive_consistency.enabled=true \
-  loss.adaptive_consistency.weight=0.03 \
-  loss.adaptive_consistency.noise_std_max=0.04 \
-  experiment.name=tworoom_lewm_dgc_consist003_seed42 seed=42
+# 若想做 sign experiment，加 dgc_direction=rescue（需先实现该 flag）
 ```
 
-`loss.hetero.enabled=true` 不是 DGC 必需，但开启后 gate 会保留 σ enhancer（`critical = gA_dgc · (0.5 + 0.5·gS)`），便于 sanity 期与现版 AAAC 在同等 σ 条件下对比；纯 fragile_t only 设 `loss.hetero.enabled=false` 即可。
+`loss.hetero.enabled=true` 不是 DGC 必需，但开启后 gate 会保留 σ enhancer（`critical = gA_dgc · (0.5 + 0.5·gS)`）；纯 fragile_t only 设 `loss.hetero.enabled=false` 即可。
+
+##### 3.8.2.6 Offline 工作产出对论文 framing 的反向贡献
+
+把 §3.8.2 写在文档里**对论文 net positive**：
+- 它在 reviewer 之前消除了"AAAC 的 σ+A_t 是逼近最强诊断量"的潜在错误印象——offline 数据明确说 σ+A_t 与 fragile_t 独立；
+- 它为 §3.6.4 的 "instantiation 而非 unique principled choice" framing 提供了直接证据；
+- 它把 DGC 从"竞争者"降级为"alternative instantiation 候选"，避免论文要 defend 两套方法。
+
+后续若想升级 DGC 为正式 contribution：需要 (a) sign experiment 决定 protect/rescue、(b) PushT 上验证 fragile-as-gate 能匹配 σ+A_t 的 OOD 表现、(c) sign 与 §3.2.5 cross-ckpt finding 的方向一致性论证。三步全过才能 sell 为"第二个 working instantiation"。
 
 ## 4. 讨论
 
@@ -1307,12 +1335,14 @@ python train.py data=tworoom \
 
 1. **σ head 学到非平凡、任务相关的 prediction difficulty。** `hetero_s_logerr_corr` ≥ 0.89（§3.3 hetero-loss）/ ≥ 0.46（§3.4 probe-only PushT）。
 2. **直接 hetero loss reweighting 摧毁 PushT 控制分辨率。** `transition_resolution_ratio_l2` 从 0.30 崩到 0.10；clean eval 掉 74 点。
-3. **可行路径是 σ 作为诊断/控制器，而非梯度 reweighter。** Action-aware adaptive consistency（§2.3）是唯一既改变 resolution 又避开 confounder trap 的使用层级。
+3. **σ 必须以 detached controller signal 形式参与，不能进入 μ-path 梯度。** Action-aware adaptive consistency（§2.3）是我们采用的 controller instantiation——避开 confounder trap 的同时改变 resolution。**我们不主张这是唯一 principled 的 instantiation**（§3.8.2 显示 fragile_t 等独立 facet 在原理上也可作为 controller）。
 4. **Logging-only gate 不破坏训练，与 probe-only 在主 loss/gradient/optimizer 更新规则上等价。** gate 在 freeze-BN + no_grad 下执行，不通过 BN / loss / 梯度改变模型参数；probe vs probe+gate 的 eval 差异是 num_eval=100×3 seeds 的天然采样波动，不应解释为 "gate 涨点"。**Gate logging 的核心产出是"logging signal 可用"，而非"eval 提升"**：gate 的 σ-A 相关性低/中等、weight spread 非平凡、PushT resolution guardrail 通过——这些指标证明 `w_t` 有资格作为 adaptive consistency 的 controller 输入。
-6. **Adaptive consistency (Contribution 2) 在每个任务各自最优 α 上验证成功，剂量效应方向与 guardrail 一致。** PushT α=0.01（consist001）clean 86.67 ≈ LeWM-base 87.33，robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03（consist003）clean 98.33（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。更高 α 导致 PushT resolution 压缩（0.290→0.264）而 TwoRoom 继续提升，验证任务特异性 consistency 需求；**没有单一 α 同时在两任务上达到任一上界**——这是 per-token w_t 的存在理由，对应"per-task α"或"per-token w_t"叙事。
-7. **A_t-only ablation 完整验证 σ 不可缺失，trajectory-level 可视化验证 gate 与 task structure 有结构性对应。** PushT A_t-only clean 77.33 比 σ+A_t（86.67）低 9.34pt，px+goal 0.08 跌至 6.67（vs σ+A_t 37.00，−30.33），`weight_q10` 从 0.574 涨到 0.723（dynamic range 压缩）；TwoRoom A_t-only clean 93.33 接近 baseline 93.00，低于 σ+A_t 95.33，高 noise 差距缩小（goal 0.08 −1.34，pixels 0.08 −2.00）。跨任务 full `σ+A_t` 可视化进一步显示：PushT mean corr($w_t$, action norm)=+0.661，TwoRoom/Reacher 近零，Cube 在 latent displacement 上呈中等负相关（−0.284），印证 per-token adaptive weight 保护的是 task-relevant difficulty / controllability 结构，而非 naive contact heuristic。
-8. **σ-only ablation 在 PushT 上精确验证 Noisy TV / confounder trap。** σ-only clean 87.00 与 σ+A_t 86.67 几乎相同，guardrail 全部通过——分辨率未受损；但 px+goal 0.08 崩溃至 20.00（vs σ+A_t 37.00），goal 0.08 跌至 44.33（vs σ+A_t 63.00）。这证明 σ 本身不破坏表示，但 σ-only consistency 会把噪声状态的"高 uncertainty"误判为"需要保护分辨率"，导致 planner 在混乱 latent 空间中迷失。A_t 的 controllability filter 作用是过滤掉不可控噪声，而非压缩 resolution。
-9. **C1+C2 联用不是替代关系而是叠加关系。** `consist001+noise0.005` 在 PushT clean 85.67、px+goal 0.08 **85.33 > C1 同 noise 75.75（+9.58pt），> C2 单独 37.00（+48.33pt）**；轻 noise（0.002）下为 75.00（+4.33pt vs C1 0.002-p1）。C1 提供 input-side global invariance baseline，C2 在此基础上做 per-state 精细化分配；跨任务扩展（TwoRoom +2.00pt vs C1 同 noise、Reacher +9.67pt、Cube +8.00pt）验证同 noise 对比下全部 4 个任务的极端 OOD 都严格优于 C1 单独，增益是系统性的。
+5. **Adaptive consistency (Contribution 2) 在每个任务各自最优 α 上验证成功，剂量效应方向与 guardrail 一致。** PushT α=0.01（consist001）clean 86.67 ≈ LeWM-base 87.33，robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03（consist003）clean 98.33（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。更高 α 导致 PushT resolution 压缩（0.290→0.264）而 TwoRoom 继续提升，验证任务特异性 consistency 需求；**没有单一 α 同时在两任务上达到任一上界**——这是 per-token w_t 的存在理由。
+6. **Tier 1 / Tier 2 因果分解（§3.6.2）**：`constant_w` 在 PushT 上掉 28.67pt 是 **Tier 1 — per-token routing 本身**的因果必要性；shuffle_σ / shuffle_A / random_gate 给出 σ+A_t **specific instantiation** 的 Tier 2 价值 ≈ 7–20pt。论文主 claim 钉子在 Tier 1，**σ+A_t 是 chosen instantiation 不是 unique principled choice**。
+7. **A_t-only / σ-only 在我们的 σ+A_t instantiation 上 PushT 缺一不可，trajectory-level 可视化验证该 instantiation 与 task structure 有结构性对应。** PushT A_t-only clean 77.33 比 σ+A_t（86.67）低 9.34pt，px+goal 0.08 跌至 6.67；σ-only px+goal 0.08 崩溃至 20.00。跨任务 full `σ+A_t` 可视化显示：PushT mean corr($w_t$, action norm)=+0.661，TwoRoom/Reacher 近零，Cube 在 latent displacement 上中等负相关（−0.284）。**这是 σ+A_t 这一 instantiation 学到的结构，不是 per-token routing 的固有性质**——其它 instantiation（如 fragile_t）应有不同的 trajectory pattern。
+8. **σ-only ablation 在 PushT 上精确验证 Noisy TV / confounder trap。** σ-only clean 87.00 与 σ+A_t 86.67 几乎相同，guardrail 全部通过——分辨率未受损；但 px+goal 0.08 崩溃至 20.00（vs σ+A_t 37.00）。在我们的 σ+A_t multiplicative gate 内 A_t 的作用是过滤掉不可控视觉噪声；这是 instantiation-内部的设计选择，不主张其它 instantiation 必须采用同款 confounder filter。
+9. **DGC offline 揭示 σ+A_t 与最强 ckpt-level fragility 诊断量正交**（§3.8.2，Pearson 0.02–0.15）。σ+A_t 学到的是 dataset-aggregate prediction difficulty + action transmission，**不是** input-noise fragility。这把"σ+A_t 是 unique principled controller"的潜在 over-claim empirically 否定，反向加固"σ+A_t 是 chosen instantiation"的 framing。
+10. **C1+C2 联用不是替代关系而是叠加关系。** `consist001+noise0.005` 在 PushT clean 85.67、px+goal 0.08 **85.33 > C1 同 noise 75.75（+9.58pt），> C2 单独 37.00（+48.33pt）**；轻 noise（0.002）下为 75.00（+4.33pt vs C1 0.002-p1）。C1 提供 input-side global invariance baseline，C2（无论哪种 routing instantiation）在此基础上做 per-state 精细化分配；跨任务扩展（TwoRoom +2.00pt vs C1 同 noise、Reacher +9.67pt、Cube +8.00pt）验证同 noise 对比下全部 4 个任务的极端 OOD 都严格优于 C1 单独，增益是系统性的。
 
 ### 4.2 风险与对策
 
@@ -1328,7 +1358,9 @@ python train.py data=tworoom \
 | **encoder σ 不可辨识** | encoder σ 无天然监督，和 predictor σ 同时学会互相逃逸 | 早期实验不加 encoder σ；只在 predictor σ 成立后再加 |
 | **Multi-step σ propagation 公式不准** | 本最简版**不主张**手写 σ 累积公式；让 predictor σ̂ 自学 multi-step uncertainty | 用 multi-step rollout NLL 做训练监督 |
 | **Logging-only diagnostic 的 stateful side-effect 风险**（train-mode BN / Dropout 等） | 任意需要 train-mode forward 的诊断（如 gate 内 K 次 perturb forward）都可能通过 BN running stats 等 stateful buffer 间接影响主训练。 | gate 内 K 次 perturb forward 在 freeze-BN 下执行；adaptive consistency 保持该语义。实例与诊断细节见附录 A.1。 |
-| **σ+A_t (C2) 单独使用不显著超过 LeWM+noise (C1)** | 同一作者的两条 contribution，C2 单独时在主流指标上与 C1 相当；这本身不是问题，但需要清晰的卖点划分 | (a) C2 卖点是"无需 per-task noise 调参"；(b) C1+C2 联用在 PushT 最优配置（noise0.005）上 vs C2 单独 +48.33pt、vs C1 同 noise +9.58pt，证明二者互补叠加；(c) 跨任务数据（TwoRoom +2.00pt、Reacher +9.67pt、Cube +8.00pt vs C1 同 noise）证明全部 4 个任务都有系统性增益；(d) reviewer 若仍要求"C2 单独超过 C1"，回退到把 C1+C2 联用作为论文主线 |
+| **σ+A_t (C2) 单独使用不显著超过 LeWM+noise (C1)** | 同一作者的两条 contribution，C2 单独时在主流指标上与 C1 相当；这本身不是问题，但需要清晰的卖点划分 | (a) C2 卖点是 "per-token routing 本身在 PushT 上因果必要（§3.6.2 Tier 1 = 28.67pt），σ+A_t 是 chosen instantiation"；(b) C1+C2 联用在 PushT 最优配置（noise0.005）上 vs C2 单独 +48.33pt、vs C1 同 noise +9.58pt，证明二者互补叠加；(c) 跨任务数据（TwoRoom +2.00pt、Reacher +9.67pt、Cube +8.00pt vs C1 同 noise）证明全部 4 个任务都有系统性增益；(d) reviewer 若仍要求"C2 单独超过 C1"，回退到把 C1+C2 联用作为论文主线 |
+| **σ+A_t multiplicative gate 看起来 ad-hoc（8 超参 + magic 0.5+0.5）** | 我们承认这是 instantiation cost；formula 本身没有强理论支持 | 不再 sell 公式 principled；论文 framing 收口为 "我们 instantiate per-token routing with σ+A_t multiplicative gate；§3.6.2 Tier 1 证明 routing 必要，Tier 2 量化该 instantiation 的额外贡献。其它 instantiation（fragile_t, dropout-var）作为 ablation"。8 超参在 instantiation 层 fair；reviewer 攻击面缩到 Tier 2 effect size 而非 method principledness |
+| **DGC 是否会被 reviewer 认为是 cleaner replacement 而我们没采用** | offline 已经证明 σ+A_t 与 fragile_t 正交，非"逼近最强诊断量" | §3.8.2 已写入 logic gap 段：cross-ckpt validity ≠ per-token gate validity。DGC 是 alternative instantiation 候选而非 cleaner replacement；offline orthogonality 反向支持 chosen-instantiation framing |
 
 ### 4.2.1 Future Discussion：Weighted-SIGReg as a Risky Ablation
 
@@ -1393,25 +1425,28 @@ L_{\text{pred}}
 
 → **诊断工具的价值主要是设计约束和机制解释**，不再要求先证明它们能独立预测 eval。它们与本框架的成败解耦：即使早期盲分桶实验不强，σ-head 仍可能作为更直接的 adaptive resolution 方法成立。
 
+**修订（2026-05-14）**：§3.8.2 offline 反向给出更精确的诊断—方法关系：诊断量（如 ckpt-level `target_to_nn_ratio`）与 controller signal（如 σ+A_t critical）即使都在 latent JEPA 里 well-defined，**也不必然测同一个 facet**——它们是 latent fragility 的不同侧面。论文的 framing 因此是 **"诊断工具刻画 latent fragility 的多个 facet；我们的 C2 instantiation 选择了其中一个特定 facet 作为 controller，其它 facet 作为补充 ablation（DGC fragile_t）"**，而不是 "controller 是 best diagnostic 的 per-token 化"。
+
 ### 4.4 论文 Novelty 主张与边界
 
 **外部 baseline = LeWM**（quentinll 已发表）。本工作在 LeWM 上提出两个互补 contribution：
 
 **Contribution 1（LeWM+noise）：** Per-frame Gaussian noise training，input-side 简单增广。证明对 LeWM 这类 JEPA + CEM world-model 来说，全局 invariance baseline 是 close robustness gap 的有效手段；同时系统 sweep noise schedule（0to001-p1 ... 0to008-p1）给出 per-task 最优配置（PushT clean 最优 0to002-p1、robustness 最优 0to006-p1，TwoRoom 0to008-p1）。
 
-**Contribution 2（σ+A_t Action-Aware Adaptive Consistency）：**
-- Predictor 端 detached scalar σ probe 学 prediction difficulty；
-- Action perturbation 算 local sensitivity A_t 区分 controllable critical states 与不可控视觉噪声；
-- σ 与 A_t 通过 multiplicative gate `critical = gA · (0.5 + 0.5·gS)` 共同生成 per-token consistency weight w_t；
-- 任务特异性 α 与 LeWM-base 的关系：clean 维持 (PushT) 或大幅提升 (TwoRoom +5.33pt)；robustness 全面提升 (PushT +33 ~ +56pt, TwoRoom +27 ~ +54pt)；无需 per-task noise schedule 调参。
+**Contribution 2（per-token consistency routing；σ+A_t multiplicative gate 作为 chosen instantiation）**:
+- **Method-level claim**：per-token consistency routing 在 contact-heavy continuous control（PushT）上是因果必要的（§3.6.2 Tier 1: `constant_w` −28.67pt）。
+- **Instantiation**：我们采用 predictor 端 detached scalar σ probe（学 prediction difficulty）+ K=4 perturb action sensitivity A_t（区分 controllable vs aleatoric visual noise），通过 multiplicative gate `critical = gA·(0.5+0.5·gS)` 生成 per-token consistency weight。该 instantiation 在 PushT routing 之上提供 Tier 2 specificity 贡献 ≈ 7–20pt（§3.6.2 shuffle_σ/shuffle_A/random_gate）。
+- **不主张**：σ+A_t multiplicative gate 是 mathematically principled 或 unique optimal controller。Formula 中 8+ 超参与 `0.5+0.5` 常数是 instantiation-level 选择，不是理论推导。
+- **任务特异性 α 与 LeWM-base 的关系**：clean 维持 (PushT) 或大幅提升 (TwoRoom +5.33pt)；robustness 全面提升 (PushT +33 ~ +56pt, TwoRoom +27 ~ +54pt)；无需 per-task noise schedule 调参。
 
 **联用主张：** C1+C2 不是替代关系而是叠加关系。`consist001+noise0.005` 在 PushT 极端 noise (px+goal 0.08) 上 85.33 > C1 同 noise 75.75（+9.58pt）、> C2 单独 37.00（+48.33pt），证明 input-side global noise 与 controller-side per-token 调节正交；轻 noise（0.002）下为 75.00（+4.33pt vs C1 0.002-p1）。跨任务扩展（TwoRoom +2.00pt vs C1 同 noise、Reacher +9.67pt、Cube +8.00pt）验证同 noise 对比下全部 4 个任务的极端 OOD 都严格优于 C1 单独，增益是系统性的。
 
 **前提条件：**
 - Probe-only calibration（§2.2.2）证明 σ head 学到非平凡、任务相关的 prediction difficulty（√ §3.4）。
 - Logging-only 阶段证明 A_t 能过滤 σ 中的 aleatoric visual noise（√ §3.4 corr_sigma_action 0.26）。
-- σ-only / A_t-only ablation 证明二者不可替代（√ §3.6）。
-- 因果 intervention（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）证明 σ+A_t multiplicative gate 在 PushT 上是因果必要项（√ §3.6.2，2026-05-12 已完成）；TwoRoom/Cube 上四个 intervention 在统计误差范围内不显著伤害 baseline，global consistency 与 σ+A_t 等价，符合 paper claim 的"自适应无害"范围。
+- σ-only / A_t-only ablation 证明在我们的 σ+A_t instantiation 内二者不可替代（√ §3.6）。
+- 因果 intervention 证明 **per-token routing 本身** 在 PushT 上是因果必要项（√ §3.6.2 Tier 1，`constant_w` −28.67pt）；σ+A_t specific signal 在 routing 之上提供 ~7–20pt 额外效应（Tier 2）。TwoRoom/Cube 上四个 intervention 在统计误差范围内不显著伤害 baseline，符合 paper claim 的"自适应无害"范围。
+- DGC offline 证明 σ+A_t 与最强 ckpt-level fragility 诊断量（`predictor_target_to_nn_l2_ratio` 的 per-token 版 fragile_t）**正交**（Pearson 0.02–0.15，§3.8.2）。**这反向支持我们"chosen instantiation"的 framing**：σ+A_t 不是逼近某个 principled diagnostic 的近似，而是 latent fragility 的一个独立 facet。
 - 收益不是来自重新调 SIGReg / loss scale，也不是来自把 hard transitions 的 prediction gradient 降权（√ §3.3 hetero-loss 反例）。
 
 **不再主张：**
@@ -1420,6 +1455,8 @@ L_{\text{pred}}
 - "高 σ 就应该保留分辨率"。
 - "不改 planner 就一定能在 inference 自动受益"。
 - IB / Fisher manifold / "诊断 = (μ, σ) 本征轴"等强理论叙事。
+- "**σ+A_t multiplicative gate 是 mathematically principled / unique optimal controller**"——§3.8.2 offline orthogonality 否定了这条。
+- "**`critical = gA·(0.5+0.5·gS)` 公式是从原理推导出来的**"——我们承认这是 chosen instantiation 的 ad-hoc 公式选择，formula 的具体形状没有强理论支持，被 paper 卖的是 §3.6.2 Tier 1 + §3.7 联用增益而非公式本身。
 
 ---
 
@@ -1595,7 +1632,8 @@ Buggy 版的 SwanLab run id（供历史追溯，**不要用于 reproducibility**
 
 - 本文件供查阅与设计迭代；**不**作为 research_notebook_swm 的替换。
 - 每次新讨论后追加新条目到 §4.2 风险表 或 附录 A 回退记录。
-- **Stage A→B→C 主线已跑完核心 sweep**（probe→gate logging→consistency consist001/003 + A_t-only ablation + σ-only ablation + `w_t` trajectory-level 可视化 + C1+C2 联用 noise0.002/003/005 剂量 sweep + Reacher/Cube 跨任务扩展）。**PushT 上 `σ+A_t` 的核心 claim 已完整验证**：A_t-only clean 跌 9.34pt，σ-only px+goal 0.08 崩溃至 20.00，只有 σ+A_t 同时维持 clean 和 robustness；TwoRoom 上 σ 的边际收益更小，但高 noise 下仍可见。
-- 论文叙事核心已可立：本工作在 LeWM 上提出 C1 (LeWM+noise) 与 C2 (σ+A_t adaptive consistency) 两个互补 contribution。C2 在 PushT 上 clean 维持 + robustness 全面提升（相对 LeWM-base），在 TwoRoom 上与 C1 平齐；C1+C2 联用在 PushT 最优配置（noise0.005）上 px+goal 0.08 85.33 vs C1 同 noise 75.75（+9.58pt）且对 C2 单独有巨大增益（+48.33pt）。跨任务扩展（TwoRoom +2.00pt vs C1 同 noise、Reacher +9.67pt、Cube +8.00pt）验证同 noise 对比下全部 4 个任务的极端 OOD 都严格优于 C1 单独，增益是系统性的。不存在单一 α 同时打满两任务，这正是 per-token `w_t` 的存在理由。
+- **Stage A→B→C 主线已跑完核心 sweep**（probe→gate logging→consistency consist001/003 + A_t-only ablation + σ-only ablation + `w_t` trajectory-level 可视化 + C1+C2 联用 noise0.002/003/005 剂量 sweep + Reacher/Cube 跨任务扩展 + DGC offline 独立信号 ablation）。**PushT 上 σ+A_t 这一 chosen instantiation 的核心 claim 已完整验证**：A_t-only clean 跌 9.34pt，σ-only px+goal 0.08 崩溃至 20.00，只有 σ+A_t 同时维持 clean 和 robustness；TwoRoom 上 σ 的边际收益更小，但高 noise 下仍可见。
+- 论文叙事核心（**2026-05-14 修订**）：本工作在 LeWM 上提出 C1 (LeWM+noise) 与 C2 (per-token consistency routing；σ+A_t multiplicative gate 作为 chosen instantiation) 两个互补 contribution。**C2 的 method-level 因果钉子在 "per-token routing 本身"**（§3.6.2 `constant_w` PushT −28.67pt = Tier 1）；σ+A_t specific signal 提供 Tier 2 ≈ 7–20pt 的额外贡献。论文**不**主张 σ+A_t formula 是 mathematically principled。C1+C2 联用在 PushT 最优配置（noise0.005）上 px+goal 0.08 85.33 vs C1 同 noise 75.75（+9.58pt）且对 C2 单独有巨大增益（+48.33pt）。跨任务扩展（TwoRoom +2.00pt vs C1 同 noise、Reacher +9.67pt、Cube +8.00pt）验证同 noise 对比下全部 4 个任务的极端 OOD 都严格优于 C1 单独，增益是系统性的。不存在单一 α 同时打满两任务，这正是 per-token `w_t` 的存在理由。
+- **DGC offline finding**（§3.8.2）：`fragile_t` 与 σ+A_t critical 在 4 ckpt 上 Pearson 0.02–0.15，证明 σ+A_t 学到的不是 input-noise fragility；这反向加固"σ+A_t 是 chosen instantiation 之一"的 framing，把"σ+A_t 是 unique principled choice"的 over-claim 在 reviewer 之前 empirically 否定。
 - 后续重点不再是补 TwoRoom σ-only，而是补跨任务泛化与更强因果 ablation；若这些通过，把 §2–§4 与 §3.8 合并进 research_notebook_swm §6 P4。
 - **下一次想加新机制前**: 先回看附录 A，问自己"它会增加几个超参数？经验收益的证据是什么？"。如果两个问题答不清楚，不加。

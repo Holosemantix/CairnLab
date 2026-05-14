@@ -525,9 +525,47 @@ LeWM-base 在 clean 上表现良好，但只要 visual std=0.05 加到 pixels+go
 
 #### 3.5.5 权重可视化与机制验证
 
-本节统一采用 **full $\sigma + A_t$ gate 的 per-trajectory 结果** 作为正式量化口径；具体数据来自四个 `wt_episode_summary.json` 文件（每任务随机抽取 5 条完整 trajectory，滑动 context window 重算 `w_t / critical_t`）。此前 top-level 的 PushT / TwoRoom aggregate 图来自早期 A-channel 离线工具，只保留为历史诊断资产，不再作为本文最终数值依据。
+本节采用两层互补证据来验证 gate 是否与 task structure 对齐：
 
-**四任务 trajectory-level 汇总（5 episodes per task）：**
+1. **Aggregate context-window diagnostic**：把离线提取的 token 级 `w_t` / `critical_t` / `gA_t` 与 action norm、latent displacement 做全局对应分析，保留 hexbin、histogram 与 quartile 分组结果，用于展示整体动态范围和统计结构。
+2. **Trajectory-level analysis**：从完整 episode 重算 full $\sigma + A_t$ gate，并把重叠 window 聚合回时间轴，用于给出四任务统一、可比较的主量化结论。
+
+需要说明的是，当前仓库内的 aggregate 资产来自两种相近但不完全相同的离线工具链：PushT / TwoRoom 为较早的 context-window diagnostic，Reacher / Cube 为更新后的 aggregate script 产物。因此，**aggregate 图仍然是有效且应保留的补充证据**，但跨任务统一的最终量化比较以下面的 trajectory-level 汇总为主。
+
+**Aggregate 统计（补充证据）**
+
+| 任务 | corr($w_t$, $||a_t||$) | corr($w_t$, latent disp.) | Q1 mean | Q4 mean | Q4−Q1 | 解读 |
+|---|---:|---:|---:|---:|---:|---|
+| PushT | **+0.587** | **−0.592** | 0.768 | 0.898 | **+0.130** | 与 action sensitivity / transition difficulty 强对齐 |
+| TwoRoom | **−0.021** | **−0.384** | 0.820 | 0.818 | **+0.005** | 动态范围压缩，接近全局 consistency |
+| Reacher | **−0.001** | **−0.065** | 0.724 | 0.718 | **−0.006** | 几乎平坦，低维连续控制的 token-wise spread 很弱 |
+| Cube | **−0.096** | **−0.287** | 0.745 | 0.714 | **−0.031** | 能识别 manipulation transition，但强度远弱于 PushT |
+
+这些 aggregate 结果与 trajectory-level 结论方向一致：PushT 的 token-wise spread 最明显，TwoRoom / Reacher 最平，Cube 介于两者之间。它们不是 trajectory 分析的替代品，但构成了重要的全局统计补充。
+
+**Aggregate figures（hexbin / histogram）**
+
+![PushT w_t vs action norm](assets/diagnostics/wt_vs_action_norm.png)
+
+![PushT w_t vs latent displacement](assets/diagnostics/wt_vs_latent_disp.png)
+
+![TwoRoom w_t vs action norm](assets/diagnostics/tworoom_wt_vs_action_norm.png)
+
+![TwoRoom w_t vs latent displacement](assets/diagnostics/tworoom_wt_vs_latent_disp.png)
+
+![Reacher w_t vs action norm](assets/diagnostics/reacher_wt/wt_vs_action_norm.png)
+
+![Cube w_t vs action norm](assets/diagnostics/cube_wt/wt_vs_action_norm.png)
+
+![PushT w_t histogram](assets/diagnostics/wt_histogram_by_action_norm.png)
+
+![TwoRoom w_t histogram](assets/diagnostics/tworoom_wt_histogram_by_action_norm.png)
+
+![Reacher w_t histogram](assets/diagnostics/reacher_wt/wt_histogram_by_action_norm.png)
+
+![Cube w_t histogram](assets/diagnostics/cube_wt/wt_histogram_by_action_norm.png)
+
+**Trajectory-level 汇总（主量化口径；5 episodes per task）：**
 
 | 任务 | mean $w_t$ | std($w_t$) | mean corr($w_t$, $||a_t||$) | mean corr($w_t$, latent disp.) | 结论 |
 |---|---:|---:|---:|---:|---|
@@ -544,7 +582,7 @@ LeWM-base 在 clean 上表现良好，但只要 visual std=0.05 加到 pixels+go
 **正式收口（paper language）**：
 以 full $\sigma + A_t$ gate 的 trajectory-level 结果为准，四任务呈现出清晰的 task gradient：PushT 上 `w_t` 与时序关键事件最强对齐；TwoRoom 和 Reacher 上 `w_t` 的动态范围明显压缩；Cube 能识别 transition 事件，但精细化 token 分配的边际收益有限。该结果与 §3.6 的 causal intervention 完全一致，因此本文关于 adaptive controller 的最终机制结论应收口为：**per-token $\sigma + A_t$ gate 的额外价值是 task-specific 的，集中体现在 contact-heavy、controllability 差异显著的连续控制任务；在视觉冗余、低维连续控制或结构高度规整的任务中，global consistency 已经足够接近最优。**
 
-**English write-up (paper language).** The final quantitative source of truth in this section is the per-trajectory analysis of the full $\sigma + A_t$ gate. Across the four tasks, the results form a clear task gradient: PushT shows the strongest alignment between `w_t` and action-critical events; TwoRoom and Reacher exhibit strongly compressed dynamic ranges; Cube still identifies manipulation transitions, but the marginal value of fine-grained token allocation is limited. This pattern is fully consistent with the causal interventions in §3.6. The final mechanism-level claim should therefore be stated narrowly: **the extra value of the per-token $\sigma + A_t$ gate is task-specific and is concentrated in contact-heavy continuous-control tasks with substantial controllability heterogeneity; in visually redundant tasks, low-dimensional continuous control, or highly regular manipulation, global consistency is already close to optimal.**
+**English write-up (paper language).** The primary unified quantitative anchor in this section is the per-trajectory analysis of the full $\sigma + A_t$ gate, while the aggregate plots remain complementary global diagnostics. Across the four tasks, the results form a clear task gradient: PushT shows the strongest alignment between `w_t` and action-critical events; TwoRoom and Reacher exhibit strongly compressed dynamic ranges; Cube still identifies manipulation transitions, but the marginal value of fine-grained token allocation is limited. This pattern is fully consistent with the causal interventions in §3.6. The final mechanism-level claim should therefore be stated narrowly: **the extra value of the per-token $\sigma + A_t$ gate is task-specific and is concentrated in contact-heavy continuous-control tasks with substantial controllability heterogeneity; in visually redundant tasks, low-dimensional continuous control, or highly regular manipulation, global consistency is already close to optimal.**
 
 #### 3.5.6 Per-episode $w_t$ 时间序列与关键帧分析
 

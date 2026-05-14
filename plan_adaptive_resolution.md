@@ -940,6 +940,18 @@ C1 和 C2 在 pipeline 中占据不同位置：
 **Contribution 1 + Contribution 2 联用（已完成验证）**：
 机制上 C1（input-side global noise）与 C2（output-side per-token σ+A_t）处于不同位置：noise 提供 isotropic invariance baseline，σ+A_t 在此基础上做 per-state 精细化分配，二者互补。PushT 上 `consist001+noise0.005` 为最优配置：clean 85.67（> C2 单独 86.67 略低但 guardrail 通过）、**px+goal 0.08 85.33 > C1 同 noise (0.005-p1) 75.75（+9.58pt）、> C2 单独 37.00（+48.33pt）**；轻 noise（0.002）下 px+goal 0.08 75.00（+4.33pt vs C1 0.002-p1）。TwoRoom 同 noise 对比下 C1+C2 0.003 clean 97.67 > C1 96.33（+1.34pt）、pg08 96.67 > C1 94.67（+2.00pt），此前用 C1 best（0.008-p1）对比的负收益是剂量不匹配造成的假象。跨任务扩展（TwoRoom +2.00pt、Reacher +9.67pt、Cube +8.00pt vs C1 同 noise）验证同 noise 对比下全部 4 个任务都有系统性增益，任务特异性体现在最优剂量而非有无增益。
 
+**Reviewer-ready 收口（可直接复用到 abstract / intro / rebuttal）**：
+
+1. **本文最稳的主张不是 "per-token gate universally necessary"，而是 "global noise training 与 adaptive consistency 是正交且可叠加的"。** 在 same-noise 对比下，C1+C2 在 PushT / TwoRoom / Reacher / Cube 四个任务的极端 OOD 上都严格优于 C1 单独。
+2. **per-token $\sigma + A_t$ gate 的额外价值是 task-specific 的。** PushT 上因果干预、A_t-only / σ-only ablation 与 trajectory-level 可视化共同证明该 gate 是不可替代的；TwoRoom 与 Cube 上 `global consistency` 已接近甚至略优于 per-token gate；Reacher 介于两者之间。
+3. **因此，论文应避免过强的普适性措辞。** 最安全、最准确的写法是：per-token adaptive resolution 的强必要性集中在 contact-heavy continuous control，而在视觉冗余、低维连续控制或结构高度规整的任务中，其作用更接近对 global consistency 的精细修正。
+
+**English reviewer-facing summary.**
+
+1. **The strongest claim is not that the per-token gate is universally necessary, but that global noise training and adaptive consistency are orthogonal and additive.** Under same-noise comparisons, C1+C2 strictly outperforms C1 alone on extreme OOD across PushT, TwoRoom, Reacher, and Cube.
+2. **The extra value of the per-token $\sigma + A_t$ gate is task-specific.** On PushT, causal interventions, A-only / $\sigma$-only ablations, and trajectory-level visualizations jointly show that the gate is irreplaceable; on TwoRoom and Cube, global consistency is already close to or slightly better than the per-token gate; Reacher lies in between.
+3. **The paper should therefore avoid overly universal wording.** The safest final statement is that the strong necessity of per-token adaptive resolution is concentrated in contact-heavy continuous control, whereas in visually redundant, low-dimensional, or highly regular tasks it behaves more like a fine-grained refinement of global consistency.
+
 #### 3.8.1 通往顶会主表的工作清单（按紧急度分层）
 
 按"缺这块论文是否还能投顶会"的严苛标准分层。第一层必须在投稿前完成，第二层决定主表是否经得住 reviewer，第三层是写作期能补上的元数据/figure 工作，第四层是锦上添花的扩展。

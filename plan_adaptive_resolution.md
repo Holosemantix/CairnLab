@@ -83,6 +83,12 @@ PI controller / Lagrangian τ / cheap-proxy bilevel / 多任务 head 等方案�
 2. **Action-aware gate**：用 action perturbation 计算 local sensitivity A_t，结合 σ̂ 生成 per-token consistency weight w_t ∈ [w_min, w_max]。
 3. **Adaptive consistency loss**：L_cons = mean(w_t · d(z_clean, z_noisy))，stop-grad 在 z_clean 上，只让 noisy branch 的 encoder 接收 consistency pressure。
 
+![AAAC method overview](assets/figures/aaac_method_overview.svg)
+
+**Figure 1. AAAC 方法总览。** 在不改动 LeWM backbone 与 mean prediction path 的前提下，方法新增一个 predictor-side `sigma` head 估计 per-transition difficulty，并通过 action perturbation 计算 local sensitivity `A_t`。二者经 multiplicative gate `critical_t = gA_t · (0.5 + 0.5 · gS_t)` 生成 per-token weight `w_t`，再用于加权 clean/noisy latent 对的一致性损失 `L_cons`。核心直觉是：action-critical 区域应降低 consistency pressure 以保留 resolution，而视觉冗余或弱可控区域应提高 consistency pressure 以增强 invariance。
+
+*English caption.* **Figure 1. Overview of AAAC.** Without changing the LeWM backbone or the mean prediction path, AAAC adds a predictor-side `sigma` head to estimate per-transition difficulty and computes local action sensitivity `A_t` via action perturbations. The two signals are combined through the multiplicative gate `critical_t = gA_t · (0.5 + 0.5 · gS_t)` to produce a per-token weight `w_t`, which then scales the consistency loss between clean and noisy latent pairs. The key intuition is that action-critical regions should receive weaker consistency pressure to preserve resolution, while redundant or weakly controllable regions should receive stronger consistency to improve invariance.
+
 > **为什么不是 heteroscedastic loss？** 直接让 σ 进入 Gaussian NLL 会改变 μ path 的梯度分配，downweight 高误差样本。在 PushT 中，高误差往往对应接触/精细控制的关键区域，downweight 会压缩控制分辨率（§3.3 给出详细 ablation）。因此 σ 必须与 μ path 解耦。
 >
 > **为什么不是 σ-only consistency？** 高 σ 同时包含 dynamics difficulty 和 aleatoric visual noise。若只用 σ 调 consistency，会把不可控视觉噪声误判为"需要保护分辨率"，落入 Noisy TV / confounder trap（§3.6 给出详细 ablation）。因此 consistency weight 必须 action-aware。

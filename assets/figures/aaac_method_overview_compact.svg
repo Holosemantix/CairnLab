@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="820" viewBox="0 0 1600 820" role="img" aria-labelledby="title desc">
-  <title id="title">Compact AAAC Method Overview</title>
-  <desc id="desc">Compact overview of Action-Aware Adaptive Consistency with LeWM backbone, sigma head, action-aware gate, and weighted consistency loss.</desc>
+  <title id="title">AAAC Overview</title>
+  <desc id="desc">Compact overview of Action-Aware Adaptive Consistency with a fixed LeWM backbone, difficulty head, action-aware gate, and weighted consistency objective.</desc>
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#49627b"/>
@@ -29,16 +29,16 @@
   <rect width="1600" height="820" fill="#ffffff"/>
   <rect x="26" y="24" width="1548" height="772" rx="24" fill="#fcfdff" stroke="#d9e2ec" stroke-width="2"/>
 
-  <text x="800" y="70" text-anchor="middle" class="title">AAAC: A Compact Method Overview</text>
-  <text x="800" y="98" text-anchor="middle" class="sub">LeWM backbone unchanged; sigma estimates transition difficulty, A_t measures controllability, and w_t sets token-wise consistency strength.</text>
+  <text x="800" y="70" text-anchor="middle" class="title">AAAC Overview</text>
+  <text x="800" y="98" text-anchor="middle" class="sub">LeWM backbone unchanged; sigma estimates difficulty, A_t measures controllability, and w_t modulates token-wise consistency.</text>
 
   <rect x="54" y="138" width="460" height="460" rx="22" fill="#f7fbff" stroke="#ccdeed" stroke-width="2"/>
   <rect x="570" y="138" width="472" height="460" rx="22" fill="#fffaf2" stroke="#ead7b1" stroke-width="2"/>
   <rect x="1098" y="138" width="448" height="460" rx="22" fill="#f6fcf8" stroke="#cbe5d6" stroke-width="2"/>
 
-  <text x="84" y="178" class="h">1. LeWM JEPA Backbone</text>
-  <text x="600" y="178" class="h">2. AAAC Controller</text>
-  <text x="1128" y="178" class="h">3. Weighted Consistency</text>
+  <text x="84" y="178" class="h">1. LeWM Backbone</text>
+  <text x="600" y="178" class="h">2. AAAC Gate</text>
+  <text x="1128" y="178" class="h">3. Consistency Objective</text>
 
   <rect x="88" y="218" width="126" height="92" rx="14" fill="#ffffff" stroke="#cfdae6" stroke-width="2"/>
   <text x="151" y="246" text-anchor="middle" class="label">clean view x</text>
@@ -63,7 +63,7 @@
   <line x1="214" y1="401" x2="276" y2="360" stroke="#49627b" stroke-width="3" marker-end="url(#arr)"/>
 
   <rect x="108" y="490" width="350" height="72" rx="14" fill="#ffffff" stroke="#d7e0e8" stroke-width="1.5"/>
-  <text x="130" y="518" class="label">base path remains unchanged</text>
+  <text x="130" y="518" class="label">base JEPA objective</text>
   <text x="130" y="545" class="monoSmall">L_base = L_pred + lambda_SIGReg * SIGReg(mu)</text>
 
   <rect x="616" y="216" width="164" height="76" rx="14" fill="#ffffff" stroke="#d9e0e6" stroke-width="2"/>
@@ -78,12 +78,12 @@
 
   <rect x="832" y="214" width="168" height="98" rx="16" fill="#fff3de" stroke="#e4ba73" stroke-width="2"/>
   <text x="916" y="248" text-anchor="middle" class="label">predictor f(z_t, a_t)</text>
-  <text x="916" y="274" text-anchor="middle" class="small">mean path unchanged</text>
+  <text x="916" y="274" text-anchor="middle" class="small">shared mean path</text>
   <line x1="780" y1="252" x2="832" y2="252" stroke="#c7871b" stroke-width="3" marker-end="url(#arrGold)"/>
   <line x1="780" y1="364" x2="842" y2="295" stroke="#c7871b" stroke-width="3" marker-end="url(#arrGold)"/>
 
   <rect x="832" y="344" width="168" height="72" rx="14" fill="#ffffff" stroke="#e0c791" stroke-width="2"/>
-  <text x="916" y="373" text-anchor="middle" class="label">sigma head</text>
+  <text x="916" y="373" text-anchor="middle" class="label">difficulty head</text>
   <text x="916" y="399" text-anchor="middle" class="monoSmall">sigma_hat_t</text>
   <line x1="916" y1="312" x2="916" y2="344" stroke="#c7871b" stroke-width="3" marker-end="url(#arrGold)"/>
 
@@ -92,7 +92,7 @@
   <text x="698" y="511" text-anchor="middle" class="monoSmall">a_t + delta,  K = 4</text>
 
   <rect x="832" y="458" width="168" height="72" rx="14" fill="#ffffff" stroke="#e0c791" stroke-width="2"/>
-  <text x="916" y="487" text-anchor="middle" class="label">local response</text>
+  <text x="916" y="487" text-anchor="middle" class="label">action response</text>
   <text x="916" y="513" text-anchor="middle" class="monoSmall">A^(k)_t</text>
   <line x1="780" y1="493" x2="832" y2="493" stroke="#c7871b" stroke-width="3" marker-end="url(#arrGold)"/>
 
@@ -100,7 +100,7 @@
   <text x="808" y="570" text-anchor="middle" class="monoSmall">A_eff = mean_k A^(k)_t / (1 + alpha_cv * A_cv)</text>
 
   <rect x="1126" y="220" width="392" height="186" rx="18" fill="#ffffff" stroke="#d5e6db" stroke-width="2"/>
-  <text x="1150" y="252" class="label">difficulty + controllability -> gate</text>
+  <text x="1150" y="252" class="label">difficulty + controllability -> weight</text>
   <text x="1150" y="289" class="mono">gS_t = zscore(sigma_hat_t)</text>
   <text x="1150" y="323" class="mono">gA_t = zscore(log A_eff_t)</text>
   <text x="1150" y="357" class="mono">critical_t = gA_t * (0.5 + 0.5 * gS_t)</text>
@@ -130,21 +130,21 @@
   <line x1="1326" y1="406" x2="1436" y2="452" stroke="#2f9d68" stroke-width="3" marker-end="url(#arrGreen)"/>
 
   <rect x="1170" y="560" width="304" height="72" rx="14" fill="#e9f7ef" stroke="#8fcca8" stroke-width="2"/>
-  <text x="1322" y="589" text-anchor="middle" class="label">adaptive consistency objective</text>
+  <text x="1322" y="589" text-anchor="middle" class="label">adaptive consistency loss</text>
   <text x="1322" y="616" text-anchor="middle" class="monoSmall">L_cons = mean( w_t * d(z_clean, z_noisy) )</text>
 
   <rect x="72" y="642" width="1472" height="128" rx="20" fill="#f8fafc" stroke="#dce4eb" stroke-width="2"/>
   <rect x="102" y="676" width="456" height="58" rx="12" fill="#eef5fd" stroke="#c6daf0" stroke-width="1.5"/>
-  <text x="124" y="699" class="label">action-critical / contact-heavy states</text>
+  <text x="124" y="699" class="label">contact-heavy states</text>
   <text x="124" y="721" class="body">high sigma_hat + high A_t  -> low w_t  -> preserve planning resolution</text>
 
   <rect x="574" y="676" width="434" height="58" rx="12" fill="#fff7e8" stroke="#ead3a2" stroke-width="1.5"/>
-  <text x="596" y="699" class="label">redundant or weakly controllable states</text>
+  <text x="596" y="699" class="label">redundant states</text>
   <text x="596" y="721" class="body">low A_t or mostly visual noise  -> high w_t  -> stronger invariance</text>
 
   <rect x="1024" y="676" width="488" height="58" rx="12" fill="#eef8f1" stroke="#cbe5d2" stroke-width="1.5"/>
-  <text x="1046" y="699" class="label">final paper claim</text>
-  <text x="1046" y="721" class="body">The per-token gate is most necessary on contact-heavy continuous control; elsewhere it refines global consistency.</text>
+  <text x="1046" y="699" class="label">main takeaway</text>
+  <text x="1046" y="721" class="body">The per-token gate is most necessary on contact-heavy control; elsewhere it refines global consistency.</text>
 
   <line x1="514" y1="368" x2="570" y2="368" stroke="#49627b" stroke-width="3" marker-end="url(#arr)"/>
   <line x1="1042" y1="368" x2="1098" y2="368" stroke="#49627b" stroke-width="3" marker-end="url(#arr)"/>

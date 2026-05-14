@@ -1,0 +1,21 @@
+{
+  "episode_id": 4330,
+  "num_steps": 201,
+  "salient_steps_by_critical": [
+    3,
+    11,
+    29,
+    59
+  ],
+  "action_jump_steps": [
+    1,
+    131,
+    179
+  ],
+  "w_mean": 0.7507221102714539,
+  "w_std": 0.06995690613985062,
+  "critical_mean": 0.31159737706184387,
+  "critical_std": 0.08744613081216812,
+  "corr_w_action_norm": 0.08881077581322326,
+  "corr_w_latent_disp": -0.026575124952299196
+}

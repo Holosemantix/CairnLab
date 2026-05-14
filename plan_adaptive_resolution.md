@@ -544,6 +544,22 @@ LeWM-base 在 clean 上表现良好，但只要 visual std=0.05 加到 pixels+go
 | `corr(w_t, latent_disp)` | **−0.384** | 负相关，但弱于 PushT。transition 剧烈区域（door crossing）仍被标记为 critical，但 TwoRoom 的整体 w_t 动态范围压缩（std=0.089 vs PushT 的更大 spread）。 |
 | Q1–Q4 mean w_t | 0.818–0.823 | 差值仅 0.005，远小于 PushT 的 0.130 |
 
+**Reacher（256 sequences × history_size=3 = 768 tokens）：**
+
+| 指标 | 数值 | 解读 |
+|---|---|---|
+| `corr(w_t, action_norm)` | **−0.001** | 完全无关。Reacher 的低维连续动作空间（关节角度）产生的 action norm 变化与 predictor sensitivity 脱钩。 |
+| `corr(w_t, latent_disp)` | **−0.065** | 几乎无关。latent displacement 的微小波动不被 gate 视为需要下调 consistency 的信号。 |
+| Q1–Q4 mean w_t | 0.724–0.718 | 差值 −0.006，几乎平坦，与 TwoRoom 同档。 |
+
+**Cube（256 sequences × history_size=3 = 768 tokens）：**
+
+| 指标 | 数值 | 解读 |
+|---|---|---|
+| `corr(w_t, action_norm)` | **−0.096** | 弱负相关。Cube 的 grasping/placing 动作有较大的 action norm 变化，但 gate 并未将其标记为 critical——结构化操作序列的可预测性降低了 predictor sensitivity。 |
+| `corr(w_t, latent_disp)` | **−0.287** | 中等负相关。block manipulation 的 transition（抓取/释放）会产生 latent displacement，gate 能识别这些事件，但 dynamic range 仍远小于 PushT。 |
+| Q1–Q4 mean w_t | 0.745–0.714 | 差值 −0.031，有一定分离但远弱于 PushT 的 0.130。 |
+
 **Figure 1：PushT 上 $w_t$ 与 action norm 的对应关系（hexbin）**
 
 *Caption.* PushT consist001 checkpoint 的离线 gate 分析。每个点对应一个 context token。横轴为归一化 action norm，纵轴为 adaptive consistency weight $w_t$。$w_t$ 与 action norm 呈正相关（corr = +0.587），说明 gate 并不等价于 naive contact heuristic：高 action norm 的 free-space 接近阶段往往被分配更强的一致性，而真正需要保留分辨率的 token 由高 $A_t$ 和高 $\sigma$ 共同决定。
@@ -576,25 +592,40 @@ LeWM-base 在 clean 上表现良好，但只要 visual std=0.05 加到 pixels+go
 
 ![TwoRoom w_t vs latent displacement](assets/diagnostics/tworoom_wt_vs_latent_disp.png)
 
-**Figure 5：$w_t$ 分布按 action norm 四分位分组（PushT vs TwoRoom）**
+**Reacher 与 Cube 的 hexbin 对应关系**
 
-*Caption.* PushT 的 $w_t$ 在低/高 action quartile 之间存在明显分离（Q4−Q1 = 0.130），而 TwoRoom 几乎平坦（Q4−Q1 = 0.005）。这一对比直接说明 per-token adaptive resolution 的边际价值是 task-dependent：在 contact-heavy 连续控制任务中更重要，在视觉冗余、动作结构简单的任务中则更接近全局 consistency。
+Reacher 上 $w_t$ 与 action norm / latent displacement 均几乎无关（corr ≈ 0 / −0.065），hexbin 图呈均匀云状；Cube 上 $w_t$ 与 latent displacement 呈中等负相关（corr = −0.287），hexbin 呈现沿对角线的轻微聚集，但 dynamic range 远小于 PushT。
 
-*English caption.* PushT shows a clear separation in $w_t$ between low- and high-action quartiles (Q4−Q1 = 0.130), whereas TwoRoom is nearly flat (Q4−Q1 = 0.005). This comparison directly shows that the marginal value of per-token adaptive resolution is task-dependent: it matters more in contact-heavy continuous control and approaches global consistency in visually redundant tasks with simple action structure.
+![Reacher w_t vs action norm](assets/diagnostics/reacher_wt/wt_vs_action_norm.png)
+
+![Cube w_t vs action norm](assets/diagnostics/cube_wt/wt_vs_action_norm.png)
+
+**Figure 5：$w_t$ 分布按 action norm 四分位分组（四任务对比）**
+
+*Caption.* PushT 的 $w_t$ 在低/高 action quartile 之间存在明显分离（Q4−Q1 = 0.130），TwoRoom 与 Reacher 几乎平坦（Q4−Q1 ≈ 0.005 / −0.006），Cube 有一定分离（Q4−Q1 = −0.031）但远弱于 PushT。这一四任务梯度直接说明 per-token adaptive resolution 的边际价值是 task-dependent：在 contact-heavy 连续控制任务（PushT）中最重要，在结构化 manipulation（Cube）中有轻微价值，在低维连续控制（Reacher）和视觉冗余离散任务（TwoRoom）中则接近全局 consistency。
+
+*English caption.* PushT shows a clear separation in $w_t$ between low- and high-action quartiles (Q4−Q1 = 0.130), while TwoRoom and Reacher are nearly flat (Q4−Q1 ≈ 0.005 / −0.006) and Cube shows modest separation (Q4−Q1 = −0.031) but far weaker than PushT. This four-task gradient directly shows that the marginal value of per-token adaptive resolution is task-dependent: it matters most in contact-heavy continuous control (PushT), has slight value in structured manipulation (Cube), and approaches global consistency in low-dimensional continuous control (Reacher) and visually redundant discrete tasks (TwoRoom).
 
 | 任务 | Q1 mean | Q4 mean | Q4−Q1 | 动态范围 |
 |---|---:|---:|---:|---|
 | PushT | 0.768 | 0.898 | **0.130** | 非平凡 |
+| Cube | 0.745 | 0.714 | **−0.031** | 温和分离 |
 | TwoRoom | 0.820 | 0.818 | **0.005** | 几乎平坦 |
+| Reacher | 0.724 | 0.718 | **−0.006** | 几乎平坦 |
 
 ![PushT w_t histogram](assets/diagnostics/wt_histogram_by_action_norm.png)
 
+![Cube w_t histogram](assets/diagnostics/cube_wt/wt_histogram_by_action_norm.png)
+
 ![TwoRoom w_t histogram](assets/diagnostics/tworoom_wt_histogram_by_action_norm.png)
+
+![Reacher w_t histogram](assets/diagnostics/reacher_wt/wt_histogram_by_action_norm.png)
 
 **机制解读**：
 1. **PushT 上 w_t 与 task structure 有强结构性对应。** +0.587 / −0.592 的相关系数和 0.130 的 quartile 差值说明 per-token adaptive weight 不是噪声，而是与 action sensitivity / transition difficulty 对齐。
-2. **TwoRoom 上 w_t 动态范围压缩。** 这是因为 TwoRoom 动作空间离散简单（2D 方向+速度），A_t 本身变化范围小——所有 token 的 controllability 差异不大，导致 w_t 集中在 0.82 附近。这不是 gate 失效，而是**任务结构本身决定了 adaptive resolution 的边际空间**：冗余视觉任务即使没有精细的 per-token weight，也能从全局 consistency 中受益（与 §3.5 中 TwoRoom α=0.03 平齐 Contribution 1 一致）。
-3. **w_t 不是简单地与 "contact = high action norm" 线性对应。** PushT 上 action norm 与 w_t 正相关（+0.587）恰恰说明 per-token adaptive weight 比 naive contact heuristic 更精细：它保护的是 "predictor 觉得难" 的区域（高 A_t + 高 σ），而不是 "人类标注的 contact" 区域。
+2. **TwoRoom 与 Reacher 上 w_t 动态范围压缩。** TwoRoom 动作空间离散简单（2D 方向+速度），Reacher 是低维连续控制（关节角度），两者 A_t 变化范围都小——所有 token 的 controllability 差异不大，导致 w_t 集中在 0.72–0.82 附近。这不是 gate 失效，而是**任务结构本身决定了 adaptive resolution 的边际空间**：冗余视觉任务或低维连续任务即使没有精细的 per-token weight，也能从全局 consistency 中受益。
+3. **Cube 处于中间地带。** −0.096 / −0.287 的相关系数和 −0.031 的 quartile 差值说明 gate 能识别 block manipulation 的 transition，但 structured grasping/placing 序列的可预测性使 predictor sensitivity 分布较均匀，不需要像 PushT 那样剧烈的 per-token 调节。
+4. **w_t 不是简单地与 "contact = high action norm" 线性对应。** PushT 上 action norm 与 w_t 正相关（+0.587）恰恰说明 per-token adaptive weight 比 naive contact heuristic 更精细：它保护的是 "predictor 觉得难" 的区域（高 A_t + 高 σ），而不是 "人类标注的 contact" 区域。
 
 **正文收口（paper language）**：
 这些图把本文关于 adaptive controller 的核心机制结论钉死。第一，PushT 上的 gate 并非在学习一个噪声式的 token reweighting，也不是退化成简单的 contact detector；它对齐的是 predictor difficulty 与 action sensitivity 的交集，因此会在 latent transition 剧烈、planning 最依赖分辨率的区域主动降低 consistency pressure。第二，TwoRoom 上同样的分析显示 per-token spread 显著压缩，这与 §3.6 中 global consistency baseline 略胜 per-token gate 的结果完全一致：在视觉冗余、动作结构简单的任务里，方法收益主要来自 mean consistency pressure，而不是精细的 token-wise allocation。第三，这组可视化因此为全文 claim 提供了最直接的机制解释：**per-token $\sigma + A_t$ gate 的额外价值是 task-specific 的，集中体现在 contact-heavy 连续控制任务；当任务不需要细粒度 resolution allocation 时，global consistency 已足够接近最优。**
@@ -621,7 +652,23 @@ LeWM-base 在 clean 上表现良好，但只要 visual std=0.05 加到 pixels+go
 
 ![TwoRoom trajectory w_t](assets/diagnostics/tworoom_wt_traj/wt_episode_4388.png)
 
-**Takeaway.** Per-episode 时间序列进一步证实 aggregate 统计的结论：PushT 上 $w_t$ 与 action-critical 事件有显著时序对齐，per-token gate 的因果价值体现在**接触约束紧、predictor 敏感**的局部时刻；TwoRoom 上 $w_t$ 变化平缓，任务结构本身决定了 fine-grained resolution allocation 的边际收益有限。两组图共同为 "per-token $\sigma+A_t$ gate 的额外价值是 task-specific 的" 提供了从统计到定性的完整证据链。
+**Reacher（episode 4388，corr($w_t$, $||a_t||$)=0.013）**
+
+*Caption.* Reacher 上 $w_t$ 动态范围与 TwoRoom 同档（$w_{\text{mean}}=0.738$，$\text{std}=0.078$），$critical_t$ 呈高频噪声状波动，无明显与 action norm 或 latent displacement 的结构性对齐。关键帧显示机械臂在目标点附近微调，高 $critical_t$ 时刻（$t=112,127,133,152$）并未对应可辨识的接触或大幅运动事件。这说明 Reacher 的低维连续动作空间（关节角度变化）虽比 TwoRoom 复杂，但各状态的可控性差异本身不足以产生显著的 per-token resolution 需求——与 §3.6 中 Reacher 上 shuffle_σ/shuffle_A 干预仅造成有限退化的结果一致。
+
+*English caption.* On Reacher the $w_t$ dynamic range is comparable to TwoRoom ($w_{\text{mean}}=0.738$, $\text{std}=0.078$), and $critical_t$ fluctuates like high-frequency noise without clear structural alignment to action norm or latent displacement. Keyframes show the arm fine-tuning near the target; high-$critical_t$ moments ($t=112,127,133,152$) do not correspond to identifiable contact or large-motion events. This indicates that Reacher's low-dimensional continuous action space, while more complex than TwoRoom's, does not generate sufficient per-token controllability differences to warrant fine-grained resolution allocation—consistent with the limited degradation caused by shuffle_σ/shuffle_A interventions on Reacher in §3.6.
+
+![Reacher trajectory w_t](assets/diagnostics/reacher_wt_traj/wt_episode_4388.png)
+
+**Cube（episode 4388，corr($w_t$, $||a_t||$)=−0.331）**
+
+*Caption.* Cube 上 $w_t$ 整体偏高（$w_{\text{mean}}=0.835$，$\text{std}=0.092$），但 $critical_t$ 出现数次清晰尖峰（$t=62,98,115$），对应机械爪抓取/搬运/放置的关键阶段。与 PushT 不同，Cube 的 $w_t$ 下降幅度更温和（最低 $w \approx 0.60$），且与 latent displacement 呈中等负相关（corr=−0.233），说明 gate 能识别 block manipulation 的 transition 事件，但任务本身的视觉-动作耦合较规整，不需要像 PushT 那样剧烈下调 consistency pressure。这解释了 §3.6 中 Cube 上 causal intervention 未造成显著退化的原因：global consistency 已足够覆盖该任务的结构化操作序列。
+
+*English caption.* On Cube $w_t$ is generally high ($w_{\text{mean}}=0.835$, $\text{std}=0.092$), yet $critical_t$ shows several sharp peaks ($t=62,98,115$) corresponding to grasping/carrying/placing phases. Unlike PushT, the $w_t$ dip is more modest (minimum $w \approx 0.60$) and negatively correlated with latent displacement (corr=−0.233), indicating that the gate identifies block-manipulation transitions but the task's visual-action coupling is regular enough that global consistency already suffices. This explains why causal interventions on Cube in §3.6 do not cause significant degradation.
+
+![Cube trajectory w_t](assets/diagnostics/cube_wt_traj/wt_episode_4388.png)
+
+**Takeaway.** Per-episode 时间序列进一步证实 aggregate 统计的跨任务梯度：PushT 上 $w_t$ 与 action-critical 事件有显著时序对齐，per-token gate 的因果价值最集中；Cube 上 gate 能识别 manipulation transition 但动态范围温和；TwoRoom 与 Reacher 上 $w_t$ 几乎平坦，任务结构本身决定了 fine-grained resolution allocation 的边际收益有限。四组图共同为 "per-token $\sigma+A_t$ gate 的额外价值是 task-specific 的" 提供了从统计到定性的完整证据链。
 
 ### 3.6 消融实验与因果干预
 
@@ -744,6 +791,28 @@ global consistency (`constant_w`) 在 TwoRoom 上 px+goal 0.08 = 80.00 比 σ+A_
 - **结合 §3.5 的 consist003 (α=0.03) 数据**——consist003 σ+A_t 是 98.33 clean——TwoRoom 上更高 α 的 σ+A_t 仍是最优，但**在固定 α=0.01 下，global consistency (`constant_w`) 优于 σ+A_t**，意味着 TwoRoom 上的提升主要来自 mean consistency pressure，per-token 调节贡献有限甚至略有副作用（在低 α 剂量下）。
 - 这是 paper claim 收缩的硬证据：**σ+A_t per-token mechanism 的 value-add 是 task-specific，集中在 contact-heavy 连续控制（PushT），在简单视觉冗余任务（TwoRoom）上不必要甚至略有反向**。
 
+**Reacher 上干预造成有限但一致的 clean 退化，robustness 空间压缩。**
+
+| Intervention | Reacher clean | px+goal 0.08 | 比较 σ+A_t baseline (72.00 / 47.00) |
+|---|---:|---:|---|
+| shuffle_σ | 65.67 | 43.67 | clean −6.33pt，robust −3.33pt |
+| shuffle_A | 64.00 | 42.67 | clean −8.00pt，robust −4.33pt |
+| random_gate | 64.00 | 43.00 | clean −8.00pt，robust −4.00pt |
+| global consistency (`constant_w`) | 63.00 | 49.33 | clean −9.00pt，robust +2.33pt |
+
+Reacher 的退化模式介于 PushT 与 TwoRoom 之间：clean 上四个干预全部掉点（−6~−9pt），证明 per-token gate 对 clean 性能仍有因果必要性；但 px+goal 0.08 的退化幅度不大（baseline 47.00 本身已较低），且 global consistency 在 robustness 上反而略胜（49.33 > 47.00）。这与 §3.5.1 trajectory 分析的结论一致——Reacher 的 $w_t$ 动态范围被任务结构压缩，per-token spread 的边际价值有限，但 mean pressure 的分配方式（global vs adaptive）仍影响 clean 性能。
+
+**Cube 上干预几乎不造成退化，global consistency 与 σ+A_t 等价。**
+
+| Intervention | Cube clean | px+goal 0.08 | 比较 σ+A_t baseline (64.67 / 50.00) |
+|---|---:|---:|---|
+| shuffle_σ | 67.33 | 52.33 | clean +2.66pt，robust +2.33pt |
+| shuffle_A | 62.67 | 52.67 | clean −2.00pt，robust +2.67pt |
+| random_gate | 66.33 | 53.33 | clean +1.66pt，robust +3.33pt |
+| global consistency (`constant_w`) | 64.00 | 53.00 | clean −0.67pt，robust +3.00pt |
+
+Cube 是四任务中最"规整"的：block grasping/carrying/placing 的动作序列高度结构化，视觉变化与动作耦合可预测，因此 σ+A_t gate 的 per-token 精细调节几乎没有额外价值。所有干预在 sampling noise 范围内与 baseline 等价，global consistency 甚至在 robustness 上略好——这与 TwoRoom 的模式相同，但原因不同：TwoRoom 是视觉冗余+动作简单，Cube 是动作结构化+预测难度分布均匀。两者共同说明 **per-token adaptive resolution 的因果必要性集中在"contact-heavy + 动作空间高维连续 + 可控性差异大"的任务交集**。
+
 #### 3.6.3 因果干预运行的 SwanLab 标识
 
 | Task | Intervention | Run name | SwanLab ID |
@@ -756,12 +825,33 @@ global consistency (`constant_w`) 在 TwoRoom 上 px+goal 0.08 = 80.00 比 σ+A_
 | TwoRoom | shuffle_A | `tworoom_lewm_hetero_probe_action_gate_consist001_shuffle_action` | `edrj5c4fvlq1sgnycni3j` |
 | TwoRoom | random_gate | `tworoom_lewm_hetero_probe_action_gate_consist001_random_gate` | `zi5386eau66vdnj99210p` |
 | TwoRoom | constant_w | `tworoom_lewm_hetero_probe_action_gate_consist001_constant_w` | `twybmg8c4uz9a1fe6q904` |
+| Reacher | shuffle_σ | `reacher_lewm_hetero_probe_action_gate_consist001_shuffle_sigma` | — |
+| Reacher | shuffle_A | `reacher_lewm_hetero_probe_action_gate_consist001_shuffle_action` | — |
+| Reacher | random_gate | `reacher_lewm_hetero_probe_action_gate_consist001_random_gate` | — |
+| Reacher | constant_w | `reacher_lewm_hetero_probe_action_gate_consist001_constant_w` | — |
+| Cube | shuffle_σ | `cube_lewm_hetero_probe_action_gate_consist001_shuffle_sigma` | — |
+| Cube | shuffle_A | `cube_lewm_hetero_probe_action_gate_consist001_shuffle_action` | — |
+| Cube | random_gate | `cube_lewm_hetero_probe_action_gate_consist001_random_gate` | — |
+| Cube | constant_w | `cube_lewm_hetero_probe_action_gate_consist001_constant_w` | — |
 
 #### 3.6.4 因果干预的论文叙事意义
 
 - **PushT 上 σ+A_t multiplicative gate 是因果必要项**：四个 intervention 在 PushT 极端 noise 上全部退化（10.33–30.33 vs baseline 37.00），其中 random_gate / constant_w 退化到接近 LeWM-base 量级，shuffle_σ / shuffle_A 退化到介于 σ-only / A_t-only 之间。reviewer 无法用"σ 和 A_t 仅作为某种 difficulty 信号的代理"质疑——任何打破 σ↔state 或 A↔state 对应的扰动都会显著破坏 robustness。
 - **A_t 是 multiplicative gate 的主门控**：shuffle_A clean 跌 8.34pt（与 A_t-only 持平），shuffle_σ clean 不动。这定量印证 §2.3.5 公式 `critical = gA·(0.5 + 0.5·gS)` 把 gA 放在乘积主因子位置的设计选择。
 - **TwoRoom 上 global consistency > σ+A_t (α=0.01)** 是一个对叙事极其重要的发现：本工作 controller-side per-token mechanism 的价值是任务相关的，必须把 paper claim 严格收缩为 "**contact-heavy 连续控制任务（PushT）上 σ+A_t per-token gate 是因果必要项**"，不能宣称跨任务普适性。TwoRoom 这一行实际上是 paper 一致性的最重要证据：方法在合适的任务上 work，在不合适的任务上 honest 地等价或略劣，这是 method-grade contribution 的诚实表述。
+- **Reacher 上 clean 退化显著但 robustness 空间压缩。** 四个干预 clean 全部掉点（−6~−9pt），证明 per-token gate 对 clean 仍有因果必要性；但 px+goal 0.08 退化温和（baseline 47.00 本身已接近该任务 ceiling），且 global consistency 在 robustness 上略胜。这说明低维连续控制（2-DOF 机械臂）虽比 TwoRoom 复杂，但可控性差异仍不足以支撑显著的 per-token resolution 价值——gate 的因果必要性在 clean 上体现为"mean pressure 的分配方式"，而非"fine-grained token-wise allocation"。
+- **Cube 上 per-token gate 完全等价于 global consistency。** 所有干预在 sampling noise 范围内与 baseline 持平，global consistency 在 robustness 上甚至略好（+3pt）。这与 §3.5.1 trajectory 分析的结论一致：Cube 的 block grasping/carrying/placing 序列结构化、预测难度分布均匀，gate 能识别 transition 事件但不需要剧烈下调 consistency pressure。
+
+**四任务干预谱系（clean / px+goal 0.08 退化幅度 vs baseline）：**
+
+| 任务 | 类型 | shuffle_σ | shuffle_A | random_gate | constant_w | 叙事定位 |
+|---|---:|---:|---:|---:|---:|---|
+| PushT | contact-heavy 连续控制 | −6.67 / −6.67 | −8.34 / −18.67 | −1.67 / −26.67 | −1.00 / −28.67 | **per-token gate 因果必要，A_t 主导** |
+| Reacher | 低维连续控制 | −6.33 / −3.33 | −8.00 / −4.33 | −8.00 / −4.00 | −9.00 / +2.33 | clean 上 gate 必要，但 per-token spread 价值有限 |
+| Cube | 结构化 manipulation | +2.66 / +2.33 | −2.00 / +2.67 | +1.66 / +3.33 | −0.67 / +3.00 | global consistency 已足够 |
+| TwoRoom | 视觉冗余+离散动作 | −3.33 / −1.33 | −0.66 / +2.67 | −3.00 / +2.33 | +1.00 / +6.00 | global consistency 略胜 |
+
+这张谱系把论文 claim 的边界钉死：**σ+A_t per-token adaptive resolution 的额外价值不是跨任务普适的，而是集中在"contact-heavy + 高维连续动作 + 可控性差异显著"的任务子集**。Reacher 和 Cube 的完整四件套干预数据是这一边界陈述的最直接证据。
 
 ### 3.7 C1 与 C2 的组合验证：正交性检验
 

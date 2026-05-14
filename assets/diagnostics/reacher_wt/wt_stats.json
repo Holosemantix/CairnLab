@@ -1,0 +1,18 @@
+{
+  "dataset": "reacher",
+  "mode": "aggregate",
+  "gate_type": "sigma_plus_action",
+  "num_tokens": 768,
+  "w_mean": 0.7252114415168762,
+  "w_std": 0.12470286339521408,
+  "critical_mean": 0.34348568320274353,
+  "critical_std": 0.15587857365608215,
+  "corr_w_action_norm": -0.001181481152557021,
+  "corr_w_latent_disp": -0.06464018562904661,
+  "quartile_w_mean": {
+    "Q1 (low)": 0.7235741019248962,
+    "Q2": 0.7267580628395081,
+    "Q3": 0.7327144742012024,
+    "Q4 (high)": 0.7177991271018982
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "dataset": "reacher",
+  "history_size": 3,
+  "episodes": [
+    {
+      "episode_id": 892,
+      "num_steps": 201,
+      "salient_steps_by_critical": [
+        39,
+        133,
+        144,
+        181
+      ],
+      "action_jump_steps": [
+        19,
+        90,
+        134
+      ],
+      "w_mean": 0.7452642917633057,
+      "w_std": 0.07794330269098282,
+      "critical_mean": 0.31841957569122314,
+      "critical_std": 0.09742912650108337,
+      "corr_w_action_norm": -0.034127097507327175,
+      "corr_w_latent_disp": -0.03861745659836319
+    },
+    {
+      "episode_id": 4330,
+      "num_steps": 201,
+      "salient_steps_by_critical": [
+        3,
+        11,
+        29,
+        59
+      ],
+      "action_jump_steps": [
+        1,
+        131,
+        179
+      ],
+      "w_mean": 0.7507221102714539,
+      "w_std": 0.06995690613985062,
+      "critical_mean": 0.31159737706184387,
+      "critical_std": 0.08744613081216812,
+      "corr_w_action_norm": 0.08881077581322326,
+      "corr_w_latent_disp": -0.026575124952299196
+    },
+    {
+      "episode_id": 4388,
+      "num_steps": 201,
+      "salient_steps_by_critical": [
+        112,
+        127,
+        133,
+        152
+      ],
+      "action_jump_steps": [
+        106,
+        146,
+        198
+      ],
+      "w_mean": 0.7379069328308105,
+      "w_std": 0.0775279775261879,
+      "critical_mean": 0.3276163339614868,
+      "critical_std": 0.09690997749567032,
+      "corr_w_action_norm": 0.012974201391186557,
+      "corr_w_latent_disp": 0.003930383359495433
+    },
+    {
+      "episode_id": 6544,
+      "num_steps": 201,
+      "salient_steps_by_critical": [
+        12,
+        144,
+        186,
+        197
+      ],
+      "action_jump_steps": [
+        32,
+        67,
+        145
+      ],
+      "w_mean": 0.7260809540748596,
+      "w_std": 0.07415979355573654,
+      "critical_mean": 0.34239882230758667,
+      "critical_std": 0.09269973635673523,
+      "corr_w_action_norm": 0.04056640266793106,
+      "corr_w_latent_disp": -0.1057101050241288
+    },
+    {
+      "episode_id": 7737,
+      "num_steps": 201,
+      "salient_steps_by_critical": [
+        34,
+        76,
+        128,
+        143
+      ],
+      "action_jump_steps": [
+        7,
+        103,
+        140
+      ],
+      "w_mean": 0.69865882396698,
+      "w_std": 0.08113569766283035,
+      "critical_mean": 0.37667641043663025,
+      "critical_std": 0.1014196127653122,
+      "corr_w_action_norm": 0.05313583959905329,
+      "corr_w_latent_disp": -0.07504788588997013
+    }
+  ]
+}

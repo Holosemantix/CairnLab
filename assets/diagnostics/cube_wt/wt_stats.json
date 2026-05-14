@@ -1,0 +1,18 @@
+{
+  "dataset": "ogbench/cube_single_expert",
+  "mode": "aggregate",
+  "gate_type": "sigma_plus_action",
+  "num_tokens": 768,
+  "w_mean": 0.7242839932441711,
+  "w_std": 0.13279880583286285,
+  "critical_mean": 0.3446449041366577,
+  "critical_std": 0.16599850356578827,
+  "corr_w_action_norm": -0.09592588953223453,
+  "corr_w_latent_disp": -0.2865970836256931,
+  "quartile_w_mean": {
+    "Q1 (low)": 0.7447463870048523,
+    "Q2": 0.7024266123771667,
+    "Q3": 0.736150324344635,
+    "Q4 (high)": 0.7138130068778992
+  }
+}

@@ -166,6 +166,20 @@ def compute_sigma_probe_loss(
     return sigma_probe_loss, monitors
 
 
+def batch_knn_distance(z: torch.Tensor, k: int = 5, eps: float = 1e-8) -> torch.Tensor:
+    """Per-token mean Euclidean distance to k nearest non-self tokens in the
+    batch. z: (B, T, D) → (B, T). Used by DGC mode to normalize predictor
+    target shift against local latent neighborhood scale. See
+    plan_adaptive_resolution.md §3.2.5 / §3.8.2 (DGC)."""
+    B, T, D = z.shape
+    flat = z.reshape(B * T, D)
+    dist = torch.cdist(flat, flat)
+    big = dist.new_full((B * T,), float("inf"))
+    dist = dist + torch.diag(big)
+    knn = dist.topk(k, largest=False).values
+    return knn.mean(-1).reshape(B, T).clamp(min=eps)
+
+
 def compute_action_gate_metrics(
     model,
     ctx_emb,
@@ -183,6 +197,7 @@ def compute_action_gate_metrics(
     w_max: float = 1.0,
     mode: str = "full",
     intervention: str = "none",
+    fragile_t: torch.Tensor = None,
 ):
     """Logging-only action-aware adaptive resolution gate.
 
@@ -213,15 +228,25 @@ def compute_action_gate_metrics(
                         "constant_w"     — replace per-token w_t with a scalar equal
                                            to its current batch mean (preserves overall
                                            consistency pressure, kills per-token spread).
+      fragile_t       Required when mode="dgc". (B, T_ctx) tensor of detached
+                      per-token predictor fragility = ||predict(noisy_z, a) -
+                      predict(clean_z, a)|| / nn_dist (single-sample). Replaces
+                      the K-perturb action sensitivity A_t. See
+                      plan_adaptive_resolution.md §3.8.2.
     """
-    if mode not in {"full", "sigma_only"}:
+    if mode not in {"full", "sigma_only", "dgc"}:
         raise ValueError(f"Unsupported action_gate.mode: {mode}")
     if intervention not in {"none", "shuffle_sigma", "shuffle_action", "random_gate", "constant_w"}:
         raise ValueError(f"Unsupported action_gate.intervention: {intervention}")
     sigma_only = mode == "sigma_only"
+    dgc_mode = mode == "dgc"
     if sigma_only and s_t is None:
         raise RuntimeError(
             "action_gate.mode=sigma_only requires loss.hetero.enabled=true with mode=probe"
+        )
+    if dgc_mode and fragile_t is None:
+        raise RuntimeError(
+            "action_gate.mode=dgc requires precomputed fragile_t (see lejepa_forward)"
         )
     metrics = {}
     with torch.no_grad():
@@ -236,6 +261,14 @@ def compute_action_gate_metrics(
             A_mean = zero_bt
             A_cv = zero_bt
             log_A = zero_bt
+        elif dgc_mode:
+            # DGC mode: replace K-perturb action sensitivity with single-shot
+            # fragility = ||predict(noisy_z, a) - predict(clean_z, a)|| / nn_dist
+            # precomputed in lejepa_forward. CV is undefined for K=1, set to 0.
+            frag = fragile_t.detach().to(ctx_emb_d.dtype)
+            A_mean = frag
+            A_cv = torch.zeros_like(frag)
+            log_A = torch.log(frag.clamp(min=log_a_floor))
         else:
             # Per-action-dim std over (B, T_ctx); guards against degenerate dims.
             action_std = ctx_action_raw.float().std(dim=(0, 1), unbiased=False).clamp(min=1e-6)
@@ -563,6 +596,34 @@ def lejepa_forward(self, batch, stage, cfg):
             )
         else:
             s_t = None
+        gate_mode_str = str(gate_cfg.get("mode", "full"))
+        fragile_t_arg = None
+        if gate_mode_str == "dgc":
+            cons_cfg_for_dgc = cfg.loss.get("adaptive_consistency", {})
+            dgc_std_raw = gate_cfg.get("dgc_noise_std_max", None)
+            if dgc_std_raw is None:
+                dgc_std_raw = cons_cfg_for_dgc.get("noise_std_max", 0.04)
+            dgc_std_max = float(dgc_std_raw)
+            dgc_knn_k = int(gate_cfg.get("dgc_knn_k", 5))
+            with torch.no_grad():
+                noisy_batch_dgc = dict(batch)
+                noisy_batch_dgc["pixels"] = apply_pixel_gaussian_noise(
+                    batch["pixels"],
+                    std_min=0.0,
+                    std_max=dgc_std_max,
+                    noise_prob=1.0,
+                )
+                noisy_emb_full = self.model.encode(noisy_batch_dgc)["emb"]
+                noisy_ctx = noisy_emb_full[:, :ctx_len]
+                pred_emb_noisy = self.model.predict(noisy_ctx, ctx_act)
+                target_shift = (
+                    (pred_emb_noisy - pred_emb).pow(2).sum(-1).clamp(min=0).sqrt()
+                )
+                nn_dist_t = batch_knn_distance(ctx_emb.detach(), k=dgc_knn_k)
+                fragile_t_arg = target_shift / nn_dist_t.clamp(min=1e-6)
+            # Cache for adaptive_consistency reuse (avoid double noisy forward).
+            output["_dgc_noisy_emb"] = noisy_emb_full.detach()
+            output["_dgc_noise_std_max"] = dgc_std_max
         gate_metrics = compute_action_gate_metrics(
             self.model,
             ctx_emb=ctx_emb,
@@ -577,8 +638,9 @@ def lejepa_forward(self, batch, stage, cfg):
             ema_momentum=float(gate_cfg.get("ema_momentum", 0.99)),
             w_min=float(gate_cfg.get("w_min", 0.2)),
             w_max=float(gate_cfg.get("w_max", 1.0)),
-            mode=str(gate_cfg.get("mode", "full")),
+            mode=gate_mode_str,
             intervention=str(gate_cfg.get("intervention", "none")),
+            fragile_t=fragile_t_arg,
         )
         for k, v in gate_metrics.items():
             output[k] = v
@@ -591,15 +653,30 @@ def lejepa_forward(self, batch, stage, cfg):
                 "loss.adaptive_consistency requires loss.action_gate.enabled=true "
                 "unless require_action_gate=false"
             )
-        clean_pixels = batch["pixels"]
-        noisy_batch = dict(batch)
-        noisy_batch["pixels"] = apply_pixel_gaussian_noise(
-            clean_pixels,
-            std_min=float(cons_cfg.get("noise_std_min", 0.0)),
-            std_max=float(cons_cfg.get("noise_std_max", 0.04)),
-            noise_prob=float(cons_cfg.get("noise_prob", 1.0)),
+        cons_std_max = float(cons_cfg.get("noise_std_max", 0.04))
+        cons_std_min = float(cons_cfg.get("noise_std_min", 0.0))
+        cons_noise_prob = float(cons_cfg.get("noise_prob", 1.0))
+        # Reuse DGC-computed noisy embedding when configs match (no extra forward).
+        # The match is exact only when cons noise is the deterministic uniform
+        # [0, std_max] with prob=1, matching the DGC sampler in the gate block.
+        reuse_dgc_noisy = (
+            "_dgc_noisy_emb" in output
+            and cons_std_min == 0.0
+            and cons_noise_prob == 1.0
+            and float(output.get("_dgc_noise_std_max", -1.0)) == cons_std_max
         )
-        noisy_emb = self.model.encode(noisy_batch)["emb"][:, :ctx_len]
+        if reuse_dgc_noisy:
+            noisy_emb = output["_dgc_noisy_emb"][:, :ctx_len]
+        else:
+            clean_pixels = batch["pixels"]
+            noisy_batch = dict(batch)
+            noisy_batch["pixels"] = apply_pixel_gaussian_noise(
+                clean_pixels,
+                std_min=cons_std_min,
+                std_max=cons_std_max,
+                noise_prob=cons_noise_prob,
+            )
+            noisy_emb = self.model.encode(noisy_batch)["emb"][:, :ctx_len]
         if "_adaptive_weight_tokens" in output:
             cons_weights = output["_adaptive_weight_tokens"]
         else:

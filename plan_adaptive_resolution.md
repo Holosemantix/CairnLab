@@ -325,6 +325,56 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要 
 - **Positive**（§3.4–§3.5 AAAC）：σ + A_t 作为 detached signal 控制 input-side per-token consistency，可以在不动 μ-path gradient 的前提下做 per-state 调节。
 - **Combination**（§3.7）：AAAC 没有取代 Contribution 1；它和 noise training 占据 pipeline 不同位置（latent-side per-token vs input-side global），可以叠加。`consist001+noise0.002` 在 PushT 极端 OOD 上严格超过 noise-only。
 
+#### 3.2.5 表征分析定位 per-state controller 信号（Bridge to Contribution 2）
+
+C1 给出了 per-task tuning cost 的边界；要走到 per-token controller，需要先回答："在 latent 空间里，**哪一个可观测量** 在跨 ckpt 比较时与 eval drop 最稳健地相关？" 这个问题在 `research_notebook_swm.md` §5 通过完整的诊断工具栈做了系统回答，本节摘要其中支撑 Contribution 2 的部分（完整数据、CI、cross-check 协议见 notebook）。
+
+**诊断工具栈分层**（research_notebook_swm.md §5.1）：
+
+| 层 | 主指标 | 工具 | per-token? |
+|---|---|---|---|
+| Encoder shift | `noise_angle_deg`, `noise_l2`, `noise_to_nn_cos_ratio`, `robust_radius_std`, `noise_angle_slope` | `noise_sensitivity.py` | ✅ |
+| Encoder geometry | `clean_nn_cos_dist`, `clean_effective_rank`, `lidar_rank`, `cka_linear` | `noise_sensitivity.py` / `analyze_repr.py` | batch-level |
+| Predictor | **`predictor_target_to_nn_cos_ratio_at_max_std`**, `predictor_rollout_drift_T(T)` | `predictor_sensitivity.py` | ✅ |
+| Latent-noise | `latent_predictor_rollout_T8_l2_history`, `latent_cost_surface_slope_z`, `latent_robust_radius_z` | `latent_noise_sensitivity.py` | ✅ |
+| Task resolution | `transition_resolution_ratio_cos`, `id_probe_r2` | `task_resolution.py` | 部分 |
+
+**关键指标定义**（research_notebook_swm.md §A.1）：
+
+- `predictor_target_to_nn_cos_ratio_at_max_std = predictor_target_shift / clean_nn_cos_dist`，单步 target shift 除以 clean batch-local NN 距离。物理意义：predictor 在 input noise 下被推离 clean target 的距离，相对于该 token 在 latent 空间中本来的邻域尺度。ratio > 1 意味着 noise 已经把 latent 推到原本不属于该状态的邻域。
+- `clean_nn_cos_dist`：每个 clean latent token 到 batch 内其他 token 的最近邻 cosine distance（中位数）。
+- `nn_l2` 同构 L2 版本；DGC controller 直接使用 L2 形式 `||predict(noisy_z, a) - predict(clean_z, a)|| / nn_l2_dist`，无 cosine 归一化。
+
+**跨任务相关性主结果**（canonical n=8，研究 notebook §5.3）：
+
+| 指标 | TwoRoom (r / ρ) | PushT (r / ρ) | Reacher (r / ρ) | Cube (r / ρ) | 跨任务稳健性 |
+|---|---:|---:|---:|---:|---|
+| `predictor_target_to_nn_cos_ratio_at_max_std` | −0.96 / −0.43 | **−0.80 / −0.93** | −0.56 / −0.58 | +0.17 / +0.04 | PushT 最强；TwoRoom Pearson 强但 Spearman 弱 |
+| `latent_cost_surface_slope_z` | +0.47 / +0.61 | **+0.74 / +0.93** | −0.20 / −0.14 | −0.28 / −0.37 | PushT 强正 |
+| `predictor_rollout_T8_l2` | +0.22 / +0.23 | +0.68 / +0.79 | **−0.71 / −0.83** | +0.41 / +0.76 | 跨任务方向反转 |
+| `cka_linear_at_max_std` | +0.58 / +0.29 | −0.08 / −0.02 | +0.92 / +0.68 | **−0.85 / −0.96** | 跨任务方向反转 |
+| `clean_effective_rank` | +0.49 / +0.44 | +0.77 / +0.81 | +0.14 / −0.12 | −0.15 / +0.10 | PushT 强 |
+
+**n=18 sweep cross-check**（LeWM 9 档 + SWM 9 档，研究 notebook §5.4，2026-05-08）：严格门槛 `|ρ_n18| ≥ 0.5 ∧ |partial|std| ≥ 0.5 ∧ |partial|method| ≥ 0.5`。
+
+| 任务 | 严格通过的指标 | ρ_n18 | partial|std | partial|method |
+|---|---|---:|---:|---:|
+| PushT | **`predictor_target_to_nn_cos_ratio`** | **−0.89** | **−0.70** | **−0.91** |
+| PushT | `latent_cost_surface_slope_z` | +0.80 | +0.45 | +0.90 |
+| Cube | `cka_linear_at_max_std` | −0.76 | −0.80 | −0.65 |
+| Cube | `noise_angle_slope_deg_per_std` | +0.75 | +0.81 | +0.13 |
+| Cube | `clean_nn_cos_dist_median` | +0.71 | +0.60 | +0.66 |
+| Reacher | （全部失效） | — | — | — |
+| TwoRoom | （全部失效） | — | — | — |
+
+**对 Contribution 2 的方法学约束**（这是本小节存在的真正原因）：
+
+1. **`predictor_target_to_nn_cos_ratio_at_max_std` 是唯一同时满足"per-token 可计算"、"n=8 与 n=18 严格门槛全通过"、"跨任务方向稳定（PushT/Cube 主指标，Reacher 中等，TwoRoom Pearson 强）"的诊断量。** 它正是 §3.4–§3.5 的 σ probe（学 prediction error）和 A_t（学 action sensitivity）共同试图近似的目标——只是 AAAC 用了两个 internal proxy + multiplicative gate 拼出来，而 `target_to_nn_ratio` 把"input-noise 引起的 predictor target shift / local NN 距离"作为直接的单一可观测量。
+2. **当前 AAAC 没有用上这条最强的 external-validated signal。** σ probe 的 validate corr 在 0.48（PushT）/ 0.61（TwoRoom），仅为 prediction error 的 smoothed copy；A_t 的 cross-ckpt eval correlation 从未单独验证。这暴露了一个 reviewer-facing 软肋：方法和最强诊断量没有正面绑定。
+3. **TwoRoom / Reacher 没有跨方法严格通过的诊断量，正解释了 §3.6 因果干预里"global consistency 与 σ+A_t 等价"的结果**——这两个任务的 per-state 信号本身就弱，per-token controller 在原理上就难有显著价值。Cube 上 `noise_angle_slope` 在 n=18 上 partial|std=+0.81、partial|method=+0.13 提示"该任务的 per-state 价值更多来自 std 共变而非 method-axis"，这是 Cube 上 controller 失效的预期。
+
+§3.8.2 据此提出 Diagnostic-Gated Consistency (DGC)：直接把 `||predict(noisy_z, a) - predict(clean_z, a)|| / nn_dist` 作为 controller signal，把 §5 的诊断结论从"描述模型"升级为"驱动方法"。
+
 ### 3.3 直接异方差损失的失败尝试
 
 §3.2 的 tension 是经验上的；接下来要回答 method 层面的问题：σ 能不能直接进入 loss reweighting 来自动决定 per-token 学习强度？我们用 scale-preserving hetero NLL 验证这条路。配置：`loss.hetero.enabled=true`，`loss.hetero.mode=loss`。
@@ -1139,6 +1189,78 @@ C1 和 C2 在 pipeline 中占据不同位置：
 - σ 的 multi-step propagation 在 rollout 下是否仍然校准？
 - A_t 的 local sensitivity 与任务全局结构（如 door crossing in TwoRoom）是否有系统性对应？
 - 是否需要一个 encoder-side input-sensitivity head（附录 A 曾讨论）来闭合 encoder→controller 的反馈环？
+
+#### 3.8.2 候选方案：Diagnostic-Gated Consistency (DGC)（待办）
+
+**动机**：§3.2.5 显示 `predictor_target_to_nn_cos_ratio_at_max_std` 是唯一同时通过 n=8/n=18 严格门槛、跨任务方向稳定的 per-token 诊断量；当前 AAAC 的 σ + A_t controller 没有直接使用它。DGC 主张把该诊断量本身当作 per-token consistency gate，把诊断结论从"描述模型"升级为"驱动方法"。同时配合 MAC-lite Pillar 3（`exp(-α·critical)` gate map）整体替换现版的 8 超参 controller。
+
+**最小实现**（已落地，未上 sweep）：
+
+```python
+# in lejepa_forward when loss.action_gate.mode = 'dgc':
+noisy = encode(aug(x, std_max=cons_cfg.noise_std_max))
+target_shift = || predict(noisy_ctx, a) - predict(clean_ctx, a) ||
+nn_dist      = batch_knn_distance(clean_ctx, k=5)     # per-token, batch-local
+fragile_t    = target_shift / nn_dist                  # DGC criticality signal
+# downstream: same EMA z-score + sigmoid + critical = gA*(0.5+0.5*gS) + w_t pipeline
+# as full mode; only the source of log_A is replaced.
+```
+
+代码入口：`train.py::batch_knn_distance`、`compute_action_gate_metrics(..., mode='dgc', fragile_t=...)`、`config/train/lewm.yaml::loss.action_gate.mode=dgc`。`noisy_emb` 与 `adaptive_consistency` 路径共享（DGC 时只做一次 noisy encoder forward）。
+
+**与现版 AAAC 的对比**：
+
+| 维度 | AAAC（现版） | DGC（候选） |
+|---|---|---|
+| 新超参数 | β_probe / K / α_cv / warmup_epochs / ema_momentum / delta_scale / w_min,w_max / α_cons = 8+ | α_cons + dgc_knn_k = 1（k 可固定） |
+| 新 forward / step | σ head + K=4 perturb forward + freeze-BN | 1 noisy encode + 1 noisy predict（与 L_cons 共用） |
+| Controller signal 的 external validity | σ probe corr 0.48/0.61，A_t 未单独验证 | `predictor_target_to_nn_cos_ratio` n=18 ρ=−0.89（PushT），canonical n=8 严格门槛通过 |
+| 与 §5 诊断分析的因果一致性 | 弱（独立两条线） | 强（gate ≡ diagnostic） |
+| TwoRoom/Cube 上的行为 | 与 global consistency 等价（§3.6.2） | 期待自动退化到 global（因为 fragile_t 在这两任务上动态范围被压缩） |
+
+**待办（按门槛排序）**：
+
+| Step | 内容 | 状态 |
+|---|---|---|
+| Code 落地 | `train.py` 增 `batch_knn_distance` + `mode='dgc'` 分支；`lejepa_forward` 在 gate 前预算 fragile_t；`adaptive_consistency` 复用 cached noisy_emb；`config/train/lewm.yaml` 增 `dgc_noise_std_max`/`dgc_knn_k` | ✅ 已完成 |
+| Offline sanity | `tools/repr_analysis/dgc_offline.py`：在 consist001 ckpt 上比较 DGC `fragile_t` 与现版 `critical = gA·(0.5+0.5·gS)` 的相关性和分布；判据：Pearson ≥ 0.4 → 二者学到相近的 token 分配；Pearson < 0.2 → 学到独立信号 | ✅ 脚本完成，待运行 |
+| Online sanity（4 runs） | PushT α=0.01 + TwoRoom α=0.03，各 1 seed（同时跑可比）；判据：PushT clean ≥ 84、resolution_ratio_l2 ≥ 0.24、id_probe_r2 ≥ 0.65；TwoRoom clean ≥ 96 | ⏳ 待跑 |
+| Online sweep（12 runs） | 通过 sanity 后扩到 4 任务 × 3 seeds，沿用 §3.5.1 的运行命名约定 `<task>_lewm_dgc_consist00X` | ⏳ 待 sanity 决定 |
+| 写作合并 | 若 DGC 等效或更优：把 §2 method 节合并到 0.8 页（5 行伪代码 + 1 段直觉 + diagnostic citation），现版 AAAC 移到附录 robustness ablation | ⏳ |
+| 写作 fallback | 若 DGC 显著掉点：把 DGC 作为附录 negative result，反向证明 σ head 的额外 capacity 不可省略 | ⏳ |
+
+**运行示例**：
+
+```bash
+# Offline sanity（PushT, ~30s on one GPU）
+python -m tools.repr_analysis.dgc_offline \
+  --ckpt /path/to/pusht_consist001/model_object.ckpt \
+  --dataset pusht \
+  --n-sequences 256 --noise-std-max 0.04 \
+  --save-dir /tmp/dgc_offline_pusht
+
+# Online DGC training（PushT α=0.01）
+python train.py data=pusht \
+  loss.hetero.enabled=true loss.hetero.mode=probe \
+  loss.action_gate.enabled=true \
+  loss.action_gate.mode=dgc \
+  loss.adaptive_consistency.enabled=true \
+  loss.adaptive_consistency.weight=0.01 \
+  loss.adaptive_consistency.noise_std_max=0.04 \
+  experiment.name=pusht_lewm_dgc_consist001_seed42 seed=42
+
+# Online DGC training（TwoRoom α=0.03）
+python train.py data=tworoom \
+  loss.hetero.enabled=true loss.hetero.mode=probe \
+  loss.action_gate.enabled=true \
+  loss.action_gate.mode=dgc \
+  loss.adaptive_consistency.enabled=true \
+  loss.adaptive_consistency.weight=0.03 \
+  loss.adaptive_consistency.noise_std_max=0.04 \
+  experiment.name=tworoom_lewm_dgc_consist003_seed42 seed=42
+```
+
+`loss.hetero.enabled=true` 不是 DGC 必需，但开启后 gate 会保留 σ enhancer（`critical = gA_dgc · (0.5 + 0.5·gS)`），便于 sanity 期与现版 AAAC 在同等 σ 条件下对比；纯 fragile_t only 设 `loss.hetero.enabled=false` 即可。
 
 ## 4. 讨论
 

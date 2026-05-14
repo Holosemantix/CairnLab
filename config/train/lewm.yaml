@@ -143,6 +143,16 @@ loss:
                               # (skip K perturb forwards, critical = gS * 0.5, requires
                               # loss.hetero.enabled=true with mode=probe). A_t-only is
                               # achieved implicitly by mode=full + loss.hetero.enabled=false.
+                              # dgc = Diagnostic-Gated Consistency: replaces K-perturb
+                              # action sensitivity with single-shot fragility =
+                              # ||predict(noisy_z, a) - predict(clean_z, a)|| / nn_dist.
+                              # Drops K, delta_scale, chaos discount, warmup; reuses
+                              # noisy encoder forward with adaptive_consistency. See
+                              # plan_adaptive_resolution.md §3.8.2.
+    dgc_noise_std_max: null   # noise std for the DGC fragility probe; defaults to
+                              # adaptive_consistency.noise_std_max when null. Set
+                              # equal to it to enable noisy_emb cache reuse.
+    dgc_knn_k: 5              # k for batch-local NN distance normalization (DGC only)
     intervention: none        # Causal-necessity controls for paper §6 P0-2. One of:
                               #   none           — real σ+A_t (default).
                               #   shuffle_sigma  — permute s_t over (B,T) before z-score.

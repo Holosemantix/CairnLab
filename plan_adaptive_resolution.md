@@ -870,14 +870,20 @@ C1 和 C2 在 pipeline 中占据不同位置：
 
 将 C1+C2 联用扩展到全部 4 个任务，核心原则是 **"同 noise 强度对比"**：C1+C2 联用与 C1 单独使用完全相同的 `std_max`，控制 noise 剂量变量，只比较 per-token 精细化分配的附加价值。
 
-| 任务 | 最佳 noise | C1+C2 clean | C1+C2 pg08 | C1 同 noise clean | C1 同 noise pg08 | C2 单独 clean | C2 单独 pg08 | vs C1 clean | vs C1 pg08 | vs C2 pg08 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| **PushT** | 0.005 | 85.67 | **85.33** | 81.00 | 75.75 | 86.67 | 37.00 | +4.67 | **+9.58** | **+48.33** |
-| **TwoRoom** | 0.003 | 97.67 | **96.67** | 96.33 | 94.67 | 95.33 | 74.00 | +1.34 | **+2.00** | **+22.67** |
-| **Reacher** | 0.005 | 85.00 | **81.00** | 73.33 | 71.33 | 72.00 | 47.00 | +11.67 | **+9.67** | **+34.00** |
-| **Cube** | 0.005 | 70.33 | **68.67** | 61.33 | 60.67 | 64.67 | 50.00 | +9.00 | **+8.00** | **+18.67** |
+| 任务 | noise | C1+C2 clean | C1+C2 pg08 | C1 同 noise clean | C1 同 noise pg08 | C2 单独 clean | C2 单独 pg08 | vs C1 pg08 | vs C2 pg08 | 备注 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| **PushT** | 0.002 | 88.00 | 75.00 | 90.00 | 70.67 | 86.67 | 37.00 | +4.33 | +38.00 | 轻 noise，C2 主导 |
+| PushT | 0.003 | 82.00 | 55.33 | 89.67 | 83.00 | 86.67 | 37.00 | −27.67 | +18.33 | 剂量不足，低于 C1 同 noise |
+| **PushT** | **0.005** | **85.67** | **85.33** | **81.00** | **75.75** | **86.67** | **37.00** | **+9.58** | **+48.33** | **最优配置** |
+| TwoRoom | 0.002 | 95.33 | 94.00 | 94.33 | 91.00 | 95.33 | 74.00 | +3.00 | +20.00 | 轻 noise，增益温和 |
+| **TwoRoom** | **0.003** | **97.67** | **96.67** | **96.33** | **94.67** | **95.33** | **74.00** | **+2.00** | **+22.67** | **最优配置** |
+| TwoRoom | 0.005 | — | — | 94.00 | 94.00 | 95.33 | 74.00 | — | — | 未跑 |
+| Reacher | 0.003 | 83.33 | 81.00 | 78.67 | 73.67 | 72.00 | 47.00 | +7.33 | +34.00 | 中等增益 |
+| **Reacher** | **0.005** | **85.00** | **81.00** | **73.33** | **71.33** | **72.00** | **47.00** | **+9.67** | **+34.00** | **最优配置** |
+| Cube | 0.003 | 65.33 | 62.33 | 65.00 | 67.33 | 64.67 | 50.00 | −5.00 | +12.33 | 剂量不足，略低于 C1 |
+| **Cube** | **0.005** | **70.33** | **68.67** | **61.33** | **60.67** | **64.67** | **50.00** | **+8.00** | **+18.67** | **最优配置** |
 
-> **C1 同 noise sample size**：PushT 0.005-p1 n=4；TwoRoom 0.003-p1 n=3；Reacher/Cube C1 0.005-p1 为 single-seed × 300 ep（summary.txt），与 C1+C2 的 3-seed × 100 ep 协议不同但总样本量相同（300）。Reacher 3-seed 对照 noise0.003 为 clean +4.66 / pg08 +7.33；Cube 3-seed 对照 noise0.003 为 clean +0.33 / pg08 −5.00（noise0.003 下 C1+C2 未优于 C1，但 noise0.005 跃升）。
+> **C1 同 noise sample size**：PushT 0.002/0.003/0.005-p1 皆为 n=3–4；TwoRoom 0.002/0.003-p1 n=3；Reacher/Cube C1 0.005-p1 为 single-seed × 300 ep（summary.txt），与 C1+C2 的 3-seed × 100 ep 协议不同但总样本量相同（300）。Reacher/Cube C1 noise0.003 值由 3-seed 增益反推（Reacher clean +4.66 / pg08 +7.33；Cube clean +0.33 / pg08 −5.00）。
 
 **跨任务模式解读**：
 
@@ -966,7 +972,8 @@ C1 和 C2 在 pipeline 中占据不同位置：
 
 - **因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）**（2026-05-12，§3.6.0–§3.6.4）：PushT 上四项干预全部 degrade，证明 σ+A_t multiplicative gate 是因果必要项；shuffle_A clean 跌 8.34pt 印证 A_t 是 multiplicative gate 主门控。TwoRoom 上 global consistency 略胜 σ+A_t baseline，Reacher 上 clean 显著退化、Cube 上几乎无退化，把 paper claim 收缩到"per-token gate 因果必要性是 contact-heavy 任务特性"。实验设计与启动命令见 §3.6.0。
 - **四任务 w_t 完整可视化（aggregate + trajectory）**（2026-05-13，§3.5.5–§3.5.6）：PushT/TwoRoom/Reacher/Cube 的 aggregate hexbin/histogram + per-episode 时间序列 + 关键帧全部生成并插入文档，为 per-token adaptive resolution 的 task-specific 价值提供从统计到定性的完整证据链。
-- **跨任务 C1+C2 联用 sweep（PushT/TwoRoom/Reacher/Cube，noise0.002/003/005）**（2026-05-13，§3.7.4）：全部 4 任务在最优 noise 剂量下的极端 OOD 都严格优于 C1 单独，增益是系统性的。
+- **跨任务 C1+C2 联用 sweep（PushT/TwoRoom/Reacher/Cube，noise0.002/003/005）**（2026-05-13，§3.7.4）：全部 4 任务在三个 noise 剂量下的完整对比表已建立，最优剂量下极端 OOD 严格优于 C1 单独，增益是系统性的。
+- **四任务 aggregate w_t 统一工具链（PushT/TwoRoom 重跑 + Reacher/Cube 复用）**（2026-05-14，§3.5.5）：全部 4 任务的 aggregate hexbin/histogram 由同一套 `visualize_wt.py` 生成，消除早期脚本差异，跨任务统计口径一致。
 
 ##### 第一层 — 不做的话方法本体站不住
 
@@ -991,6 +998,7 @@ C1 和 C2 在 pipeline 中占据不同位置：
 | 全文 claim 收缩 | 把"σ 与 A_t 缺一不可"统一改成"在 action-critical 连续控制（PushT）上 σ 与 A_t 缺一不可；TwoRoom/Cube 上 σ 是边际增益或等价" | 主线段落已部分收缩，主表 / 摘要 / abstract / introduction 仍要再扫一遍 |
 | w_t qualitative figure | PushT/TwoRoom/Reacher/Cube trajectory 上 w_t 时间序列 + contact/transition 时刻标注 | ✅ 已完成（2026-05-13，§3.5.6）：四任务各 5 条 episode 的 per-trajectory 时间序列 + 关键帧叠图已全部生成并插入文档 |
 | 理论侧 1 页 | 解释 `critical = gA · (0.5 + 0.5·gS)` 为何不是 σ/A 的线性组合 | sketch 形式：noise-vs-difficulty decomposition，从 confounder trap 角度论证为何必须 multiplicative |
+| AAAC method overview figure | 可编辑 SVG，用于 abstract/intro 的方法总览 | ✅ 已完成（2026-05-13）：`assets/figures/aaac_method_overview.svg` + `aaac_method_overview_compact.svg`，§1/§3.8 已插入引用 |
 
 ##### 第四层 — 锦上添花扩展
 
@@ -1000,12 +1008,14 @@ C1 和 C2 在 pipeline 中占据不同位置：
 | Consistency-on-noise 更高剂量 sweep | `std_max=0.03–0.05` × α=0.01–0.03（同时补 TwoRoom consist003+noise 联用） | 把 §3.7 已建立的 PushT C1+C2 正交性扩到 TwoRoom；正式 sweep table |
 | 外部 baseline placement | Dreamer-V3 actor variance / TD-MPC2 reward-conditioned consistency 与本工作 per-token σ+A 在 latent JEPA 上的对比 | 帮 reviewer 把工作放进领域版图，不是必需 |
 
-##### 后续工作（截至 2026-05-13）
+##### 后续工作（截至 2026-05-14）
 
 1. ~~起因果干预四件套全套 sweep~~ ✅ 已完成（2026-05-12，§3.6.2，4 任务）。
 2. ~~补 Reacher/Cube C1+C2 noise0.003/005~~ ✅ 已完成（2026-05-13，§3.7.4）。
 3. ~~w_t qualitative figure（per-trajectory 时间序列 + 关键帧）~~ ✅ 已完成（2026-05-13，§3.5.6，4 任务）。
-4. **剩余工作**：
+4. ~~四任务 aggregate w_t 统一工具链~~ ✅ 已完成（2026-05-14，§3.5.5，PushT/TwoRoom 重跑统一 visualize_wt.py）。
+5. ~~AAAC method overview figure~~ ✅ 已完成（2026-05-13，§1/§3.8）。
+6. **剩余工作**：
    - 5-seeds 主表升级（当前 3 seeds × 100 traj；若投稿版本要求统一统计置信度，再补至 5 seeds）
    - 邻近对照：dropout-variance / predictor ensemble var 替换 σ；σ probe on noise ckpt
    - 全文 claim 收缩扫一遍（摘要 / abstract / introduction / 主表 caption）

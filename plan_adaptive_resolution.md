@@ -1190,7 +1190,7 @@ C1 和 C2 在 pipeline 中占据不同位置：
 - A_t 的 local sensitivity 与任务全局结构（如 door crossing in TwoRoom）是否有系统性对应？
 - 是否需要一个 encoder-side input-sensitivity head（附录 A 曾讨论）来闭合 encoder→controller 的反馈环？
 
-#### 3.8.2 候选方案：Diagnostic-Gated Consistency (DGC)（待办）
+#### 3.8.2 候选方案：Diagnostic-Gated Consistency (DGC)
 
 **动机**：§3.2.5 显示 `predictor_target_to_nn_cos_ratio_at_max_std` 是唯一同时通过 n=8/n=18 严格门槛、跨任务方向稳定的 per-token 诊断量；当前 AAAC 的 σ + A_t controller 没有直接使用它。DGC 主张把该诊断量本身当作 per-token consistency gate，把诊断结论从"描述模型"升级为"驱动方法"。同时配合 MAC-lite Pillar 3（`exp(-α·critical)` gate map）整体替换现版的 8 超参 controller。
 
@@ -1223,22 +1223,61 @@ fragile_t    = target_shift / nn_dist                  # DGC criticality signal
 | Step | 内容 | 状态 |
 |---|---|---|
 | Code 落地 | `train.py` 增 `batch_knn_distance` + `mode='dgc'` 分支；`lejepa_forward` 在 gate 前预算 fragile_t；`adaptive_consistency` 复用 cached noisy_emb；`config/train/lewm.yaml` 增 `dgc_noise_std_max`/`dgc_knn_k` | ✅ 已完成 |
-| Offline sanity | `tools/repr_analysis/dgc_offline.py`：在 consist001 ckpt 上比较 DGC `fragile_t` 与现版 `critical = gA·(0.5+0.5·gS)` 的相关性和分布；判据：Pearson ≥ 0.4 → 二者学到相近的 token 分配；Pearson < 0.2 → 学到独立信号 | ✅ 脚本完成，待运行 |
+| Offline sanity | `tools/repr_analysis/dgc_offline.py`：在 consist001 ckpt 上比较 DGC `fragile_t` 与现版 `critical = gA·(0.5+0.5·gS)` 的相关性和分布；判据：Pearson ≥ 0.4 → 二者学到相近的 token 分配；Pearson < 0.2 → 学到独立信号 | ✅ 已完成（四任务 Pearson 0.02–0.15，全部 < 0.2，判定为独立信号） |
 | Online sanity（4 runs） | PushT α=0.01 + TwoRoom α=0.03，各 1 seed（同时跑可比）；判据：PushT clean ≥ 84、resolution_ratio_l2 ≥ 0.24、id_probe_r2 ≥ 0.65；TwoRoom clean ≥ 96 | ⏳ 待跑 |
 | Online sweep（12 runs） | 通过 sanity 后扩到 4 任务 × 3 seeds，沿用 §3.5.1 的运行命名约定 `<task>_lewm_dgc_consist00X` | ⏳ 待 sanity 决定 |
 | 写作合并 | 若 DGC 等效或更优：把 §2 method 节合并到 0.8 页（5 行伪代码 + 1 段直觉 + diagnostic citation），现版 AAAC 移到附录 robustness ablation | ⏳ |
 | 写作 fallback | 若 DGC 显著掉点：把 DGC 作为附录 negative result，反向证明 σ head 的额外 capacity 不可省略 | ⏳ |
 
-**运行示例**：
+**实际运行命令**（2025-05-14，四任务，结果保存在执行环境 `/tmp/dgc_offline/{task}/`）：
 
 ```bash
-# Offline sanity（PushT, ~30s on one GPU）
+# PushT
+STABLEWM_HOME=/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll
 python -m tools.repr_analysis.dgc_offline \
-  --ckpt /path/to/pusht_consist001/model_object.ckpt \
-  --dataset pusht \
-  --n-sequences 256 --noise-std-max 0.04 \
-  --save-dir /tmp/dgc_offline_pusht
+  --ckpt /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_hetero_probe_action_gate_consist001_shuffle_action/pusht_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt \
+  --dataset pusht --data-name pusht_expert_train --frameskip 5 \
+  --save-dir /tmp/dgc_offline/pusht
 
+# TwoRoom
+python -m tools.repr_analysis.dgc_offline \
+  --ckpt /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_lewm_hetero_probe_action_gate_consist001_shuffle_action/tworoom_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt \
+  --dataset tworoom --frameskip 5 \
+  --save-dir /tmp/dgc_offline/tworoom
+
+# Reacher
+python -m tools.repr_analysis.dgc_offline \
+  --ckpt /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_hetero_probe_action_gate_consist001_constant_w/reacher_lewm_hetero_probe_action_gate_consist001_constant_w_epoch_10_object.ckpt \
+  --dataset reacher --frameskip 5 \
+  --save-dir /tmp/dgc_offline/reacher
+
+# Cube
+STABLEWM_HOME=/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-cube/ogbench
+python -m tools.repr_analysis.dgc_offline \
+  --ckpt /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_lewm_hetero_probe_action_gate_consist001_shuffle_action/cube_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt \
+  --dataset cube --data-name cube_single_expert --frameskip 5 \
+  --save-dir /tmp/dgc_offline/cube
+```
+
+**4 任务结果汇总**（noise_std_max=0.04, n_sequences=256, history_size=3, n_tokens=768）：
+
+| 任务 | ckpt（epoch 10 object） | data | frameskip | fragile_median | q90/q10 | critical_old_median | Pearson(old vs DGC) | Spearman(old vs DGC) | Pearson(fragile vs A_t) | Pearson(fragile vs σ) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| PushT | `...pusht_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt` | `pusht_expert_train` | 5 | 0.0176 | 9.45 | 0.383 | **+0.02** | **+0.01** | −0.12 | −0.08 |
+| TwoRoom | `...tworoom_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt` | `tworoom` | 5 | 0.0686 | 11.53 | 0.384 | **+0.14** | **+0.13** | +0.09 | +0.10 |
+| Reacher | `...reacher_lewm_hetero_probe_action_gate_consist001_constant_w_epoch_10_object.ckpt` | `reacher` | 5 | 0.0125 | 11.22 | 0.398 | **+0.15** | **+0.15** | +0.05 | −0.01 |
+| Cube | `...cube_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt` | `cube_single_expert` | 5 | 0.0122 | 10.18 | 0.377 | **+0.07** | **+0.06** | −0.00 | −0.06 |
+
+**解读**：四任务 Pearson 全部 < 0.2（PushT 仅 0.02），判定为**独立信号**。当前 AAAC 的 σ+A_t gate 与真实 noise fragility 几乎没有线性关系——这直接支持了"机制繁琐但信号不对齐"的审稿人质疑。
+
+**后续行动**：
+- Online sanity（PushT α=0.01 + TwoRoom α=0.03 各 1 seed）待跑。
+- 若 DGC online 效果不差：可把 claim 升级为"诊断信号本身即可驱动 consistency"，method 节简化为 5 行伪代码。
+- 若 DGC online 显著掉点：把 DGC 作为附录 negative result，反向证明 σ head 的额外 capacity 不可省略。
+
+**在线训练命令**（待执行）：
+
+```bash
 # Online DGC training（PushT α=0.01）
 python train.py data=pusht \
   loss.hetero.enabled=true loss.hetero.mode=probe \

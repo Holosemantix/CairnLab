@@ -99,16 +99,18 @@ def run(
     seed: int = 3072,
     device: str = "cuda",
     save_dir: str | None = None,
+    data_name: str | None = None,
+    frameskip: int = 1,
 ) -> Dict[str, float]:
     model = load_model(ckpt, device)
     history_size = infer_history_size(model)
     batch = load_dataset_samples(
-        dataset_name=dataset,
+        dataset_name=data_name if data_name is not None else dataset,
         state_key=None,
         n_sequences=n_sequences,
         history_size=history_size,
         future_steps=history_size,  # plenty for ctx
-        frameskip=1,
+        frameskip=frameskip,
         img_size=224,
         seed=seed,
         device=device,
@@ -252,6 +254,8 @@ def build_parser():
     p = argparse.ArgumentParser(description="Offline DGC fragility probe.")
     p.add_argument("--ckpt", required=True, help="Path to model_object.ckpt (or .pt).")
     p.add_argument("--dataset", required=True, choices=["tworoom", "pusht", "reacher", "cube"])
+    p.add_argument("--data-name", default=None, help="Override HDF5Dataset name (e.g. pusht_expert_train).")
+    p.add_argument("--frameskip", type=int, default=1, help="Frameskip for action dim expansion.")
     p.add_argument("--n-sequences", type=int, default=256)
     p.add_argument("--noise-std-max", type=float, default=0.04)
     p.add_argument("--delta-scale", type=float, default=0.25)
@@ -274,6 +278,8 @@ def main():
         seed=args.seed,
         device=args.device,
         save_dir=args.save_dir,
+        data_name=args.data_name,
+        frameskip=args.frameskip,
     )
     print(json.dumps(stats, indent=2))
 

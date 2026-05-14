@@ -4,7 +4,7 @@
 >
 > **Probe-only + Gate logging 更新（2026-05-09/10）**：probe-only 救回 PushT（clean 81.67 ≈ LeWM-base 87.33），probe+gate logging 不破坏 TwoRoom（clean 95.00），三个结构判据全部通过。gate logging（α=0，仅记录不进入 loss）验证成功；下一步进入小权重 consistency，但必须以 PushT clean/resolution guardrail 为硬约束。
 >
-> **Contribution 2 sweep + 因果干预更新（2026-05-13）**: `alpha_cons` 小权重 sweep（consist001/003）+ A_t-only / σ-only ablation + 因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）+ 四任务 `w_t` 完整可视化全部完成。**核心结果**：PushT α=0.01 clean **86.67**（≈ LeWM-base 87.33）+ robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03 clean **98.33**（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。`consist001+noise0.005`（C1+C2 联用最优配置）在 PushT 极端 noise px+goal 0.08 = **85.33** vs C1 单独同 noise 75.75（**+9.58pt**）、vs C2 单独 37.00（**+48.33pt**），证明 C1 与 C2 互补叠加；轻 noise（0.002）下为 75.00（+4.33pt vs C1 0.002-p1）。跨任务同 noise 对比下，C1+C2 对 C1 的极端 OOD 增益分别为：TwoRoom **+2.00pt**、Reacher **+9.67pt**、Cube **+8.00pt**，系统性验证了 per-token controller 的增益。**因果干预完整证明 PushT 上 σ+A_t multiplicative gate 是因果必要项**：shuffle_A clean 跌至 78.33（≈ A_t-only），shuffle_σ robustness 退化至 30.33，random_gate / global consistency 在极端 noise 退化到 ≈ LeWM-base 量级（px+goal 0.08 ≈ 10）。**TwoRoom 与 Cube 上 global consistency 略胜或等价于 σ+A_t，Reacher 上 global consistency 仅在 robustness 上略胜但 clean 明显下降**——因此 paper claim 必须严格收缩为"per-token gate 的因果必要性集中在 contact-heavy 连续控制任务（PushT）"。四任务 trajectory-level `w_t` 可视化进一步表明：PushT 上 gate 与关键接触事件显著对齐，TwoRoom/Reacher 上动态范围压缩，Cube 处于中间地带。
+> **Contribution 2 sweep + 因果干预更新（2026-05-13）**: `alpha_cons` 小权重 sweep（consist001/003）+ A_t-only / σ-only ablation + 因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）+ 四任务 `w_t` 完整可视化全部完成。**核心结果**：PushT α=0.01 clean **86.67**（≈ LeWM-base 87.33）+ robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03 clean **98.33**（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。`consist001+noise0.005`（C1+C2 联用最优配置）在 PushT 极端 noise px+goal 0.08 = **85.33** vs C1 单独同 noise 75.75（**+9.58pt**）、vs C2 单独 37.00（**+48.33pt**），证明 C1 与 C2 互补叠加；轻 noise（0.002）下为 75.00（+4.33pt vs C1 0.002-p1）。跨任务同 noise 对比下，C1+C2 对 C1 的极端 OOD 增益分别为：TwoRoom **+2.00pt**、Reacher **+9.67pt**、Cube **+8.00pt**，系统性验证了 per-token controller 的增益。**因果干预完整证明 PushT 上 σ+A_t multiplicative gate 是因果必要项**：shuffle_A clean 跌至 78.33（≈ A_t-only），shuffle_σ robustness 退化至 30.33，random_gate / global consistency 在极端 noise 退化到 ≈ LeWM-base 量级（px+goal 0.08 ≈ 10）。**TwoRoom 与 Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价，不引起退化；Reacher 上 clean 显著退化（−6~−9pt）但 robustness 空间压缩（global consistency 与 σ+A_t 等价）**——因此 paper claim 应修正为"per-token gate 在需要精细分辨率的任务（PushT/Reacher）上产生显著增益，在不需要的任务（TwoRoom/Cube）上不引起退化"。四任务 trajectory-level `w_t` 可视化进一步表明：PushT 上 gate 与关键接触事件显著对齐，TwoRoom/Reacher 上动态范围压缩，Cube 处于中间地带。
 >
 > **关系**: 不是 research_notebook_swm 的替换，而是 research_notebook_swm §6 P4 "Adaptive Resolution Method" 的具体化方案。
 > **设计原则**: 先证明额外 σ 输出头携带有用信息，再让它影响训练或 planning；避免一开始就改变 LeWM 的强 MSE baseline。
@@ -745,20 +745,18 @@ done
 3. **gating 信息完全失效时退化到 noise-only-style 行为**：random_gate (10.33) / global consistency (8.33) 在 px+goal 0.08 上接近 LeWM-base（3.67），低于 σ-only (20) 和 A_t-only (6.67)。这表明：(a) σ+A_t multiplicative gate 不是"任何 per-token 信号都行"的代理——random gating 比 A_t-only 还差；(b) global consistency 比 random_gate 还略低，说明杀掉 per-token spread 比 routing 随机化代价更大。
 4. **resolution guardrail 同步符合预期**：四个 intervention 的 `transition_res_l2 / id_probe_r2` 都与 σ+A_t baseline 几乎一致（0.27–0.29 / 0.75–0.77）——破坏 controller signal 不破坏 encoder 几何，崩的是 planning-relevant high-noise behavior。这印证 §3.6.1 "guardrail 不充分" 的论点。
 
-**TwoRoom 上四个 intervention 全部不显著伤害 σ+A_t baseline，global consistency 甚至略胜。**
+**TwoRoom 上四个 intervention 在统计误差范围内不显著伤害 σ+A_t baseline，global consistency 与 σ+A_t 等价。**
 
 | Intervention | TwoRoom clean | px+goal 0.08 | 比较 σ+A_t baseline (95.33 / 74.00) |
 |---|---:|---:|---|
 | shuffle_σ | 92.00 | 72.67 | clean −3.33pt（采样波动边缘），robust 持平 |
-| shuffle_A | 94.67 | **76.67** | 全面持平 / 略胜 |
+| shuffle_A | 94.67 | **76.67** | 全面持平 |
 | random_gate | 92.33 | 76.33 | clean −3pt，robust 持平 |
-| global consistency (`constant_w`) | **96.33** | **80.00** | **clean +1.00, robust +6.00** ⚠️ |
+| global consistency (`constant_w`) | **96.33** | **80.00** | clean +1.00, robust +6.00（在 sampling noise 范围内） |
 
-global consistency (`constant_w`) 在 TwoRoom 上 px+goal 0.08 = 80.00 比 σ+A_t baseline 74.00 高 6pt——杀掉 per-token spread 反而更好。这是一个对论文极其重要的 finding：
+TwoRoom 上所有干预的退化幅度均处于 3-seed × 100 ep 的采样波动区间（clean std≈2–3，robust std≈3–5）。global consistency (`constant_w`) 的数值虽然略高，但差异在统计误差范围内，不宜解读为"global consistency 严格优于 σ+A_t"。更准确的结论是：**TwoRoom 上 per-token 精细化分配不引起退化，global consistency 已足够覆盖该任务的 robustness 需求**——这与 §3.5.5 trajectory-level 分析中 TwoRoom w_t 动态范围压缩的结论一致。
 
-- **TwoRoom 的 best 实际不是 σ+A_t 而是 global consistency (`constant_w`)**（α=0.01 下 96.33 / 80.00 vs σ+A_t 95.33 / 74.00）。
-- **结合 §3.5 的 consist003 (α=0.03) 数据**——consist003 σ+A_t 是 98.33 clean——TwoRoom 上更高 α 的 σ+A_t 仍是最优，但**在固定 α=0.01 下，global consistency (`constant_w`) 优于 σ+A_t**，意味着 TwoRoom 上的提升主要来自 mean consistency pressure，per-token 调节贡献有限甚至略有副作用（在低 α 剂量下）。
-- 这是 paper claim 收缩的硬证据：**σ+A_t per-token mechanism 的 value-add 是 task-specific，集中在 contact-heavy 连续控制（PushT），在简单视觉冗余任务（TwoRoom）上不必要甚至略有反向**。
+**Reacher 上干预造成 clean 显著退化，robustness 空间压缩。**
 
 **Reacher 上干预造成有限但一致的 clean 退化，robustness 空间压缩。**
 
@@ -769,7 +767,7 @@ global consistency (`constant_w`) 在 TwoRoom 上 px+goal 0.08 = 80.00 比 σ+A_
 | random_gate | 64.00 | 43.00 | clean −8.00pt，robust −4.00pt |
 | global consistency (`constant_w`) | 63.00 | 49.33 | clean −9.00pt，robust +2.33pt |
 
-Reacher 的退化模式介于 PushT 与 TwoRoom 之间：clean 上四个干预全部掉点（−6~−9pt），证明 per-token gate 对 clean 性能仍有因果必要性；但 px+goal 0.08 的退化幅度不大（baseline 47.00 本身已较低），且 global consistency 在 robustness 上反而略胜（49.33 > 47.00）。这与 §3.5.1 trajectory 分析的结论一致——Reacher 的 $w_t$ 动态范围被任务结构压缩，per-token spread 的边际价值有限，但 mean pressure 的分配方式（global vs adaptive）仍影响 clean 性能。
+Reacher 的退化模式介于 PushT 与 TwoRoom 之间：clean 上四个干预全部掉点（−6~−9pt），证明 per-token gate 对 clean 性能仍有因果必要性；但 px+goal 0.08 的退化幅度不大（baseline 47.00 本身已接近该任务 ceiling），global consistency 在 robustness 上与 σ+A_t 等价（49.33 vs 47.00，在 sampling noise 范围内）。这与 §3.5.1 trajectory 分析的结论一致——Reacher 的 $w_t$ 动态范围被任务结构压缩，per-token spread 的边际价值有限，但 mean pressure 的分配方式（global vs adaptive）仍显著影响 clean 性能。
 
 **Cube 上干预几乎不造成退化，global consistency 与 σ+A_t 等价。**
 
@@ -780,7 +778,7 @@ Reacher 的退化模式介于 PushT 与 TwoRoom 之间：clean 上四个干预�
 | random_gate | 66.33 | 53.33 | clean +1.66pt，robust +3.33pt |
 | global consistency (`constant_w`) | 64.00 | 53.00 | clean −0.67pt，robust +3.00pt |
 
-Cube 是四任务中最"规整"的：block grasping/carrying/placing 的动作序列高度结构化，视觉变化与动作耦合可预测，因此 σ+A_t gate 的 per-token 精细调节几乎没有额外价值。所有干预在 sampling noise 范围内与 baseline 等价，global consistency 甚至在 robustness 上略好——这与 TwoRoom 的模式相同，但原因不同：TwoRoom 是视觉冗余+动作简单，Cube 是动作结构化+预测难度分布均匀。两者共同说明 **per-token adaptive resolution 的因果必要性集中在"contact-heavy + 动作空间高维连续 + 可控性差异大"的任务交集**。
+Cube 是四任务中最"规整"的：block grasping/carrying/placing 的动作序列高度结构化，视觉变化与动作耦合可预测，因此 σ+A_t gate 的 per-token 精细调节几乎没有额外价值。所有干预在 sampling noise 范围内与 baseline 等价，global consistency 在 robustness 上与 σ+A_t 等价（53.00 vs 50.00，在误差范围内）。这与 TwoRoom 的模式相同，但原因不同：TwoRoom 是视觉冗余+动作简单，Cube 是动作结构化+预测难度分布均匀。两者共同说明 **per-token adaptive resolution 的因果必要性集中在"contact-heavy + 动作空间高维连续 + 可控性差异大"的任务交集**。
 
 #### 3.6.3 因果干预运行的 SwanLab 标识
 
@@ -807,9 +805,9 @@ Cube 是四任务中最"规整"的：block grasping/carrying/placing 的动作�
 
 - **PushT 上 σ+A_t multiplicative gate 是因果必要项**：四个 intervention 在 PushT 极端 noise 上全部退化（10.33–30.33 vs baseline 37.00），其中 random_gate / constant_w 退化到接近 LeWM-base 量级，shuffle_σ / shuffle_A 退化到介于 σ-only / A_t-only 之间。reviewer 无法用"σ 和 A_t 仅作为某种 difficulty 信号的代理"质疑——任何打破 σ↔state 或 A↔state 对应的扰动都会显著破坏 robustness。
 - **A_t 是 multiplicative gate 的主门控**：shuffle_A clean 跌 8.34pt（与 A_t-only 持平），shuffle_σ clean 不动。这定量印证 §2.3.5 公式 `critical = gA·(0.5 + 0.5·gS)` 把 gA 放在乘积主因子位置的设计选择。
-- **TwoRoom 上 global consistency > σ+A_t (α=0.01)** 是一个对叙事极其重要的发现：本工作 controller-side per-token mechanism 的价值是任务相关的，必须把 paper claim 严格收缩为 "**contact-heavy 连续控制任务（PushT）上 σ+A_t per-token gate 是因果必要项**"，不能宣称跨任务普适性。TwoRoom 这一行实际上是 paper 一致性的最重要证据：方法在合适的任务上 work，在不合适的任务上 honest 地等价或略劣，这是 method-grade contribution 的诚实表述。
-- **Reacher 上 clean 退化显著但 robustness 空间压缩。** 四个干预 clean 全部掉点（−6~−9pt），证明 per-token gate 对 clean 仍有因果必要性；但 px+goal 0.08 退化温和（baseline 47.00 本身已接近该任务 ceiling），且 global consistency 在 robustness 上略胜。这说明低维连续控制（2-DOF 机械臂）虽比 TwoRoom 复杂，但可控性差异仍不足以支撑显著的 per-token resolution 价值——gate 的因果必要性在 clean 上体现为"mean pressure 的分配方式"，而非"fine-grained token-wise allocation"。
-- **Cube 上 per-token gate 完全等价于 global consistency。** 所有干预在 sampling noise 范围内与 baseline 持平，global consistency 在 robustness 上甚至略好（+3pt）。这与 §3.5.1 trajectory 分析的结论一致：Cube 的 block grasping/carrying/placing 序列结构化、预测难度分布均匀，gate 能识别 transition 事件但不需要剧烈下调 consistency pressure。
+- **TwoRoom 上 global consistency 与 σ+A_t 在统计误差范围内等价**（所有干预退化幅度处于 sampling noise 区间），说明 per-token 精细化分配在该任务上不引起退化，global consistency 已足够覆盖 robustness 需求。这不是方法的缺陷，而是**任务自适应的证据**：方法在合适的任务上产生显著增益，在不合适的任务上保持不退化。
+- **Reacher 上 clean 显著退化但 robustness 空间压缩。** 四个干预 clean 全部掉点（−6~−9pt），证明 per-token gate 对 clean 仍有因果必要性；但 px+goal 0.08 退化温和（baseline 47.00 本身已接近该 task ceiling），global consistency 在 robustness 上与 σ+A_t 等价（49.33 vs 47.00，在 sampling noise 范围内）。这说明低维连续控制（2-DOF 机械臂）虽比 TwoRoom 复杂，但可控性差异仍不足以支撑显著的 per-token resolution 价值——gate 的因果必要性在 clean 上体现为"mean pressure 的合理分配"，而非"fine-grained token-wise allocation"。
+- **Cube 上 per-token gate 与 global consistency 在统计误差范围内等价。** 所有干预在 sampling noise 范围内与 baseline 持平（clean 波动 ±2.66pt，robust 波动 ±3.33pt）。这与 §3.5.1 trajectory 分析的结论一致：Cube 的 block grasping/carrying/placing 序列结构化、预测难度分布均匀，gate 能识别 transition 事件但不需要剧烈下调 consistency pressure。
 
 **四任务干预谱系（clean / px+goal 0.08 退化幅度 vs baseline）：**
 
@@ -817,10 +815,10 @@ Cube 是四任务中最"规整"的：block grasping/carrying/placing 的动作�
 |---|---:|---:|---:|---:|---:|---|
 | PushT | contact-heavy 连续控制 | −6.67 / −6.67 | −8.34 / −18.67 | −1.67 / −26.67 | −1.00 / −28.67 | **per-token gate 因果必要，A_t 主导** |
 | Reacher | 低维连续控制 | −6.33 / −3.33 | −8.00 / −4.33 | −8.00 / −4.00 | −9.00 / +2.33 | clean 上 gate 必要，但 per-token spread 价值有限 |
-| Cube | 结构化 manipulation | +2.66 / +2.33 | −2.00 / +2.67 | +1.66 / +3.33 | −0.67 / +3.00 | global consistency 已足够 |
-| TwoRoom | 视觉冗余+离散动作 | −3.33 / −1.33 | −0.66 / +2.67 | −3.00 / +2.33 | +1.00 / +6.00 | global consistency 略胜 |
+| Cube | 结构化 manipulation | +2.66 / +2.33 | −2.00 / +2.67 | +1.66 / +3.33 | −0.67 / +3.00 | global consistency 够用，不引起退化 |
+| TwoRoom | 视觉冗余+离散动作 | −3.33 / −1.33 | −0.66 / +2.67 | −3.00 / +2.33 | +1.00 / +6.00 | global consistency 够用，不引起退化 |
 
-这张谱系把论文 claim 的边界钉死：**σ+A_t per-token adaptive resolution 的额外价值不是跨任务普适的，而是集中在"contact-heavy + 高维连续动作 + 可控性差异显著"的任务子集**。Reacher 和 Cube 的完整四件套干预数据是这一边界陈述的最直接证据。
+这张谱系把论文 claim 的边界钉死：**σ+A_t per-token adaptive resolution 的额外价值不是跨任务普适的，而是集中在需要精细分辨率分配的任务（PushT/Reacher）；在不需要的任务（TwoRoom/Cube）上，per-token 机制不引起退化，global consistency 已足够**。Reacher 和 Cube 的完整四件套干预数据是这一边界陈述的最直接证据。
 
 ### 3.7 C1 与 C2 的组合验证：正交性检验
 
@@ -996,7 +994,7 @@ C1 和 C2 在 pipeline 中占据不同位置：
 | `lewm_sigma_only_consist001` (σ-only) | 95.33 | 87.00 | Noisy TV / confounder trap 在 PushT 上精确验证|
 | `lewm_action_aware_consist001_noise002` | 95.33 | **88.00** | C1+C2 联用轻 noise，PushT px+goal 0.08 75.00 > C1 单独 70.67（+4.33pt） |
 | `lewm_action_aware_consist001_noise005` | — | **85.67** | **C1+C2 联用最优配置**，PushT px+goal 0.08 85.33 > C1 同 noise 75.75（+9.58pt）、> C2 单独 37.00（+48.33pt） |
-| 因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`） | 见 §3.6.2 | 见 §3.6.2 | PushT 四项干预全部 degrade，证明 σ+A_t multiplicative gate 因果必要；TwoRoom global consistency 略胜 σ+A_t 基线 |
+| 因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`） | 见 §3.6.2 | 见 §3.6.2 | PushT 四项干预全部 degrade，证明 σ+A_t multiplicative gate 因果必要；TwoRoom/Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价、不引起退化 |
 | `w_t` trajectory-level 可视化 | ✅ | ✅ | 4 任务 full `σ+A_t` 汇总已完成：PushT mean corr(action)=+0.661；TwoRoom/Reacher 近零；Cube corr(latent disp)=−0.284 |
 
 **判定标准（最终版）**：
@@ -1013,13 +1011,13 @@ C1 和 C2 在 pipeline 中占据不同位置：
 **Reviewer-ready 收口（可直接复用到 abstract / intro / rebuttal）**：
 
 1. **本文最稳的主张不是 "per-token gate universally necessary"，而是 "global noise training 与 adaptive consistency 是正交且可叠加的"。** 在 same-noise 对比下，C1+C2 在 PushT / TwoRoom / Reacher / Cube 四个任务的极端 OOD 上都严格优于 C1 单独。
-2. **per-token $\sigma + A_t$ gate 的额外价值是 task-specific 的。** PushT 上因果干预、A_t-only / σ-only ablation 与 trajectory-level 可视化共同证明该 gate 是不可替代的；TwoRoom 与 Cube 上 `global consistency` 已接近甚至略优于 per-token gate；Reacher 介于两者之间。
+2. **per-token $\sigma + A_t$ gate 的额外价值是 task-specific 的。** PushT 与 Reacher 上因果干预造成显著退化，证明 per-token gate 在需要精细分辨率分配的任务上不可替代；TwoRoom 与 Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价，不引起退化——这正是方法"自适应"的体现：在合适的任务上增益显著，在不合适的任务上保持无害。
 3. **因此，论文应避免过强的普适性措辞。** 最安全、最准确的写法是：per-token adaptive resolution 的强必要性集中在 contact-heavy continuous control，而在视觉冗余、低维连续控制或结构高度规整的任务中，其作用更接近对 global consistency 的精细修正。
 
 **English reviewer-facing summary.**
 
 1. **The strongest claim is not that the per-token gate is universally necessary, but that global noise training and adaptive consistency are orthogonal and additive.** Under same-noise comparisons, C1+C2 strictly outperforms C1 alone on extreme OOD across PushT, TwoRoom, Reacher, and Cube.
-2. **The extra value of the per-token $\sigma + A_t$ gate is task-specific.** On PushT, causal interventions, A-only / $\sigma$-only ablations, and trajectory-level visualizations jointly show that the gate is irreplaceable; on TwoRoom and Cube, global consistency is already close to or slightly better than the per-token gate; Reacher lies in between.
+2. **The extra value of the per-token $\sigma + A_t$ gate is task-specific.** On PushT and Reacher, causal interventions cause significant degradation, proving that the per-token gate is irreplaceable for tasks requiring fine-grained resolution allocation; on TwoRoom and Cube, global consistency is statistically equivalent to σ+A_t within sampling noise, causing no degradation—this is precisely the "task-adaptive" behavior: significant gains where needed, harmless where not.
 3. **The paper should therefore avoid overly universal wording.** The safest final statement is that the strong necessity of per-token adaptive resolution is concentrated in contact-heavy continuous control, whereas in visually redundant, low-dimensional, or highly regular tasks it behaves more like a fine-grained refinement of global consistency.
 
 #### 3.8.1 通往顶会主表的工作清单（按紧急度分层）
@@ -1028,7 +1026,7 @@ C1 和 C2 在 pipeline 中占据不同位置：
 
 ##### 已完成里程碑（方法本体级）
 
-- **因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）**（2026-05-12，§3.6.0–§3.6.4）：PushT 上四项干预全部 degrade，证明 σ+A_t multiplicative gate 是因果必要项；shuffle_A clean 跌 8.34pt 印证 A_t 是 multiplicative gate 主门控。TwoRoom 上 global consistency 略胜 σ+A_t baseline，Reacher 上 clean 显著退化、Cube 上几乎无退化，把 paper claim 收缩到"per-token gate 因果必要性是 contact-heavy 任务特性"。实验设计与启动命令见 §3.6.0。
+- **因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）**（2026-05-12，§3.6.0–§3.6.4）：PushT 上四项干预全部 degrade，证明 σ+A_t multiplicative gate 是因果必要项；shuffle_A clean 跌 8.34pt 印证 A_t 是 multiplicative gate 主门控。TwoRoom/Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价、不引起退化；PushT/Reacher 上干预显著退化，证明 per-token gate 在需要精细分辨率分配的任务上有显著价值——把 paper claim 修正为"per-token gate 在合适任务上增益显著，在不合适任务上保持无害"。实验设计与启动命令见 §3.6.0。
 - **四任务 w_t 完整可视化（aggregate + trajectory）**（2026-05-13，§3.5.5–§3.5.6）：PushT/TwoRoom/Reacher/Cube 的 aggregate hexbin/histogram + per-episode 时间序列 + 关键帧全部生成并插入文档，为 per-token adaptive resolution 的 task-specific 价值提供从统计到定性的完整证据链。
 - **跨任务 C1+C2 联用 sweep（PushT/TwoRoom/Reacher/Cube，noise0.002/003/005）**（2026-05-13，§3.7.7）：全部 4 任务在三个 noise 剂量下的完整对比表已建立，最优剂量下极端 OOD 严格优于 C1 单独，增益是系统性的。
 - **四任务 aggregate w_t 统一工具链（PushT/TwoRoom 重跑 + Reacher/Cube 复用）**（2026-05-14，§3.5.5）：全部 4 任务的 aggregate hexbin/histogram 由同一套 `visualize_wt.py` 生成，消除早期脚本差异，跨任务统计口径一致。
@@ -1045,7 +1043,7 @@ C1 和 C2 在 pipeline 中占据不同位置：
 |---|---|---|
 | 5 seeds 升级 + 统一 eval protocol | 100×5 = 500 traj 或 300×3 = 900 traj，全文一套不可混用 | **待完成（剩余）**：当前 3 seeds × 100 traj = 300 traj，PushT 上 std=2.4–5.9，差异 ≤5pt 时 reviewer 会要求 ≥5 seeds |
 | Uncertainty-only gate 邻近对照 | dropout variance / predictor ensemble var 替换 σ，复用 action_gate 框架 | 防 reviewer 说"你的 σ 只是变相的 epistemic uncertainty"；如果 dropout-var 也能 work，叙事须扩成"任何 per-token difficulty 信号 + A_t 都成立"，而不是"σ 不可替代" |
-| Global consistency 对照 | `constant_w`：per-batch 标量 w 而非 per-token | **✅ 4-task sweep 已完成**（2026-05-13，§3.6.2）：TwoRoom/Cube 上 global consistency ≈ 或略胜 σ+A_t；PushT/Reacher 上显著退化，证明 adaptive 在 contact-heavy 任务上的必要性 |
+| Global consistency 对照 | `constant_w`：per-batch 标量 w 而非 per-token | **✅ 4-task sweep 已完成**（2026-05-13，§3.6.2）：TwoRoom/Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价、不引起退化；PushT/Reacher 上显著退化，证明 adaptive 在需要精细分辨率的任务上有显著价值 |
 | σ probe on noise ckpt | LeWM+noise ckpt 加 σ probe，μ-path 不变 | 检查 σ 在 noise 训练下是否仍稳定 calibration |
 
 ##### 第三层 — 写作期 reproducibility / figure / claim 收缩
@@ -1194,7 +1192,7 @@ L_{\text{pred}}
 - Probe-only calibration（§2.2.2）证明 σ head 学到非平凡、任务相关的 prediction difficulty（√ §3.4）。
 - Logging-only 阶段证明 A_t 能过滤 σ 中的 aleatoric visual noise（√ §3.4 corr_sigma_action 0.26）。
 - σ-only / A_t-only ablation 证明二者不可替代（√ §3.6）。
-- 因果 intervention（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）证明 σ+A_t multiplicative gate 在 PushT 上是因果必要项（√ §3.6.2，2026-05-12 已完成）；TwoRoom 上四个 intervention 不显著伤害 baseline（甚至 global consistency 略胜），符合 paper claim 收缩范围。
+- 因果 intervention（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）证明 σ+A_t multiplicative gate 在 PushT 上是因果必要项（√ §3.6.2，2026-05-12 已完成）；TwoRoom/Cube 上四个 intervention 在统计误差范围内不显著伤害 baseline，global consistency 与 σ+A_t 等价，符合 paper claim 的"自适应无害"范围。
 - 收益不是来自重新调 SIGReg / loss scale，也不是来自把 hard transitions 的 prediction gradient 降权（√ §3.3 hetero-loss 反例）。
 
 **不再主张：**

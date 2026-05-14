@@ -530,14 +530,14 @@ LeWM-base 在 clean 上表现良好，但只要 visual std=0.05 加到 pixels+go
 1. **Aggregate context-window diagnostic**：把离线提取的 token 级 `w_t` / `critical_t` / `gA_t` 与 action norm、latent displacement 做全局对应分析，保留 hexbin、histogram 与 quartile 分组结果，用于展示整体动态范围和统计结构。
 2. **Trajectory-level analysis**：从完整 episode 重算 full $\sigma + A_t$ gate，并把重叠 window 聚合回时间轴，用于给出四任务统一、可比较的主量化结论。
 
-需要说明的是，当前仓库内的 aggregate 资产来自两种相近但不完全相同的离线工具链：PushT / TwoRoom 为较早的 context-window diagnostic，Reacher / Cube 为更新后的 aggregate script 产物。因此，**aggregate 图仍然是有效且应保留的补充证据**，但跨任务统一的最终量化比较以下面的 trajectory-level 汇总为主。
+所有 4 个任务的 aggregate 图均由同一套 `tools/repr_analysis/visualize_wt.py` 脚本生成（full $\sigma + A_t$ gate，256 sequences × history_size=3 = 768 tokens），保证跨任务统计口径一致。
 
 **Aggregate 统计（补充证据）**
 
 | 任务 | corr($w_t$, $||a_t||$) | corr($w_t$, latent disp.) | Q1 mean | Q4 mean | Q4−Q1 | 解读 |
 |---|---:|---:|---:|---:|---:|---|
-| PushT | **+0.587** | **−0.592** | 0.768 | 0.898 | **+0.130** | 与 action sensitivity / transition difficulty 强对齐 |
-| TwoRoom | **−0.021** | **−0.384** | 0.820 | 0.818 | **+0.005** | 动态范围压缩，接近全局 consistency |
+| PushT | **+0.504** | **−0.535** | 0.666 | 0.837 | **+0.171** | 与 action sensitivity / transition difficulty 强对齐 |
+| TwoRoom | **−0.073** | **−0.452** | 0.748 | 0.737 | **−0.011** | 动态范围压缩，接近全局 consistency |
 | Reacher | **−0.001** | **−0.065** | 0.724 | 0.718 | **−0.006** | 几乎平坦，低维连续控制的 token-wise spread 很弱 |
 | Cube | **−0.096** | **−0.287** | 0.745 | 0.714 | **−0.031** | 能识别 manipulation transition，但强度远弱于 PushT |
 
@@ -545,21 +545,21 @@ LeWM-base 在 clean 上表现良好，但只要 visual std=0.05 加到 pixels+go
 
 **Aggregate figures（hexbin / histogram）**
 
-![PushT w_t vs action norm](assets/diagnostics/wt_vs_action_norm.png)
+![PushT w_t vs action norm](assets/diagnostics/pusht_wt/wt_vs_action_norm.png)
 
-![PushT w_t vs latent displacement](assets/diagnostics/wt_vs_latent_disp.png)
+![PushT w_t vs latent displacement](assets/diagnostics/pusht_wt/wt_vs_latent_disp.png)
 
-![TwoRoom w_t vs action norm](assets/diagnostics/tworoom_wt_vs_action_norm.png)
+![TwoRoom w_t vs action norm](assets/diagnostics/tworoom_wt/wt_vs_action_norm.png)
 
-![TwoRoom w_t vs latent displacement](assets/diagnostics/tworoom_wt_vs_latent_disp.png)
+![TwoRoom w_t vs latent displacement](assets/diagnostics/tworoom_wt/wt_vs_latent_disp.png)
 
 ![Reacher w_t vs action norm](assets/diagnostics/reacher_wt/wt_vs_action_norm.png)
 
 ![Cube w_t vs action norm](assets/diagnostics/cube_wt/wt_vs_action_norm.png)
 
-![PushT w_t histogram](assets/diagnostics/wt_histogram_by_action_norm.png)
+![PushT w_t histogram](assets/diagnostics/pusht_wt/wt_histogram_by_action_norm.png)
 
-![TwoRoom w_t histogram](assets/diagnostics/tworoom_wt_histogram_by_action_norm.png)
+![TwoRoom w_t histogram](assets/diagnostics/tworoom_wt/wt_histogram_by_action_norm.png)
 
 ![Reacher w_t histogram](assets/diagnostics/reacher_wt/wt_histogram_by_action_norm.png)
 

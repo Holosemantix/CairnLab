@@ -1,0 +1,18 @@
+{
+  "dataset": "pusht_expert_train",
+  "mode": "aggregate",
+  "gate_type": "sigma_plus_action",
+  "num_tokens": 768,
+  "w_mean": 0.7197019457817078,
+  "w_std": 0.13799555599689484,
+  "critical_mean": 0.3503725528717041,
+  "critical_std": 0.17249444127082825,
+  "corr_w_action_norm": 0.5035530680445585,
+  "corr_w_latent_disp": -0.5353145491388986,
+  "quartile_w_mean": {
+    "Q1 (low)": 0.6656312346458435,
+    "Q2": 0.664993941783905,
+    "Q3": 0.711602509021759,
+    "Q4 (high)": 0.8365800976753235
+  }
+}

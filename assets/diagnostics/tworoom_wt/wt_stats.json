@@ -1,0 +1,18 @@
+{
+  "dataset": "tworoom",
+  "mode": "aggregate",
+  "gate_type": "sigma_plus_action",
+  "num_tokens": 768,
+  "w_mean": 0.73892742395401,
+  "w_std": 0.13724485039710999,
+  "critical_mean": 0.3263406455516815,
+  "critical_std": 0.1715560406446457,
+  "corr_w_action_norm": -0.07325657474053643,
+  "corr_w_latent_disp": -0.4522587941242012,
+  "quartile_w_mean": {
+    "Q1 (low)": 0.7484524846076965,
+    "Q2": 0.7295131087303162,
+    "Q3": 0.7412118911743164,
+    "Q4 (high)": 0.7365322709083557
+  }
+}

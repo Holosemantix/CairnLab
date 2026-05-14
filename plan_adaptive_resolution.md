@@ -667,6 +667,30 @@ for iv in shuffle_sigma shuffle_action random_gate constant_w; do
       experiment.name=tworoom_lewm_consist003_${iv}_seed${s}
   done
 done
+
+# Reacher 同套，α=0.01
+for iv in shuffle_sigma shuffle_action random_gate constant_w; do
+  for s in 42 43 44; do
+    python train.py data=reacher seed=$s \
+      loss.hetero.enabled=true loss.hetero.mode=probe \
+      loss.action_gate.enabled=true loss.action_gate.intervention=$iv \
+      loss.adaptive_consistency.enabled=true loss.adaptive_consistency.weight=0.01 \
+      loss.adaptive_consistency.noise_std_max=0.04 \
+      experiment.name=reacher_lewm_consist001_${iv}_seed${s}
+  done
+done
+
+# Cube 同套，α=0.01
+for iv in shuffle_sigma shuffle_action random_gate constant_w; do
+  for s in 42 43 44; do
+    python train.py data=cube seed=$s \
+      loss.hetero.enabled=true loss.hetero.mode=probe \
+      loss.action_gate.enabled=true loss.action_gate.intervention=$iv \
+      loss.adaptive_consistency.enabled=true loss.adaptive_consistency.weight=0.01 \
+      loss.adaptive_consistency.noise_std_max=0.04 \
+      experiment.name=cube_lewm_consist001_${iv}_seed${s}
+  done
+done
 ```
 
 统一配置：consistency α=0.01（PushT sweet spot），3 seeds × 100 episodes，其余超参与 §3.5 consist001 一致。
@@ -698,6 +722,30 @@ done
 | global consistency (`constant_w`) | **96.33** | **95.00** | 91.67 | **80.00** |
 
 > α=0.03 下 TwoRoom σ+A_t consist003 clean 98.33（见 §3.5），是 TwoRoom 的最优配置；本表对齐 α=0.01 以隔离"哪个 controller 组件不可缺"这个变量。
+
+**Reacher 主表（α=0.01）：**
+
+| 配置 | clean | px+goal 0.08 |
+|---|---:|---:|
+| **σ+A_t consist001（full）** | **72.00** | **47.00** |
+| shuffle_σ | 65.67 | 43.67 |
+| shuffle_A | 64.00 | 42.67 |
+| random_gate | 64.00 | 43.00 |
+| global consistency (`constant_w`) | 63.00 | 49.33 |
+
+> Reacher 未跑 A_t-only / σ-only ablation（因果干预四件套已足够验证机制必要性），故主表仅列出 intervention 四件套。
+
+**Cube 主表（α=0.01）：**
+
+| 配置 | clean | px+goal 0.08 |
+|---|---:|---:|
+| **σ+A_t consist001（full）** | **64.67** | **50.00** |
+| shuffle_σ | 67.33 | 52.33 |
+| shuffle_A | 62.67 | 52.67 |
+| random_gate | 66.33 | 53.33 |
+| global consistency (`constant_w`) | 64.00 | 53.00 |
+
+> Cube 未跑 A_t-only / σ-only ablation，理由同上。
 
 **PushT resolution guardrail（ablation 视角）：**
 

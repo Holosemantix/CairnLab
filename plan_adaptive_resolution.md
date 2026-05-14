@@ -83,7 +83,7 @@ PI controller / Lagrangian τ / cheap-proxy bilevel / 多任务 head 等方案�
 2. **Action-aware gate**：用 action perturbation 计算 local sensitivity A_t，结合 σ̂ 生成 per-token consistency weight w_t ∈ [w_min, w_max]。
 3. **Adaptive consistency loss**：L_cons = mean(w_t · d(z_clean, z_noisy))，stop-grad 在 z_clean 上，只让 noisy branch 的 encoder 接收 consistency pressure。
 
-![AAAC method overview](assets/figures/aaac_method_overview_compact.svg)
+![AAAC method overview](assets/figures/aaac_method_overview_compact_v2.svg)
 
 **Figure 1. AAAC 方法总览。** 在不改动 LeWM backbone 与 mean prediction path 的前提下，方法新增一个 predictor-side `sigma` head 估计 per-transition difficulty，并通过 action perturbation 计算 local sensitivity `A_t`。二者经 multiplicative gate `critical_t = gA_t · (0.5 + 0.5 · gS_t)` 生成 per-token weight `w_t`，再用于加权 clean/noisy latent 对的一致性损失 `L_cons`。核心直觉是：action-critical 区域应降低 consistency pressure 以保留 resolution，而视觉冗余或弱可控区域应提高 consistency pressure 以增强 invariance。为便于后续修改，图 1 使用可编辑 `SVG`；更详细的说明版仍保留在 `assets/figures/aaac_method_overview.svg`。
 

@@ -236,27 +236,30 @@ def fig2_sweep(out_path: Path):
 # Globs n=18 PushT ckpts (LeWM 9 + SWM 9), pulls per-ckpt metric and eval drop.
 # ============================================================================
 
-def _glob_n18_pusht(data_root: Path) -> List[Tuple[str, str, float, str]]:
-    """Return [(label, method, std_max, ckpt_dir), ...]."""
+def _glob_n9_pusht_lewm(data_root: Path) -> List[Tuple[str, str, float, str]]:
+    """Return [(label, method, std_max, ckpt_dir), ...] for the 9 LeWM PushT
+    sweep ckpts (base + std 0.001..0.008). Prefers `_20260507` retrained
+    canonical paths when they exist (matches `canonical_evals_20260508.json`)."""
     out = []
     pusht_root = data_root / "lewm-pusht" / "ckpt"
-    # LeWM ckpts: base + 0to001..0to008
-    for sub in pusht_root.glob("pusht_lewm_20260430"):
-        out.append(("LeWM-base", "LeWM", 0.0, str(sub)))
-    for sub in sorted(pusht_root.glob("pusht_lewm_noise_0to00[1-8]_p1")):
-        std_token = sub.name.split("_")[-2].replace("0to00", "0.00")  # 0to001 -> 0.001
-        out.append((f"LeWM-noise-{sub.name.split('_')[-2]}", "LeWM",
-                    float(std_token), str(sub)))
-    # SWM ckpts: base + 0to001..0to008
-    swm_base_globs = list(pusht_root.glob("pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64"))
-    for sub in swm_base_globs:
-        out.append(("SWM-base", "SWM", 0.0, str(sub)))
-    for sub in sorted(pusht_root.glob(
-            "pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to00[1-8]_p1_dim64")):
-        std_token = sub.name.split("_")[-3].replace("0to00", "0.00")
-        out.append((f"SWM-noise-{sub.name.split('_')[-3]}", "SWM",
-                    float(std_token), str(sub)))
+    # base
+    base_dir = pusht_root / "pusht_lewm_20260430"
+    if base_dir.exists():
+        out.append(("LeWM-base", "LeWM", 0.0, str(base_dir)))
+    # noise sweep 0to001..0to008
+    for i in range(1, 9):
+        sx = f"0to00{i}_p1"
+        retrained = pusht_root / f"pusht_lewm_noise_{sx}_20260507"
+        default = pusht_root / f"pusht_lewm_noise_{sx}"
+        chosen = retrained if retrained.exists() else default
+        if not chosen.exists():
+            continue
+        out.append((f"LeWM-noise-0to00{i}", "LeWM", float(f"0.00{i}"), str(chosen)))
     return out
+
+
+# Backward-compat alias for any code that imports the older name.
+_glob_n18_pusht = _glob_n9_pusht_lewm
 
 
 def _read_predictor_target_ratio(ckpt_dir: Path) -> float:
@@ -372,9 +375,9 @@ def _spearman(xs: np.ndarray, ys: np.ndarray) -> float:
 
 
 def fig3_scatter(out_path: Path, data_root: Path):
-    ckpts = _glob_n18_pusht(data_root)
+    ckpts = _glob_n9_pusht_lewm(data_root)
     if not ckpts:
-        print(f"  WARN: no PushT n=18 ckpts found under {data_root}; skipping fig3")
+        print(f"  WARN: no PushT LeWM ckpts found under {data_root}; skipping fig3")
         return
     rows = []
     for label, method, std, ck in ckpts:
@@ -382,92 +385,64 @@ def fig3_scatter(out_path: Path, data_root: Path):
         ev = _read_eval_metrics(Path(ck))
         if math.isnan(ratio) or math.isnan(ev["clean"]) or math.isnan(ev["px08"]):
             continue
-        rows.append((label, method, std, ratio, ev["clean"], ev["px08"]))
-    if len(rows) < 6:
-        print(f"  WARN: only {len(rows)} valid PushT ckpts; skipping fig3")
+        rows.append((label, std, ratio, ev["clean"], ev["px08"]))
+    if len(rows) < 5:
+        print(f"  WARN: only {len(rows)} valid PushT LeWM ckpts; skipping fig3")
         return
 
-    lewm = [r for r in rows if r[1] == "LeWM"]
-    swm = [r for r in rows if r[1] == "SWM"]
-
-    # Two side-by-side panels: vs clean (strong correlation) | vs OOD drop (weak)
+    # Two side-by-side panels: vs clean (strong) | vs OOD drop (weak)
     fig, (ax_clean, ax_drop) = plt.subplots(1, 2, figsize=(10.5, 4.3))
 
-    def _scatter(ax_, group, y_idx, marker, cmap, label):
-        if not group:
-            return
-        xs = [g[3] for g in group]
-        ys = [g[y_idx] if y_idx != "drop" else g[4] - g[5] for g in group]
-        stds = [g[2] for g in group]
-        ax_.scatter(xs, ys, marker=marker, s=80,
-                    c=stds, cmap=cmap, edgecolor="black", linewidth=0.5,
-                    vmin=0, vmax=0.008, label=label)
+    xs = np.array([r[2] for r in rows])
+    cleans = np.array([r[3] for r in rows])
+    px08s = np.array([r[4] for r in rows])
+    drops = cleans - px08s
+    stds_ax = np.array([r[1] for r in rows])
 
-    # --- Panel 1: vs clean ---
-    _scatter(ax_clean, lewm, 4, "o", "Blues", f"LeWM (n={len(lewm)})")
-    _scatter(ax_clean, swm, 4, "^", "Reds",   f"SWM (n={len(swm)})")
-    xs_all = np.array([r[3] for r in rows])
-    cleans = np.array([r[4] for r in rows])
-    logxs = np.log10(xs_all)
-    p = np.polyfit(logxs, cleans, 1)
-    xf = np.linspace(logxs.min() - 0.1, logxs.max() + 0.1, 50)
-    ax_clean.plot(10 ** xf, p[0] * xf + p[1], "k--", linewidth=1.0, alpha=0.6)
-    rho_c_all = _spearman(xs_all, cleans)
-    rho_c_lewm = _spearman(np.array([g[3] for g in lewm]), np.array([g[4] for g in lewm]))
-    rho_c_swm = _spearman(np.array([g[3] for g in swm]),  np.array([g[4] for g in swm]))
-    ax_clean.text(0.04, 0.04,
-                  f"Spearman ρ (clean):\n"
-                  f"  n=18 combined: {rho_c_all:+.2f}\n"
-                  f"  within-LeWM:   {rho_c_lewm:+.2f}\n"
-                  f"  within-SWM:    {rho_c_swm:+.2f}",
-                  transform=ax_clean.transAxes, va="bottom", ha="left",
-                  bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
-                            edgecolor="gray", alpha=0.92), fontsize=8,
-                  family="DejaVu Sans Mono")
-    ax_clean.set_xscale("log")
-    ax_clean.set_xlabel(r"$\mathtt{predictor\_target\_to\_nn\_cos\_ratio}$")
-    ax_clean.set_ylabel("PushT clean success rate (%)")
-    ax_clean.set_title("(a)  vs clean success — strong cross-ckpt signal",
-                       fontsize=10, loc="left", pad=8)
-    ax_clean.grid(alpha=0.25, linewidth=0.4)
-    ax_clean.legend(loc="upper right", frameon=False, fontsize=8.5)
-
-    # --- Panel 2: vs OOD drop ---
-    drops = cleans - np.array([r[5] for r in rows])
-    _scatter(ax_drop, lewm, "drop", "o", "Blues", None)
-    _scatter(ax_drop, swm, "drop", "^", "Reds",   None)
-    p2 = np.polyfit(logxs, drops, 1)
-    ax_drop.plot(10 ** xf, p2[0] * xf + p2[1], "k--", linewidth=1.0, alpha=0.6)
-    rho_d_all = _spearman(xs_all, drops)
-    rho_d_lewm = _spearman(np.array([g[3] for g in lewm]),
-                           np.array([g[4] - g[5] for g in lewm]))
-    rho_d_swm = _spearman(np.array([g[3] for g in swm]),
-                          np.array([g[4] - g[5] for g in swm]))
-    ax_drop.text(0.04, 0.96,
-                 f"Spearman ρ (OOD drop = clean − px+g 0.08):\n"
-                 f"  n=18 combined: {rho_d_all:+.2f}\n"
-                 f"  within-LeWM:   {rho_d_lewm:+.2f}\n"
-                 f"  within-SWM:    {rho_d_swm:+.2f}",
-                 transform=ax_drop.transAxes, va="top", ha="left",
+    def _panel(ax_, ys, ylabel, title, anchor_y_top):
+        sc = ax_.scatter(xs, ys, marker="o", s=90,
+                         c=stds_ax, cmap="Blues", edgecolor="black", linewidth=0.5,
+                         vmin=0, vmax=0.008)
+        # log-linear fit
+        logxs = np.log10(xs)
+        p = np.polyfit(logxs, ys, 1)
+        xf = np.linspace(logxs.min() - 0.1, logxs.max() + 0.1, 50)
+        ax_.plot(10 ** xf, p[0] * xf + p[1], "k--", linewidth=1.0, alpha=0.6)
+        rho = _spearman(xs, ys)
+        ax_.text(0.04, anchor_y_top,
+                 f"Spearman ρ (LeWM, n={len(rows)}): {rho:+.2f}\n"
+                 f"linear-fit slope (on log x): {p[0]:+.1f}",
+                 transform=ax_.transAxes,
+                 va="top" if anchor_y_top > 0.5 else "bottom", ha="left",
                  bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
-                           edgecolor="gray", alpha=0.92), fontsize=8,
+                           edgecolor="gray", alpha=0.92), fontsize=8.5,
                  family="DejaVu Sans Mono")
-    ax_drop.set_xscale("log")
-    ax_drop.set_xlabel(r"$\mathtt{predictor\_target\_to\_nn\_cos\_ratio}$")
-    ax_drop.set_ylabel("PushT eval drop  (clean − px+g 0.08, pts)")
-    ax_drop.set_title("(b)  vs OOD drop — weak / dominated by training protocol",
-                      fontsize=10, loc="left", pad=8)
-    ax_drop.grid(alpha=0.25, linewidth=0.4)
+        ax_.set_xscale("log")
+        ax_.set_xlabel(r"$\mathtt{predictor\_target\_to\_nn\_cos\_ratio}$")
+        ax_.set_ylabel(ylabel)
+        ax_.set_title(title, fontsize=10, loc="left", pad=8)
+        ax_.grid(alpha=0.25, linewidth=0.4)
+        return rho
 
-    fig.suptitle("Fig. 3. PushT n=18: fragility metric is a ckpt-quality predictor (a), "
-                 "not an OOD-specific predictor (b)",
+    rho_clean = _panel(ax_clean, cleans, "PushT clean success rate (%)",
+                       "(a)  vs clean success — strong cross-ckpt signal",
+                       anchor_y_top=0.18)
+    rho_drop = _panel(ax_drop, drops, "PushT eval drop  (clean − px+g 0.08, pts)",
+                      "(b)  vs OOD drop — weak / dominated by training protocol",
+                      anchor_y_top=0.96)
+
+    # colourbar for std_max
+    cbar = fig.colorbar(ax_clean.collections[0], ax=[ax_clean, ax_drop],
+                        fraction=0.025, pad=0.04)
+    cbar.set_label("std_max during training", fontsize=8.5)
+
+    fig.suptitle("Fig. 3. PushT LeWM noise sweep (n=9): fragility metric is a ckpt-quality "
+                 "predictor (a), not an OOD-specific predictor (b)",
                  x=0.01, y=1.02, ha="left", fontsize=11)
-    fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
-    print(f"  wrote {out_path} (n={len(rows)} ckpts;  "
-          f"ρ_clean: all={rho_c_all:+.2f}, LeWM={rho_c_lewm:+.2f}, SWM={rho_c_swm:+.2f}  |  "
-          f"ρ_drop: all={rho_d_all:+.2f}, LeWM={rho_d_lewm:+.2f}, SWM={rho_d_swm:+.2f})")
+    print(f"  wrote {out_path} (n={len(rows)} LeWM ckpts;  "
+          f"ρ_clean={rho_clean:+.2f}, ρ_drop={rho_drop:+.2f})")
 
 
 # ============================================================================

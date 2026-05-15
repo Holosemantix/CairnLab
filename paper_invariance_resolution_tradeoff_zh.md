@@ -54,7 +54,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 **贡献 1：系统量化了 JEPA + CEM 世界模型 pipeline 在视觉噪声下的控制脆弱性，覆盖 contact-heavy 操作、视觉冗余导航、低维连续控制、结构化操作四类代表任务。** 我们在 4 任务 × 8 档噪声强度上完成完整 sweep，并以 single-seed × 300 trajectories 或 3-seed × 100 trajectories（总样本量 300）作为统一统计基础。
 
-**贡献 2：提出了"不变性-分辨率权衡"（Invariance-Resolution Trade-off）概念及其诊断框架。** 我们定义了五层诊断协议（编码器偏移层、编码器几何层、预测器敏感性层、潜空间噪声响应层、任务分辨率层），包含 17+ 个指标，并建立了跨 checkpoint 的严格验证协议（n=8 与 n=18 cross-check）。
+**贡献 2：提出了"不变性-分辨率权衡"（Invariance-Resolution Trade-off）概念及其诊断框架。** 我们定义了五层诊断协议（编码器偏移层、编码器几何层、预测器敏感性层、潜空间噪声响应层、任务分辨率层），包含 17+ 个指标，并在 n=8 canonical 集合 + n=9 LeWM PushT sweep 上做 Spearman 相关性与"条件于训练 noise 强度 std_max"的偏相关分析，区分 ckpt-quality 信号与被训练协议混淆的虚假相关。
 
 **贡献 3：揭示了噪声增广的深层机制。** 通过诊断指标，我们证明：重噪声在 TwoRoom 上通过压缩 effective rank 获得收益（低维离散任务不需要高分辨率），但在 PushT 上过度压缩导致 transition resolution ratio 从 0.30 崩至 0.10、ID probe R² 从 0.77 跌至 0.27——任务相关状态信息被抹除。
 
@@ -96,7 +96,7 @@ Tamkin et al. [14] 在对比学习中指出，"label-destroying augmentations �
 
 自监督学习社区广泛使用 effective rank [16]、条件数、参与率等指标诊断 dimensional collapse [17]。Next-Latent Prediction [18] 使用 effective latent rank 评估世界模型的紧凑性。VICReg [20] 等 anti-collapse 方法提供了与 SIGReg 不同的正则化思路。
 
-**与本文的关系**：单个指标（如 effective rank）不是新的，但**系统性地将它们组合成一个专门针对世界模型鲁棒性的诊断协议——包含 per-token 噪声敏感性、跨 checkpoint 相关性验证（n=8/n=18）、以及与控制性能的因果关联——是本文的新贡献**。
+**与本文的关系**：单个指标（如 effective rank）不是新的，但**系统性地将它们组合成一个专门针对世界模型鲁棒性的诊断协议——包含 per-token 噪声敏感性、跨 checkpoint 相关性验证、条件于训练 noise 强度的偏相关分析——是本文的新贡献**。
 
 ---
 
@@ -156,20 +156,14 @@ $$
 
 ### 3.4 跨 Checkpoint 验证协议
 
-为确保诊断指标不是训练噪声的伪相关，我们建立了严格的验证协议：
+为确保诊断指标不是训练噪声的伪相关，我们在同一个 LeWM PushT sweep 上做两类互补分析：
 
-- **n=8 协议**：LeWM 8 档噪声强度 × 1 方法 = 8 个 checkpoint，计算指标与 eval drop 的 Pearson/Spearman 相关。
-- **n=18 协议**（cross-method）：LeWM 9 档 + SWM 9 档 = 18 个 checkpoint，同时变化噪声强度和方法两个变量，计算控制 std / method 后的 **偏相关**。
-- **通过门槛**：$|\rho_{n=18}| \geq 0.5$ 且 $|\partial_{\rho|\text{std}}| \geq 0.5$ 且 $|\partial_{\rho|\text{method}}| \geq 0.5$。该门槛同时拒绝 (i) 纯由 std 共变导致的伪相关，(ii) 纯由 method-axis cluster 导致的伪相关。
+- **Canonical n = 8**：8 个 LeWM ckpt（1 个 base + 7 个代表性 noise 档位）；对每个诊断量计算与 clean / OOD 成功率的 Pearson 与 Spearman 相关。
+- **n = 9 LeWM sweep + 偏相关**：全部 9 个 LeWM PushT ckpt（base + std_max ∈ {0.001,…,0.008}）；计算 Spearman ρ 与 **条件于 `std_max` 的 partial Spearman ρ**。偏相关这一步关键：很多诊断量与控制性能的边际相关其实只是因为两者都随 `std_max` 共变。
 
-### 3.5 SWM：用于 cross-method 验证的另一种 latent geometry
+正文同时给出 **原始** Spearman 与 **条件于 std_max** 的两类相关。原始 ρ 回答"sweep 全程中哪个 ckpt 整体更好"；偏相关回答"**在同一训练协议下**哪个 ckpt 更好"。这两个问题不同——§4.5 会显示同一个指标在两个口径下结论截然不同。
 
-SWM (Spherical World Model) 是我们为 §3.4 cross-method 协议训练的 LeWM 的一个变体，**不是本文的方法贡献**。SWM 替换 LeWM 的两个组件：
-
-1. **Encoder/predictor projection**：在 final layer 加 L2-normalization，把潜表征限制在单位球面上；
-2. **Anti-collapse 正则**：用 batch-normalized uniformity loss（Wang & Isola 2020 风格，鼓励 pair-wise cosine distance 接近均匀分布）替换 SIGReg。
-
-SWM 与 LeWM 共享 backbone、history size、optimizer、CEM 推理路径——唯一不同的是 latent geometry（球面 vs 各向同性高斯）。引入 SWM 不是为了对比 SOTA，而是为了在 §4.5 的诊断指标-eval 相关性分析里**控制 "method-axis"**：如果某诊断指标在 LeWM-only 与 SWM-only 内都呈现一致的 within-method 排序，则该信号不是 LeWM-specific 的人造产物。SWM 的完整噪声 sweep 数据见附录。
+> 更大规模的跨架构验证（变换世界模型 latent geometry 本身）作为后续工作；我们计划在 v2 加入非 JEPA baseline（DreamerV3 或 TD-MPC2 在同任务上对比）。
 
 ---
 
@@ -191,7 +185,7 @@ SWM 与 LeWM 共享 backbone、history size、optimizer、CEM 推理路径——
 
 - **图 1（hero）**：4 任务 LeWM-base 的 clean 与 px+goal 0.08 成功率条形图，叠加 noise sweep 后最优配置的成功率——视觉化 "JEPA 不变性幻觉 + noise training 大幅修复 + per-task 最优剂量"三件事。数据源：表 1 + 表 2。
 - **图 2**：4 任务 noise sweep 折线图（x: std_max ∈ [0, 0.008], y: clean / px+goal 0.05 / px+goal 0.08 三条线）。展示 clean-robust 最优剂量分离。现有 `assets/diagnostics/noise_angle_curve_goal.png`、`noise_ratio_curve_goal.png` 可作输入材料。
-- **图 3**：PushT n=18 sweep 上 `predictor_target_to_nn_cos_ratio_at_max_std` × eval drop 的散点 + 回归线（ρ=−0.89），LeWM/SWM 双 marker 区分 method-axis。底层数据来自 `canonical_correlations_20260508.json` + `cross_check_corr_n16_20260508.json`。
+- **图 3**：PushT n=9 LeWM sweep 上 `predictor_target_to_nn_cos_ratio_at_max_std` 双面板散点（左 vs clean，右 vs OOD drop），颜色编码 `std_max`，标注 Spearman ρ。底层数据来自每个 ckpt 的 `predictor_sensitivity.json` + `summary.txt`，0to006 用 retrained `_20260507`。
 - **图 4**：表 3 表征诊断条形/雷达图——4 任务 base vs best 在 6 个核心指标上的对比，视觉化 "压缩 vs 分辨率"的 task-specific 折衷。
 - **图 5（机制归因）**：3 层归因示意图（pixels → encoder → predictor → cost surface → planning），标注每层在 PushT 上的 ρ-贡献（4.6.2 数据）。
 - 已生成的辅助图（`assets/diagnostics/p0_correlation_*.png`、`predictor_drift_eval_correlation.png`、`geometry_tradeoff_goal.png` 等）可作 supplementary 或 §4 图表补充。
@@ -306,43 +300,39 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 | `predictor_rollout_T8_l2` | +0.22 / +0.23 | +0.68 / +0.79 | **−0.71 / −0.83** | +0.41 / +0.76 |
 | `cka_linear_at_max_std` | +0.58 / +0.29 | −0.08 / −0.02 | +0.92 / +0.68 | **−0.85 / −0.96** |
 
-**n=18 严格门槛**（LeWM 9 档 + SWM 9 档；通过条件 $|\rho_{n=18}|\geq 0.5 \wedge |\partial_{\rho|\text{std}}|\geq 0.5 \wedge |\partial_{\rho|\text{method}}|\geq 0.5$）：
+**n = 9 LeWM PushT sweep + 偏相关（条件于 `std_max`）**
 
-| 任务 | 指标 | $\rho_{n=18}$ | LeWM-only $\rho_{n=9}$ | SWM-only $\rho_{n=9}$ | $\partial_{\rho|\text{std}}$ | $\partial_{\rho|\text{method}}$ | n=8 $\rho$ | 通过 |
-|---|---|---:|---:|---:|---:|---:|---:|:---:|
-| PushT | `predictor_target_to_nn_cos_ratio_at_max_std` | **−0.89** | −0.73 | −0.69 | **−0.70** | **−0.91** | −0.90 | ✅ |
-| PushT | `latent_cost_surface_slope_z` | **+0.80** | +0.75 | +0.20 | +0.45 | **+0.90** | +0.76 | △ (边缘) |
-| PushT | `id_probe_r2` | +0.82 | +0.54 | +0.37 | +0.48 | +0.67 | +0.71 | △ (边缘) |
-| PushT | `predictor_rollout_T8_l2` | +0.74 | +0.24 | +0.58 | +0.34 | +0.78 | +0.83 | △ |
-| Cube | `cka_linear_at_max_std` | **−0.76** | −0.87 | −0.72 | **−0.80** | −0.65 | −0.96 | ✅ |
-| Cube | `noise_angle_slope_deg_per_std` | +0.75 | +0.85 | +0.72 | **+0.81** | +0.13 | +0.90 | △ (∂_method 失败) |
-| Cube | `clean_nn_cos_dist_median` | +0.71 | +0.58 | +0.49 | +0.60 | +0.66 | +0.79 | ✅ |
-| Reacher | `predictor_rollout_T8_l2` | −0.33 | −0.36 | −0.43 | −0.50 | −0.12 | −0.83 | ❌ (n=8 信号被 cluster 稀释) |
-| TwoRoom | `id_probe_r2` | −0.58 | — | — | −0.46 | −0.62 | −0.50 | △ (边缘) |
+最强的 per-token 诊断量 `predictor_target_to_nn_cos_ratio_at_max_std` 在 n=9 LeWM PushT sweep（含 3-seed retrained 0to006）上的完整画像：
 
-**解读分三点**：
+| 量 | Spearman ρ |
+|---|---:|
+| ρ(std_max, metric) | +0.83 |
+| ρ(std_max, clean) | −0.43 |
+| ρ(std_max, px+goal 0.08) | +0.82 |
+| ρ(std_max, OOD drop) | −0.93 |
+| ρ(metric, clean) — unconditional | **−0.73** |
+| ρ(metric, clean) ∣ std_max — partial | **−0.73** |
+| ρ(metric, px+goal 0.08) — unconditional | +0.55 |
+| ρ(metric, px+goal 0.08) ∣ std_max — partial | **−0.67** |
+| ρ(metric, OOD drop) — unconditional | −0.77 |
+| ρ(metric, OOD drop) ∣ std_max — partial | +0.13 |
 
-1. **严格通过的只有 3 个指标**（PushT 1 个、Cube 2 个）：`predictor_target_to_nn_cos_ratio_at_max_std`（PushT 主指标）、`cka_linear_at_max_std`（Cube 主指标）、`clean_nn_cos_dist_median`（Cube 次要指标）。**没有跨任务普适的诊断量**——这把 n=18 sweep 上跨任务 label-free predictor 的承诺收缩成 task-specific 推荐。
-2. **n=8 上的强信号在 n=18 上普遍稀释**：典型例子是 Reacher 的 `predictor_rollout_T8_l2`，n=8 ρ=−0.83 → n=18 ρ=−0.33。原因是 n=8 把 LeWM 4 + SWM 4 的 method-axis cluster 放大成 cross-method 相关，sweep 补齐 9 档后真正的 within-method 信号显示出来 |ρ|≤0.45。**这是 cross-method 严格门槛比 n=8 Spearman 严格的关键场景**。
-3. **`predictor_target_to_nn_cos_ratio_at_max_std` 在 PushT 上是唯一通过严格门槛的 per-token 诊断量**。它衡量的是：predictor 在 input noise 下被推离 clean target 的距离，相对于该 token 在 latent 空间中本来的邻域尺度。ratio > 1 意味着 noise 已经把 latent 推到原本不属于该状态的邻域——这正是 planning 失败的先兆。Cube 上 `cka_linear` 与 `clean_nn_cos_dist` 共同稳健通过，但二者均为 ckpt-level scalar，不像 PushT 主指标天然 per-token。Reacher 与 TwoRoom 上 **没有任何指标通过严格门槛**——paper 应承认这两个任务缺乏跨方法 label-free predictor，并把它作为开放问题列出（§5.3）。
+这张表决定了诊断 toolkit 的诚实解读：
+
+1. **同一训练协议下，该指标对 clean 和 OOD 性能都强相关**。Partial ρ 在 clean 上 **−0.73**，在 px+goal 0.08 上 **−0.67** —— 两个都是有意义的负相关。也即在**同 std_max** 下，fragility ratio 低的模型 clean 和 OOD 两端都更好。
+2. **该指标不预测训练协议层面的 OOD drop**。Unconditional ρ(metric, drop) = −0.77 看似很强，但条件于 std_max 后塌缩到 +0.13。drop 的强相关是 mediated effect：std_max 同时决定 metric (ρ=+0.83) 和 drop (ρ=−0.93)。固定 std_max 后，该指标无法预测 clean 与 OOD 的 gap。
+3. **实践读法**：toolkit 是 within-protocol 的模型选择工具。它**不是** OOD-specific 鲁棒性的替代品——当 OOD gap 本身是关心的量时，必须用 noise 训练，而不是依赖 cross-ckpt 诊断量。
 
 #### 4.5.5 该诊断量到底预测的是什么：clean vs OOD
 
-前述分析有一个关键 caveat 必须澄清：上述 "eval" Y 轴是 **clean 成功率**（每个 ckpt 的 `clean_300`），**不是 OOD drop**。把 n=18 PushT 数据按目标变量拆分：
+早期版本只报告该指标与"eval"的边际 ρ，内部文档曾把这条 finding 描述成"预测 OOD failure"；上面的偏相关分析展示了更准确的现实：
 
-| Y 轴目标 | $\rho_{n=18}$ combined | $\rho$ within-LeWM (n = 9) | $\rho$ within-SWM (n = 9) |
-|---|---:|---:|---:|
-| clean 成功率 | **−0.79** | **−0.82** | −0.55 |
-| px+goal 0.08 成功率 | −0.16 | +0.32 | −0.35 |
-| OOD drop (clean − px+g 0.08) | −0.30 | −0.77 | +0.27 |
+- 该指标是 **ckpt-quality 的强信号**——在**任何固定训练协议下**，fragility ratio 低意味着 clean 与 OOD 两端的控制成功率都更好（partial ρ 两端都 ≈ −0.7）。
+- 该指标**不能分离 noise-robustness**——它与 clean/OOD **gap** 的边际相关完全被 std_max 中介掉。
 
-within-LeWM 上 `ρ_drop = −0.77` 看似强，但**不是独立的 OOD 信号**——drop = clean − px08 而该指标的 clean 分量主导。看原始 per-ckpt 数据更清楚：LeWM-base (无 noise 训练) 与 LeWM-0to005-p1 (noise-trained) 的 fragility ratio 几乎一样（3.54e-6 vs 4.17e-6），但 drop 差 80pt（83.67 vs 4.00）。这个指标无法区分二者。
+图 3 双面板让两者都可见。Panel (a) plot metric × clean，强负斜率（Spearman ρ = −0.73）。Panel (b) plot metric × OOD drop，边际 ρ 仍 −0.77，但 colour-bar（编码 `std_max`）暴露了结构：低 std_max ckpt（浅蓝）位于高 drop，高 std_max ckpt（深蓝）位于低 drop，metric 沿 std_max 走。固定 std_max 后该指标无法区分小 drop 与大 drop。
 
-**诚实的 framing**：`predictor_target_to_nn_cos_ratio_at_max_std` 是 **跨 ckpt 强预测 clean 控制质量**的指标——也即 ckpt 整体训练质量。它**不是** OOD-specific 鲁棒性的预测量；OOD 鲁棒性主要由训练协议（是否见过 noise）决定，而不是任何单一 cross-ckpt 诊断量的变化。作为实用工具该指标能用于**在 clean 上选模型**（"哪个 ckpt planning 更好？"），但**不能**替代实际用 noise 训练当目标是 OOD 鲁棒性时。
-
-图 3 同时画两个 panel。Panel (a) 是文献中常见的 clean-rate 强相关；panel (b) 是大多数 n=8 单目标报告中被掩盖的 OOD-drop 弱相关。
-
-![Fig 3 — PushT n=18: fragility metric is a ckpt-quality predictor (a), not an OOD-specific predictor (b)](assets/paper1_figs/fig3_scatter.png)
+![Fig 3 — PushT n=9 LeWM sweep: fragility metric is a ckpt-quality predictor (a), the apparent OOD-drop correlation in (b) is mediated by std_max](assets/paper1_figs/fig3_scatter.png)
 
 ### 4.6 机制归因：噪声从哪一层进入失败链
 
@@ -350,13 +340,13 @@ within-LeWM 上 `ρ_drop = −0.77` 看似强，但**不是独立的 OOD 信号*
 
 #### 4.6.1 Eval-only cost swap：cost surface 不是主因
 
-如果失败主要来自 planning-time cost function 形态（例如 cosine cost 在噪声下饱和），那只换 cost 类型应能显著回升。我们用 TwoRoom SWM checkpoint 做 eval-only 对照（保持 ckpt 不变，仅在 CEM 推理时切换 cost）：
+如果失败主要来自 planning-time cost function 形态（例如 cosine cost 在噪声下饱和），那只换 cost 类型应能显著回升。我们用 TwoRoom checkpoint 做 eval-only 对照（保持 ckpt 不变，仅在 CEM 推理时切换 cost）：
 
 | 变体 | cost type | cost space | std=0.03 pix+goal 成功率 |
 |---|---|---|---:|
 | A (default) | cosine | normalized | 36.0 |
 | B (swap) | mse | raw | 42.0 |
-| —— reference: clean SWM (epoch 10, num_eval=300) | — | — | 69.7 |
+| —— 参考：同 ckpt clean eval (num_eval=300) | — | — | 69.7 |
 
 仅换 cost 仅回升 +6pt（36→42），远低于 clean 表现（69.7）。结论：**cost surface 不是主因**；upstream 的 noisy-goal embedding corruption 决定下界。
 
@@ -424,7 +414,7 @@ within-LeWM 上 `ρ_drop = −0.77` 看似强，但**不是独立的 OOD 信号*
 
 **边界 1：toolkit 在 clean 控制质量维度排序 ckpt，不是在 OOD-specific 鲁棒性维度。** §4.5.5 已经显示最强 cross-ckpt 诊断量（`predictor_target_to_nn_cos_ratio_at_max_std`）与 clean 强相关（ρ ≈ −0.8）但与 OOD drop 弱相关（ρ ≈ −0.3）。用该 toolkit 来从 sweep 中挑出**最好训练**的 ckpt；**不要**用它替代实际 OOD eval 当目标问题是鲁棒性时。
 
-**边界 2：per-state controllability variance 弱的任务出严格协议外。** Reacher（低维连续 reaching）和 TwoRoom（视觉冗余离散导航）**没有**任何指标通过 n=18 严格 cross-method 门槛（§4.5）。这两个任务 within-method 方差不足以让无标签指标区分"好"与"坏" ckpt。在 n=8 协议下这两个任务看似有强信号，但在更长 sweep 上信号坍塌——n=8 强度来自 method-axis cluster 假象，不是真正的 ckpt-quality predictor。
+**边界 2：per-state controllability variance 弱的任务出可靠协议外。** Reacher（低维连续 reaching）和 TwoRoom（视觉冗余离散导航）的诊断量与 eval 的 Spearman ρ 不能通过我们的偏相关判据。两个任务 within-method 方差不足以让无标签指标区分"好"与"坏" ckpt。Toolkit 能描述这两个任务的模型压缩了什么（表 3），但**不能**预测 ckpt 间相对质量。
 
 **边界 3：cross-ckpt 诊断量不能补救训练时未提供的信号。** OOD drop 的最大决定因素是模型训练时是否见过 noise——不是该模型在哪个 fragility 指标上得分如何。这是 ρ(指标, drop) 弱而 ρ(指标, clean) 强的结构性原因：noise vs no-noise 训练把每个 ckpt 放在完全不同的 (clean, OOD) 曲线上（图 6），**没有任何静态 cross-ckpt 诊断量**能替代这一训练时选择。
 
@@ -446,7 +436,7 @@ within-LeWM 上 `ρ_drop = −0.77` 看似强，但**不是独立的 OOD 信号*
 
 **局限 2：仅测试了高斯像素噪声。** 真实世界 visual corruption 还包括运动模糊、对比度变化、遮挡、光照变化等；本文的 trade-off 在这些场景的迁移性是 open question。
 
-**局限 3：诊断框架是经验工具，不是理论模型。** 当前指标基于跨 ckpt 相关性挑出；建立 "effective rank 下降 → resolution ratio 崩溃 → control failure" 的形式化因果链是未来方向。Reacher / TwoRoom 在 n=18 严格门槛下没有任何指标通过——这正暴露了 empirical 框架的边界。
+**局限 3：诊断框架是经验工具，不是理论模型。** 当前指标基于跨 ckpt 相关性挑出；建立 "effective rank 下降 → resolution ratio 崩溃 → control failure" 的形式化因果链是未来方向。Reacher 和 TwoRoom 在我们的偏相关判据下没有任何指标通过——这正暴露了 empirical 框架的边界。
 
 **局限 4：统计协议混合。** 部分行为 single-seed × 300 trajectories，部分为 3-seed × 100 trajectories（总样本量都是 300，但 across-seed variance 估计不同）。投稿 / arxiv v2 计划升级为统一 5-seed × 100 协议。
 
@@ -584,7 +574,7 @@ class AddNormalizedGaussianNoise:
 |---|---|---|---|
 | **图 1 (hero)** | 4 个子图竖排：每个任务一个；每子图三条 bar（clean / px+g 0.08 base / px+g 0.08 best）+ 任务名 | 表 1 + 表 2 | matplotlib horizontal bar + diverging color；ratio annotation |
 | **图 2 (sweep curve)** | 4 子图（任务） × 3 折线（clean / px+g 0.05 / px+g 0.08）；x = std_max | 表 2 | shared y-axis 0–100；mark per-task optimum vertical line |
-| **图 3 (scatter ρ=−0.89)** | 1 张散点 + 回归线；x = predictor_target_to_nn_cos_ratio_at_max_std (log scale), y = eval drop (clean − px+g0.08)；shape = method ({LeWM ○, SWM △}); color = std_max | `cross_check_corr_n16_20260508.json` | 标注 ρ_n18 = −0.89, ∂_std = −0.70, ∂_method = −0.91 |
+| **图 3 (双面板 scatter)** | 双面板：(a) metric × clean；(b) metric × OOD drop；x = predictor_target_to_nn_cos_ratio_at_max_std (log scale)；color = std_max | n=9 LeWM PushT ckpt 的 `predictor_sensitivity.json` + `summary.txt`（0to006 用 retrained `_20260507`）| panel (a) 标注 Spearman ρ = −0.73；panel (b) 标注 ρ = −0.77 但用 colour-bar 显示 std_max 中介效应 |
 | **图 4 (diagnostic radar)** | 4 任务 × 6 指标 radar；base vs best 叠层 | 表 3 | 6 个核心指标按"任务相关 vs 任务无关"分两组 |
 | **图 5 (mechanism flow)** | flow chart：pixels → encoder → predictor → cost → planning，每节点标注 ρ-贡献 | §4.6.2 | 用 graphviz/tikz；PushT 数据为主，其它任务作 sub-panel |
 
@@ -623,7 +613,7 @@ class AddNormalizedGaussianNoise:
 | **Latent Noise** | `cka_linear_at_max_std` | 0.1986 | 0.5536 | 0.3085 | 0.1814 | CKA clean vs noisy |
 | | `latent_cost_surface_slope_z` | 635.31 | 1.3886 | 599.45 | 0.6208 | goal latent 扰动 cost 斜率 |
 
-**8 档 sweep 完整数据**：LeWM/SWM 各 8 档（base + 0to001–0to008-p1）的逐档诊断原始值见 `research_notebook_swm.md` §5.2 及本地生成的 `canonical_evals_20260508.json`。
+**完整 sweep 数据**：LeWM 9 档（base + 0to001–0to008-p1）的逐档诊断原始值见本地生成的 `canonical_evals_20260508.json` 与 `canonical_correlations_20260508.json`。
 
 ---
 

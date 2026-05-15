@@ -6,17 +6,15 @@
 
 ## Abstract
 
-Joint-Embedding Predictive Architectures (JEPAs) are widely believed to learn abstract, invariant world representations: by predicting in latent space rather than reconstructing pixels, the encoder is expected to discard visual redundancy and noise on its own. Whether this belief holds for **JEPA + CEM** world-model pipelines on real visual control has not, to our knowledge, been systematically tested. We give such a test on **LeWorldModel (LeWM)**, a published JEPA world model, across four manipulation and navigation tasks (PushT, TwoRoom, Reacher, Cube) and eight levels of train-time pixel-noise augmentation. We find three things:
+Joint-Embedding Predictive Architectures (JEPAs) are commonly *believed* to learn abstract, invariant world representations: by predicting in latent space rather than reconstructing pixels, the encoder is expected to discard visual redundancy and noise. This expectation is a *community heuristic* rather than a published guarantee — to our knowledge no JEPA work formally claims pixel-noise robustness for control. We test the implicit assumption on **LeWorldModel (LeWM)**, a published JEPA world model, across four manipulation and navigation tasks (PushT, TwoRoom, Reacher, Cube) and eight levels of train-time pixel-noise augmentation. We find three things:
 
-1. **The "JEPA invariance" assumption fails in control.** Without noise-aware training, LeWM collapses under mild pixel noise: PushT control success drops from 87.33% (clean) to 3.67% (Gaussian std = 0.08, near-random); TwoRoom drops from 93.00% to 44.33%.
+1. **Visual OOD collapse in JEPA + CEM control.** Without noise-aware training, LeWM collapses under mild pixel noise: PushT control success drops from 87.33% (clean) to 3.67% (Gaussian std = 0.08, near-random); TwoRoom drops from 93.00% to 44.33%.
 
 2. **No global-optimal noise level exists.** Tasks respond very differently to noise augmentation. Visually redundant navigation (TwoRoom) benefits from heavy noise (best at std = 0.008), whereas contact-heavy control (PushT) reaches peak *clean* at std = 0.002 but peak *robustness* at std = 0.006 — clean and robust optima dissociate within a single task.
 
-3. **A five-layer diagnostic protocol explains the underlying mechanism.** By instrumenting encoder shift, encoder geometry, predictor sensitivity, latent-noise response, and task resolution, we trace noise-induced control failure to a representational chain: representation compression (drop in effective rank) → loss of transition-key resolution (drop in `transition_resolution_ratio`) → loss of controllability (drop in `id_probe_r²`).
+3. **A five-layer diagnostic protocol explains the underlying compression mechanism.** Instrumenting encoder shift, encoder geometry, predictor sensitivity, latent-noise response, and task resolution traces noise-induced control failure to a representational chain: representation compression (drop in effective rank) → loss of transition-key resolution (drop in `transition_resolution_ratio`) → loss of controllability (drop in `id_probe_r²`). However, when used as a **cross-checkpoint predictor**, the strongest single diagnostic (`predictor_target_to_nn_cos_ratio_at_max_std`) tracks **overall ckpt quality on clean inputs** — not OOD-specific robustness. That is, the diagnostic toolkit usefully ranks checkpoints by clean control fidelity, but does *not* substitute for actually training with noise when the goal is OOD robustness.
 
-We additionally report an instructive negative result: directly using a heteroscedastic NLL to reweight transitions by predicted error works for TwoRoom but is *catastrophic* for PushT — clean success rate collapses from 87.33% to 13.33% — because high-error transitions in contact control are precisely the critical contact frames and cannot be down-weighted automatically.
-
-This paper does not propose a new training algorithm. Its contribution is a systematic empirical and diagnostic study that establishes the behavioural boundaries of JEPA-based world models under realistic visual corruption, and an open-source toolkit for reproducing the diagnostic protocol.
+This paper does not propose a new training algorithm. Its contribution is (i) a systematic empirical study of JEPA + CEM visual OOD failure, (ii) a reproducible diagnostic toolkit, and (iii) an honest delineation of what cross-ckpt diagnostics can and cannot predict.
 
 **Keywords**: world models; JEPA; visual robustness; representation diagnostics; invariance–resolution trade-off.
 
@@ -24,15 +22,15 @@ This paper does not propose a new training algorithm. Its contribution is a syst
 
 ## 1 Introduction
 
-### 1.1 The promised invariance of JEPA and where it breaks
+### 1.1 The implicit invariance heuristic and where it breaks
 
-Since Yann LeCun proposed the Joint-Embedding Predictive Architecture (JEPA) [1], this paradigm has been advanced as a future direction for self-supervised learning. Unlike generative models (VAEs, diffusion), JEPA does not reconstruct pixels; it predicts future *representations* in latent space. The core intuition is that, by forcing the model to predict "what is invariant" rather than "what the pixels look like", the encoder spontaneously learns abstractions that discard visual redundancy and noise [2,3].
+Since Yann LeCun proposed the Joint-Embedding Predictive Architecture (JEPA) [1], this paradigm has been advanced as a direction for self-supervised learning. Unlike generative models (VAEs, diffusion), JEPA does not reconstruct pixels; it predicts future *representations* in latent space. The motivating intuition — that predicting "what is invariant" rather than "what pixels look like" should yield abstract representations that discard visual redundancy and noise — is now part of the field's *informal vocabulary* in talks, blog posts, and survey articles [2,3].
 
-The narrative has succeeded in image and video understanding. I-JEPA [2] and V-JEPA [3,4] obtained strong visual representations on ImageNet and video through masked prediction; LeWorldModel (LeWM) [5] further demonstrated that JEPA can be trained end-to-end as a stable world model and used for latent-space planning across four robotic control tasks.
+We emphasise that this is a heuristic rather than a published guarantee. To our knowledge, no JEPA paper has *formally claimed* visual-OOD robustness for control-relevant downstream tasks. I-JEPA [2] and V-JEPA [3,4] established strong visual representations on ImageNet and video via masked prediction; LeWorldModel (LeWM) [5] extended the framework to end-to-end stable world-model training across four robotic control tasks. Existing robustness studies have probed JEPA only on image classification (N-JEPA [8]), synthetic 1D distractors (VJEPA [9]), or medical ultrasound (US-JEPA [10]); none on **JEPA-based control** under realistic pixel noise.
 
-Yet the "natural invariance" assumption faces an unverified problem in control: **if the input image is degraded by sensor noise, lighting change, or camera jitter, does the JEPA world model still plan and act reliably?**
+This leaves a basic operational question open: **if the input image is degraded by sensor noise, lighting change, or camera jitter, does a JEPA + CEM world model still plan and act reliably?**
 
-Our data answer in the negative. On PushT (2D pushing), the untrained-with-noise LeWM achieves 87.33% on clean images but free-falls to 3.67% under Gaussian pixel noise of std = 0.08 — essentially random. TwoRoom (2D navigation) drops from 93.00% to 44.33%. This finding directly challenges the theoretical claim that JEPA acquires visual robustness through latent prediction alone.
+The data say no. On PushT (2D pushing), the untrained-with-noise LeWM achieves 87.33% on clean images but falls to 3.67% under Gaussian pixel noise of std = 0.08 — essentially random. TwoRoom (2D navigation) drops from 93.00% to 44.33%. Latent prediction alone does not, in this regime, confer the visual robustness the community heuristic would predict.
 
 ### 1.2 The core tension: no globally optimal noise level
 
@@ -42,7 +40,7 @@ A systematic sweep across four tasks at eight levels of `std_max ∈ {0.001, …
 
 - **TwoRoom** (visually redundant navigation): clean success rises monotonically with noise, peaking at std = 0.008 (98.33% / 98.67%).
 - **PushT** (contact-heavy manipulation): clean peaks at std = 0.002 (90.00%), but robustness at px+goal 0.08 peaks at std = 0.006 (87.00%) — clean and robust optima dissociate.
-- **Reacher** (continuous reaching): best at std = 0.006 (86.00% / 84.67%); low noise (0.001) actually hurts.
+- **Reacher** (continuous reaching): best at std = 0.006 (86.00% / 84.67%); very low noise (0.001) is statistically indistinguishable from base (55.67% vs 57.67%, within binomial sampling noise of ~2.9 pts at this protocol), with the inflection at std = 0.002 (jump to 80.33%). Reacher appears to need a *minimum* noise threshold before benefiting.
 - **Cube** (structured manipulation): noise sweep is weakest; no monotone trend on clean.
 
 This finding exposes a fundamental tension: **global noise augmentation cannot distinguish "background visual redundancy that should be made invariant" from "control-relevant features that should retain resolution".**
@@ -176,6 +174,8 @@ SWM shares with LeWM the backbone, history size, optimiser, and CEM inference pa
 
 **Training.** Each configuration is trained with 3 random seeds (42 / 43 / 44); each seed is evaluated on 100 trajectories.
 
+**Clean-metric definition.** All "clean" success rates reported in this paper use a unified `clean_300` baseline: the model is run for 300 trajectories without any input noise. For ckpts trained at single-seed × 300 we use the directly logged `clean_300` block in `summary.txt`; for ckpts trained at 3 seeds × 100 we average the three `clean_seed{42,43,44}` blocks (total 300 trajectories). PushT LeWM-base clean = **87.33%** in this paper follows this convention; the **86.00%** number reported in some earlier write-ups corresponds to the same ckpt at `num_eval = 150` and is not used in this paper. We retain the larger 300-trajectory budget throughout for consistency with the noise-eval protocol.
+
 **Hardware.** Single NVIDIA A100 (80 GB) GPU; training takes 2–4 hours per task per configuration.
 
 **Main figures.** This paper has 5 main figures rendered by `tools/paper1_figs.py` and stored in `assets/paper1_figs/`. Figure 1 (the hero) summarises the OOD cliff and per-task recovery, Figure 2 shows the per-task noise sweep, Figure 3 shows the n = 18 scatter that motivates our strongest diagnostic, Figure 4 shows the per-task diagnostic radar, and Figure 5 shows the three-layer mechanism attribution.
@@ -201,28 +201,50 @@ LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual s
 
 Table 2 reports the complete 8-level sweep across tasks.
 
-**Table 2. LeWM+noise sweep (4 tasks × clean + px+g 0.08).**
+**Table 2. LeWM+noise sweep (4 tasks × {clean, px+g 0.08}).** All values are success rate ± standard deviation (in pts). For 3-seed × 100 runs the std is the across-seed std-of-mean; for single-seed × 300 runs it is the binomial std `sqrt(p(1-p)/300)`. Each row's total sample budget is 300 trajectories.
 
-| std_max | TwoRoom clean | TwoRoom px+g 0.08 | PushT clean | PushT px+g 0.08 | Reacher clean | Reacher px+g 0.08 | Cube clean | Cube px+g 0.08 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 (base) | 93.00 | 44.33 | 87.33 |  3.67 | 57.67 | 14.67 | 72.33 | 52.33 |
-| 0.001 | 92.00 | 84.67 | 89.67 | 46.33 | 55.67 | 45.33 | 73.00 | 53.33 |
-| 0.002 | 94.33 | 91.00 | **90.00** | 70.67 | 80.33 | 80.67 | 64.67 | 63.00 |
-| 0.003 | 96.33 | 94.67 | 89.67 | 83.00 | 78.67 | 73.67 | 65.00 | 67.33 |
-| 0.004 | 96.33 | 95.00 | 89.33 | 81.33 | 84.00 | 80.00 | 69.00 | 67.00 |
-| 0.005 | 94.00 | 94.00 | 82.00 | 78.00 | 73.33 | 71.33 | 61.33 | 60.67 |
-| **0.006** | 96.67 | 96.67 | 89.33 | **87.00** | **86.00** | **84.67** | 66.67 | 65.00 |
-| 0.007 | 96.00 | 96.33 | 85.67 | 82.33 | 83.67 | 81.33 | 67.67 | 68.00 |
-| **0.008** | **98.33** | **98.67** | 88.33 | 85.33 | 84.00 | 83.00 | 62.33 | 60.33 |
+**(a) Clean success rate (%).**
+
+| std_max | TwoRoom | PushT | Reacher | Cube |
+|---|---:|---:|---:|---:|
+| 0 (base) | 93.00 ± 1.5 | 87.33 ± 1.9 | 57.67 ± 2.9 | 72.33 ± 2.6 |
+| 0.001 | 92.00 ± 1.6 | 89.67 ± 1.8 | 55.67 ± 2.9 | 73.00 ± 2.6 |
+| 0.002 | 94.33 ± 1.3 | **90.00 ± 1.7** | 80.33 ± 2.3 | 64.67 ± 2.8 |
+| 0.003 | 96.33 ± 2.3 | 89.67 ± 1.2 | 78.67 ± 0.9 | 65.00 ± 1.2 |
+| 0.004 | 96.33 ± 1.5 | 89.33 ± 1.5 | 84.00 ± 2.1 | 69.00 ± 2.7 |
+| 0.005 | 94.00 ± 1.4 | 82.00 ± 2.2 | 73.33 ± 2.6 | 61.33 ± 2.8 |
+| **0.006** | 96.67 ± 1.5 | 89.33 ± 1.5 | **86.00 ± 2.1** | 66.67 ± 1.5 |
+| 0.007 | 96.00 ± 1.2 | 85.67 ± 2.2 | 83.67 ± 2.3 | 67.67 ± 0.7 |
+| **0.008** | **98.33 ± 0.3** | 88.33 ± 2.0 | 84.00 ± 0.6 | 62.33 ± 0.9 |
+
+**(b) Pixels+goal noise std = 0.08 success rate (%).**
+
+| std_max | TwoRoom | PushT | Reacher | Cube |
+|---|---:|---:|---:|---:|
+| 0 (base) | 44.33 ± 2.9 |  3.67 ± 1.1 | 14.67 ± 2.0 | 52.33 ± 2.9 |
+| 0.001 | 84.67 ± 2.1 | 46.33 ± 2.9 | 45.33 ± 2.9 | 53.33 ± 2.9 |
+| 0.002 | 91.00 ± 1.7 | 70.67 ± 2.6 | 80.67 ± 2.3 | 63.00 ± 2.8 |
+| 0.003 | 94.67 ± 2.0 | 83.00 ± 2.7 | 73.67 ± 0.3 | 67.33 ± 1.3 |
+| 0.004 | 95.00 ± 1.7 | 81.33 ± 2.0 | 80.00 ± 1.0 | 67.00 ± 2.5 |
+| 0.005 | 94.00 ± 1.4 | 78.00 ± 2.4 | 71.33 ± 2.6 | 60.67 ± 2.8 |
+| **0.006** | 96.67 ± 1.8 | **87.00 ± 2.7** | **84.67 ± 2.9** | 65.00 ± 2.1 |
+| 0.007 | 96.33 ± 1.5 | 82.33 ± 3.3 | 81.33 ± 0.9 | 68.00 ± 1.0 |
+| **0.008** | **98.67 ± 0.7** | 85.33 ± 1.9 | 83.00 ± 3.1 | 60.33 ± 0.7 |
+
+Reading guidance: differences of ≤ 3 pts within a column are within ~1–2 std and should not be interpreted as meaningful; the **per-task optima** (bolded) sit ≥ 5 pts above their nearest neighbour in all four task columns.
 
 ![Fig 2 — Noise-training sweep: clean vs OOD per task; no single std_max is jointly optimal](assets/paper1_figs/fig2_sweep.png)
+
+The same sweep, plotted as a (clean, OOD) trajectory per task, makes the trade-off visually explicit (Figure 6): each task's sweep curve moves from base far below the y = x diagonal toward the upper-right, with per-task curvature determined by how much OOD gain a task can buy from a given drop in clean. TwoRoom moves nearly along the diagonal up to (98, 98); PushT moves vertically (clean stays around 87–90 while OOD rises from 4 to 87); Reacher makes a big diagonal jump from (58, 15) to (86, 85); Cube barely moves.
+
+![Fig 6 — Per-task Pareto trajectory of (clean, OOD) under noise sweep](assets/paper1_figs/fig6_pareto.png)
 
 **Three observations.**
 
 **(1) No single std_max is jointly optimal across tasks, and within a single task, clean and robustness optima can dissociate.**
 - TwoRoom peaks globally at std = 0.008 (98.33 / 98.67); clean rises monotonically with noise — visually redundant tasks benefit from heavy noise.
 - PushT peaks on clean at std = 0.002 (90.00), but on robustness (px+g 0.08) at std = 0.006 (87.00 vs. 0.002's 70.67; +16.33 pt). **Clean and robust optima dissociate within the task.**
-- Reacher peaks at std = 0.006 (86.00 / 84.67); low noise (0.001) actually hurts (clean 55.67), suggesting a minimum invariance pressure is needed for stable training.
+- Reacher peaks at std = 0.006 (86.00 / 84.67); the apparent dip at std = 0.001 (clean 55.67 vs base 57.67) is within the binomial sampling noise (≈2.9 pts) for this protocol, so the data only support **"low noise is statistically equivalent to base"**, not "low noise hurts". The inflection occurs at std = 0.002 (jump to 80.33), suggesting Reacher needs a *minimum* invariance threshold rather than gradient improvement.
 - Cube responds least to noise: clean is non-monotonic (peaks at std = 0.001 with 73.00), and px+g 0.08 improves only in the 0.003–0.007 range (67.33 vs. base 52.33). Structured manipulation is largely insensitive to global input noise.
 
 **(2) Per-task tuning is necessary, not optional.** Optimal std_max varies substantially across tasks: TwoRoom 0.008 (heavy), PushT clean 0.002 / robust 0.006, Reacher 0.006, Cube no clear optimum (~0.001). This delineates the boundary of global input-side noise: **it is the strongest "global" form of invariance pressure, but closing the OOD gap requires per-task tuning cost.**
@@ -290,7 +312,23 @@ Table 4 reports task-specific cross-ckpt correlations for the strongest candidat
 
 3. **`predictor_target_to_nn_cos_ratio_at_max_std` is the only strictly-passing per-token diagnostic on PushT.** It measures: predictor target shift under input noise divided by the token's local NN distance scale. A ratio above 1 means noise has pushed the latent beyond its original neighbourhood — a direct precursor to planning failure. On Cube, the two strict-passing metrics are ckpt-level scalars, not per-token like the PushT main metric. On Reacher and TwoRoom, **no metric passes the strict threshold** — the paper acknowledges these tasks lack a cross-method label-free predictor and lists this as an open problem (§5.3).
 
-![Fig 3 — PushT n=18: predictor_target_to_nn_cos_ratio is the strongest cross-ckpt diagnostic of clean success rate](assets/paper1_figs/fig3_scatter.png)
+#### 4.5.5 What this diagnostic actually predicts: clean vs OOD
+
+A crucial caveat that prior versions of this analysis glossed over: the "eval" axis above is **clean success rate** (`clean_300` from each ckpt's `summary.txt`), not OOD drop. Decomposing the same n = 18 PushT data shows the two are *not* interchangeable:
+
+| Target on Y | $\rho_{n=18}$ combined | $\rho$ within-LeWM (n = 9) | $\rho$ within-SWM (n = 9) |
+|---|---:|---:|---:|
+| clean success rate | **−0.79** | **−0.82** | −0.55 |
+| px+goal 0.08 success rate | −0.16 | +0.32 | −0.35 |
+| OOD drop (clean − px+g 0.08) | −0.30 | −0.77 | +0.27 |
+
+The within-LeWM `ρ_drop = −0.77` is *not* an independent OOD signal — it arises mechanically because `drop = clean − px08` and the metric's clean component dominates. Looking at the raw per-ckpt data clarifies this: LeWM-base (no-noise) and LeWM-0to005-p1 (noise-trained) have nearly identical fragility ratios (3.54e-6 vs 4.17e-6) but vastly different drops (83.67 vs 4.00). The metric cannot tell these apart.
+
+**The honest framing.** `predictor_target_to_nn_cos_ratio_at_max_std` is a strong **cross-checkpoint predictor of clean control fidelity** — i.e. of overall ckpt training quality. It is *not* a predictor of OOD-specific robustness, which is dominated by training protocol (whether the model saw noise) rather than by the cross-ckpt variation in any single diagnostic we identified. As a practical tool the metric is therefore useful for **model selection on clean data** ("which checkpoint will plan better?"), but does **not** substitute for actually training with noise when the goal is robust OOD behaviour.
+
+Figure 3 shows both panels side by side. Panel (a) is the strong clean-rate correlation that the prior literature surfaces; panel (b) is the much weaker OOD-drop correlation, which prior n = 8 single-target reporting hid.
+
+![Fig 3 — PushT n=18: fragility metric is a ckpt-quality predictor (a), not an OOD-specific predictor (b)](assets/paper1_figs/fig3_scatter.png)
 
 ### 4.6 Mechanism attribution: where in the pipeline does noise cause failure?
 
@@ -337,42 +375,6 @@ The common primary cause across the four tasks is **encoder shift transduced by 
 
 ![Fig 5 — Mechanism attribution: encoder shift transduced by predictor dominates; cost surface is not the bottleneck](assets/paper1_figs/fig5_mechanism.png)
 
-### 4.7 A negative result: why heteroscedastic-loss reweighting fails
-
-Beyond noise augmentation, another natural idea is to let the model itself learn which transitions are "hard" and adaptively reweight them. We tested this with scale-preserving heteroscedastic NLL.
-
-**Table 5. Heteroscedastic-loss evaluation.**
-
-| Task / model | Clean | goal 0.05 | pixels 0.05 | px+goal 0.05 | goal 0.08 | px+goal 0.08 |
-|---|---:|---:|---:|---:|---:|---:|
-| TwoRoom LeWM-base       | 93.00 | 71.00 | 70.33 | 62.33 | 55.67 | 44.33 |
-| TwoRoom LeWM+noise best | 98.33 | 98.00 | 98.33 | 98.00 | 98.67 | 98.67 |
-| TwoRoom hetero          | **99.67** | 85.33 | 96.67 | 84.67 | 73.33 | 55.33 |
-| PushT LeWM-base         | 87.33 | 38.00 | 17.33 | 15.00 | 15.00 |  3.67 |
-| PushT LeWM+noise best   | **90.00** | 85.00 | 87.67 | 86.00 | 83.00 | 70.67 |
-| **PushT hetero**        | **13.33** |  7.67 |  7.67 |  7.67 |  9.67 |  6.00 |
-
-**Reading.**
-- TwoRoom hetero hits 99.67 clean, consistent with the prior that low-dimensional discrete tasks benefit from stronger invariance / clustering. But it does not match noise training on high-noise robustness.
-- **PushT hetero clean is 13.33 — a method-level failure, not a robustness trade-off.**
-
-**Representation diagnostic of the failure (Table 6).**
-
-**Table 6. Hetero-loss representation diagnostics.**
-
-| Metric | TwoRoom base | TwoRoom hetero | PushT base | PushT hetero |
-|---|---:|---:|---:|---:|
-| `clean_nn_cos_dist_median` | 0.0449 | 0.0281 | 0.2360 | 0.1051 |
-| `clean_effective_rank`     | 47.60  | 33.59  | 76.42  | 42.85  |
-| `transition_resolution_ratio_l2` | 0.5538 | 0.3780 | 0.3015 | **0.1023** |
-| `id_probe_r2`              | 0.2889 | −0.0573 | 0.7739 | **0.2678** |
-| `action_mean_pred_shift_norm` | 0.5329 | 0.4482 | 0.1283 | 0.0841 |
-| `predictor_rollout_T8_l2`     | 18.62  | 17.90  | 18.65  | 14.01  |
-
-Hetero-loss compresses the representation in both tasks: smaller NN distance, lower effective rank, lower action-induced shift. For TwoRoom (low-dimensional, discrete, redundant), compression is acceptable and even helpful. For PushT (continuous contact, fine pose resolution), `transition_resolution_ratio_l2` collapses from 0.3015 to 0.1023 and `id_probe_r²` from 0.7739 to 0.2678 — **task-relevant state information is erased**. The drop in `predictor_rollout_T8_l2` is not good news either: the latent has become more predictable but less controllable; predictor stability has been purchased by sacrificing resolution.
-
-**The key lesson.** Direct hetero-loss training in this regime is **semantically successful but systemically broken**: the σ head does learn per-transition prediction difficulty, but using σ to downweight high-error transitions misclassifies precisely the contact-and-control-critical states of PushT as "unimportant" and erases them.
-
 ---
 
 ## 5 Discussion
@@ -402,7 +404,19 @@ Task-specificity explains why there is no single optimal noise level.
 
 This paper's scope is LeWM + CEM. Universalising the trade-off to "all latent compression world models" exceeds the present evidence.
 
-### 5.3 Practical guidance: how to choose `std_max` on a new task
+### 5.3 When the diagnostic toolkit works — and when it does not
+
+Three boundaries should be reported up-front so practitioners know when to use the toolkit and when to fall back to direct evaluation.
+
+**Boundary 1: the toolkit ranks ckpts by clean-control quality, not by OOD-specific robustness.** §4.5.5 shows the strongest cross-ckpt diagnostic (`predictor_target_to_nn_cos_ratio_at_max_std`) correlates strongly with clean success (ρ ≈ −0.8) but only weakly with OOD drop (ρ ≈ −0.3). Use the toolkit when you want to pick the *best-trained* checkpoint from a sweep; do *not* use it as a substitute for actually running an OOD eval if your downstream question is robustness.
+
+**Boundary 2: tasks with weak per-state controllability variance fall outside the toolkit's strict regime.** Reacher (low-dimensional continuous reaching) and TwoRoom (visually redundant discrete navigation) have *no* diagnostic that passes the n = 18 strict cross-method threshold (§4.5). Both tasks lack the within-method spread to distinguish "good" from "bad" ckpts via a label-free metric. In the n = 8 protocol these tasks appear to have strong signals, but those collapse on the larger sweep — the n = 8 strength is a method-axis cluster artefact, not a real ckpt-quality predictor.
+
+**Boundary 3: cross-ckpt diagnostics cannot recover what training did not provide.** The largest determinant of OOD drop is whether the model saw noise during training — not which fragility metric it happens to score on. This is the structural reason ρ(metric, drop) is weak even when ρ(metric, clean) is strong: noise vs no-noise training puts each ckpt on a completely different (clean, OOD) curve (cf. Fig 6), and *no static cross-ckpt diagnostic* can substitute for that training-time choice.
+
+The toolkit therefore has a precise scope: it is a **clean-evaluation auxiliary** that lets you select among ckpts on tasks with strong per-state controllability variance (PushT, Cube), assuming the training protocol is already fixed. It is not an OOD prediction oracle.
+
+### 5.4 Practical guidance: how to choose `std_max` on a new task
 
 Our sweep data suggest a simple operational recipe:
 
@@ -412,7 +426,7 @@ Our sweep data suggest a simple operational recipe:
 4. **Use two endpoints in eval.** Clean and max-noise; checking only one misses one of the two optima (PushT's clean optimum at 0.002 vs. robustness optimum at 0.006 is the clearest example).
 5. **Under compute budget,** a 4-level sweep (`{0.001, 0.003, 0.005, 0.007}`) already locates the optimum within ±0.001.
 
-### 5.4 Limitations and future directions
+### 5.5 Limitations and future directions
 
 **Limitation 1 — Single backbone family.** We validate on LeWM. Other JEPA variants (EMA-target I-JEPA / V-JEPA lineage; variational JEPA) may exhibit different noise responses.
 
@@ -421,6 +435,8 @@ Our sweep data suggest a simple operational recipe:
 **Limitation 3 — Diagnostic framework is empirical, not theoretical.** Our metrics are selected by cross-ckpt correlation. Establishing a formal causal chain "effective rank ↓ → resolution ratio ↓ → control failure" is future work. Reacher / TwoRoom fail the n = 18 strict threshold for *all* metrics — directly exposing where the empirical framework breaks down.
 
 **Limitation 4 — Mixed statistical protocol.** Some rows use single-seed × 300 trajectories and others 3-seed × 100 trajectories (total sample size 300 in both cases, but across-seed variance estimation differs). A unified 5-seed × 100 protocol upgrade is planned for the next version.
+
+**Limitation 5 — Automated transition reweighting is not a substitute for noise training.** As a sanity check we also tested a scale-preserving heteroscedastic-NLL formulation in which a learned per-transition σ-head downweights high-error transitions. The result is informative as a negative finding: TwoRoom clean reaches 99.67% but high-noise robustness lags noise training; PushT clean *collapses* from 87.33 to 13.33% because contact-control transitions have high prediction error and are exactly the transitions the σ-weighting would discard. Full data are reported in Appendix D. The lesson — "hard ≠ unimportant" in contact control — connects the trade-off documented here to the broader question of per-token controllers, which we leave to follow-up work.
 
 **Future direction 1 — Per-token adaptive consistency.** Our strongest diagnostic, `predictor_target_to_nn_cos_ratio_at_max_std`, is a ckpt-level scalar. Whether its per-token variant can serve as a per-token consistency controller is a separate methodological question (an investigation we have ongoing).
 
@@ -598,13 +614,49 @@ The full per-noise-level diagnostic values for the 8-level LeWM and SWM sweeps l
 
 ## Appendix C — Heteroscedastic-loss formulation
 
-The scale-preserving heteroscedastic NLL used in §4.7 is:
+The scale-preserving heteroscedastic NLL referenced in §5.5 (Limitation 5) and detailed in Appendix D is:
 
 $$
 \mathcal{L}_{\text{hetero}} = \tfrac{1}{2}\,\exp(-s_t)\,\|z_{t+1} - \hat z_{t+1}\|^2 + \tfrac{1}{2}\,s_t
 $$
 
-where $s_t$ is the σ-head-predicted log-variance. During training $\exp(-s_t)$ acts as an automatic weight: high-error transitions are down-weighted and low-error ones are up-weighted.
+where $s_t$ is the σ-head-predicted log-variance. During training $\exp(-s_t)$ acts as an automatic weight: high-error transitions are down-weighted and low-error ones are up-weighted. When $s_t \equiv 0$ the loss reduces to plain MSE.
+
+---
+
+## Appendix D — Heteroscedastic-loss negative result (data)
+
+This appendix records the full data behind §5.5 Limitation 5. The σ-head is trained jointly with the predictor; gradient is detached on the σ path so the mean prediction path is exactly LeWM MSE when σ is constant.
+
+**Table D.1. Heteroscedastic-loss eval.**
+
+| Task / model | Clean | goal 0.05 | pixels 0.05 | px+goal 0.05 | goal 0.08 | px+goal 0.08 |
+|---|---:|---:|---:|---:|---:|---:|
+| TwoRoom LeWM-base       | 93.00 | 71.00 | 70.33 | 62.33 | 55.67 | 44.33 |
+| TwoRoom LeWM+noise best | 98.33 | 98.00 | 98.33 | 98.00 | 98.67 | 98.67 |
+| TwoRoom hetero          | **99.67** | 85.33 | 96.67 | 84.67 | 73.33 | 55.33 |
+| PushT LeWM-base         | 87.33 | 38.00 | 17.33 | 15.00 | 15.00 |  3.67 |
+| PushT LeWM+noise best   | **90.00** | 85.00 | 87.67 | 86.00 | 83.00 | 70.67 |
+| **PushT hetero**        | **13.33** |  7.67 |  7.67 |  7.67 |  9.67 |  6.00 |
+
+**Reading.** TwoRoom hetero reaches 99.67% clean (consistent with the prior that low-dimensional discrete tasks benefit from stronger invariance / clustering) but lags noise training on high-noise robustness. **PushT hetero clean is 13.33% — a method-level failure**, not a robustness trade-off.
+
+**Table D.2. Representation diagnostics of the failure.**
+
+| Metric | TwoRoom base | TwoRoom hetero | PushT base | PushT hetero |
+|---|---:|---:|---:|---:|
+| `clean_nn_cos_dist_median` | 0.0449 | 0.0281 | 0.2360 | 0.1051 |
+| `clean_effective_rank`     | 47.60  | 33.59  | 76.42  | 42.85  |
+| `transition_resolution_ratio_l2` | 0.5538 | 0.3780 | 0.3015 | **0.1023** |
+| `id_probe_r2`              | 0.2889 | −0.0573 | 0.7739 | **0.2678** |
+| `action_mean_pred_shift_norm` | 0.5329 | 0.4482 | 0.1283 | 0.0841 |
+| `predictor_rollout_T8_l2`     | 18.62  | 17.90  | 18.65  | 14.01  |
+
+Hetero-loss compresses the representation in both tasks. For TwoRoom (low-dimensional, discrete, redundant), compression is acceptable. For PushT, `transition_resolution_ratio_l2` collapses from 0.3015 to 0.1023 and `id_probe_r²` from 0.7739 to 0.2678 — task-relevant state information is erased. The drop in `predictor_rollout_T8_l2` is not good news either: the latent has become more *predictable* without being more *controllable*.
+
+**The mechanism.** The σ-head correctly learns per-transition difficulty (high σ on contact frames in PushT, on doorway crossings in TwoRoom, etc.), but using σ as an automatic weight to *down*weight high-error transitions misclassifies the contact-and-control-critical states of PushT as "unimportant" and erases them. This is a direct demonstration of the broader trade-off lesson: in contact-heavy control, **hard ≠ unimportant**.
+
+This finding motivates a follow-up direction we are currently exploring: per-token *consistency* (not loss-reweighting) controllers driven by detached difficulty signals, which preserve the mean prediction path's gradient distribution. That work is independent of this paper's diagnostic study and will be reported separately.
 
 ---
 

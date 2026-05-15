@@ -380,9 +380,9 @@ def fig3_scatter(out_path: Path, data_root: Path):
     for label, method, std, ck in ckpts:
         ratio = _read_predictor_target_ratio(Path(ck))
         ev = _read_eval_metrics(Path(ck))
-        if math.isnan(ratio) or math.isnan(ev["clean"]):
+        if math.isnan(ratio) or math.isnan(ev["clean"]) or math.isnan(ev["px08"]):
             continue
-        rows.append((label, method, std, ratio, ev["clean"]))
+        rows.append((label, method, std, ratio, ev["clean"], ev["px08"]))
     if len(rows) < 6:
         print(f"  WARN: only {len(rows)} valid PushT ckpts; skipping fig3")
         return
@@ -390,60 +390,84 @@ def fig3_scatter(out_path: Path, data_root: Path):
     lewm = [r for r in rows if r[1] == "LeWM"]
     swm = [r for r in rows if r[1] == "SWM"]
 
-    fig, ax = plt.subplots(figsize=(5.6, 4.2))
+    # Two side-by-side panels: vs clean (strong correlation) | vs OOD drop (weak)
+    fig, (ax_clean, ax_drop) = plt.subplots(1, 2, figsize=(10.5, 4.3))
 
-    def _scatter(group, marker, cmap, label):
+    def _scatter(ax_, group, y_idx, marker, cmap, label):
         if not group:
             return
         xs = [g[3] for g in group]
-        ys = [g[4] for g in group]
+        ys = [g[y_idx] if y_idx != "drop" else g[4] - g[5] for g in group]
         stds = [g[2] for g in group]
-        ax.scatter(xs, ys, marker=marker, s=85,
-                   c=stds, cmap=cmap, edgecolor="black", linewidth=0.6,
-                   vmin=0, vmax=0.008, label=label)
+        ax_.scatter(xs, ys, marker=marker, s=80,
+                    c=stds, cmap=cmap, edgecolor="black", linewidth=0.5,
+                    vmin=0, vmax=0.008, label=label)
 
-    _scatter(lewm, "o", "Blues", f"LeWM (n={len(lewm)})")
-    _scatter(swm, "^", "Reds",  f"SWM (n={len(swm)})")
+    # --- Panel 1: vs clean ---
+    _scatter(ax_clean, lewm, 4, "o", "Blues", f"LeWM (n={len(lewm)})")
+    _scatter(ax_clean, swm, 4, "^", "Reds",   f"SWM (n={len(swm)})")
+    xs_all = np.array([r[3] for r in rows])
+    cleans = np.array([r[4] for r in rows])
+    logxs = np.log10(xs_all)
+    p = np.polyfit(logxs, cleans, 1)
+    xf = np.linspace(logxs.min() - 0.1, logxs.max() + 0.1, 50)
+    ax_clean.plot(10 ** xf, p[0] * xf + p[1], "k--", linewidth=1.0, alpha=0.6)
+    rho_c_all = _spearman(xs_all, cleans)
+    rho_c_lewm = _spearman(np.array([g[3] for g in lewm]), np.array([g[4] for g in lewm]))
+    rho_c_swm = _spearman(np.array([g[3] for g in swm]),  np.array([g[4] for g in swm]))
+    ax_clean.text(0.04, 0.04,
+                  f"Spearman ρ (clean):\n"
+                  f"  n=18 combined: {rho_c_all:+.2f}\n"
+                  f"  within-LeWM:   {rho_c_lewm:+.2f}\n"
+                  f"  within-SWM:    {rho_c_swm:+.2f}",
+                  transform=ax_clean.transAxes, va="bottom", ha="left",
+                  bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
+                            edgecolor="gray", alpha=0.92), fontsize=8,
+                  family="DejaVu Sans Mono")
+    ax_clean.set_xscale("log")
+    ax_clean.set_xlabel(r"$\mathtt{predictor\_target\_to\_nn\_cos\_ratio}$")
+    ax_clean.set_ylabel("PushT clean success rate (%)")
+    ax_clean.set_title("(a)  vs clean success — strong cross-ckpt signal",
+                       fontsize=10, loc="left", pad=8)
+    ax_clean.grid(alpha=0.25, linewidth=0.4)
+    ax_clean.legend(loc="upper right", frameon=False, fontsize=8.5)
 
-    xs = np.array([r[3] for r in rows])
-    ys = np.array([r[4] for r in rows])
-    mask = (xs > 0)
-    logxs = np.log10(xs[mask])
-    yy = ys[mask]
+    # --- Panel 2: vs OOD drop ---
+    drops = cleans - np.array([r[5] for r in rows])
+    _scatter(ax_drop, lewm, "drop", "o", "Blues", None)
+    _scatter(ax_drop, swm, "drop", "^", "Reds",   None)
+    p2 = np.polyfit(logxs, drops, 1)
+    ax_drop.plot(10 ** xf, p2[0] * xf + p2[1], "k--", linewidth=1.0, alpha=0.6)
+    rho_d_all = _spearman(xs_all, drops)
+    rho_d_lewm = _spearman(np.array([g[3] for g in lewm]),
+                           np.array([g[4] - g[5] for g in lewm]))
+    rho_d_swm = _spearman(np.array([g[3] for g in swm]),
+                          np.array([g[4] - g[5] for g in swm]))
+    ax_drop.text(0.04, 0.96,
+                 f"Spearman ρ (OOD drop = clean − px+g 0.08):\n"
+                 f"  n=18 combined: {rho_d_all:+.2f}\n"
+                 f"  within-LeWM:   {rho_d_lewm:+.2f}\n"
+                 f"  within-SWM:    {rho_d_swm:+.2f}",
+                 transform=ax_drop.transAxes, va="top", ha="left",
+                 bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
+                           edgecolor="gray", alpha=0.92), fontsize=8,
+                 family="DejaVu Sans Mono")
+    ax_drop.set_xscale("log")
+    ax_drop.set_xlabel(r"$\mathtt{predictor\_target\_to\_nn\_cos\_ratio}$")
+    ax_drop.set_ylabel("PushT eval drop  (clean − px+g 0.08, pts)")
+    ax_drop.set_title("(b)  vs OOD drop — weak / dominated by training protocol",
+                      fontsize=10, loc="left", pad=8)
+    ax_drop.grid(alpha=0.25, linewidth=0.4)
 
-    # Linear fit on (log x, y)
-    p = np.polyfit(logxs, yy, 1)
-    xf = np.linspace(logxs.min() - 0.2, logxs.max() + 0.2, 60)
-    ax.plot(10 ** xf, p[0] * xf + p[1], "k--", linewidth=1.0, alpha=0.7,
-            label=f"linear fit on log x (slope={p[0]:.1f})")
-
-    # Spearman ρ on (ratio, clean) — matches §5.4 protocol (clean_300 metric)
-    rho_all = _spearman(np.array(xs), np.array(ys))
-    rho_lewm = _spearman(np.array([g[3] for g in lewm]),
-                         np.array([g[4] for g in lewm])) if len(lewm) >= 3 else float("nan")
-    rho_swm = _spearman(np.array([g[3] for g in swm]),
-                        np.array([g[4] for g in swm])) if len(swm) >= 3 else float("nan")
-    ax.text(0.04, 0.04,
-            f"Spearman ρ (n=18, combined): {rho_all:+.2f}\n"
-            f"   within-LeWM (n={len(lewm)}): {rho_lewm:+.2f}\n"
-            f"   within-SWM  (n={len(swm)}): {rho_swm:+.2f}",
-            transform=ax.transAxes, va="bottom", ha="left",
-            bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
-                      edgecolor="gray", alpha=0.92), fontsize=8.5,
-            family="DejaVu Sans Mono")
-
-    ax.set_xscale("log")
-    ax.set_xlabel(r"$\mathtt{predictor\_target\_to\_nn\_cos\_ratio}$  (max-std=0.1, history-only)")
-    ax.set_ylabel("PushT clean success rate (%)")
-    ax.set_title("Fig. 3. PushT n=18: strongest cross-ckpt diagnostic of clean success",
-                 loc="left", pad=10)
-    ax.grid(alpha=0.25, linewidth=0.4)
-    ax.legend(loc="upper right", frameon=False, fontsize=8.5)
+    fig.suptitle("Fig. 3. PushT n=18: fragility metric is a ckpt-quality predictor (a), "
+                 "not an OOD-specific predictor (b)",
+                 x=0.01, y=1.02, ha="left", fontsize=11)
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
-    print(f"  wrote {out_path} (n={len(rows)} ckpts; ρ_all={rho_all:+.2f}, "
-          f"ρ_LeWM={rho_lewm:+.2f}, ρ_SWM={rho_swm:+.2f})")
+    print(f"  wrote {out_path} (n={len(rows)} ckpts;  "
+          f"ρ_clean: all={rho_c_all:+.2f}, LeWM={rho_c_lewm:+.2f}, SWM={rho_c_swm:+.2f}  |  "
+          f"ρ_drop: all={rho_d_all:+.2f}, LeWM={rho_d_lewm:+.2f}, SWM={rho_d_swm:+.2f})")
 
 
 # ============================================================================
@@ -595,6 +619,60 @@ def fig5_mechanism(out_path: Path):
 
 
 # ============================================================================
+# Figure 6 — Pareto frontier: (clean, px+g 0.08) per (task, std_max)
+# Each task gets a connected curve; markers coloured by std_max.
+# ============================================================================
+
+def fig6_pareto(out_path: Path):
+    fig, ax = plt.subplots(figsize=(6.4, 5.2))
+    colors = {"TwoRoom": "#4477AA", "PushT": "#EE6677",
+              "Reacher": "#228833", "Cube": "#CCBB44"}
+    markers = {"TwoRoom": "o", "PushT": "s", "Reacher": "^", "Cube": "D"}
+
+    for task in ["TwoRoom", "PushT", "Reacher", "Cube"]:
+        xs = SWEEP[task]["clean"]
+        ys = SWEEP[task]["px08"]
+        ax.plot(xs, ys, "-", color=colors[task], linewidth=1.0, alpha=0.6)
+        # mark base (std=0) separately
+        ax.scatter(xs[0], ys[0], s=90, marker=markers[task],
+                   facecolor="white", edgecolor=colors[task],
+                   linewidth=1.5, zorder=4,
+                   label=f"{task} (base, σ=0)")
+        # mark sweep points
+        for x, y, s in zip(xs[1:], ys[1:], SWEEP_STDS[1:]):
+            ax.scatter(x, y, s=55, marker=markers[task],
+                       color=colors[task], alpha=0.55 + 0.05 * SWEEP_STDS[1:].index(s),
+                       edgecolor="black", linewidth=0.3, zorder=3)
+        # mark per-task best (the configuration that's reported)
+        best_std = EVAL_BEST[task]["std"]
+        if best_std in SWEEP_STDS:
+            i = SWEEP_STDS.index(best_std)
+            ax.scatter(xs[i], ys[i], s=180, marker=markers[task],
+                       facecolor="none", edgecolor=colors[task],
+                       linewidth=2.0, zorder=5)
+
+    # Diagonal y=x — ckpts on or above this diagonal are "robust ≥ clean"
+    lo, hi = 0, 100
+    ax.plot([lo, hi], [lo, hi], "--", color="gray", linewidth=0.8, alpha=0.5)
+    ax.text(95, 97, "y = x", color="gray", fontsize=8, alpha=0.7,
+            ha="right", va="bottom")
+
+    ax.set_xlim(0, 105)
+    ax.set_ylim(0, 105)
+    ax.set_xlabel("Clean success rate (%)")
+    ax.set_ylabel("OOD success rate (%)  —  px+g 0.08")
+    ax.set_title("Fig. 6. Per-task Pareto trajectory of (clean, OOD) under noise sweep\n"
+                 "(open marker = base; solid markers = std_max sweep; ringed marker = per-task best)",
+                 loc="left", fontsize=10, pad=10)
+    ax.grid(alpha=0.25, linewidth=0.4)
+    ax.legend(loc="lower right", frameon=False, fontsize=8.5, ncol=2)
+    fig.tight_layout()
+    fig.savefig(out_path)
+    plt.close(fig)
+    print(f"  wrote {out_path}")
+
+
+# ============================================================================
 # Entry point
 # ============================================================================
 
@@ -605,7 +683,7 @@ def main():
     ap.add_argument("--data-root",
                     default="/home/ag/dataset/ag_data/data/world_model/quentinll",
                     help="root of ckpt directories (lewm-pusht/, lewm-cube/, ...)")
-    ap.add_argument("--only", nargs="+", choices=["1", "2", "3", "4", "5"],
+    ap.add_argument("--only", nargs="+", choices=["1", "2", "3", "4", "5", "6"],
                     help="render only these figures (default: all)")
     args = ap.parse_args()
 
@@ -617,7 +695,7 @@ def main():
     _setup_style()
     print(f"Output dir: {out_dir}")
     print(f"Data root:  {data_root}")
-    selected = set(args.only or ["1", "2", "3", "4", "5"])
+    selected = set(args.only or ["1", "2", "3", "4", "5", "6"])
 
     if "1" in selected:
         fig1_hero(out_dir / "fig1_hero.png")
@@ -629,6 +707,8 @@ def main():
         fig4_radar(out_dir / "fig4_radar.png")
     if "5" in selected:
         fig5_mechanism(out_dir / "fig5_mechanism.png")
+    if "6" in selected:
+        fig6_pareto(out_dir / "fig6_pareto.png")
 
     print("done.")
 

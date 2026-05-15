@@ -9,17 +9,15 @@
 
 ## 摘要
 
-Joint-Embedding Predictive Architectures (JEPA) 被寄予厚望——通过在潜空间而非像素空间做预测，它们被预期能天然抛弃视觉冗余与噪声，学习到世界的抽象不变结构。然而，这一理论假设在 JEPA + CEM world-model 这条特定 pipeline 上、在真实控制任务里是否成立，**就我们所知尚未被系统验证过**。本文对 LeWorldModel (LeWM)——一个公开发表的 JEPA 世界模型——在视觉噪声下的控制性能给出了一项系统诊断研究。我们在四个机器人控制任务（PushT、TwoRoom、Reacher、Cube）上进行了 8 档噪声强度的训练时增广扫参，揭示了三个核心发现：
+Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉**所推动——通过在潜空间而非像素空间做预测，它们应该自然抛弃视觉冗余与噪声，学习到世界的抽象不变结构。需要强调的是，这是一条**社区通行的启发**，而非任何 JEPA 论文形式化 claim 过的保证——就我们所知，没有任何 JEPA 工作正式承诺控制任务下的像素噪声鲁棒性。我们在 **LeWorldModel (LeWM)**——一个公开发表的 JEPA 世界模型——上系统验证这条隐含假设，覆盖四个机器人控制任务（PushT、TwoRoom、Reacher、Cube）以及 8 档训练时噪声增广，揭示了三个核心发现：
 
-（1）**JEPA 的"不变性幻觉"**：未经噪声训练的 LeWM 在轻微像素噪声（std=0.08）下控制成功率暴跌，PushT 从 87.33% 跌至 3.67%（接近随机），证明 latent prediction 本身并不足以产生视觉鲁棒性；
+（1）**JEPA + CEM 在视觉 OOD 下的崩溃**：未经噪声训练的 LeWM 在轻微像素噪声（std=0.08）下控制成功率暴跌，PushT 从 87.33% 跌至 3.67%（接近随机），TwoRoom 从 93.00% 跌至 44.33%。latent prediction 本身在此情境下并不提供视觉鲁棒性。
 
-（2）**不存在全局最优噪声**：不同任务对噪声增广的响应截然不同。视觉冗余型任务（TwoRoom）可从重噪声中获益（最优 std=0.008），而接触控制型任务（PushT）在轻噪声（std=0.002）下 clean 性能最优，但 robustness 最优需 std=0.006——clean 与 robustness 的最优剂量分离；
+（2）**不存在全局最优噪声**：不同任务对噪声增广的响应截然不同。视觉冗余型任务（TwoRoom）可从重噪声中获益（最优 std=0.008），而接触控制型任务（PushT）在轻噪声（std=0.002）下 clean 性能最优，但 robustness 最优需 std=0.006——clean 与 robustness 的最优剂量分离。
 
-（3）**诊断框架揭示深层机制**：我们提出了一套五层诊断协议（编码器偏移、编码器几何、预测器敏感性、潜空间噪声响应、任务分辨率），系统量化了噪声引起的表征压缩（effective rank 下降）、关键帧分辨率丢失（transition resolution ratio 崩溃）与可控性退化（ID probe R² 下降）之间的因果链。
+（3）**五层诊断协议揭示压缩机制**：通过编码器偏移、编码器几何、预测器敏感性、潜空间噪声响应、任务分辨率五层指标，我们将噪声引起的控制失败追溯到一条表征链：表征压缩（effective rank 下降）→ 关键帧分辨率丢失（transition resolution ratio 崩溃）→ 可控性退化（id_probe_r² 下降）。但作为**跨 checkpoint 预测量**使用时，最强的单一诊断量（`predictor_target_to_nn_cos_ratio_at_max_std`）追踪的是 **ckpt 在 clean 上的整体训练质量**——**而非 OOD-specific 的鲁棒性**。也就是说，诊断 toolkit 能在 clean 性能维度上排序 checkpoint，但**不能替代实际用 noise 训练**当目标是 OOD 鲁棒性时。
 
-此外，我们报道了一个重要的负结果：直接异方差损失 reweighting（用预测不确定性 σ 自动调节各 transition 的学习权重）在 TwoRoom 上有效，但在 PushT 上导致 clean 成功率从 87.33% 暴跌至 13.33%——证明"硬吃"高误差的 transition 往往是控制的关键帧（如接触点），不能简单降权。
-
-本研究不提出新的训练算法，而是提供了一套系统性的经验分析与诊断工具，为理解 JEPA 世界模型在真实噪声环境下的行为边界奠定了基础。
+本研究不提出新的训练算法，贡献为：(i) JEPA + CEM 视觉 OOD 失败的系统经验研究；(ii) 一套可复现的诊断 toolkit；(iii) 对 cross-ckpt 诊断量"能预测什么、不能预测什么"的诚实划界。
 
 **关键词**：世界模型；JEPA；视觉鲁棒性；表征诊断；不变性-分辨率权衡
 
@@ -29,13 +27,13 @@ Joint-Embedding Predictive Architectures (JEPA) 被寄予厚望——通过在�
 
 ### 1.1 JEPA 的不变性承诺与现实差距
 
-自 Yann LeCun 提出 Joint-Embedding Predictive Architecture (JEPA) [1] 以来，这一范式被视为自监督学习的未来方向。与生成式模型（VAE、扩散模型）不同，JEPA 不重建像素，而是在潜空间预测未来的表征。其核心直觉是：通过迫使模型预测"什么会不变"而非"像素长什么样"，编码器将自发学习到抛弃视觉冗余和噪声的抽象表征 [2,3]。
+自 Yann LeCun 提出 Joint-Embedding Predictive Architecture (JEPA) [1] 以来，这一范式被推荐为自监督学习的方向。与生成式模型（VAE、扩散模型）不同，JEPA 不重建像素，而是在潜空间预测未来的表征。"通过预测什么不变而非像素长什么样可以让编码器自发学到抛弃视觉冗余和噪声的抽象表征"——这条直觉如今已是社区**非正式词汇**的一部分（出现在 talks、blog、综述中）[2,3]。
 
-这一叙事在图像和视频理解任务中取得了显著成功。I-JEPA [2] 和 V-JEPA [3,4] 在 ImageNet 与视频任务上通过掩码预测学习到了强大的视觉表征；LeWorldModel (LeWM) [5] 进一步证明，JEPA 可以稳定地端到端训练世界模型，并在机器人控制任务中实现高效的潜空间规划。
+我们强调这是一条**启发**而非已发表的保证。就我们所知，没有任何 JEPA 论文**正式 claim** 过下游控制任务的视觉 OOD 鲁棒性。I-JEPA [2] 和 V-JEPA [3,4] 在 ImageNet 与视频任务上通过掩码预测建立了强表征；LeWorldModel (LeWM) [5] 把框架扩展到端到端稳定的世界模型训练，覆盖 4 个机器人控制任务。现有的 JEPA 鲁棒性研究只覆盖图像分类（N-JEPA [8]）、合成 1D distractor（VJEPA [9]）、或医学超声（US-JEPA [10]）——**没有人在真实像素噪声下研究 JEPA-based 控制**。
 
-然而，JEPA 的"天然不变性"假设在控制任务中面临一个根本性的未验证问题：**如果输入图像被传感器噪声、光照变化或摄像头抖动破坏，JEPA 世界模型是否仍能保持可靠的规划和控制？**
+这就留下一个基本的操作性问题：**如果输入图像被传感器噪声、光照变化或摄像头抖动破坏，JEPA + CEM 世界模型是否仍能可靠规划和控制？**
 
-我们的实验数据给出了否定的答案。在 PushT（2D 推物控制）任务上，未经噪声训练的 LeWM 在 clean 图像上成功率高达 87.33%，但当测试时加入 std=0.08 的高斯像素噪声，成功率自由落体至 3.67%——接近随机水平。TwoRoom（2D 导航）任务上，成功率从 93.00% 跌至 44.33%。这一发现直接挑战了"JEPA 通过 latent prediction 天然获得视觉鲁棒性"的理论假设。
+数据给出了否定的答案。在 PushT（2D 推物控制）任务上，未经噪声训练的 LeWM 在 clean 图像上成功率达 87.33%，但 std=0.08 的高斯像素噪声下跌至 3.67%——接近随机。TwoRoom（2D 导航）任务从 93.00% 跌至 44.33%。在此情境下，latent prediction 本身并未带来社区直觉所预期的视觉鲁棒性。
 
 ### 1.2 核心矛盾：全局噪声增广的最优剂量不存在
 
@@ -45,7 +43,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被寄予厚望——通过在�
 
 - **TwoRoom**（视觉冗余型导航）：clean 性能随噪声单调上升，在 std=0.008 达到最优（98.33% / 98.67%）
 - **PushT**（接触控制型操作）：clean 最优在 std=0.002（90.00%），但 robustness（px+goal 0.08）最优在 std=0.006（87.00%）——clean 与 robustness 的最优剂量分离
-- **Reacher**（运动规划）：最优在 std=0.006（86.00% / 84.67%），低噪声反而损害性能
+- **Reacher**（运动规划）：最优在 std=0.006（86.00% / 84.67%）；极轻噪声（0.001）在统计上与 base 等价（55.67% vs 57.67%，差距 2pt 处于 ~2.9pt 的 binomial sampling noise 内），真正的拐点在 std=0.002（跃升到 80.33%），说明该任务需要一个**最小噪声门槛**才开始受益
 - **Cube**（结构化操作）：噪声 sweep 效果最弱，clean 没有单调提升趋势
 
 这一发现揭示了一个根本性的张力：**全局噪声增广无法区分"应该被不变性丢弃的视觉背景冗余"和"应该被保留分辨率的控制关键特征"**。
@@ -187,6 +185,8 @@ SWM 与 LeWM 共享 backbone、history size、optimizer、CEM 推理路径——
 
 **硬件**：单 GPU（NVIDIA A100），训练约 2-4 小时/任务/配置。
 
+**Clean metric 定义**：本文所有 "clean" 成功率统一采用 **`clean_300`** 协议：模型在无噪声下跑 300 trajectories。对于单 seed × 300 训练的 ckpt 直接读取 `summary.txt` 的 `clean_300` block；对于 3 seeds × 100 训练的 ckpt 取三个 `clean_seed{42,43,44}` block 的均值（总 trajectory 数 300）。PushT LeWM-base clean = **87.33%** 即按此协议；早期版本中出现的 **86.00%** 对应同一 ckpt 在 `num_eval = 150` 下的数值，本文不使用。所有 eval 协议统一 300 trajectories 预算。
+
 **主要图表清单**（详 §A.6）：
 
 - **图 1（hero）**：4 任务 LeWM-base 的 clean 与 px+goal 0.08 成功率条形图，叠加 noise sweep 后最优配置的成功率——视觉化 "JEPA 不变性幻觉 + noise training 大幅修复 + per-task 最优剂量"三件事。数据源：表 1 + 表 2。
@@ -217,28 +217,50 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 
 表 2 展示了 LeWM+noise 在 8 档噪声强度下的完整 sweep 结果。
 
-**表 2：LeWM+noise 8 档 sweep（4 任务 × clean + px+g 0.08）**
+**表 2：LeWM+noise 8 档 sweep（成功率 ± std，单位 pt）**。3-seed × 100 行的 std 为跨 seed 均值 std；单 seed × 300 行的 std 为 binomial std `sqrt(p(1-p)/300)`。每行总 trajectory 数 300。
 
-| std_max | TwoRoom clean | TwoRoom px+g 0.08 | PushT clean | PushT px+g 0.08 | Reacher clean | Reacher px+g 0.08 | Cube clean | Cube px+g 0.08 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 (base) | 93.00 | 44.33 | 87.33 | 3.67 | 57.67 | 14.67 | 72.33 | 52.33 |
-| 0.001 | 92.00 | 84.67 | 89.67 | 46.33 | 55.67 | 45.33 | 73.00 | 53.33 |
-| 0.002 | 94.33 | 91.00 | **90.00** | 70.67 | 80.33 | 80.67 | 64.67 | 63.00 |
-| 0.003 | 96.33 | 94.67 | 89.67 | 83.00 | 78.67 | 73.67 | 65.00 | 67.33 |
-| 0.004 | 96.33 | 95.00 | 89.33 | 81.33 | 84.00 | 80.00 | 69.00 | 67.00 |
-| 0.005 | 94.00 | 94.00 | 82.00 | 78.00 | 73.33 | 71.33 | 61.33 | 60.67 |
-| **0.006** | 96.67 | 96.67 | 89.33 | **87.00** | **86.00** | **84.67** | 66.67 | 65.00 |
-| 0.007 | 96.00 | 96.33 | 85.67 | 82.33 | 83.67 | 81.33 | 67.67 | 68.00 |
-| **0.008** | **98.33** | **98.67** | 88.33 | 85.33 | 84.00 | 83.00 | 62.33 | 60.33 |
+**(a) Clean 成功率（%）**
+
+| std_max | TwoRoom | PushT | Reacher | Cube |
+|---|---:|---:|---:|---:|
+| 0 (base) | 93.00 ± 1.5 | 87.33 ± 1.9 | 57.67 ± 2.9 | 72.33 ± 2.6 |
+| 0.001 | 92.00 ± 1.6 | 89.67 ± 1.8 | 55.67 ± 2.9 | 73.00 ± 2.6 |
+| 0.002 | 94.33 ± 1.3 | **90.00 ± 1.7** | 80.33 ± 2.3 | 64.67 ± 2.8 |
+| 0.003 | 96.33 ± 2.3 | 89.67 ± 1.2 | 78.67 ± 0.9 | 65.00 ± 1.2 |
+| 0.004 | 96.33 ± 1.5 | 89.33 ± 1.5 | 84.00 ± 2.1 | 69.00 ± 2.7 |
+| 0.005 | 94.00 ± 1.4 | 82.00 ± 2.2 | 73.33 ± 2.6 | 61.33 ± 2.8 |
+| **0.006** | 96.67 ± 1.5 | 89.33 ± 1.5 | **86.00 ± 2.1** | 66.67 ± 1.5 |
+| 0.007 | 96.00 ± 1.2 | 85.67 ± 2.2 | 83.67 ± 2.3 | 67.67 ± 0.7 |
+| **0.008** | **98.33 ± 0.3** | 88.33 ± 2.0 | 84.00 ± 0.6 | 62.33 ± 0.9 |
+
+**(b) Pixels+goal std=0.08 成功率（%）**
+
+| std_max | TwoRoom | PushT | Reacher | Cube |
+|---|---:|---:|---:|---:|
+| 0 (base) | 44.33 ± 2.9 |  3.67 ± 1.1 | 14.67 ± 2.0 | 52.33 ± 2.9 |
+| 0.001 | 84.67 ± 2.1 | 46.33 ± 2.9 | 45.33 ± 2.9 | 53.33 ± 2.9 |
+| 0.002 | 91.00 ± 1.7 | 70.67 ± 2.6 | 80.67 ± 2.3 | 63.00 ± 2.8 |
+| 0.003 | 94.67 ± 2.0 | 83.00 ± 2.7 | 73.67 ± 0.3 | 67.33 ± 1.3 |
+| 0.004 | 95.00 ± 1.7 | 81.33 ± 2.0 | 80.00 ± 1.0 | 67.00 ± 2.5 |
+| 0.005 | 94.00 ± 1.4 | 78.00 ± 2.4 | 71.33 ± 2.6 | 60.67 ± 2.8 |
+| **0.006** | 96.67 ± 1.8 | **87.00 ± 2.7** | **84.67 ± 2.9** | 65.00 ± 2.1 |
+| 0.007 | 96.33 ± 1.5 | 82.33 ± 3.3 | 81.33 ± 0.9 | 68.00 ± 1.0 |
+| **0.008** | **98.67 ± 0.7** | 85.33 ± 1.9 | 83.00 ± 3.1 | 60.33 ± 0.7 |
+
+读表提示：同一列内 ≤ 3pt 的差距处于 1–2 std 噪声范围，不应解读为显著；**任务最优**（加粗）相对最近邻平均高出 ≥ 5pt。
 
 ![Fig 2 — Noise-training sweep: clean vs OOD per task; no single std_max is jointly optimal](assets/paper1_figs/fig2_sweep.png)
+
+同样的 sweep 数据画成 (clean, OOD) 轨迹（图 6）让 trade-off 视觉化：每个任务的 sweep 曲线从 base 远低于 y = x 对角线出发，向右上角移动，per-task 曲率取决于"clean 跌多少能换 OOD 升多少"。TwoRoom 几乎沿对角线移到 (98, 98)；PushT 几乎垂直上升（clean 维持在 87–90，OOD 从 4 升到 87）；Reacher 沿对角大跳 (58, 15) → (86, 85)；Cube 几乎不动。
+
+![Fig 6 — Per-task Pareto trajectory of (clean, OOD) under noise sweep](assets/paper1_figs/fig6_pareto.png)
 
 **三个核心观察：**
 
 **（1）没有单一 std_max 在四任务同时最优，且同一任务上 clean 与 robustness 最优剂量也不同。**
 - TwoRoom 在 std=0.008 达到全局最优 (98.33 / 98.67)，clean 随 noise 单调上升——视觉冗余任务从重 noise 中获益最大。
 - PushT 在 std=0.002 达到峰值 clean 90.00，但 robustness (px+g 0.08) 最优在 std=0.006（87.00 vs 0.002 的 70.67，+16.33pt）——**clean 与 robustness 最优剂量分离**。
-- Reacher 在 std=0.006 达到最优 (86.00 / 84.67)，低 noise（0.001）反而损害性能（clean 55.67），说明该任务需要一定强度的全局 invariance 才能稳定。
+- Reacher 在 std=0.006 达到最优 (86.00 / 84.67)。std=0.001 处的 clean 55.67 与 base 57.67 的 2pt 差距处在该协议下的 binomial sampling noise（约 2.9pt）范围内，因此数据只支持"低噪声 ≈ base"而**不**支持"低噪声反而损害"；拐点在 std=0.002（跃升到 80.33），暗示 Reacher 需要一个**最小噪声门槛**而非梯度式提升。
 - Cube 的 noise sweep 效果最弱：clean 没有单调提升趋势（最优在 0.001 的 73.00），px+g 0.08 也仅在 0.003–0.007 区间有轻微改善（67.33 vs base 52.33）——结构化 manipulation 对 input-side global noise 不敏感。
 
 **（2）per-task 调参是必要的，不是可选的。** task 间最优 std_max 差异巨大：TwoRoom 0.008（重 noise）、PushT clean 0.002 / robustness 0.006、Reacher 0.006、Cube 几乎无最优（或 0.001）。这划清了全局噪声增广的边界：**它是"input-side 全局 noise"的最强形式，但解决 OOD robustness 需要支付一个 per-task tuning cost。**
@@ -304,7 +326,23 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 2. **n=8 上的强信号在 n=18 上普遍稀释**：典型例子是 Reacher 的 `predictor_rollout_T8_l2`，n=8 ρ=−0.83 → n=18 ρ=−0.33。原因是 n=8 把 LeWM 4 + SWM 4 的 method-axis cluster 放大成 cross-method 相关，sweep 补齐 9 档后真正的 within-method 信号显示出来 |ρ|≤0.45。**这是 cross-method 严格门槛比 n=8 Spearman 严格的关键场景**。
 3. **`predictor_target_to_nn_cos_ratio_at_max_std` 在 PushT 上是唯一通过严格门槛的 per-token 诊断量**。它衡量的是：predictor 在 input noise 下被推离 clean target 的距离，相对于该 token 在 latent 空间中本来的邻域尺度。ratio > 1 意味着 noise 已经把 latent 推到原本不属于该状态的邻域——这正是 planning 失败的先兆。Cube 上 `cka_linear` 与 `clean_nn_cos_dist` 共同稳健通过，但二者均为 ckpt-level scalar，不像 PushT 主指标天然 per-token。Reacher 与 TwoRoom 上 **没有任何指标通过严格门槛**——paper 应承认这两个任务缺乏跨方法 label-free predictor，并把它作为开放问题列出（§5.3）。
 
-![Fig 3 — PushT n=18: predictor_target_to_nn_cos_ratio is the strongest cross-ckpt diagnostic of clean success rate](assets/paper1_figs/fig3_scatter.png)
+#### 4.5.5 该诊断量到底预测的是什么：clean vs OOD
+
+前述分析有一个关键 caveat 必须澄清：上述 "eval" Y 轴是 **clean 成功率**（每个 ckpt 的 `clean_300`），**不是 OOD drop**。把 n=18 PushT 数据按目标变量拆分：
+
+| Y 轴目标 | $\rho_{n=18}$ combined | $\rho$ within-LeWM (n = 9) | $\rho$ within-SWM (n = 9) |
+|---|---:|---:|---:|
+| clean 成功率 | **−0.79** | **−0.82** | −0.55 |
+| px+goal 0.08 成功率 | −0.16 | +0.32 | −0.35 |
+| OOD drop (clean − px+g 0.08) | −0.30 | −0.77 | +0.27 |
+
+within-LeWM 上 `ρ_drop = −0.77` 看似强，但**不是独立的 OOD 信号**——drop = clean − px08 而该指标的 clean 分量主导。看原始 per-ckpt 数据更清楚：LeWM-base (无 noise 训练) 与 LeWM-0to005-p1 (noise-trained) 的 fragility ratio 几乎一样（3.54e-6 vs 4.17e-6），但 drop 差 80pt（83.67 vs 4.00）。这个指标无法区分二者。
+
+**诚实的 framing**：`predictor_target_to_nn_cos_ratio_at_max_std` 是 **跨 ckpt 强预测 clean 控制质量**的指标——也即 ckpt 整体训练质量。它**不是** OOD-specific 鲁棒性的预测量；OOD 鲁棒性主要由训练协议（是否见过 noise）决定，而不是任何单一 cross-ckpt 诊断量的变化。作为实用工具该指标能用于**在 clean 上选模型**（"哪个 ckpt planning 更好？"），但**不能**替代实际用 noise 训练当目标是 OOD 鲁棒性时。
+
+图 3 同时画两个 panel。Panel (a) 是文献中常见的 clean-rate 强相关；panel (b) 是大多数 n=8 单目标报告中被掩盖的 OOD-drop 弱相关。
+
+![Fig 3 — PushT n=18: fragility metric is a ckpt-quality predictor (a), not an OOD-specific predictor (b)](assets/paper1_figs/fig3_scatter.png)
 
 ### 4.6 机制归因：噪声从哪一层进入失败链
 
@@ -351,42 +389,6 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 
 ![Fig 5 — Mechanism attribution: encoder shift transduced by predictor dominates; cost surface is not the bottleneck](assets/paper1_figs/fig5_mechanism.png)
 
-### 4.7 负结果：为什么异方差损失 reweighting 不行
-
-除了噪声增广，另一个自然的想法是：让模型自己学习哪些 transition "难"，然后自动调节学习权重。我们用 scale-preserving hetero NLL 验证了这一路径。
-
-**表 5：Heteroscedastic Loss 的评估结果**
-
-| Task / model | Clean | goal 0.05 | pixels 0.05 | px+goal 0.05 | goal 0.08 | px+goal 0.08 |
-|---|---:|---:|---:|---:|---:|---:|
-| TwoRoom LeWM-base | 93.00 | 71.00 | 70.33 | 62.33 | 55.67 | 44.33 |
-| TwoRoom LeWM+noise best | 98.33 | 98.00 | 98.33 | 98.00 | 98.67 | 98.67 |
-| TwoRoom hetero | **99.67** | 85.33 | 96.67 | 84.67 | 73.33 | 55.33 |
-| PushT LeWM-base | 87.33 | 38.00 | 17.33 | 15.00 | 15.00 | 3.67 |
-| PushT LeWM+noise best | **90.00** | 85.00 | 87.67 | 86.00 | 83.00 | 70.67 |
-| **PushT hetero** | **13.33** | 7.67 | 7.67 | 7.67 | 9.67 | 6.00 |
-
-**结论**：
-- TwoRoom hetero clean 提升到 99.67，符合低维离散任务受益于 stronger invariance / clustering 的预期。但 hetero 不能替代 noise training：goal/pixels+goal 高噪声仍明显低于 LeWM+noise。
-- **PushT hetero clean 只有 13.33，是方法级失败**，不是 robustness tradeoff。
-
-**诊断解释**（表 6）：
-
-**表 6：Hetero Loss 的表征诊断**
-
-| Metric | TwoRoom base | TwoRoom hetero | PushT base | PushT hetero |
-|---|---:|---:|---:|---:|
-| `clean_nn_cos_dist_median` | 0.0449 | 0.0281 | 0.2360 | 0.1051 |
-| `clean_effective_rank` | 47.60 | 33.59 | 76.42 | 42.85 |
-| `transition_resolution_ratio_l2` | 0.5538 | 0.3780 | 0.3015 | **0.1023** |
-| `id_probe_r2` | 0.2889 | -0.0573 | 0.7739 | **0.2678** |
-| `action_mean_pred_shift_norm` | 0.5329 | 0.4482 | 0.1283 | 0.0841 |
-| `predictor_rollout_T8_l2` | 18.62 | 17.90 | 18.65 | 14.01 |
-
-Hetero loss 在两个任务上都压缩表征：NN distance 降低，effective rank 降低，action-induced shift 降低。TwoRoom 低维、离散、视觉冗余，压缩表征是可接受甚至有利的。但 PushT 需要连续接触与姿态分辨率；`transition_resolution_ratio_l2` 从 0.3015 掉到 0.1023，`id_probe_r2` 从 0.7739 掉到 0.2678，说明 **task-relevant state information 被抹掉**。PushT 的 `predictor_rollout_T8_l2` 下降不是好消息：它意味着 latent 更容易预测，但不是更适合控制。预测稳定性是通过牺牲分辨率得到的。
-
-**核心教训**：直接 hetero loss training 的结果是**语义成功、系统失败**——σ head 值得保留（它稳定学到了 per-transition prediction difficulty），但直接 hetero training 不适合 PushT，因为它会把 high-error hard transitions 当成低权重样本，而这些 transition 很可能正是 PushT 的接触和精细控制关键区域。
-
 ---
 
 ## 5 讨论
@@ -416,7 +418,19 @@ Hetero loss 在两个任务上都压缩表征：NN distance 降低，effective r
 
 本文的范围是 LeWM + CEM；将 trade-off 普适化为"所有 latent compression world model 的共有性质"超出本文证据。
 
-### 5.3 实践建议：如何在新任务上选 `std_max`
+### 5.3 诊断 toolkit 的适用边界
+
+为方便实践者判断何时该用本 toolkit、何时不该用，列出三条边界：
+
+**边界 1：toolkit 在 clean 控制质量维度排序 ckpt，不是在 OOD-specific 鲁棒性维度。** §4.5.5 已经显示最强 cross-ckpt 诊断量（`predictor_target_to_nn_cos_ratio_at_max_std`）与 clean 强相关（ρ ≈ −0.8）但与 OOD drop 弱相关（ρ ≈ −0.3）。用该 toolkit 来从 sweep 中挑出**最好训练**的 ckpt；**不要**用它替代实际 OOD eval 当目标问题是鲁棒性时。
+
+**边界 2：per-state controllability variance 弱的任务出严格协议外。** Reacher（低维连续 reaching）和 TwoRoom（视觉冗余离散导航）**没有**任何指标通过 n=18 严格 cross-method 门槛（§4.5）。这两个任务 within-method 方差不足以让无标签指标区分"好"与"坏" ckpt。在 n=8 协议下这两个任务看似有强信号，但在更长 sweep 上信号坍塌——n=8 强度来自 method-axis cluster 假象，不是真正的 ckpt-quality predictor。
+
+**边界 3：cross-ckpt 诊断量不能补救训练时未提供的信号。** OOD drop 的最大决定因素是模型训练时是否见过 noise——不是该模型在哪个 fragility 指标上得分如何。这是 ρ(指标, drop) 弱而 ρ(指标, clean) 强的结构性原因：noise vs no-noise 训练把每个 ckpt 放在完全不同的 (clean, OOD) 曲线上（图 6），**没有任何静态 cross-ckpt 诊断量**能替代这一训练时选择。
+
+因此 toolkit 的精确定位是：**clean-eval 辅助工具**，在 per-state controllability variance 强的任务（PushT、Cube）上、假设训练协议已固定的前提下，帮你在 ckpt 间挑选。它**不是** OOD 预测 oracle。
+
+### 5.4 实践建议：如何在新任务上选 `std_max`
 
 本文的 sweep 数据给出一个简单可操作的 recipe：
 
@@ -426,7 +440,7 @@ Hetero loss 在两个任务上都压缩表征：NN distance 降低，effective r
 4. **eval 上一定要双标**：clean + max-noise 两个 endpoint，单看 clean 会错过 robust 最优剂量，反之亦然（PushT 最显著：clean 最优 0.002，robust 最优 0.006）。
 5. **资源不足时**：每任务跑 4 档 sweep（{0.001, 0.003, 0.005, 0.007}）已能定位 ±0.001 内的最优区间。
 
-### 5.4 局限与未来方向
+### 5.5 局限与未来方向
 
 **局限 1：仅在 LeWM 上验证。** 虽然 LeWM 是 JEPA 世界模型的代表性实现，但其他 JEPA 变体（V-JEPA / I-JEPA 流派 EMA target、变分 JEPA 等）可能有不同的噪声响应。
 
@@ -435,6 +449,8 @@ Hetero loss 在两个任务上都压缩表征：NN distance 降低，effective r
 **局限 3：诊断框架是经验工具，不是理论模型。** 当前指标基于跨 ckpt 相关性挑出；建立 "effective rank 下降 → resolution ratio 崩溃 → control failure" 的形式化因果链是未来方向。Reacher / TwoRoom 在 n=18 严格门槛下没有任何指标通过——这正暴露了 empirical 框架的边界。
 
 **局限 4：统计协议混合。** 部分行为 single-seed × 300 trajectories，部分为 3-seed × 100 trajectories（总样本量都是 300，但 across-seed variance 估计不同）。投稿 / arxiv v2 计划升级为统一 5-seed × 100 协议。
+
+**局限 5：自动 transition reweighting 不能替代 noise 训练。** 作为 sanity check 我们额外测试了 scale-preserving 异方差 NLL 形式（per-transition σ-head 学习 prediction difficulty，并用 `exp(-σ)` 对 transition 自动 reweight）。结果是一个信息量大的负 finding：TwoRoom clean 达 99.67% 但高噪声 robust 不如 noise training；PushT clean **从 87.33 暴跌至 13.33%**——因为接触控制 transition 普遍 prediction error 高，恰恰是 σ-weighting 会丢弃的 transition。完整数据见附录 D。这条 "hard ≠ unimportant" 的教训把本文的 trade-off 与 per-token controller 的广义问题挂上钩，后者属于后续工作。
 
 **未来方向 1：per-token 自适应一致性。** §4.5 / §4.6 识别的最强信号 `predictor_target_to_nn_cos_ratio` 是 ckpt-level scalar；它的 per-token 化能否作为 per-token consistency 的 controller signal，是一个独立的方法学问题（**作为本工作的方法学延伸正在研究中**，结果待后续工作）。
 
@@ -448,7 +464,7 @@ Hetero loss 在两个任务上都压缩表征：NN distance 降低，effective r
 
 本文以 LeWM 为代表对 JEPA + CEM 世界模型在视觉噪声下的控制鲁棒性给出了一项系统诊断研究。我们的核心发现可以概括为三点：
 
-1. **JEPA 的"不变性幻觉"不存在**：未经噪声训练的 LeWM 在像素噪声下控制性能暴跌，latent prediction 本身不提供视觉鲁棒性。
+1. **JEPA + CEM 的视觉 OOD 脆弱性**：未经噪声训练的 LeWM 在像素噪声下控制性能暴跌，latent prediction 本身在此情境下不提供视觉鲁棒性（与社区直觉相反）。
 
 2. **全局噪声增广有边界**：它能有效关闭鲁棒性缺口，但不存在全局最优剂量——任务间差异巨大，且同一任务的 clean 与 robustness 最优剂量可能分离。
 
@@ -613,13 +629,49 @@ class AddNormalizedGaussianNoise:
 
 ## 附录 C：Heteroscedastic Loss 公式
 
-scale-preserving hetero NLL：
+§5.5（局限 5）引用、并在附录 D 详细给出数据的 scale-preserving hetero NLL：
 
 $$
 \mathcal{L}_{\text{hetero}} = \frac{1}{2} \exp(-s_t) \cdot \|z_{t+1} - \hat{z}_{t+1}\|^2 + \frac{1}{2} s_t
 $$
 
-其中 $s_t$ 是 σ head 预测的 log-variance。训练时 $\exp(-s_t)$ 作为自动权重：高误差 transition 被降权，低误差 transition 被升权。
+其中 $s_t$ 是 σ head 预测的 log-variance。训练时 $\exp(-s_t)$ 作为自动权重：高误差 transition 被降权，低误差 transition 被升权。$s_t \equiv 0$ 时严格退化为 MSE。
+
+---
+
+## 附录 D：Heteroscedastic Loss 负样本（完整数据）
+
+本附录记录 §5.5 局限 5 引用的完整数据。σ-head 与 predictor 联合训练；σ 路径的梯度被 detach，因此 σ 常数时 mean prediction path 严格等于 LeWM MSE。
+
+**表 D.1：Heteroscedastic Loss 评估结果。**
+
+| Task / model | Clean | goal 0.05 | pixels 0.05 | px+goal 0.05 | goal 0.08 | px+goal 0.08 |
+|---|---:|---:|---:|---:|---:|---:|
+| TwoRoom LeWM-base | 93.00 | 71.00 | 70.33 | 62.33 | 55.67 | 44.33 |
+| TwoRoom LeWM+noise best | 98.33 | 98.00 | 98.33 | 98.00 | 98.67 | 98.67 |
+| TwoRoom hetero | **99.67** | 85.33 | 96.67 | 84.67 | 73.33 | 55.33 |
+| PushT LeWM-base | 87.33 | 38.00 | 17.33 | 15.00 | 15.00 | 3.67 |
+| PushT LeWM+noise best | **90.00** | 85.00 | 87.67 | 86.00 | 83.00 | 70.67 |
+| **PushT hetero** | **13.33** | 7.67 | 7.67 | 7.67 | 9.67 | 6.00 |
+
+**读表**：TwoRoom hetero clean 99.67%（与低维离散任务受益于 stronger invariance / clustering 的先验一致）但高噪声 robust 不如 noise training。**PushT hetero clean 13.33% — 方法级失败**，不是 robustness tradeoff。
+
+**表 D.2：失败的表征诊断。**
+
+| Metric | TwoRoom base | TwoRoom hetero | PushT base | PushT hetero |
+|---|---:|---:|---:|---:|
+| `clean_nn_cos_dist_median` | 0.0449 | 0.0281 | 0.2360 | 0.1051 |
+| `clean_effective_rank` | 47.60 | 33.59 | 76.42 | 42.85 |
+| `transition_resolution_ratio_l2` | 0.5538 | 0.3780 | 0.3015 | **0.1023** |
+| `id_probe_r2` | 0.2889 | -0.0573 | 0.7739 | **0.2678** |
+| `action_mean_pred_shift_norm` | 0.5329 | 0.4482 | 0.1283 | 0.0841 |
+| `predictor_rollout_T8_l2` | 18.62 | 17.90 | 18.65 | 14.01 |
+
+Hetero loss 在两个任务上都压缩表征。TwoRoom 低维、离散、视觉冗余，压缩可接受。但 PushT 上 `transition_resolution_ratio_l2` 从 0.3015 崩到 0.1023，`id_probe_r2` 从 0.7739 崩到 0.2678——**task-relevant state information 被抹掉**。`predictor_rollout_T8_l2` 下降也不是好消息：latent 更**易预测**而不是更**可控**。
+
+**机制**：σ-head 确实正确学到了 per-transition prediction difficulty（PushT 接触帧 σ 高、TwoRoom 穿门 σ 高等等），但**用 σ 作为自动权重去 down-weight 高误差 transition** 恰恰把 PushT 的接触-控制关键状态错误归为"不重要"并抹掉。这就是更广义的 trade-off 教训：在接触主导的控制任务上 **hard ≠ unimportant**。
+
+这条 finding 指向我们正在探索的后续方向：以 detached difficulty 信号驱动的 per-token **consistency**（而非 loss-reweighting）controller，保留 mean prediction path 的梯度分布。该工作独立于本文的诊断研究，将在后续工作单独报告。
 
 ---
 

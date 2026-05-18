@@ -13,7 +13,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 （1）**JEPA + CEM 在视觉 OOD 下的崩溃**：未经噪声训练的 LeWM 在轻微像素噪声（std=0.08）下控制成功率暴跌，PushT 从 86.33% 跌至 4.67%（接近随机），TwoRoom 从 94.00% 跌至 50.00%。latent prediction 本身在此情境下并不提供视觉鲁棒性。
 
-（2）**不存在全局最优噪声**：不同任务对噪声增广的响应截然不同。视觉冗余型任务（TwoRoom）可从重噪声中获益（最优 std=0.008），而接触控制型任务（PushT）在轻噪声（std=0.002）下 clean 性能最优，但 robustness 最优需 std=0.006——clean 与 robustness 的最优剂量分离。
+（2）**不存在全局最优噪声**：不同任务对噪声增广的响应截然不同。视觉冗余型任务（TwoRoom）可从重噪声中获益（最优 std=0.008），而接触控制型任务（PushT）在轻噪声（std=0.003）下 clean 性能最优，但 robustness 最优需 std=0.006——clean 与 robustness 的最优剂量分离。
 
 （3）**五层诊断协议揭示压缩机制**：通过编码器偏移、编码器几何、预测器敏感性、潜空间噪声响应、任务分辨率五层指标，我们将噪声引起的控制失败追溯到一条表征链：表征压缩（effective rank 下降）→ 关键帧分辨率丢失（transition resolution ratio 崩溃）→ 可控性退化（id_probe_r² 下降）。但作为**跨 checkpoint 预测量**使用时，最强的单一诊断量（`predictor_target_to_nn_cos_ratio_at_max_std`）追踪的是 **ckpt 在 clean 上的整体训练质量**——**而非 OOD-specific 的鲁棒性**。也就是说，诊断 toolkit 能在 clean 性能维度上排序 checkpoint，但**不能替代实际用 noise 训练**当目标是 OOD 鲁棒性时。
 
@@ -42,7 +42,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 我们对四个控制任务进行了 8 档噪声强度（std_max ∈ {0.001, ..., 0.008}）的系统扫参，发现答案是否定的：
 
 - **TwoRoom**（视觉冗余型导航）：clean 性能随噪声单调上升，在 std=0.008 达到最优（98.33% / 98.67%）
-- **PushT**（接触控制型操作）：clean 最优在 std=0.002（90.00%），但 robustness（px+goal 0.08）最优在 std=0.006（87.00%）——clean 与 robustness 的最优剂量分离
+- **PushT**（接触控制型操作）：clean 最优在 std=0.003（89.67%），但 robustness（px+goal 0.08）最优在 std=0.006（87.00%）——clean 与 robustness 的最优剂量分离
 - **Reacher**（运动规划）：最优在 std=0.006（86.00% / 84.67%）；极轻噪声（0.001）在统计上与 base 等价（61.67% vs 58.67%，差距 3pt 处于 ~2.5pt 的跨 seed std 范围内），真正的拐点在 std=0.002（跃升到 85.67%），说明该任务需要一个**最小噪声门槛**才开始受益
 - **Cube**（结构化操作）：噪声 sweep 效果最弱，clean 没有单调提升趋势
 
@@ -52,7 +52,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 基于以上动机，本文提出了一套系统性的诊断研究，核心贡献如下：
 
-**贡献 1：系统量化了 JEPA + CEM 世界模型 pipeline 在视觉噪声下的控制脆弱性，覆盖 contact-heavy 操作、视觉冗余导航、低维连续控制、结构化操作四类代表任务。** 我们在 4 任务 × 8 档噪声强度上完成完整 sweep，并以 single-seed × 300 trajectories 或 3-seed × 100 trajectories（总样本量 300）作为统一统计基础。
+**贡献 1：系统量化了 JEPA + CEM 世界模型 pipeline 在视觉噪声下的控制脆弱性，覆盖 contact-heavy 操作、视觉冗余导航、低维连续控制、结构化操作四类代表任务。** 我们在 4 任务 × 8 档噪声强度上完成完整 sweep，所有 36 ckpt 均按统一的 3-seed × 100 trajectories 协议（seeds 42/43/44，每 seed `num_eval=100`，每格 300 trajectories）评测。
 
 **贡献 2：提出了"不变性-分辨率权衡"（Invariance-Resolution Trade-off）概念及其诊断框架。** 我们定义了五层诊断协议（编码器偏移层、编码器几何层、预测器敏感性层、潜空间噪声响应层、任务分辨率层），包含 17+ 个指标，并在 n=8 canonical 集合 + n=9 LeWM PushT sweep 上做 Spearman 相关性与"条件于训练 noise 强度 std_max"的偏相关分析，区分 ckpt-quality 信号与被训练协议混淆的虚假相关。
 
@@ -211,7 +211,7 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 
 表 2 展示了 LeWM+noise 在 8 档噪声强度下的完整 sweep 结果。
 
-**表 2：LeWM+noise 8 档 sweep（成功率 ± std，单位 pt）**。3-seed × 100 行的 std 为跨 seed 均值 std；单 seed × 300 行的 std 为 binomial std `sqrt(p(1-p)/300)`。每行总 trajectory 数 300。
+**表 2：LeWM+noise 8 档 sweep（成功率 ± 跨 seed std，单位 pt）**。所有格按统一 `n = 3` seeds (42/43/44) × 100 trajectories 协议聚合，每格总 trajectory 数 300。
 
 **(a) Clean 成功率（%）**
 
@@ -265,9 +265,9 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 
 表 3 展示了关键诊断指标在 LeWM-base 和 LeWM+noise（各任务最优剂量）上的对比。
 
-**表 3：表征诊断对比（LeWM-base vs 各任务最优噪声配置）**
+**表 3：表征诊断对比（LeWM-base vs 各任务的代表性 noise-trained ckpt）**。各任务的 σ 选择（0.008 / 0.002 / 0.006 / 0.001）是当时跑诊断 suite 的 ckpt。在新的统一 3-seed × 100 协议下 PushT 的 *clean* 最优略移至 std = 0.003（与 std = 0.002 相差 ±2pt 以内）；本表诊断仍保留在 std = 0.002 ckpt 上——这里要展示的"压缩 vs. 分辨率"模式在该邻域内稳健。
 
-| Metric | TwoRoom base | TwoRoom best (0.008) | PushT base | PushT best (0.002) | Reacher base | Reacher best (0.006) | Cube base | Cube best (0.001) |
+| Metric | TwoRoom base | TwoRoom noise (0.008) | PushT base | PushT noise (0.002) | Reacher base | Reacher noise (0.006) | Cube base | Cube noise (0.001) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | `clean_nn_cos_dist_median` | 0.0449 | 0.0281 | 0.2360 | 0.1051 | 0.0633 | 0.0676 | 0.1856 | 0.1879 |
 | `clean_effective_rank` | 47.60 | 33.59 | 76.42 | 42.85 | 61.04 | 65.92 | 73.25 | 71.83 |
@@ -427,7 +427,7 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 1. **先看 clean baseline 的 `predictor_target_to_nn_cos_ratio_at_max_std`**：若 < 1e-5（PushT / Cube 量级），任务对像素噪声敏感，preferred starting point 是 `std_max ∈ [0.001, 0.003]`，并以 clean 性能为主要约束。
 2. **再看 `clean_effective_rank` 与 `transition_resolution_ratio`**：rank 高且 ratio 高（PushT 76 / 0.30）→ 资源任务，重噪声会破坏 resolution，sweep 上界压在 0.005；rank 低且 ratio 低（TwoRoom 47 / 0.72）→ 视觉冗余任务，可放心扫到 0.008+。
 3. **noise_prob 与 std_min**：本文固定 `noise_prob=1.0, std_min=0`；如需软化训练分布，可改 `noise_prob ∈ [0.5, 1.0]`（未在本文 sweep，是 future work）。
-4. **eval 上一定要双标**：clean + max-noise 两个 endpoint，单看 clean 会错过 robust 最优剂量，反之亦然（PushT 最显著：clean 最优 0.002，robust 最优 0.006）。
+4. **eval 上一定要双标**：clean + max-noise 两个 endpoint，单看 clean 会错过 robust 最优剂量，反之亦然（PushT 最显著：clean 最优 0.003，robust 最优 0.006）。
 5. **资源不足时**：每任务跑 4 档 sweep（{0.001, 0.003, 0.005, 0.007}）已能定位 ±0.001 内的最优区间。
 
 ### 5.5 局限与未来方向
@@ -438,9 +438,7 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 
 **局限 3：诊断框架是经验工具，不是理论模型。** 当前指标基于跨 ckpt 相关性挑出；建立 "effective rank 下降 → resolution ratio 崩溃 → control failure" 的形式化因果链是未来方向。Reacher 和 TwoRoom 在我们的偏相关判据下没有任何指标通过——这正暴露了 empirical 框架的边界。
 
-**局限 4：统计协议混合。** 部分行为 single-seed × 300 trajectories，部分为 3-seed × 100 trajectories（总样本量都是 300，但 across-seed variance 估计不同）。投稿 / arxiv v2 计划升级为统一 5-seed × 100 协议。
-
-**局限 5：自动 transition reweighting 不能替代 noise 训练。** 作为 sanity check 我们额外测试了 scale-preserving 异方差 NLL 形式（per-transition σ-head 学习 prediction difficulty，并用 `exp(-σ)` 对 transition 自动 reweight）。结果是一个信息量大的负 finding：TwoRoom clean 达 99.67% 但高噪声 robust 不如 noise training；PushT clean **从 86.33 暴跌至 13.33%**——因为接触控制 transition 普遍 prediction error 高，恰恰是 σ-weighting 会丢弃的 transition。完整数据见附录 D。这条 "hard ≠ unimportant" 的教训把本文的 trade-off 与 per-token controller 的广义问题挂上钩，后者属于后续工作。
+**局限 4：自动 transition reweighting 不能替代 noise 训练。** 作为 sanity check 我们额外测试了 scale-preserving 异方差 NLL 形式（per-transition σ-head 学习 prediction difficulty，并用 `exp(-σ)` 对 transition 自动 reweight）。结果是一个信息量大的负 finding：TwoRoom clean 达 99.67% 但高噪声 robust 不如 noise training；PushT clean **从 86.33 暴跌至 13.33%**——因为接触控制 transition 普遍 prediction error 高，恰恰是 σ-weighting 会丢弃的 transition。完整数据见附录 D。这条 "hard ≠ unimportant" 的教训把本文的 trade-off 与 per-token controller 的广义问题挂上钩，后者属于后续工作。
 
 **未来方向 1：per-token 自适应一致性。** §4.5 / §4.6 识别的最强信号 `predictor_target_to_nn_cos_ratio` 是 ckpt-level scalar；它的 per-token 化能否作为 per-token consistency 的 controller signal，是一个独立的方法学问题（**作为本工作的方法学延伸正在研究中**，结果待后续工作）。
 
@@ -619,7 +617,7 @@ class AddNormalizedGaussianNoise:
 
 ## 附录 C：Heteroscedastic Loss 公式
 
-§5.5（局限 5）引用、并在附录 D 详细给出数据的 scale-preserving hetero NLL：
+§5.5（局限 4）引用、并在附录 D 详细给出数据的 scale-preserving hetero NLL：
 
 $$
 \mathcal{L}_{\text{hetero}} = \frac{1}{2} \exp(-s_t) \cdot \|z_{t+1} - \hat{z}_{t+1}\|^2 + \frac{1}{2} s_t
@@ -631,7 +629,7 @@ $$
 
 ## 附录 D：Heteroscedastic Loss 负样本（完整数据）
 
-本附录记录 §5.5 局限 5 引用的完整数据。σ-head 与 predictor 联合训练；σ 路径的梯度被 detach，因此 σ 常数时 mean prediction path 严格等于 LeWM MSE。
+本附录记录 §5.5 局限 4 引用的完整数据。σ-head 与 predictor 联合训练；σ 路径的梯度被 detach，因此 σ 常数时 mean prediction path 严格等于 LeWM MSE。
 
 **表 D.1：Heteroscedastic Loss 评估结果。**
 

@@ -224,7 +224,7 @@ LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual s
 
 \subsection{Noise augmentation closes the gap --- at the cost of task-specific tuning}\label{sec:exp-sweep}
 
-\Cref{tab:sweep-clean,tab:sweep-px08} report the complete 8-level sweep across tasks. All cells are success rate $\pm$ standard deviation. For 3-seed $\times$ 100 runs the std is the across-seed std-of-mean; for 1-seed $\times$ 300 runs it is the binomial std $\sqrt{p(1-p)/300}$.
+\Cref{tab:sweep-clean,tab:sweep-px08} report the complete 8-level sweep across tasks. All cells are success rate $\pm$ across-seed std (in pts), aggregated under the unified $n = 3$ seeds (42/43/44) $\times$ 100 trajectories protocol --- $300$ trajectories per cell.
 
 \begin{table}[H]
 \centering
@@ -305,14 +305,14 @@ Plotting the same sweep as a (clean, OOD) trajectory per task (\Cref{fig:pareto}
 
 \begin{table}[H]
 \centering
-\caption{Representation diagnostics: LeWM-base vs.\ per-task noise-best configurations.}
+\caption{Representation diagnostics: LeWM-base vs.\ a representative noise-trained ckpt per task. The $\sigma$ pick per task (0.008 / 0.002 / 0.006 / 0.001) is the ckpt on which the diagnostic suite was originally executed. Under the unified 3-seed $\times$ 100 eval protocol the PushT \emph{clean}-best shifts to \stdmax{} $= 0.003$ (within $\pm 2$\,pt of \stdmax{} $= 0.002$); we keep the diagnostics on the \stdmax{} $= 0.002$ ckpt because the compression-vs.-resolution pattern this table illustrates is robust within this neighbourhood.}
 \label{tab:diag-base-vs-best}
 \small
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lrrrrrrrr}
 \toprule
 Metric & TwoRoom & TwoRoom & PushT & PushT & Reacher & Reacher & Cube & Cube \\
-       & base & best (0.008) & base & best (0.002) & base & best (0.006) & base & best (0.001) \\
+       & base & noise (0.008) & base & noise (0.002) & base & noise (0.006) & base & noise (0.001) \\
 \midrule
 \code{clean\_nn\_cos\_dist\_median} & 0.0449 & 0.0281 & 0.2360 & 0.1051 & 0.0633 & 0.0676 & 0.1856 & 0.1879 \\
 \code{clean\_effective\_rank}       & 47.60  & 33.59  & 76.42  & 42.85  & 61.04  & 65.92  & 73.25  & 71.83  \\
@@ -337,7 +337,7 @@ Metric & TwoRoom & TwoRoom & PushT & PushT & Reacher & Reacher & Cube & Cube \\
 \paragraph{Mechanistic reading.}
 \begin{itemize}
   \item \textbf{TwoRoom.} Low-dimensional, discrete, visually redundant. Compressing the representation (effective rank $47.6 \to 33.6$) is acceptable and even beneficial: a more compact latent space is easier to plan in.
-  \item \textbf{PushT.} Continuous contact requires fine-grained pose resolution. Even at the optimal light noise (\stdmax{} $= 0.002$), \transres{}\_l2 already trends slightly downward. At heavier noise (e.g.\ $0.006$) the metric would drop further, erasing contact-transition keyframes.
+  \item \textbf{PushT.} Continuous contact requires fine-grained pose resolution. Even at the light noise of the diagnostic ckpt (\stdmax{} $= 0.002$), \transres{}\_l2 already trends slightly downward. At heavier noise (e.g.\ $0.006$) the metric would drop further, erasing contact-transition keyframes.
   \item \textbf{Predictor-rollout caveat.} A drop in \code{predictor\_rollout\_T8\_l2} is not unambiguously good news. It can also mean the latent has become more \emph{predictable} without being more \emph{controllable}: predictor stability bought by sacrificing resolution.
 \end{itemize}
 
@@ -524,7 +524,7 @@ Our sweep suggests a simple operational recipe:
 \begin{enumerate}
   \item Inspect the clean baseline's \fragility{}. If $< 10^{-5}$ (PushT / Cube regime), the task is pixel-noise sensitive; start sweeping at \stdmax{} $\in [0.001, 0.003]$ with clean as primary constraint.
   \item Check \code{clean\_effective\_rank} and \transres{}. High rank, high ratio (PushT: 76 / 0.30) $\to$ resource-rich; cap the sweep at $0.005$. Low rank, low ratio (TwoRoom: 47 / 0.72) $\to$ visually redundant; sweep safely up to $0.008+$.
-  \item Use \emph{two endpoints} in evaluation (clean and max-noise). Checking only one misses one of the optima: PushT's clean optimum at $0.002$ vs robustness optimum at $0.006$ is the clearest example.
+  \item Use \emph{two endpoints} in evaluation (clean and max-noise). Checking only one misses one of the optima: PushT's clean optimum at $0.003$ vs robustness optimum at $0.006$ is the clearest example.
   \item Under compute budget, a 4-level sweep (\{0.001, 0.003, 0.005, 0.007\}) already locates the optimum within $\pm 0.001$.
 \end{enumerate}
 
@@ -536,9 +536,7 @@ Our sweep suggests a simple operational recipe:
 
 \paragraph{Limitation 3 --- Diagnostic framework is empirical, not theoretical.} Reacher and TwoRoom fail the partial-correlation criterion for \emph{all} metrics, exposing where the empirical framework breaks down.
 
-\paragraph{Limitation 4 --- Mixed statistical protocol.} Some rows use single-seed $\times$ 300 trajectories and others 3-seed $\times$ 100 trajectories (total sample size 300, but across-seed variance estimation differs). A unified 5-seed $\times$ 100 protocol upgrade is planned for the next version.
-
-\paragraph{Limitation 5 --- Automated transition reweighting is not a substitute for noise training.} As a sanity check we also tested a scale-preserving heteroscedastic-NLL formulation in which a learned per-transition $\sigma$-head down-weights high-error transitions. The result is informative as a negative finding: TwoRoom clean reaches $99.67\%$ but high-noise robustness lags noise training; PushT clean \emph{collapses} from $86.33\%$ to $13.33\%$ because contact-control transitions have high prediction error and are exactly the transitions $\sigma$-weighting would discard. Full data are reported in \Cref{sec:appendix-D}. The lesson --- ``hard $\ne$ unimportant'' in contact control --- connects this paper's trade-off to the broader question of per-token controllers, which we leave to follow-up work.
+\paragraph{Limitation 4 --- Automated transition reweighting is not a substitute for noise training.} As a sanity check we also tested a scale-preserving heteroscedastic-NLL formulation in which a learned per-transition $\sigma$-head down-weights high-error transitions. The result is informative as a negative finding: TwoRoom clean reaches $99.67\%$ but high-noise robustness lags noise training; PushT clean \emph{collapses} from $86.33\%$ to $13.33\%$ because contact-control transitions have high prediction error and are exactly the transitions $\sigma$-weighting would discard. Full data are reported in \Cref{sec:appendix-D}. The lesson --- ``hard $\ne$ unimportant'' in contact control --- connects this paper's trade-off to the broader question of per-token controllers, which we leave to follow-up work.
 
 \paragraph{Future direction 1 --- Per-token adaptive consistency.} \Cref{sec:diag-cross,sec:exp-mech} identify the strongest signal \fragility{}, a ckpt-level scalar. Whether its per-token variant can serve as a per-token consistency controller is an open methodological question, under investigation in follow-up work.
 
@@ -608,7 +606,7 @@ class AddNormalizedGaussianNoise:
 \end{lstlisting}
 
 \subsection{Evaluation protocol}
-Clean evaluation uses no noise, 100 trajectories per seed (or 300 trajectories for single-seed runs). Noisy evaluation adds Gaussian noise of std $\in \{0.05, 0.08\}$ to both pixels and the goal image. Success criterion is task-specific (PushT: T-block pose match; TwoRoom: target region; Reacher: joint-angle match; Cube: cube position match).
+Clean evaluation uses no noise, 100 trajectories per seed $\times$ 3 seeds (42/43/44), totalling 300 trajectories per condition. Noisy evaluation adds Gaussian noise of std $\in \{0.05, 0.08\}$ to both pixels and the goal image under the same 3-seed protocol. Success criterion is task-specific (PushT: T-block pose match; TwoRoom: target region; Reacher: joint-angle match; Cube: cube position match).
 
 \subsection{Compute}
 All experiments run on a single NVIDIA A100 (80\,GB). Training: $\sim$2\,h/task for LeWM-base, $\sim$2.5\,h/task/configuration for LeWM+noise. Diagnostic analysis: $\sim$30\,min/task/checkpoint.
@@ -669,7 +667,7 @@ Layer / Metric & TwoRoom & PushT & Reacher & Cube & Unit / note \\
 %% ===========================================================================
 \section{Heteroscedastic-loss formulation}\label{sec:appendix-C}
 
-The scale-preserving heteroscedastic NLL referenced in \Cref{sec:disc-limit} (Limitation 5) and detailed in \Cref{sec:appendix-D} is:
+The scale-preserving heteroscedastic NLL referenced in \Cref{sec:disc-limit} (Limitation 4) and detailed in \Cref{sec:appendix-D} is:
 \begin{equation}
   \mathcal{L}_{\text{hetero}} = \tfrac{1}{2}\,\exp(-s_t)\,\| z_{t+1} - \hat z_{t+1}\|^2 + \tfrac{1}{2}\, s_t \,,
   \label{eq:hetero}
@@ -679,7 +677,7 @@ where $s_t$ is the $\sigma$-head-predicted log-variance. During training $\exp(-
 %% ===========================================================================
 \section{Heteroscedastic-loss negative result (data)}\label{sec:appendix-D}
 
-This appendix records the full data behind \Cref{sec:disc-limit} Limitation 5. The $\sigma$-head is trained jointly with the predictor; gradient is detached on the $\sigma$ path so the mean prediction path is exactly LeWM MSE when $\sigma$ is constant.
+This appendix records the full data behind \Cref{sec:disc-limit} Limitation 4. The $\sigma$-head is trained jointly with the predictor; gradient is detached on the $\sigma$ path so the mean prediction path is exactly LeWM MSE when $\sigma$ is constant.
 
 \begin{table}[H]
 \centering

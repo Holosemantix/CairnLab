@@ -187,7 +187,7 @@ We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw
 
 \paragraph{Evaluation seeds.} Each checkpoint is evaluated with 3 evaluation seeds (42 / 43 / 44), with 100 trajectories per seed.
 
-\paragraph{Evaluation protocol.} All success rates in this paper --- clean and noised, across all 36 checkpoints (4 tasks $\times$ \{base, \stdmax{} $0.001$--$0.008$\}) --- are computed under a single protocol: $n = 3$ seeds (42/43/44), \code{num\_eval = 100} trajectories per seed ($300$ trajectories per condition per checkpoint). Every cell of Tables~\ref{tab:ood-cliff},~\ref{tab:sweep-clean},~\ref{tab:sweep-px08} is mean $\pm$ across-seed population std over $n = 3$, matching \code{canonical\_evals\_20260517.json}. Raw per-seed metrics live at \code{<ckpt>/eval\_results/<cond>\_seed\{42,43,44\}\_metrics.txt}; the aggregated source-of-truth for downstream evaluation analysis is \code{canonical\_evals\_20260517.json}. The released diagnostic source-of-truth for Figure~\ref{fig:scatter}, Table~\ref{tab:corr-n9}, Table~\ref{tab:partial-corr-4tasks}, and Table~\ref{tab:partial-corr} is \code{canonical\_diagnostics\_20260517.json}.
+\paragraph{Evaluation protocol.} All success rates in this paper --- clean and noised, across all 36 checkpoints (4 tasks $\times$ \{base, \stdmax{} $0.001$--$0.008$\}) --- are computed under a single protocol: $n = 3$ seeds (42/43/44), \code{num\_eval = 100} trajectories per seed ($300$ trajectories per condition per checkpoint). Every cell of Tables~\ref{tab:ood-cliff},~\ref{tab:sweep-clean},~\ref{tab:sweep-px08} is mean $\pm$ across-seed population std over $n = 3$, matching \code{assets/paper1\_data/canonical\_evals\_20260517.json}. Raw per-seed metrics live at \code{<ckpt>/eval\_results/<cond>\_seed\{42,43,44\}\_metrics.txt}; the aggregated source-of-truth for downstream evaluation analysis is \code{assets/paper1\_data/canonical\_evals\_20260517.json}. The released diagnostic source-of-truth for Figure~\ref{fig:scatter}, Table~\ref{tab:corr-n9}, Table~\ref{tab:partial-corr-4tasks}, and Table~\ref{tab:partial-corr} is \code{assets/paper1\_data/canonical\_diagnostics\_20260517.json}.
 
 \paragraph{Hardware.} Single NVIDIA A100 (80\,GB); training takes 2--4\,h per task per configuration.
 
@@ -346,7 +346,7 @@ Metric & TwoRoom & TwoRoom & PushT & PushT & Reacher & Reacher & Cube & Cube \\
 
 \Cref{tab:corr-n9} reports task-specific cross-ckpt correlations on the LeWM $n = 9$ sweep using the unified 3-seed $\times$ 100 evaluation.
 
-We analyse two single-value-per-checkpoint diagnostic metrics that have full coverage on all 9 checkpoints per task: \fragility{} (the ``fragility metric'' --- single-step predictor target shift normalised by NN distance, at the diagnostic's max-std injection) and \code{predictor\_rollout\_T8\_l2\_at\_max\_std} (the corresponding multi-step drift). Both are released in \code{canonical\_diagnostics\_20260517.json}, derived from each checkpoint's \code{eval\_results/diagnostics/predictor\_sensitivity.json}, and are pure ckpt-level quantities (independent of the evaluation protocol).
+We analyse two single-value-per-checkpoint diagnostic metrics that have full coverage on all 9 checkpoints per task: \fragility{} (the ``fragility metric'' --- single-step predictor target shift normalised by NN distance, at the diagnostic's max-std injection) and \code{predictor\_rollout\_T8\_l2\_at\_max\_std} (the corresponding multi-step drift). Both are released in \code{assets/paper1\_data/canonical\_diagnostics\_20260517.json}, derived from each checkpoint's \code{eval\_results/diagnostics/predictor\_sensitivity.json}, and are pure ckpt-level quantities (independent of the evaluation protocol).
 
 \begin{table}[H]
 \centering
@@ -614,7 +614,7 @@ Clean evaluation uses no noise, 100 trajectories per seed $\times$ 3 seeds (42/4
 All experiments run on a single NVIDIA A100 (80\,GB). Training: $\sim$2\,h/task for LeWM-base, $\sim$2.5\,h/task/configuration for LeWM+noise. Diagnostic analysis: $\sim$30\,min/task/checkpoint.
 
 \subsection{Main-figure rendering}
-The six main figures are produced by \code{tools/paper1\_figs.py}. Run \code{python -m tools.paper1\_figs --out-dir assets/paper1\_figs}. The script reads \code{canonical\_evals\_20260517.json} together with \code{eval\_results/diagnostics/predictor\_sensitivity.json}; no model loading is required.
+The six main figures are produced by \code{tools/paper1\_figs.py}. Run \code{python -m tools.paper1\_figs --out-dir assets/paper1\_figs}. The script reads \code{assets/paper1\_data/canonical\_evals\_20260517.json} together with \code{eval\_results/diagnostics/predictor\_sensitivity.json}; no model loading is required.
 
 %% ===========================================================================
 \section{Full diagnostic profile of LeWM-base on four tasks}\label{sec:appendix-B}

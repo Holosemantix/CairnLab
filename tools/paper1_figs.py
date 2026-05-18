@@ -14,8 +14,9 @@ Generates:
 
 Data sources (no new computation needed):
 
-- Eval tables (§4.2, §4.3): canonical_evals_20260517.json
-- Diagnostic tables / Figure 3 predictor metrics: canonical_diagnostics_20260517.json
+- Eval tables (§4.2, §4.3): assets/paper1_data/canonical_evals_20260517.json
+- Diagnostic tables / Figure 3 predictor metrics:
+  assets/paper1_data/canonical_diagnostics_20260517.json
 """
 from __future__ import annotations
 
@@ -71,10 +72,11 @@ _CANONICAL_DIAG_TABLES_CACHE: Dict[str, Dict] = {}
 
 
 def _load_canonical_evals() -> Dict:
-    """Load canonical_evals_20260517.json from the repo root (cached)."""
+    """Load assets/paper1_data/canonical_evals_20260517.json (cached)."""
     if _CANONICAL_EVALS_CACHE:
         return _CANONICAL_EVALS_CACHE
-    fp = Path(__file__).resolve().parent.parent / "canonical_evals_20260517.json"
+    fp = (Path(__file__).resolve().parent.parent
+          / "assets" / "paper1_data" / "canonical_evals_20260517.json")
     if not fp.exists():
         raise FileNotFoundError(
             f"Missing canonical eval aggregate: {fp}. "
@@ -141,10 +143,11 @@ def _canonical_eval_tables() -> Dict[str, Dict]:
 
 
 def _load_canonical_diagnostics() -> Dict:
-    """Load canonical_diagnostics_20260517.json from the repo root (cached)."""
+    """Load assets/paper1_data/canonical_diagnostics_20260517.json (cached)."""
     if _CANONICAL_DIAGNOSTICS_CACHE:
         return _CANONICAL_DIAGNOSTICS_CACHE
-    fp = Path(__file__).resolve().parent.parent / "canonical_diagnostics_20260517.json"
+    fp = (Path(__file__).resolve().parent.parent
+          / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json")
     if not fp.exists():
         raise FileNotFoundError(
             f"Missing canonical diagnostics aggregate: {fp}. "
@@ -597,7 +600,7 @@ def main():
                     help="output directory (relative to repo root)")
     ap.add_argument("--data-root",
                     default="/home/ag/dataset/ag_data/data/world_model/quentinll",
-                    help="legacy arg; no longer required once canonical_diagnostics_20260517.json is present")
+                    help="legacy arg; no longer required once assets/paper1_data/canonical_diagnostics_20260517.json is present")
     ap.add_argument("--only", nargs="+", choices=["1", "2", "3", "4", "5", "6"],
                     help="render only these figures (default: all)")
     args = ap.parse_args()

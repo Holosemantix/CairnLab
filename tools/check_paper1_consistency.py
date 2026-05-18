@@ -23,14 +23,14 @@ RELEASE_FILES = [
     ROOT / "tools" / "paper1_figs.py",
     ROOT / "paper1" / "references.bib",
     ROOT / "DATA_MANIFEST.md",
-    ROOT / "canonical_diagnostics_20260517.json",
+    ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json",
 ]
 
 REQUIRED_ARTIFACTS = [
-    ROOT / "canonical_evals_20260517.json",
-    ROOT / "canonical_evals_20260517.schema.json",
-    ROOT / "canonical_diagnostics_20260517.json",
-    ROOT / "canonical_diagnostics_20260517.schema.json",
+    ROOT / "assets" / "paper1_data" / "canonical_evals_20260517.json",
+    ROOT / "assets" / "paper1_data" / "canonical_evals_20260517.schema.json",
+    ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json",
+    ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.schema.json",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -187,7 +187,7 @@ def check_metric_summary(task: str, std_key: str, metric_name: str, summary: dic
 
 
 def check_canonical_json() -> None:
-    path = ROOT / "canonical_evals_20260517.json"
+    path = ROOT / "assets" / "paper1_data" / "canonical_evals_20260517.json"
     data = json.loads(path.read_text(encoding="utf-8"))
 
     if set(data) != EXPECTED_TASKS:
@@ -225,7 +225,7 @@ def check_canonical_json() -> None:
 
 
 def check_canonical_diagnostics_json() -> None:
-    path = ROOT / "canonical_diagnostics_20260517.json"
+    path = ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json"
     data = json.loads(path.read_text(encoding="utf-8"))
 
     predictor = data.get("predictor_metrics_by_task")
@@ -281,8 +281,8 @@ def check_canonical_diagnostics_json() -> None:
 
 
 def check_published_correlations() -> None:
-    evals = json.loads((ROOT / "canonical_evals_20260517.json").read_text(encoding="utf-8"))
-    diag = json.loads((ROOT / "canonical_diagnostics_20260517.json").read_text(encoding="utf-8"))
+    evals = json.loads((ROOT / "assets" / "paper1_data" / "canonical_evals_20260517.json").read_text(encoding="utf-8"))
+    diag = json.loads((ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json").read_text(encoding="utf-8"))
 
     predictor = diag["predictor_metrics_by_task"]
     published = diag["published_correlations"]

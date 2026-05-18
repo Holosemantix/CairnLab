@@ -180,13 +180,13 @@ $$
 
 **硬件**：单 GPU（NVIDIA A100），训练约 2-4 小时/任务/配置。
 
-**Evaluation 协议**：本文所有成功率——clean 与所有噪声条件，跨全部 36 ckpt（4 任务 × {base, std 0.001..0.008}）——均按统一协议计算：`n = 3` seeds (42/43/44)，每 seed `num_eval = 100` trajectories（每个条件每个 ckpt 共 300 trajectories）。表 1 / 表 2 的每个 cell 是 `n=3` 跨 seed 的 mean ± population std，与 `canonical_evals_20260517.json` 保持一致。每 seed 原始 metrics 位于 `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`；下游 eval 聚合源是 `canonical_evals_20260517.json`。Figure 3 与表 4/4b/5 的 released diagnostic source-of-truth 是 `canonical_diagnostics_20260517.json`。
+**Evaluation 协议**：本文所有成功率——clean 与所有噪声条件，跨全部 36 ckpt（4 任务 × {base, std 0.001..0.008}）——均按统一协议计算：`n = 3` seeds (42/43/44)，每 seed `num_eval = 100` trajectories（每个条件每个 ckpt 共 300 trajectories）。表 1 / 表 2 的每个 cell 是 `n=3` 跨 seed 的 mean ± population std，与 `assets/paper1_data/canonical_evals_20260517.json` 保持一致。每 seed 原始 metrics 位于 `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`；下游 eval 聚合源是 `assets/paper1_data/canonical_evals_20260517.json`。Figure 3 与表 4/4b/5 的 released diagnostic source-of-truth 是 `assets/paper1_data/canonical_diagnostics_20260517.json`。
 
 **主要图表清单**（详 §A.6）：
 
 - **图 1（hero）**：4 任务 LeWM-base 的 clean 与 px+goal 0.08 成功率条形图，叠加 noise sweep 后 **px+goal 0.08 point-best** 配置的成功率——视觉化 "JEPA 不变性幻觉 + noise training 大幅修复 + per-task 最优剂量"三件事。数据源：表 1 + 表 2。
 - **图 2**：4 任务 noise sweep 折线图（x: std_max ∈ [0, 0.008], y: clean / px+goal 0.05 / px+goal 0.08 三条线）。展示 clean-robust 最优剂量分离。现有 `assets/diagnostics/noise_angle_curve_goal.png`、`noise_ratio_curve_goal.png` 可作输入材料。
-- **图 3**：PushT n=9 LeWM sweep 上 `predictor_target_to_nn_cos_ratio_at_max_std` 双面板散点（左 vs clean，右 vs OOD drop），颜色编码 `std_max`，标注 Spearman ρ。底层数据来自 `canonical_diagnostics_20260517.json` + `canonical_evals_20260517.json`。
+- **图 3**：PushT n=9 LeWM sweep 上 `predictor_target_to_nn_cos_ratio_at_max_std` 双面板散点（左 vs clean，右 vs OOD drop），颜色编码 `std_max`，标注 Spearman ρ。底层数据来自 `assets/paper1_data/canonical_diagnostics_20260517.json` + `assets/paper1_data/canonical_evals_20260517.json`。
 - **图 4**：表 3 表征诊断条形/雷达图——4 任务 base vs **representative diagnostic checkpoint** 在 6 个核心指标上的对比，视觉化 "压缩 vs 分辨率"的 task-specific 折衷。
 - **图 5（机制示意）**：pipeline schematic（pixels → encoder → predictor → CEM），定性概括 §4.6 的归因结论。
 - 已生成的辅助图（`assets/diagnostics/p0_correlation_*.png`、`predictor_drift_eval_correlation.png`、`geometry_tradeoff_goal.png` 等）可作 supplementary 或 §4 图表补充。
@@ -282,7 +282,7 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 | `action_mean_pred_shift_norm` | 0.5329 | 0.4482 | 0.1283 | 0.1200 | 0.2518 | 0.2585 | 0.2364 | 0.2320 |
 | `predictor_rollout_T8_l2` | 18.62 | 17.90 | 18.65 | 16.50 | 15.17 | 0.44 | 20.20 | 19.25 |
 
-**Notes (Tab 3)**: (i) `transition_resolution_ratio_l2` 和 `_cos` 在 TwoRoom 一行的表示与早期版本对换（原稿误植）；本表以 `geometry_summary.json` / `task_resolution.json` 直接读出值为准。(ii) released paper-level representative diagnostics 已 canonicalize 到 `canonical_diagnostics_20260517.json`；底层 raw source 仍是对应 ckpt 的 `eval_results/diagnostics/{geometry_summary, task_resolution, predictor_sensitivity}.json`（max-std=0.1, history-only noise）。(iii) Cube base `predictor_rollout_T8_l2 = 20.20` 与 Reacher base `15.17` 表明 LeWM 基线的 long-horizon rollout drift 在四任务上量级相近；Cube representative=19.25 / Reacher representative=0.44 的巨大差异表明 noise training 对 rollout-drift 的修复效应是 **task-dependent**（Reacher 修复 35×，Cube 几乎不变）。
+**Notes (Tab 3)**: (i) `transition_resolution_ratio_l2` 和 `_cos` 在 TwoRoom 一行的表示与早期版本对换（原稿误植）；本表以 `geometry_summary.json` / `task_resolution.json` 直接读出值为准。(ii) released paper-level representative diagnostics 已 canonicalize 到 `assets/paper1_data/canonical_diagnostics_20260517.json`；底层 raw source 仍是对应 ckpt 的 `eval_results/diagnostics/{geometry_summary, task_resolution, predictor_sensitivity}.json`（max-std=0.1, history-only noise）。(iii) Cube base `predictor_rollout_T8_l2 = 20.20` 与 Reacher base `15.17` 表明 LeWM 基线的 long-horizon rollout drift 在四任务上量级相近；Cube representative=19.25 / Reacher representative=0.44 的巨大差异表明 noise training 对 rollout-drift 的修复效应是 **task-dependent**（Reacher 修复 35×，Cube 几乎不变）。
 
 **机制解释**：
 
@@ -299,7 +299,7 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 - `predictor_target_to_nn_cos_ratio_at_max_std`（"fragility metric"——单步 predictor target 偏移除以最近邻距离，在诊断最大 std 注入下取值）
 - `predictor_rollout_T8_l2_at_max_std`（多步 predictor 漂移，同样在最大 std 下）
 
-两者都已发布在 `canonical_diagnostics_20260517.json` 中；它来自各 ckpt 的 `eval_results/diagnostics/predictor_sensitivity.json`，本质上仍是纯 ckpt-level 指标，与 eval 协议无关。
+两者都已发布在 `assets/paper1_data/canonical_diagnostics_20260517.json` 中；它来自各 ckpt 的 `eval_results/diagnostics/predictor_sensitivity.json`，本质上仍是纯 ckpt-level 指标，与 eval 协议无关。
 
 **表 4：LeWM n=9 sweep —— 各任务 Pearson r / Spearman ρ vs OOD drop（clean − px+g 0.08）**。eval 数值来自统一 3-seed × 100 协议。
 
@@ -583,10 +583,10 @@ class AddNormalizedGaussianNoise:
 |---|---|---|---|
 | **图 1 (hero)** | 4 个子图竖排：每个任务一个；每子图三条 bar（clean / px+g 0.08 base / px+g 0.08 point-best）+ 任务名 | 表 1 + 表 2 | matplotlib horizontal bar + diverging color；ratio annotation |
 | **图 2 (sweep curve)** | 4 子图（任务） × 3 折线（clean / px+g 0.05 / px+g 0.08）；x = std_max | 表 2 | shared y-axis 0–100；mark per-task optimum vertical line |
-| **图 3 (双面板 scatter)** | 双面板：(a) metric × clean；(b) metric × OOD drop；x = predictor_target_to_nn_cos_ratio_at_max_std (log scale)；color = std_max | `canonical_diagnostics_20260517.json` + `canonical_evals_20260517.json` | panel (a) unconditional Spearman ρ = −0.33（条件于 `std_max` 后 partial −0.59）；panel (b) unconditional ρ = −0.77，但 colour-bar 显示 std_max 中介效应（partial ρ = +0.06）|
+| **图 3 (双面板 scatter)** | 双面板：(a) metric × clean；(b) metric × OOD drop；x = predictor_target_to_nn_cos_ratio_at_max_std (log scale)；color = std_max | `assets/paper1_data/canonical_diagnostics_20260517.json` + `assets/paper1_data/canonical_evals_20260517.json` | panel (a) unconditional Spearman ρ = −0.33（条件于 `std_max` 后 partial −0.59）；panel (b) unconditional ρ = −0.77，但 colour-bar 显示 std_max 中介效应（partial ρ = +0.06）|
 | **图 4 (diagnostic radar)** | 4 任务 × 6 指标 radar；base vs representative diagnostic checkpoint 叠层 | 表 3 | 6 个核心指标按"任务相关 vs 任务无关"分两组 |
 | **图 5 (mechanism flow)** | pipeline schematic：pixels → encoder → predictor → CEM | §4.6 叙事 | 定量归因来自 §4.6.2 的两个全覆盖 LeWM n=9 predictor 指标；条件于 `std_max` 后只有 Reacher multi-step drift 留下非平凡残余信号 |
-| **图 6 (Pareto)** | 每任务在 (clean, px+g 0.08) 平面上的 sweep 轨迹 | `canonical_evals_20260517.json` | ringed marker = px+goal 0.08 point-best |
+| **图 6 (Pareto)** | 每任务在 (clean, px+g 0.08) 平面上的 sweep 轨迹 | `assets/paper1_data/canonical_evals_20260517.json` | ringed marker = px+goal 0.08 point-best |
 
 现有 `assets/diagnostics/` 中可直接复用的：
 - `noise_angle_curve_goal.png`：encoder shift 随 std 的曲线（4 任务）→ supplementary
@@ -623,7 +623,7 @@ class AddNormalizedGaussianNoise:
 | **Latent Noise** | `cka_linear_at_max_std` | 0.1986 | 0.5536 | 0.3085 | 0.1814 | CKA clean vs noisy |
 | | `latent_cost_surface_slope_z` | 635.31 | 1.3886 | 599.45 | 0.6208 | goal latent 扰动 cost 斜率 |
 
-**完整 sweep 数据**：LeWM 9 档（base + 0to001–0to008-p1）的 canonical eval 聚合值见 `canonical_evals_20260517.json`；图 3 的相关性可由该 JSON 联合 `canonical_diagnostics_20260517.json` 重算。
+**完整 sweep 数据**：LeWM 9 档（base + 0to001–0to008-p1）的 canonical eval 聚合值见 `assets/paper1_data/canonical_evals_20260517.json`；图 3 的相关性可由该 JSON 联合 `assets/paper1_data/canonical_diagnostics_20260517.json` 重算。
 
 ---
 

@@ -169,7 +169,7 @@ We report **both** the raw Spearman and the partial-on-`std_max` quantities. The
 
 **Evaluation seeds.** Each checkpoint is evaluated with 3 evaluation seeds (42 / 43 / 44), with 100 trajectories per seed.
 
-**Evaluation protocol.** All success rates in this paper — clean and noised, across all 36 ckpts (4 tasks × {base, std 0.001..0.008}) — are computed under a single protocol: `n = 3` seeds (42/43/44), `num_eval = 100` trajectories per seed (300 trajectories per condition per ckpt). Every cell of Tables 1 and 2 is mean ± across-seed population std over `n = 3`, matching `canonical_evals_20260517.json`. Raw per-seed metrics are stored at `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`; the aggregated source-of-truth for downstream evaluation analysis lives at `canonical_evals_20260517.json`. The released diagnostic source-of-truth for Figure 3 and Tables 4/4b/5 is `canonical_diagnostics_20260517.json`.
+**Evaluation protocol.** All success rates in this paper — clean and noised, across all 36 ckpts (4 tasks × {base, std 0.001..0.008}) — are computed under a single protocol: `n = 3` seeds (42/43/44), `num_eval = 100` trajectories per seed (300 trajectories per condition per ckpt). Every cell of Tables 1 and 2 is mean ± across-seed population std over `n = 3`, matching `assets/paper1_data/canonical_evals_20260517.json`. Raw per-seed metrics are stored at `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`; the aggregated source-of-truth for downstream evaluation analysis lives at `assets/paper1_data/canonical_evals_20260517.json`. The released diagnostic source-of-truth for Figure 3 and Tables 4/4b/5 is `assets/paper1_data/canonical_diagnostics_20260517.json`.
 
 **Hardware.** Single NVIDIA A100 (80 GB) GPU; training takes 2–4 hours per task per configuration.
 
@@ -266,7 +266,7 @@ Table 3 compares core diagnostic metrics on LeWM-base versus a representative no
 | `action_mean_pred_shift_norm` | 0.5329 | 0.4482 | 0.1283 | 0.1200 | 0.2518 | 0.2585 | 0.2364 | 0.2320 |
 | `predictor_rollout_T8_l2` | 18.62 | 17.90 | 18.65 | 16.50 | 15.17 | 0.44 | 20.20 | 19.25 |
 
-**Notes.** (i) `transition_resolution_ratio_l2` and `_cos` values for TwoRoom are taken directly from `geometry_summary.json` and `task_resolution.json` and corrected against an earlier transcription. (ii) The released paper-level representative diagnostics are canonicalized in `canonical_diagnostics_20260517.json`; the underlying raw sources are the corresponding ckpt's `eval_results/diagnostics/{geometry_summary, task_resolution, predictor_sensitivity}.json` (max-std = 0.1, history-only noise). (iii) Cube base `predictor_rollout_T8_l2 = 20.20` and Reacher base `15.17` are of similar magnitude; Cube representative = 19.25 and Reacher representative = 0.44 show that noise training's effect on long-horizon rollout drift is highly **task-dependent** (Reacher: 35× reduction; Cube: nearly unchanged).
+**Notes.** (i) `transition_resolution_ratio_l2` and `_cos` values for TwoRoom are taken directly from `geometry_summary.json` and `task_resolution.json` and corrected against an earlier transcription. (ii) The released paper-level representative diagnostics are canonicalized in `assets/paper1_data/canonical_diagnostics_20260517.json`; the underlying raw sources are the corresponding ckpt's `eval_results/diagnostics/{geometry_summary, task_resolution, predictor_sensitivity}.json` (max-std = 0.1, history-only noise). (iii) Cube base `predictor_rollout_T8_l2 = 20.20` and Reacher base `15.17` are of similar magnitude; Cube representative = 19.25 and Reacher representative = 0.44 show that noise training's effect on long-horizon rollout drift is highly **task-dependent** (Reacher: 35× reduction; Cube: nearly unchanged).
 
 ![Fig 4 — Per-task diagnostic radar: base vs representative noise-trained diagnostic checkpoint on 6 metrics](assets/paper1_figs/fig4_radar.png)
 
@@ -283,7 +283,7 @@ We analyse two single-value-per-ckpt diagnostic metrics that have full coverage 
 - `predictor_target_to_nn_cos_ratio_at_max_std` (the "fragility metric" — single-step predictor target shift normalised by nearest-neighbour distance, at the diagnostic's max-std injection level)
 - `predictor_rollout_T8_l2_at_max_std` (multi-step predictor drift at the same max-std injection)
 
-Both are released in `canonical_diagnostics_20260517.json`, derived from each ckpt's `eval_results/diagnostics/predictor_sensitivity.json`, and are entirely a function of the ckpt (i.e., independent of the eval protocol).
+Both are released in `assets/paper1_data/canonical_diagnostics_20260517.json`, derived from each ckpt's `eval_results/diagnostics/predictor_sensitivity.json`, and are entirely a function of the ckpt (i.e., independent of the eval protocol).
 
 **Table 4. LeWM n = 9 sweep — per-task Pearson r / Spearman ρ vs OOD drop (clean − px+g 0.08).** Eval values come from the unified 3-seed × 100 protocol.
 
@@ -568,12 +568,12 @@ python -m tools.paper1_figs --out-dir assets/paper1_figs
 
 | Fig | Layout | Data source | Notes |
 |---|---|---|---|
-| **1 (hero)** | Grouped bars per task: clean / px+g 0.08 base / px+g 0.08 point-best | `canonical_evals_20260517.json` | Annotates per-task px+g 0.08 point-best `σ*` and recovery Δ |
-| **2 (sweep)** | 4 panels (tasks) × 2 curves (clean / px+g 0.08) | `canonical_evals_20260517.json` | Dashed vertical at each task's px+g 0.08 point-best |
-| **3 (scatter)** | Two-panel scatter of `predictor_target_to_nn_cos_ratio_at_max_std` vs PushT clean (a) and OOD drop (b) | `canonical_diagnostics_20260517.json` + `canonical_evals_20260517.json` | colour by `std_max`; panel (a) unconditional Spearman ρ = −0.33 (partial −0.59 after conditioning on `std_max`); panel (b) unconditional ρ = −0.77 (partial +0.06) |
+| **1 (hero)** | Grouped bars per task: clean / px+g 0.08 base / px+g 0.08 point-best | `assets/paper1_data/canonical_evals_20260517.json` | Annotates per-task px+g 0.08 point-best `σ*` and recovery Δ |
+| **2 (sweep)** | 4 panels (tasks) × 2 curves (clean / px+g 0.08) | `assets/paper1_data/canonical_evals_20260517.json` | Dashed vertical at each task's px+g 0.08 point-best |
+| **3 (scatter)** | Two-panel scatter of `predictor_target_to_nn_cos_ratio_at_max_std` vs PushT clean (a) and OOD drop (b) | `assets/paper1_data/canonical_diagnostics_20260517.json` + `assets/paper1_data/canonical_evals_20260517.json` | colour by `std_max`; panel (a) unconditional Spearman ρ = −0.33 (partial −0.59 after conditioning on `std_max`); panel (b) unconditional ρ = −0.77 (partial +0.06) |
 | **4 (radar)** | 2×2 grid; 6-axis polar per task; base vs representative diagnostic checkpoint overlay | Table 3 | Per-metric min-max normalization across tasks |
 | **5 (mechanism)** | Schematic pipeline: pixels → encoder → predictor → CEM | §4.6 narrative | Quantitative attribution comes from the two full-coverage LeWM n = 9 predictor metrics in §4.6.2; Reacher's multi-step drift is the only non-trivial residual signal after conditioning on `std_max` |
-| **6 (pareto)** | Per-task trajectory in (clean, px+g 0.08) space | `canonical_evals_20260517.json` | Ringed marker = px+g 0.08 point-best |
+| **6 (pareto)** | Per-task trajectory in (clean, px+g 0.08) space | `assets/paper1_data/canonical_evals_20260517.json` | Ringed marker = px+g 0.08 point-best |
 
 Auxiliary figures from `assets/diagnostics/` (`p0_correlation_*.png`, `predictor_drift_eval_correlation.png`, `geometry_tradeoff_goal.png`, etc.) are suitable as supplementary material.
 
@@ -606,7 +606,7 @@ The table below summarises every core diagnostic on the four LeWM-base checkpoin
 | **Latent Noise** | `cka_linear_at_max_std` | 0.1986 | 0.5536 | 0.3085 | 0.1814 | CKA clean vs noisy |
 | | `latent_cost_surface_slope_z` | 635.31 | 1.3886 | 599.45 | 0.6208 | goal-latent perturb cost slope |
 
-The canonical evaluation aggregates for the 9-level LeWM PushT sweep live in `canonical_evals_20260517.json`. The Figure 3 correlations are recomputable from that JSON together with `canonical_diagnostics_20260517.json`.
+The canonical evaluation aggregates for the 9-level LeWM PushT sweep live in `assets/paper1_data/canonical_evals_20260517.json`. The Figure 3 correlations are recomputable from that JSON together with `assets/paper1_data/canonical_diagnostics_20260517.json`.
 
 ---
 

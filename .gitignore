@@ -3,12 +3,13 @@
 swanlog/
 outputs/
 canonical_evals_*.json
+canonical_diagnostics_*.json
 canonical_correlations_*.json
 cross_check_corr_*.json
-!canonical_evals_20260517.json
-!canonical_evals_20260517.schema.json
-!canonical_diagnostics_20260517.json
-!canonical_diagnostics_20260517.schema.json
+!assets/paper1_data/canonical_evals_20260517.json
+!assets/paper1_data/canonical_evals_20260517.schema.json
+!assets/paper1_data/canonical_diagnostics_20260517.json
+!assets/paper1_data/canonical_diagnostics_20260517.schema.json
 
 # Mac
 .DS_Store

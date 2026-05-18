@@ -40,7 +40,7 @@ A systematic sweep across four tasks at eight levels of `std_max ∈ {0.001, …
 
 - **TwoRoom** (visually redundant navigation): clean success rises monotonically with noise, peaking at std = 0.008 (98.33% / 98.67%).
 - **PushT** (contact-heavy manipulation): clean peaks at std = 0.003 (89.67%), but robustness at px+goal 0.08 peaks at std = 0.006 (87.00%) — clean and robust optima dissociate.
-- **Reacher** (continuous reaching): point-best at std = 0.006 (86.00% / 84.67%); very low noise (0.001) is statistically indistinguishable from base (61.67% vs 58.67%, within across-seed std of ~2.5 pts), with the inflection at std = 0.002 (jump to 85.67%). Reacher appears to need a *minimum* noise threshold before benefiting.
+- **Reacher** (continuous reaching): lies on a 0.002–0.006 plateau; clean point-best is at std = 0.006 (86.00%), while px+goal 0.08 point-best is at std = 0.002 (85.67%). Very low noise (0.001) is statistically indistinguishable from base (61.67% vs 58.67%, within across-seed std of ~2.5 pts), suggesting a *minimum* noise threshold before the task starts to benefit.
 - **Cube** (structured manipulation): noise sweep is weakest; no monotone trend on clean.
 
 This finding exposes a fundamental tension: **global noise augmentation cannot distinguish "background visual redundancy that should be made invariant" from "control-relevant features that should retain resolution".**
@@ -243,12 +243,12 @@ The same sweep, plotted as a (clean, OOD) trajectory per task, makes the trade-o
 **(1) No single std_max is jointly optimal across tasks, and within a single task, clean and robustness optima can dissociate.**
 - TwoRoom peaks globally at std = 0.008 (98.33 / 98.67); clean rises monotonically with noise — visually redundant tasks benefit from heavy noise.
 - PushT peaks on clean at std = 0.003 (89.67), but on robustness (px+g 0.08) at std = 0.006 (87.00 vs. 0.002's 71.33; +15.67 pt). **Clean and robust optima dissociate within the task.**
-- Reacher peaks at std = 0.006 (86.00 / 84.67); very low noise (std = 0.001) gives clean 61.67 vs base 58.67 — within across-seed std (~2.5 pts), so the data support **"low noise is statistically equivalent to base"**, not "low noise hurts". The inflection occurs at std = 0.002 (jump to 85.67), suggesting Reacher needs a *minimum* invariance threshold rather than gradient improvement.
+- Reacher lies on a 0.002–0.006 plateau: clean point-best is at std = 0.006 (86.00), while px+goal 0.08 point-best is at std = 0.002 (85.67). Very low noise (std = 0.001) gives clean 61.67 vs base 58.67 — within across-seed std (~2.5 pts), so the data support **"low noise is statistically equivalent to base"**, not "low noise hurts".
 - Cube responds least to noise: clean is non-monotonic (peaks at std = 0.001 with 69.33), and px+g 0.08 improves only in the 0.003–0.007 range (67.33 vs. base 46.33; +21 pt). Structured manipulation is largely insensitive to global input noise.
 
 **(2) Per-task tuning is necessary, not optional.** Optimal std_max varies substantially across tasks: TwoRoom clean/OOD point-best 0.008, PushT clean point-best 0.003 / px+goal 0.08 point-best 0.006, Reacher clean point-best 0.006 / px+goal 0.08 point-best 0.002, Cube px+goal 0.08 point-best 0.007 with a shallow clean plateau around 0.001 / 0.004 / 0.007. This delineates the boundary of global input-side noise: **it is the strongest "global" form of invariance pressure, but closing the OOD gap requires per-task tuning cost.**
 
-**(3) The four tasks form a clear sensitivity gradient.** PushT (−81.66 base drop) > Reacher (−43.67) > TwoRoom (−44.00) > Cube (−20.34). However the recovery effect of noise training does not scale with sensitivity — TwoRoom recovers most fully (+48.67 pt at std = 0.008), Cube recovers least (+21.00 pt). This indicates that input-side global noise is most effective on "visually redundant" tasks and offers limited returns on "structured manipulation".
+**(3) The four tasks form a clear sensitivity ordering at the extremes.** PushT is clearly most sensitive (−81.66 base drop), Cube least sensitive (−20.34), while TwoRoom (−44.00) and Reacher (−43.67) are effectively tied around a 44-pt drop. However the recovery effect of noise training does not scale with sensitivity — TwoRoom recovers most fully (+48.67 pt at std = 0.008), Cube recovers least (+21.00 pt). This indicates that input-side global noise is most effective on "visually redundant" tasks and offers limited returns on "structured manipulation".
 
 ### 4.4 Diagnostic analysis: why global noise is not a silver bullet
 

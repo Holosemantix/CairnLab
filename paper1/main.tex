@@ -99,7 +99,7 @@ A systematic sweep across four tasks at eight levels of \stdmax{} $\in \{0.001, 
 \begin{itemize}
   \item \textbf{TwoRoom} (visually redundant navigation): clean success rises monotonically with noise, peaking at \mbox{\stdmax{} = 0.008} ($98.33\%$ / $98.67\%$).
   \item \textbf{PushT} (contact-heavy manipulation): clean peaks at \mbox{\stdmax{} = 0.003} ($89.67\%$), but robustness at px+goal 0.08 peaks at \mbox{\stdmax{} = 0.006} ($87.00\%$) --- clean and robust optima dissociate.
-  \item \textbf{Reacher} (continuous reaching): point-best at \mbox{\stdmax{} = 0.006} ($86.00\%$ / $84.67\%$); very low noise ($0.001$) is statistically indistinguishable from base.
+  \item \textbf{Reacher} (continuous reaching): lies on a \mbox{$0.002$--$0.006$} plateau; clean point-best is at \mbox{\stdmax{} = 0.006} ($86.00\%$), while px+goal 0.08 point-best is at \mbox{\stdmax{} = 0.002} ($85.67\%$). Very low noise ($0.001$) is statistically indistinguishable from base.
   \item \textbf{Cube} (structured manipulation): noise sweep is weakest; no monotone trend on clean.
 \end{itemize}
 
@@ -187,7 +187,7 @@ We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw
 
 \paragraph{Evaluation seeds.} Each checkpoint is evaluated with 3 evaluation seeds (42 / 43 / 44), with 100 trajectories per seed.
 
-\paragraph{Evaluation protocol.} All success rates in this paper --- clean and noised, across all 36 checkpoints (4 tasks $\times$ \{base, \stdmax{} $0.001$--$0.008$\}) --- are computed under a single protocol: $n = 3$ seeds (42/43/44), \code{num\_eval = 100} trajectories per seed ($300$ trajectories per condition per checkpoint). Every cell of Tables~\ref{tab:base},~\ref{tab:sweep-clean},~\ref{tab:sweep-px08} is mean $\pm$ across-seed population std over $n = 3$, matching \code{canonical\_evals\_20260517.json}. Raw per-seed metrics live at \code{<ckpt>/eval\_results/<cond>\_seed\{42,43,44\}\_metrics.txt}; the aggregated source-of-truth for downstream evaluation analysis is \code{canonical\_evals\_20260517.json}. The released diagnostic source-of-truth for Figure~\ref{fig:scatter}, Table~\ref{tab:corr-n9}, Table~\ref{tab:partial-corr-4tasks}, and Table~\ref{tab:partial-corr} is \code{canonical\_diagnostics\_20260517.json}.
+\paragraph{Evaluation protocol.} All success rates in this paper --- clean and noised, across all 36 checkpoints (4 tasks $\times$ \{base, \stdmax{} $0.001$--$0.008$\}) --- are computed under a single protocol: $n = 3$ seeds (42/43/44), \code{num\_eval = 100} trajectories per seed ($300$ trajectories per condition per checkpoint). Every cell of Tables~\ref{tab:ood-cliff},~\ref{tab:sweep-clean},~\ref{tab:sweep-px08} is mean $\pm$ across-seed population std over $n = 3$, matching \code{canonical\_evals\_20260517.json}. Raw per-seed metrics live at \code{<ckpt>/eval\_results/<cond>\_seed\{42,43,44\}\_metrics.txt}; the aggregated source-of-truth for downstream evaluation analysis is \code{canonical\_evals\_20260517.json}. The released diagnostic source-of-truth for Figure~\ref{fig:scatter}, Table~\ref{tab:corr-n9}, Table~\ref{tab:partial-corr-4tasks}, and Table~\ref{tab:partial-corr} is \code{canonical\_diagnostics\_20260517.json}.
 
 \paragraph{Hardware.} Single NVIDIA A100 (80\,GB); training takes 2--4\,h per task per configuration.
 
@@ -264,7 +264,7 @@ LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual s
 0.003 & $94.67 \pm 2.87$ & $83.00 \pm 3.74$ & $73.67 \pm 0.47$ & $67.33 \pm 1.89$ \\
 0.004 & $95.00 \pm 2.45$ & $81.33 \pm 2.87$ & $80.00 \pm 1.41$ & $67.00 \pm 3.56$ \\
 0.005 & $95.67 \pm 2.36$ & $75.00 \pm 6.48$ & $68.00 \pm 3.56$ & $59.67 \pm 2.05$ \\
-\textbf{0.006} & $96.67 \pm 2.49$ & $87.00 \pm 3.74^{\ddagger}$ & $84.67 \pm 4.03$ & $65.00 \pm 2.94$ \\
+0.006 & $96.67 \pm 2.49$ & $87.00 \pm 3.74^{\ddagger}$ & $84.67 \pm 4.03$ & $65.00 \pm 2.94$ \\
 0.007 & $96.33 \pm 2.05$ & $82.33 \pm 4.64$ & $81.33 \pm 1.25$ & $68.00 \pm 1.41^{\ddagger}$ \\
 0.008 & $98.67 \pm 0.94^{\ddagger}$ & $85.33 \pm 2.62$ & $83.00 \pm 4.32$ & $60.33 \pm 0.94$ \\
 \bottomrule
@@ -283,13 +283,13 @@ LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual s
 Three observations follow.
 
 \paragraph{(1) No single \stdmax{} is jointly optimal; clean and robust optima can dissociate within a task.}
-TwoRoom peaks globally at \stdmax{} $= 0.008$ ($98.33$ / $98.67$); clean rises monotonically with noise. PushT peaks on clean at \stdmax{} $= 0.003$ but on robustness at \stdmax{} $= 0.006$ ($87.00$ vs.\ $0.002$'s $71.33$; $+15.67$ pt). Reacher peaks at \stdmax{} $= 0.006$ ($86.00$ / $84.67$); at \stdmax{} $= 0.001$ clean is $61.67$ vs base $58.67$ --- within across-seed std ($\sim 2.5$ pts), so the data support \emph{``low noise is statistically equivalent to base''}, not ``low noise hurts''. The inflection occurs at \stdmax{} $= 0.002$ (jump to $85.67$), suggesting Reacher needs a \emph{minimum} invariance threshold. Cube responds least: clean is non-monotonic, and px+g 0.08 improves only in the $0.003$--$0.007$ range.
+TwoRoom peaks globally at \stdmax{} $= 0.008$ ($98.33$ / $98.67$); clean rises monotonically with noise. PushT peaks on clean at \stdmax{} $= 0.003$ but on robustness at \stdmax{} $= 0.006$ ($87.00$ vs.\ $0.002$'s $71.33$; $+15.67$ pt). Reacher lies on a $0.002$--$0.006$ plateau: clean point-best is at \stdmax{} $= 0.006$ ($86.00$), while px+g 0.08 point-best is at \stdmax{} $= 0.002$ ($85.67$). At \stdmax{} $= 0.001$ clean is $61.67$ vs base $58.67$ --- within across-seed std ($\sim 2.5$ pts), so the data support \emph{``low noise is statistically equivalent to base''}, not ``low noise hurts''. Cube responds least: clean is non-monotonic, and px+g 0.08 improves only in the $0.003$--$0.007$ range.
 
 \paragraph{(2) Per-task tuning is necessary, not optional.}
 Optimal \stdmax{} varies substantially: TwoRoom clean/OOD point-best $0.008$, PushT clean point-best $0.003$ / px+g 0.08 point-best $0.006$, Reacher clean point-best $0.006$ / px+g 0.08 point-best $0.002$, Cube px+g 0.08 point-best $0.007$ with a shallow clean plateau around $0.001$ / $0.004$ / $0.007$. Global input-side noise is the strongest ``global'' form of invariance pressure, but closing the OOD gap requires per-task tuning cost.
 
-\paragraph{(3) Tasks form a clear sensitivity gradient.}
-PushT ($-81.66$ base drop) $>$ Reacher ($-43.67$) $>$ TwoRoom ($-44.00$) $>$ Cube ($-20.34$). Recovery does not scale with sensitivity: TwoRoom recovers most fully ($+48.67$ pt at $\stdmax = 0.008$), Cube least ($+21.00$ pt). Input-side global noise is most effective on visually redundant tasks and gives diminishing returns on structured manipulation.
+\paragraph{(3) Tasks form a clear sensitivity ordering at the extremes.}
+PushT is clearly most sensitive ($-81.66$ base drop), Cube least sensitive ($-20.34$), while TwoRoom ($-44.00$) and Reacher ($-43.67$) are effectively tied around a $44$-pt drop. Recovery does not scale with sensitivity: TwoRoom recovers most fully ($+48.67$ pt at $\stdmax = 0.008$), Cube least ($+21.00$ pt). Input-side global noise is most effective on visually redundant tasks and gives diminishing returns on structured manipulation.
 
 Plotting the same sweep as a (clean, OOD) trajectory per task (\Cref{fig:pareto}) makes the trade-off visually explicit: each task's sweep curve moves from base far below the $y = x$ diagonal toward the upper-right, with per-task curvature determined by how much OOD gain a task can buy from a given drop in clean.
 

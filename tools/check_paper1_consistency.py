@@ -94,6 +94,66 @@ def approx_equal(a: float, b: float) -> bool:
     return math.isclose(a, b, rel_tol=0.0, abs_tol=TOL)
 
 
+def rankdata(values: list[float]) -> list[float]:
+    indexed = sorted(enumerate(values), key=lambda item: item[1])
+    ranks = [0.0] * len(values)
+    i = 0
+    while i < len(indexed):
+        j = i
+        while j + 1 < len(indexed) and indexed[j + 1][1] == indexed[i][1]:
+            j += 1
+        avg_rank = (i + j) / 2.0 + 1.0
+        for k in range(i, j + 1):
+            ranks[indexed[k][0]] = avg_rank
+        i = j + 1
+    return ranks
+
+
+def pearson(x: list[float], y: list[float]) -> float:
+    mean_x = statistics.fmean(x)
+    mean_y = statistics.fmean(y)
+    dx = [v - mean_x for v in x]
+    dy = [v - mean_y for v in y]
+    denom = math.sqrt(sum(v * v for v in dx) * sum(v * v for v in dy))
+    if denom <= 1e-12:
+        return 0.0
+    return sum(a * b for a, b in zip(dx, dy)) / denom
+
+
+def spearman(x: list[float], y: list[float]) -> float:
+    return pearson(rankdata(x), rankdata(y))
+
+
+def residualize_against_z(values: list[float], z: list[float]) -> list[float]:
+    mean_v = statistics.fmean(values)
+    mean_z = statistics.fmean(z)
+    dz = [v - mean_z for v in z]
+    var_z = sum(v * v for v in dz)
+    if var_z <= 1e-12:
+        return [0.0] * len(values)
+    cov = sum((v - mean_v) * zz for v, zz in zip(values, dz))
+    slope = cov / var_z
+    intercept = mean_v - slope * mean_z
+    return [v - (intercept + slope * zz) for v, zz in zip(values, z)]
+
+
+def partial_spearman(x: list[float], y: list[float], z: list[float]) -> float | None:
+    rx = rankdata(x)
+    ry = rankdata(y)
+    rz = rankdata(z)
+    ex = residualize_against_z(rx, rz)
+    ey = residualize_against_z(ry, rz)
+    if max(ex) - min(ex) <= 1e-12 or max(ey) - min(ey) <= 1e-12:
+        return None
+    return pearson(ex, ey)
+
+
+def round2(value: float | None) -> float | None:
+    if value is None:
+        return None
+    return round(float(value), 2)
+
+
 def check_metric_summary(task: str, std_key: str, metric_name: str, summary: dict) -> None:
     for key in ("n", "mean", "std", "values"):
         if key not in summary:
@@ -220,12 +280,88 @@ def check_canonical_diagnostics_json() -> None:
                     fail(f"canonical diagnostics {task}/{which} missing metric {metric!r}")
 
 
+def check_published_correlations() -> None:
+    evals = json.loads((ROOT / "canonical_evals_20260517.json").read_text(encoding="utf-8"))
+    diag = json.loads((ROOT / "canonical_diagnostics_20260517.json").read_text(encoding="utf-8"))
+
+    predictor = diag["predictor_metrics_by_task"]
+    published = diag["published_correlations"]
+
+    metrics = (
+        "predictor_target_to_nn_cos_ratio_at_max_std",
+        "predictor_rollout_T8_l2_at_max_std",
+    )
+
+    for task in sorted(EXPECTED_TASKS):
+        std_keys = sorted(evals[task], key=float)
+        z = [float(std_key) for std_key in std_keys]
+        clean = [float(evals[task][std_key]["metrics"]["clean"]["mean"]) for std_key in std_keys]
+        px08 = [
+            float(evals[task][std_key]["metrics"]["pixels_goal_std0.08"]["mean"])
+            for std_key in std_keys
+        ]
+        drop = [c - p for c, p in zip(clean, px08)]
+
+        for metric in metrics:
+            xs = [float(predictor[task][std_key][metric]) for std_key in std_keys]
+            got_pearson = round2(pearson(xs, drop))
+            got_spearman = round2(spearman(xs, drop))
+            want = published["table4_ood_drop"][task][metric]
+            if got_pearson != round2(want["pearson"]) or got_spearman != round2(want["spearman"]):
+                fail(
+                    f"published Table 4 mismatch for {task}/{metric}: "
+                    f"got pearson={got_pearson}, spearman={got_spearman}; "
+                    f"want pearson={want['pearson']}, spearman={want['spearman']}"
+                )
+
+            got_partial = round2(partial_spearman(xs, drop, z))
+            want_partial = published["table4b_partial_spearman_ood_drop_given_std_max"][task][metric]
+            if got_partial != round2(want_partial):
+                fail(
+                    f"published Table 4b mismatch for {task}/{metric}: "
+                    f"got partial={got_partial}; want partial={want_partial}"
+                )
+
+    push_keys = sorted(evals["PushT"], key=float)
+    z = [float(std_key) for std_key in push_keys]
+    fragility = [
+        float(predictor["PushT"][std_key]["predictor_target_to_nn_cos_ratio_at_max_std"])
+        for std_key in push_keys
+    ]
+    clean = [float(evals["PushT"][std_key]["metrics"]["clean"]["mean"]) for std_key in push_keys]
+    px08 = [
+        float(evals["PushT"][std_key]["metrics"]["pixels_goal_std0.08"]["mean"])
+        for std_key in push_keys
+    ]
+    drop = [c - p for c, p in zip(clean, px08)]
+    table5 = published["table5_pusht_fragility_metric"]["spearman"]
+    recomputed = {
+        "rho_std_max_metric": round2(spearman(z, fragility)),
+        "rho_std_max_clean": round2(spearman(z, clean)),
+        "rho_std_max_pixels_goal_std0.08": round2(spearman(z, px08)),
+        "rho_std_max_ood_drop": round2(spearman(z, drop)),
+        "rho_metric_clean_unconditional": round2(spearman(fragility, clean)),
+        "rho_metric_clean_partial_given_std_max": round2(partial_spearman(fragility, clean, z)),
+        "rho_metric_pixels_goal_std0.08_unconditional": round2(spearman(fragility, px08)),
+        "rho_metric_pixels_goal_std0.08_partial_given_std_max": round2(
+            partial_spearman(fragility, px08, z)
+        ),
+        "rho_metric_ood_drop_unconditional": round2(spearman(fragility, drop)),
+        "rho_metric_ood_drop_partial_given_std_max": round2(partial_spearman(fragility, drop, z)),
+    }
+    for key, got in recomputed.items():
+        want = round2(table5[key])
+        if got != want:
+            fail(f"published Table 5 mismatch for {key}: got {got}, want {want}")
+
+
 def main() -> int:
     checks = [
         ("artifacts", check_artifacts),
         ("forbidden text", check_forbidden_text),
         ("canonical json", check_canonical_json),
         ("canonical diagnostics json", check_canonical_diagnostics_json),
+        ("published correlations", check_published_correlations),
     ]
     for name, fn in checks:
         try:

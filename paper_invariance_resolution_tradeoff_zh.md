@@ -43,7 +43,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 - **TwoRoom**（视觉冗余型导航）：clean 性能随噪声单调上升，在 std=0.008 达到最优（98.33% / 98.67%）
 - **PushT**（接触控制型操作）：clean 最优在 std=0.003（89.67%），但 robustness（px+goal 0.08）最优在 std=0.006（87.00%）——clean 与 robustness 的最优剂量分离
-- **Reacher**（运动规划）：最优在 std=0.006（86.00% / 84.67%）；极轻噪声（0.001）在统计上与 base 等价（61.67% vs 58.67%，差距 3pt 处于 ~2.5pt 的跨 seed std 范围内），真正的拐点在 std=0.002（跃升到 85.67%），说明该任务需要一个**最小噪声门槛**才开始受益
+- **Reacher**（运动规划）：位于 0.002–0.006 的 plateau 上；clean point-best 在 std=0.006（86.00%），px+goal 0.08 point-best 在 std=0.002（85.67%）。极轻噪声（0.001）在统计上与 base 等价（61.67% vs 58.67%，差距 3pt 处于 ~2.5pt 的跨 seed std 范围内），说明该任务需要一个**最小噪声门槛**才开始受益
 - **Cube**（结构化操作）：噪声 sweep 效果最弱，clean 没有单调提升趋势
 
 这一发现揭示了一个根本性的张力：**全局噪声增广无法区分"应该被不变性丢弃的视觉背景冗余"和"应该被保留分辨率的控制关键特征"**。
@@ -259,12 +259,12 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 **（1）没有单一 std_max 在四任务同时最优，且同一任务上 clean 与 robustness 最优剂量也不同。**
 - TwoRoom 在 std=0.008 达到全局最优 (98.33 / 98.67)，clean 随 noise 单调上升——视觉冗余任务从重 noise 中获益最大。
 - PushT 在 std=0.003 达到峰值 clean 89.67，但 robustness (px+g 0.08) 最优在 std=0.006（87.00 vs 0.002 的 71.33，+15.67pt）——**clean 与 robustness 最优剂量分离**。
-- Reacher 在 std=0.006 达到最优 (86.00 / 84.67)。std=0.001 clean 61.67 vs base 58.67，差距处于跨 seed std (~2.5pt) 范围内，因此数据只支持"低噪声 ≈ base"而**不**支持"低噪声反而损害"；拐点在 std=0.002（跃升到 85.67），暗示 Reacher 需要一个**最小噪声门槛**而非梯度式提升。
+- Reacher 位于 0.002–0.006 的 plateau：clean point-best 在 std=0.006（86.00），px+goal 0.08 point-best 在 std=0.002（85.67）。std=0.001 clean 61.67 vs base 58.67，差距处于跨 seed std (~2.5pt) 范围内，因此数据只支持"低噪声 ≈ base"而**不**支持"低噪声反而损害"。
 - Cube 的 noise sweep 效果最弱：clean 没有单调提升趋势（最优在 0.001 的 69.33），px+g 0.08 也仅在 0.003–0.007 区间有轻微改善（67.33 vs base 46.33，+21pt）——结构化 manipulation 对 input-side global noise 不敏感。
 
 **（2）per-task 调参是必要的，不是可选的。** task 间最优 std_max 差异巨大：TwoRoom clean/OOD point-best 都在 0.008；PushT clean point-best 在 0.003、px+goal 0.08 point-best 在 0.006；Reacher clean point-best 在 0.006、px+goal 0.08 point-best 在 0.002；Cube 的 px+goal 0.08 point-best 在 0.007，而 clean 在 0.001 / 0.004 / 0.007 一带形成浅 plateau。这划清了全局噪声增广的边界：**它是"input-side 全局 noise"的最强形式，但解决 OOD robustness 需要支付一个 per-task tuning cost。**
 
-**（3）四任务对 noise 的敏感度形成 clear gradient**：PushT（−81.66pt base drop）> Reacher（−43.67pt）> TwoRoom（−44.00pt）> Cube（−20.34pt）。但 noise training 的修复效果并不与敏感度成正比——TwoRoom 修复最彻底（+48.67pt @ std=0.008），Cube 修复最弱（+21.00pt），说明 input-side global noise 对"视觉冗余型"任务最有效，对"结构化操作型"任务边际收益有限。
+**（3）四任务在两端形成清晰的敏感度排序**：PushT（−81.66pt base drop）最敏感，Cube（−20.34pt）最不敏感，而 TwoRoom（−44.00pt）与 Reacher（−43.67pt）基本并列在约 44pt 的 drop 水平。但 noise training 的修复效果并不与敏感度成正比——TwoRoom 修复最彻底（+48.67pt @ std=0.008），Cube 修复最弱（+21.00pt），说明 input-side global noise 对"视觉冗余型"任务最有效，对"结构化操作型"任务边际收益有限。
 
 ### 4.4 诊断分析：为什么全局噪声不是万能药
 

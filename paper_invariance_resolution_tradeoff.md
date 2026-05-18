@@ -149,7 +149,7 @@ To understand how noise augmentation affects the latent representation, we defin
 
 To ensure the diagnostic signals are not spurious training artefacts, we adopt two complementary analyses on the same LeWM PushT sweep:
 
-- **LeWM n = 9 sweep with partial correlation.** All 9 LeWM checkpoints per task (base + std_max ∈ {0.001, …, 0.008}). Compute Spearman ρ and *partial Spearman ρ conditioned on `std_max`*. The partialling step matters: many diagnostics correlate with control performance only because both quantities co-vary with the training noise level along the sweep. Within-protocol partial correlation is the relevant test for whether a diagnostic carries signal beyond `std_max`.
+- **LeWM n = 9 sweep with partial correlation.** All 9 LeWM checkpoints per task (base + std_max ∈ {0.001, …, 0.008}). Compute Spearman ρ and *partial Spearman ρ conditioned on `std_max`*. The partialling step matters: many diagnostics correlate with control performance only because both quantities co-vary with the training noise level along the sweep. The relevant test is whether a diagnostic retains a residual ckpt-quality signal after conditioning on `std_max`.
 
 We report **both** the raw Spearman and the partial-on-`std_max` quantities. The raw ρ tells you "which checkpoint over the entire sweep behaves better"; the partial ρ tells you whether a diagnostic retains a **residual ckpt-quality signal after removing the monotone trend associated with `std_max`**. The two questions are distinct, and we will see in §4.5 that they have markedly different answers for the same metric.
 
@@ -169,7 +169,7 @@ We report **both** the raw Spearman and the partial-on-`std_max` quantities. The
 
 **Evaluation seeds.** Each checkpoint is evaluated with 3 evaluation seeds (42 / 43 / 44), with 100 trajectories per seed.
 
-**Evaluation protocol.** All success rates in this paper — clean and noised, across all 36 ckpts (4 tasks × {base, std 0.001..0.008}) — are computed under a single protocol: `n = 3` seeds (42/43/44), `num_eval = 100` trajectories per seed (300 trajectories per condition per ckpt). Every cell of Tables 1 and 2 is mean ± across-seed std over `n = 3`. Raw per-seed metrics are stored at `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`; the aggregated source-of-truth for downstream analysis lives at `canonical_evals_20260517.json`. All §4.5 cross-ckpt correlations and §4.6 mechanism numbers are computed against these aggregated values.
+**Evaluation protocol.** All success rates in this paper — clean and noised, across all 36 ckpts (4 tasks × {base, std 0.001..0.008}) — are computed under a single protocol: `n = 3` seeds (42/43/44), `num_eval = 100` trajectories per seed (300 trajectories per condition per ckpt). Every cell of Tables 1 and 2 is mean ± across-seed population std over `n = 3`, matching `canonical_evals_20260517.json`. Raw per-seed metrics are stored at `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`; the aggregated source-of-truth for downstream evaluation analysis lives at `canonical_evals_20260517.json`. The released diagnostic source-of-truth for Figure 3 and Tables 4/4b/5 is `canonical_diagnostics_20260517.json`.
 
 **Hardware.** Single NVIDIA A100 (80 GB) GPU; training takes 2–4 hours per task per configuration.
 
@@ -266,7 +266,7 @@ Table 3 compares core diagnostic metrics on LeWM-base versus a representative no
 | `action_mean_pred_shift_norm` | 0.5329 | 0.4482 | 0.1283 | 0.1200 | 0.2518 | 0.2585 | 0.2364 | 0.2320 |
 | `predictor_rollout_T8_l2` | 18.62 | 17.90 | 18.65 | 16.50 | 15.17 | 0.44 | 20.20 | 19.25 |
 
-**Notes.** (i) `transition_resolution_ratio_l2` and `_cos` values for TwoRoom are taken directly from `geometry_summary.json` and `task_resolution.json` and corrected against an earlier transcription. (ii) Reacher/Cube representative diagnostics are pulled from the corresponding ckpt's `eval_results/diagnostics/{geometry_summary, task_resolution, predictor_sensitivity}.json` (max-std = 0.1, history-only noise). (iii) Cube base `predictor_rollout_T8_l2 = 20.20` and Reacher base `15.17` are of similar magnitude; Cube representative = 19.25 and Reacher representative = 0.44 show that noise training's effect on long-horizon rollout drift is highly **task-dependent** (Reacher: 35× reduction; Cube: nearly unchanged).
+**Notes.** (i) `transition_resolution_ratio_l2` and `_cos` values for TwoRoom are taken directly from `geometry_summary.json` and `task_resolution.json` and corrected against an earlier transcription. (ii) The released paper-level representative diagnostics are canonicalized in `canonical_diagnostics_20260517.json`; the underlying raw sources are the corresponding ckpt's `eval_results/diagnostics/{geometry_summary, task_resolution, predictor_sensitivity}.json` (max-std = 0.1, history-only noise). (iii) Cube base `predictor_rollout_T8_l2 = 20.20` and Reacher base `15.17` are of similar magnitude; Cube representative = 19.25 and Reacher representative = 0.44 show that noise training's effect on long-horizon rollout drift is highly **task-dependent** (Reacher: 35× reduction; Cube: nearly unchanged).
 
 ![Fig 4 — Per-task diagnostic radar: base vs representative noise-trained diagnostic checkpoint on 6 metrics](assets/paper1_figs/fig4_radar.png)
 
@@ -283,7 +283,7 @@ We analyse two single-value-per-ckpt diagnostic metrics that have full coverage 
 - `predictor_target_to_nn_cos_ratio_at_max_std` (the "fragility metric" — single-step predictor target shift normalised by nearest-neighbour distance, at the diagnostic's max-std injection level)
 - `predictor_rollout_T8_l2_at_max_std` (multi-step predictor drift at the same max-std injection)
 
-Both are extracted from `eval_results/diagnostics/predictor_sensitivity.json` and are entirely a function of the ckpt (i.e., independent of the eval protocol).
+Both are released in `canonical_diagnostics_20260517.json`, derived from each ckpt's `eval_results/diagnostics/predictor_sensitivity.json`, and are entirely a function of the ckpt (i.e., independent of the eval protocol).
 
 **Table 4. LeWM n = 9 sweep — per-task Pearson r / Spearman ρ vs OOD drop (clean − px+g 0.08).** Eval values come from the unified 3-seed × 100 protocol.
 
@@ -321,7 +321,7 @@ The TwoRoom partial estimates are undefined because the saturating success rates
 The key reads:
 
 1. **After removing the monotone trend associated with `std_max`, the metric still carries a meaningful residual ckpt-quality signal.** Partial Spearman ρ on clean is **−0.59** and on px+goal 0.08 is **−0.41** — both negative, both meaningful at this sample size. On the n = 9 PushT sweep, lower fragility ratio aligns with better clean *and* better noisy success beyond what the sweep-level `std_max` trend already explains.
-2. **The metric does NOT predict OOD drop beyond training protocol.** The unconditional ρ(metric, drop) = −0.77 looks impressive, but partialling out `std_max` collapses it to **+0.06** (sign-flipped, near zero). The drop's strong correlation with the metric is a mediated effect: `std_max` drives both the metric (ρ = +0.83) and the drop (ρ = −0.93). Once `std_max` is fixed, the metric tells you nothing new about how much the *gap* between clean and noisy performance will be.
+2. **The metric does NOT predict the clean–OOD gap.** The unconditional ρ(metric, drop) = −0.77 looks impressive, but partialling out `std_max` collapses it to **+0.06** (sign-flipped, near zero). The drop's strong correlation with the metric is a mediated effect: `std_max` drives both the metric (ρ = +0.83) and the drop (ρ = −0.93). After the `std_max` trend is removed, the metric tells you nothing new about how much the *gap* between clean and noisy performance will be.
 3. **Note the unconditional-vs-partial sign reversal on clean.** ρ(metric, clean) is only −0.33 unconditionally — clean success rate has become roughly flat across the PushT sweep under the 3-seed protocol (range 80.67–89.67), so `std_max` barely moves clean. The partial correlation **strengthens** to −0.59 once the sweep-level `std_max` trend is removed, exactly because the residual signal is what the metric tracks.
 4. **Practical reading.** The toolkit is a model-selection tool that ranks checkpoints after controlling for the sweep-level `std_max` effect. It is *not* a substitute for actually training with noise when the OOD gap is the quantity of interest.
 
@@ -332,7 +332,7 @@ The partial-correlation analysis above settles the interpretation:
 - The metric is a **residual ckpt-quality signal beyond the sweep-level `std_max` effect** — lower fragility ratio means better control on *both* clean and noisy evaluation (partial ρ = −0.59 / −0.41 on PushT).
 - The metric **does not isolate noise-robustness** — its apparent correlation with the *gap* between clean and noisy success is fully mediated by `std_max` (partial ρ = +0.06).
 
-The PushT scatter (Figure 3) makes both halves of this visible. Panel (a) plots metric × clean and shows the unconditional negative trend (Spearman ρ = −0.33; the within-`std_max` slope is what the partial correlation captures). Panel (b) plots metric × OOD drop and shows the unconditional ρ = −0.77, but the colour-bar (which encodes `std_max`) reveals the structure: low-`std_max` ckpts (light blue) live at high drop, high-`std_max` ckpts (dark blue) live at low drop, and the metric tracks `std_max` itself. Once `std_max` is held constant, the metric does not separate small-drop from large-drop ckpts.
+The PushT scatter (Figure 3) makes both halves of this visible. Panel (a) plots metric × clean and shows the unconditional negative trend (Spearman ρ = −0.33; the residual trend after conditioning on `std_max` is what the partial correlation captures). Panel (b) plots metric × OOD drop and shows the unconditional ρ = −0.77, but the colour-bar (which encodes `std_max`) reveals the structure: low-`std_max` ckpts (light blue) live at high drop, high-`std_max` ckpts (dark blue) live at low drop, and the metric tracks `std_max` itself. After the `std_max` trend is removed, the metric does not separate small-drop from large-drop ckpts.
 
 ![Fig 3 — PushT n = 9 LeWM sweep: fragility metric is a ckpt-quality predictor (a), the apparent OOD-drop correlation in (b) is mediated by std_max](assets/paper1_figs/fig3_scatter.png)
 
@@ -570,7 +570,7 @@ python -m tools.paper1_figs --out-dir assets/paper1_figs
 |---|---|---|---|
 | **1 (hero)** | Grouped bars per task: clean / px+g 0.08 base / px+g 0.08 point-best | `canonical_evals_20260517.json` | Annotates per-task px+g 0.08 point-best `σ*` and recovery Δ |
 | **2 (sweep)** | 4 panels (tasks) × 2 curves (clean / px+g 0.08) | `canonical_evals_20260517.json` | Dashed vertical at each task's px+g 0.08 point-best |
-| **3 (scatter)** | Two-panel scatter of `predictor_target_to_nn_cos_ratio_at_max_std` vs PushT clean (a) and OOD drop (b) | n = 9 LeWM PushT checkpoint dirs under `lewm-pusht/ckpt/`; `predictor_sensitivity.json` (max-std, history-only) + `canonical_evals_20260517.json` | colour by `std_max`; panel (a) unconditional Spearman ρ = −0.33 (partial −0.59 after conditioning on `std_max`); panel (b) unconditional ρ = −0.77 (partial +0.06) |
+| **3 (scatter)** | Two-panel scatter of `predictor_target_to_nn_cos_ratio_at_max_std` vs PushT clean (a) and OOD drop (b) | `canonical_diagnostics_20260517.json` + `canonical_evals_20260517.json` | colour by `std_max`; panel (a) unconditional Spearman ρ = −0.33 (partial −0.59 after conditioning on `std_max`); panel (b) unconditional ρ = −0.77 (partial +0.06) |
 | **4 (radar)** | 2×2 grid; 6-axis polar per task; base vs representative diagnostic checkpoint overlay | Table 3 | Per-metric min-max normalization across tasks |
 | **5 (mechanism)** | Schematic pipeline: pixels → encoder → predictor → CEM | §4.6 narrative | Quantitative attribution comes from the two full-coverage LeWM n = 9 predictor metrics in §4.6.2; Reacher's multi-step drift is the only non-trivial residual signal after conditioning on `std_max` |
 | **6 (pareto)** | Per-task trajectory in (clean, px+g 0.08) space | `canonical_evals_20260517.json` | Ringed marker = px+g 0.08 point-best |
@@ -606,7 +606,7 @@ The table below summarises every core diagnostic on the four LeWM-base checkpoin
 | **Latent Noise** | `cka_linear_at_max_std` | 0.1986 | 0.5536 | 0.3085 | 0.1814 | CKA clean vs noisy |
 | | `latent_cost_surface_slope_z` | 635.31 | 1.3886 | 599.45 | 0.6208 | goal-latent perturb cost slope |
 
-The canonical evaluation aggregates for the 9-level LeWM PushT sweep live in `canonical_evals_20260517.json`. The Figure 3 correlations are recomputable from that JSON plus each checkpoint's `predictor_sensitivity.json`.
+The canonical evaluation aggregates for the 9-level LeWM PushT sweep live in `canonical_evals_20260517.json`. The Figure 3 correlations are recomputable from that JSON together with `canonical_diagnostics_20260517.json`.
 
 ---
 

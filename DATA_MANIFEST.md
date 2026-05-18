@@ -4,6 +4,8 @@ This manifest documents the released evaluation aggregate for Paper 1:
 
 - Canonical aggregate: `canonical_evals_20260517.json`
 - Schema: `canonical_evals_20260517.schema.json`
+- Canonical diagnostics: `canonical_diagnostics_20260517.json`
+- Diagnostics schema: `canonical_diagnostics_20260517.schema.json`
 - Scope: 36 LeWM checkpoints = 4 tasks × 9 configs (`base` + `std_max` 0.001..0.008)
 - Evaluation protocol: **3 evaluation seeds** (`42`, `43`, `44`) × **100 trajectories per seed**
 - Important clarification: these are **evaluation seeds**, not 3 independently trained models per configuration
@@ -91,7 +93,12 @@ where `<cond>` is one of:
 ## Consumer Notes
 
 - `tools/paper1_figs.py` treats `canonical_evals_20260517.json` as the sole source of truth for Figure 1, Figure 2, Figure 3 eval values, and Figure 6.
-- The figure script matches checkpoints by `subdir` first and only uses absolute `path` as a fallback.
+- `tools/paper1_figs.py` treats `canonical_diagnostics_20260517.json` as the source of truth for Figure 3 predictor metrics and Table 3 / Figure 4 representative diagnostic values.
+- The canonical diagnostics release stores:
+  - 4 tasks × 9 ckpts of `predictor_target_to_nn_cos_ratio_at_max_std`
+  - 4 tasks × 9 ckpts of `predictor_rollout_T8_l2_at_max_std`
+  - finalized Table 3 representative diagnostic values
+  - published Table 4 / Table 4b / Table 5 correlation numbers
 - `tools/check_paper1_consistency.py` verifies:
   - the JSON exists
   - the released structure is 4 tasks × 9 configs

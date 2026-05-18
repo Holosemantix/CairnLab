@@ -23,11 +23,14 @@ RELEASE_FILES = [
     ROOT / "tools" / "paper1_figs.py",
     ROOT / "paper1" / "references.bib",
     ROOT / "DATA_MANIFEST.md",
+    ROOT / "canonical_diagnostics_20260517.json",
 ]
 
 REQUIRED_ARTIFACTS = [
     ROOT / "canonical_evals_20260517.json",
     ROOT / "canonical_evals_20260517.schema.json",
+    ROOT / "canonical_diagnostics_20260517.json",
+    ROOT / "canonical_diagnostics_20260517.schema.json",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -43,6 +46,7 @@ FORBIDDEN_SNIPPETS = [
     "ρ ≈ −0.3",
     "noise-best",
     "within-protocol",
+    "Within-protocol",
     "LeWM + SWM",
     "PushT n=18 scatter",
     "best (σ*=",
@@ -61,6 +65,7 @@ EXPECTED_CONFIGS = {
     "0.008",
 }
 REQUIRED_METRICS = {"clean", "pixels_goal_std0.05", "pixels_goal_std0.08"}
+REQUIRED_DIAG_TASKS = EXPECTED_TASKS
 TOL = 1e-9
 
 
@@ -159,11 +164,68 @@ def check_canonical_json() -> None:
         fail(f"Expected 36 canonical configs, got {total_configs}")
 
 
+def check_canonical_diagnostics_json() -> None:
+    path = ROOT / "canonical_diagnostics_20260517.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    predictor = data.get("predictor_metrics_by_task")
+    if not isinstance(predictor, dict) or set(predictor) != REQUIRED_DIAG_TASKS:
+        fail(
+            "canonical diagnostics predictor tasks mismatch: "
+            f"expected {sorted(REQUIRED_DIAG_TASKS)}, got {sorted(predictor or {})}"
+        )
+
+    for task, configs in predictor.items():
+        if set(configs) != EXPECTED_CONFIGS:
+            fail(
+                f"canonical diagnostics {task} config mismatch: "
+                f"expected {sorted(EXPECTED_CONFIGS)}, got {sorted(configs)}"
+            )
+        for std_key, entry in configs.items():
+            for key in (
+                "subdir",
+                "diagnostic_max_std",
+                "predictor_target_to_nn_cos_ratio_at_max_std",
+                "predictor_rollout_T8_l2_at_max_std",
+            ):
+                if key not in entry:
+                    fail(f"canonical diagnostics {task}/{std_key} missing key {key!r}")
+
+    rep = data.get("table3_representative_diagnostics", {})
+    if set(rep.get("representative_std_by_task", {})) != REQUIRED_DIAG_TASKS:
+        fail("canonical diagnostics representative std map is incomplete")
+    values = rep.get("values", {})
+    if set(values) != REQUIRED_DIAG_TASKS:
+        fail("canonical diagnostics representative value map is incomplete")
+    metric_order = rep.get("metric_order", [])
+    expected_metric_order = [
+        "clean_effective_rank",
+        "clean_nn_cos_dist_median",
+        "transition_resolution_ratio_l2",
+        "transition_resolution_ratio_cos",
+        "id_probe_r2",
+        "action_mean_pred_shift_norm",
+    ]
+    if metric_order != expected_metric_order:
+        fail(
+            "canonical diagnostics metric order mismatch: "
+            f"expected {expected_metric_order}, got {metric_order}"
+        )
+    for task, task_values in values.items():
+        for which in ("base", "representative"):
+            if which not in task_values:
+                fail(f"canonical diagnostics {task} missing {which!r} values")
+            for metric in expected_metric_order:
+                if metric not in task_values[which]:
+                    fail(f"canonical diagnostics {task}/{which} missing metric {metric!r}")
+
+
 def main() -> int:
     checks = [
         ("artifacts", check_artifacts),
         ("forbidden text", check_forbidden_text),
         ("canonical json", check_canonical_json),
+        ("canonical diagnostics json", check_canonical_diagnostics_json),
     ]
     for name, fn in checks:
         try:

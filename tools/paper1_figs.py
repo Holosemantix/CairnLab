@@ -15,10 +15,7 @@ Generates:
 Data sources (no new computation needed):
 
 - Eval tables (§4.2, §4.3): canonical_evals_20260517.json
-- Per-ckpt diagnostics for the scatter: globbed from
-  /home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/
-  base + noise 0.001..0.008 checkpoints, reading predictor_sensitivity.json
-- Diagnostic Table 3 / radar data: hard-coded from the paper §4.4 + §A.6
+- Diagnostic tables / Figure 3 predictor metrics: canonical_diagnostics_20260517.json
 """
 from __future__ import annotations
 
@@ -35,7 +32,7 @@ import numpy as np
 
 
 # ============================================================================
-# Hard-coded diagnostic data mirrored from the paper.
+# Canonical diagnostic data mirrored from the paper release artifacts.
 # ============================================================================
 
 SWEEP_STDS = [0, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008]
@@ -50,37 +47,6 @@ DIAG_METRICS = [
     "id_probe_r2",
     "action_mean_pred_shift_norm",
 ]
-DIAG_DATA = {
-    "TwoRoom": {
-        "base": [47.60, 0.0449, 0.7216, 0.5538, 0.2889,  0.5329],
-        "representative": [33.59, 0.0281, 0.6055, 0.3780,-0.0573,  0.4482],
-    },
-    "PushT": {
-        "base": [76.42, 0.2360, 0.3015, 0.0868, 0.7739,  0.1283],
-        "representative": [42.85, 0.1051, 0.2800, 0.0800, 0.7500,  0.1200],
-    },
-    "Reacher": {
-        "base": [61.04, 0.0633, 0.3704, 0.1351, 0.1621,  0.2518],
-        "representative": [65.92, 0.0676, 0.3791, 0.1399, 0.1729,  0.2585],
-    },
-    "Cube": {
-        "base": [73.25, 0.1856, 0.4847, 0.2347, 0.6657,  0.2364],
-        "representative": [71.83, 0.1879, 0.4629, 0.2168, 0.6720,  0.2320],
-    },
-}
-
-DIAG_REPRESENTATIVE = {
-    "TwoRoom": {"std": 0.008},
-    "PushT": {"std": 0.002},
-    "Reacher": {"std": 0.006},
-    "Cube": {"std": 0.001},
-}
-
-
-# ============================================================================
-# Helpers
-# ============================================================================
-
 def _setup_style():
     plt.rcParams.update({
         "font.family": "DejaVu Sans",
@@ -100,6 +66,8 @@ def _setup_style():
 
 _CANONICAL_EVALS_CACHE: Dict[str, Dict] = {}
 _CANONICAL_TABLES_CACHE: Dict[str, Dict] = {}
+_CANONICAL_DIAGNOSTICS_CACHE: Dict[str, Dict] = {}
+_CANONICAL_DIAG_TABLES_CACHE: Dict[str, Dict] = {}
 
 
 def _load_canonical_evals() -> Dict:
@@ -170,6 +138,47 @@ def _canonical_eval_tables() -> Dict[str, Dict]:
         "ood_point_best": ood_point_best,
     })
     return _CANONICAL_TABLES_CACHE
+
+
+def _load_canonical_diagnostics() -> Dict:
+    """Load canonical_diagnostics_20260517.json from the repo root (cached)."""
+    if _CANONICAL_DIAGNOSTICS_CACHE:
+        return _CANONICAL_DIAGNOSTICS_CACHE
+    fp = Path(__file__).resolve().parent.parent / "canonical_diagnostics_20260517.json"
+    if not fp.exists():
+        raise FileNotFoundError(
+            f"Missing canonical diagnostics aggregate: {fp}. "
+            "This script requires canonical_diagnostics_20260517.json."
+        )
+    with open(fp) as f:
+        _CANONICAL_DIAGNOSTICS_CACHE.update(json.load(f))
+    return _CANONICAL_DIAGNOSTICS_CACHE
+
+
+def _canonical_diag_tables() -> Dict[str, Dict]:
+    """Return Table 3 representative diagnostics derived from canonical JSON."""
+    if _CANONICAL_DIAG_TABLES_CACHE:
+        return _CANONICAL_DIAG_TABLES_CACHE
+
+    diag = _load_canonical_diagnostics()["table3_representative_diagnostics"]
+    metric_order = diag["metric_order"]
+    tasks = ["TwoRoom", "PushT", "Reacher", "Cube"]
+    values = {}
+    rep = {}
+    for task in tasks:
+        task_vals = diag["values"][task]
+        values[task] = {
+            "base": [float(task_vals["base"][m]) for m in metric_order],
+            "representative": [float(task_vals["representative"][m]) for m in metric_order],
+        }
+        rep[task] = {"std": float(diag["representative_std_by_task"][task])}
+
+    _CANONICAL_DIAG_TABLES_CACHE.update({
+        "tasks": tasks,
+        "values": values,
+        "representative": rep,
+    })
+    return _CANONICAL_DIAG_TABLES_CACHE
 
 
 # ============================================================================
@@ -267,68 +276,21 @@ def fig2_sweep(out_path: Path):
 # Uses the n=9 LeWM PushT sweep only.
 # ============================================================================
 
-def _glob_n9_pusht_lewm(data_root: Path) -> List[Tuple[str, str, float, str]]:
-    """Return [(label, method, std_max, ckpt_dir), ...] for the 9 LeWM PushT
-    sweep ckpts (base + std 0.001..0.008). Prefers `_20260507` retrained
-    canonical paths when they exist (matches canonical_evals_20260517.json)."""
-    out = []
-    pusht_root = data_root / "lewm-pusht" / "ckpt"
-    # base
-    base_dir = pusht_root / "pusht_lewm_20260430"
-    if base_dir.exists():
-        out.append(("LeWM-base", "LeWM", 0.0, str(base_dir)))
-    # noise sweep 0to001..0to008
-    for i in range(1, 9):
-        sx = f"0to00{i}_p1"
-        retrained = pusht_root / f"pusht_lewm_noise_{sx}_20260507"
-        default = pusht_root / f"pusht_lewm_noise_{sx}"
-        chosen = retrained if retrained.exists() else default
-        if not chosen.exists():
-            continue
-        out.append((f"LeWM-noise-0to00{i}", "LeWM", float(f"0.00{i}"), str(chosen)))
-    return out
-
-
-# Backward-compat alias for any code that imports the older name.
-_glob_n18_pusht = _glob_n9_pusht_lewm
-
-
-def _read_predictor_target_ratio(ckpt_dir: Path) -> float:
-    """Find the max-std, history-only row in predictor_sensitivity.json and
-    return target_to_nn_cos_ratio. NaN if missing."""
-    fp = Path(ckpt_dir) / "eval_results" / "diagnostics" / "predictor_sensitivity.json"
-    if not fp.exists():
-        return float("nan")
-    with open(fp) as f:
-        rows = json.load(f)
-    if not rows:
-        return float("nan")
-    rows = [r for r in rows if r.get("history_noise_only") in (True, "true", "True", None)]
-    if not rows:
-        return float("nan")
-    max_std = max(r["std"] for r in rows)
-    for r in rows:
-        if r["std"] == max_std:
-            return float(r.get("target_to_nn_cos_ratio", float("nan")))
-    return float("nan")
-
-def _read_eval_metrics(ckpt_dir: Path) -> Dict[str, float]:
-    """Look up the ckpt in canonical_evals_20260517.json (unified 3-seed × 100)
-    and return {'clean': mean, 'px08': mean}. The script is figure-only — the
-    canonical aggregate is the single source of truth. We match by `subdir`
-    first so the figure remains portable across different absolute data roots.
-    """
-    target = str(ckpt_dir.resolve())
-    target_subdir = ckpt_dir.name
-    canon = _load_canonical_evals()
-    for task_rows in canon.values():
-        for entry in task_rows.values():
-            if entry.get("subdir") == target_subdir or entry.get("path") == target:
-                m = entry.get("metrics", {})
-                clean = m.get("clean", {}).get("mean", float("nan"))
-                px08  = m.get("pixels_goal_std0.08", {}).get("mean", float("nan"))
-                return {"clean": float(clean), "px08": float(px08)}
-    return {"clean": float("nan"), "px08": float("nan")}
+def _canonical_fig3_rows() -> List[Tuple[float, float, float, float]]:
+    """Return [(std_max, ratio, clean, px08), ...] from canonical release JSON."""
+    evals = _load_canonical_evals()["PushT"]
+    diag = _load_canonical_diagnostics()["predictor_metrics_by_task"]["PushT"]
+    rows = []
+    for std_key in sorted(diag, key=float):
+        eval_entry = evals[std_key]["metrics"]
+        diag_entry = diag[std_key]
+        rows.append((
+            float(std_key),
+            float(diag_entry["predictor_target_to_nn_cos_ratio_at_max_std"]),
+            float(eval_entry["clean"]["mean"]),
+            float(eval_entry["pixels_goal_std0.08"]["mean"]),
+        ))
+    return rows
 
 
 def _spearman(xs: np.ndarray, ys: np.ndarray) -> float:
@@ -357,29 +319,20 @@ def _spearman(xs: np.ndarray, ys: np.ndarray) -> float:
 
 
 def fig3_scatter(out_path: Path, data_root: Path):
-    ckpts = _glob_n9_pusht_lewm(data_root)
-    if not ckpts:
-        print(f"  WARN: no PushT LeWM ckpts found under {data_root}; skipping fig3")
-        return
-    rows = []
-    for label, method, std, ck in ckpts:
-        ratio = _read_predictor_target_ratio(Path(ck))
-        ev = _read_eval_metrics(Path(ck))
-        if math.isnan(ratio) or math.isnan(ev["clean"]) or math.isnan(ev["px08"]):
-            continue
-        rows.append((label, std, ratio, ev["clean"], ev["px08"]))
+    del data_root  # legacy arg; Figure 3 is now driven entirely by canonical JSON.
+    rows = _canonical_fig3_rows()
     if len(rows) < 5:
-        print(f"  WARN: only {len(rows)} valid PushT LeWM ckpts; skipping fig3")
+        print(f"  WARN: only {len(rows)} canonical PushT LeWM ckpts; skipping fig3")
         return
 
     # Two side-by-side panels: vs clean | vs OOD drop.
     fig, (ax_clean, ax_drop) = plt.subplots(1, 2, figsize=(10.5, 4.3))
 
-    xs = np.array([r[2] for r in rows])
-    cleans = np.array([r[3] for r in rows])
-    px08s = np.array([r[4] for r in rows])
+    xs = np.array([r[1] for r in rows])
+    cleans = np.array([r[2] for r in rows])
+    px08s = np.array([r[3] for r in rows])
     drops = cleans - px08s
-    stds_ax = np.array([r[1] for r in rows])
+    stds_ax = np.array([r[0] for r in rows])
 
     def _panel(ax_, ys, ylabel, title, anchor_y_top):
         sc = ax_.scatter(xs, ys, marker="o", s=90,
@@ -436,6 +389,7 @@ def fig3_scatter(out_path: Path, data_root: Path):
 
 def fig4_radar(out_path: Path):
     metrics = DIAG_METRICS
+    diag_tables = _canonical_diag_tables()
     short_names = [
         "eff. rank",
         "NN cos dist",
@@ -444,14 +398,16 @@ def fig4_radar(out_path: Path):
         "id-probe R²",
         "action shift",
     ]
-    tasks = list(DIAG_DATA.keys())
+    tasks = diag_tables["tasks"]
+    diag_data = diag_tables["values"]
+    diag_representative = diag_tables["representative"]
 
     # Normalize each metric across all 8 (4 tasks × 2 ckpts) values to [0,1].
     metric_min = [float("inf")] * len(metrics)
     metric_max = [-float("inf")] * len(metrics)
     for t in tasks:
         for which in ("base", "representative"):
-            for i, v in enumerate(DIAG_DATA[t][which]):
+            for i, v in enumerate(diag_data[t][which]):
                 metric_min[i] = min(metric_min[i], v)
                 metric_max[i] = max(metric_max[i], v)
     def _norm(vals):
@@ -468,14 +424,14 @@ def fig4_radar(out_path: Path):
     fig, axes = plt.subplots(2, 2, figsize=(9.5, 9.0), subplot_kw=dict(polar=True))
     axes = axes.flatten()
     for ax, t in zip(axes, tasks):
-        base = _norm(DIAG_DATA[t]["base"])
-        representative = _norm(DIAG_DATA[t]["representative"])
+        base = _norm(diag_data[t]["base"])
+        representative = _norm(diag_data[t]["representative"])
         base += base[:1]
         representative += representative[:1]
         ax.plot(angles, base, "o-", linewidth=1.6, color="#4477AA",
                 label="base", markersize=4.5)
         ax.fill(angles, base, alpha=0.18, color="#4477AA")
-        diag_std = DIAG_REPRESENTATIVE[t]["std"]
+        diag_std = diag_representative[t]["std"]
         ax.plot(angles, representative, "s-", linewidth=1.6, color="#228833",
                 label=f"representative diag (σ={diag_std:.3f})", markersize=4.5)
         ax.fill(angles, representative, alpha=0.18, color="#228833")
@@ -641,7 +597,7 @@ def main():
                     help="output directory (relative to repo root)")
     ap.add_argument("--data-root",
                     default="/home/ag/dataset/ag_data/data/world_model/quentinll",
-                    help="root of ckpt directories (lewm-pusht/, lewm-cube/, ...)")
+                    help="legacy arg; no longer required once canonical_diagnostics_20260517.json is present")
     ap.add_argument("--only", nargs="+", choices=["1", "2", "3", "4", "5", "6"],
                     help="render only these figures (default: all)")
     args = ap.parse_args()

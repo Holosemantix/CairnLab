@@ -7,6 +7,8 @@ canonical_correlations_*.json
 cross_check_corr_*.json
 !canonical_evals_20260517.json
 !canonical_evals_20260517.schema.json
+!canonical_diagnostics_20260517.json
+!canonical_diagnostics_20260517.schema.json
 
 # Mac
 .DS_Store

@@ -15,7 +15,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 （2）**不存在全局最优噪声**：不同任务对噪声增广的响应截然不同。视觉冗余型任务（TwoRoom）可从重噪声中获益（最优 std=0.008），而接触控制型任务（PushT）在轻噪声（std=0.003）下 clean 性能最优，但 robustness 最优需 std=0.006——clean 与 robustness 的最优剂量分离。
 
-（3）**五层诊断协议揭示压缩机制**：通过编码器偏移、编码器几何、预测器敏感性、潜空间噪声响应、任务分辨率五层指标，我们将噪声引起的控制失败追溯到一条表征链：表征压缩（effective rank 下降）→ 关键帧分辨率丢失（transition resolution ratio 崩溃）→ 可控性退化（id_probe_r² 下降）。但作为**跨 checkpoint 预测量**使用时，最强的单一诊断量（`predictor_target_to_nn_cos_ratio_at_max_std`）追踪的是 **同一训练协议下的 ckpt 质量**（PushT n=9 sweep 上 partial Spearman ρ = −0.59 vs clean、−0.41 vs px+g 0.08，条件于 `std_max`，eval 数据为统一 3-seed × 100）；它**不预测训练协议层面的 OOD drop**——unconditional ρ(metric, drop) = −0.77，但条件于 `std_max` 后塌缩到 +0.06。诊断 toolkit 是 within-protocol 模型选择工具，**不能替代实际用 noise 训练**当目标是 OOD 鲁棒性时。
+（3）**五层诊断协议揭示压缩机制**：通过编码器偏移、编码器几何、预测器敏感性、潜空间噪声响应、任务分辨率五层指标，我们将噪声引起的控制失败追溯到一条表征链：表征压缩（effective rank 下降）→ 关键帧分辨率丢失（transition resolution ratio 崩溃）→ 可控性退化（id_probe_r² 下降）。但作为**跨 checkpoint 预测量**使用时，最强的单一诊断量（`predictor_target_to_nn_cos_ratio_at_max_std`）追踪的是 **超出 sweep-level `std_max` 效应之外的残余 ckpt-quality 信号**（PushT n=9 sweep 上 partial Spearman ρ = −0.59 vs clean、−0.41 vs px+g 0.08，条件于 `std_max`，eval 数据为统一 3-seed × 100）；它**不预测训练协议层面的 OOD drop**——unconditional ρ(metric, drop) = −0.77，但条件于 `std_max` 后塌缩到 +0.06。诊断 toolkit 在去除 `std_max` sweep 趋势后有用，但**不能替代实际用 noise 训练**当目标是 OOD 鲁棒性时。
 
 本研究不提出新的训练算法，贡献为：(i) JEPA + CEM 视觉 OOD 失败的系统经验研究；(ii) 一套可复现的诊断 toolkit；(iii) 对 cross-ckpt 诊断量"能预测什么、不能预测什么"的诚实划界。
 
@@ -158,9 +158,9 @@ $$
 
 为确保诊断指标不是训练噪声的伪相关，我们在同一个 LeWM PushT sweep 上做两类互补分析：
 
-- **LeWM n = 9 sweep + 偏相关**：每个任务全部 9 个 LeWM ckpt（base + std_max ∈ {0.001,…,0.008}）；计算 Spearman ρ 与 **条件于 `std_max` 的 partial Spearman ρ**。偏相关这一步关键：很多诊断量与控制性能的边际相关其实只是因为两者都随 `std_max` 共变。within-protocol partial 是判断诊断量是否携带 `std_max` 以外信号的相关检验。
+- **LeWM n = 9 sweep + 偏相关**：每个任务全部 9 个 LeWM ckpt（base + std_max ∈ {0.001,…,0.008}）；计算 Spearman ρ 与 **条件于 `std_max` 的 partial Spearman ρ**。偏相关这一步关键：很多诊断量与控制性能的边际相关其实只是因为两者都随 `std_max` 共变。偏相关检验问的是：**去掉 `std_max` 的单调 sweep 趋势后，诊断量是否还保留残余 ckpt-quality 信号。**
 
-正文同时给出 **原始** Spearman 与 **条件于 std_max** 的两类相关。原始 ρ 回答"sweep 全程中哪个 ckpt 整体更好"；偏相关回答"**在同一训练协议下**哪个 ckpt 更好"。这两个问题不同——§4.5 会显示同一个指标在两个口径下结论截然不同。
+正文同时给出 **原始** Spearman 与 **条件于 std_max** 的两类相关。原始 ρ 回答"sweep 全程中哪个 ckpt 整体更好"；偏相关回答"**去掉 `std_max` 的单调趋势后**，诊断量是否还排序残余 ckpt 质量"。这两个问题不同——§4.5 会显示同一个指标在两个口径下结论截然不同。
 
 > 更大规模的跨架构验证（变换世界模型 latent geometry 本身）作为后续工作；我们计划在 v2 加入非 JEPA baseline（DreamerV3 或 TD-MPC2 在同任务上对比）。
 
@@ -174,7 +174,9 @@ $$
 
 **基线**：LeWM-base（无噪声训练）、LeWM+noise（8 档噪声 sweep）。
 
-**训练**：每个配置 3 随机种子（42/43/44），每种子 eval 100 trajectories，报告 mean ± std。
+**Checkpoints**：本文的 36 个 ckpt 对应每个 `(task, std_max)` 配置各 1 个训练完成的模型。
+
+**Evaluation seeds**：每个 ckpt 用 3 个 evaluation seeds（42/43/44）评测，每个 seed 100 trajectories。
 
 **硬件**：单 GPU（NVIDIA A100），训练约 2-4 小时/任务/配置。
 
@@ -182,11 +184,11 @@ $$
 
 **主要图表清单**（详 §A.6）：
 
-- **图 1（hero）**：4 任务 LeWM-base 的 clean 与 px+goal 0.08 成功率条形图，叠加 noise sweep 后最优配置的成功率——视觉化 "JEPA 不变性幻觉 + noise training 大幅修复 + per-task 最优剂量"三件事。数据源：表 1 + 表 2。
+- **图 1（hero）**：4 任务 LeWM-base 的 clean 与 px+goal 0.08 成功率条形图，叠加 noise sweep 后 **px+goal 0.08 point-best** 配置的成功率——视觉化 "JEPA 不变性幻觉 + noise training 大幅修复 + per-task 最优剂量"三件事。数据源：表 1 + 表 2。
 - **图 2**：4 任务 noise sweep 折线图（x: std_max ∈ [0, 0.008], y: clean / px+goal 0.05 / px+goal 0.08 三条线）。展示 clean-robust 最优剂量分离。现有 `assets/diagnostics/noise_angle_curve_goal.png`、`noise_ratio_curve_goal.png` 可作输入材料。
-- **图 3**：PushT n=9 LeWM sweep 上 `predictor_target_to_nn_cos_ratio_at_max_std` 双面板散点（左 vs clean，右 vs OOD drop），颜色编码 `std_max`，标注 Spearman ρ。底层数据来自每个 ckpt 的 `predictor_sensitivity.json` + `summary.txt`，0to006 用 retrained `_20260507`。
-- **图 4**：表 3 表征诊断条形/雷达图——4 任务 base vs best 在 6 个核心指标上的对比，视觉化 "压缩 vs 分辨率"的 task-specific 折衷。
-- **图 5（机制归因）**：3 层归因示意图（pixels → encoder → predictor → cost surface → planning），标注每层在 PushT 上的 ρ-贡献（4.6.2 数据）。
+- **图 3**：PushT n=9 LeWM sweep 上 `predictor_target_to_nn_cos_ratio_at_max_std` 双面板散点（左 vs clean，右 vs OOD drop），颜色编码 `std_max`，标注 Spearman ρ。底层数据来自每个 ckpt 的 `predictor_sensitivity.json` + `canonical_evals_20260517.json`，0to006 用 retrained `_20260507`。
+- **图 4**：表 3 表征诊断条形/雷达图——4 任务 base vs **representative diagnostic checkpoint** 在 6 个核心指标上的对比，视觉化 "压缩 vs 分辨率"的 task-specific 折衷。
+- **图 5（机制示意）**：pipeline schematic（pixels → encoder → predictor → CEM），定性概括 §4.6 的归因结论。
 - 已生成的辅助图（`assets/diagnostics/p0_correlation_*.png`、`predictor_drift_eval_correlation.png`、`geometry_tradeoff_goal.png` 等）可作 supplementary 或 §4 图表补充。
 
 ### 4.2 JEPA 的 OOD 脆弱性：控制性能崩溃
@@ -219,12 +221,12 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 | 0 (base) | 94.00 ± 3.56 | 86.33 ± 2.36 | 58.67 ± 1.25 | 66.67 ± 2.62 |
 | 0.001 | 93.67 ± 3.30 | 88.00 ± 3.74 | 61.67 ± 2.49 | 69.33 ± 0.47 |
 | 0.002 | 95.00 ± 2.83 | 88.33 ± 2.62 | 85.67 ± 2.49 | 60.00 ± 1.63 |
-| 0.003 | 96.33 ± 3.30 | **89.67 ± 1.70** | 78.67 ± 1.25 | 65.00 ± 1.63 |
-| 0.004 | 96.33 ± 2.05 | 89.33 ± 2.05 | 84.00 ± 2.94 | **69.00 ± 3.74** |
+| 0.003 | 96.33 ± 3.30 | 89.67 ± 1.70† | 78.67 ± 1.25 | 65.00 ± 1.63 |
+| 0.004 | 96.33 ± 2.05 | 89.33 ± 2.05 | 84.00 ± 2.94 | 69.00 ± 3.74 |
 | 0.005 | 96.00 ± 2.83 | 80.67 ± 4.78 | 70.00 ± 2.16 | 59.33 ± 0.94 |
-| **0.006** | 96.67 ± 2.05 | 89.33 ± 2.05 | **86.00 ± 2.94** | 66.67 ± 2.05 |
+| 0.006 | 96.67 ± 2.05 | 89.33 ± 2.05 | 86.00 ± 2.94† | 66.67 ± 2.05 |
 | 0.007 | 96.00 ± 1.63 | 85.67 ± 3.09 | 83.67 ± 3.30 | 67.67 ± 0.94 |
-| **0.008** | **98.33 ± 0.47** | 88.33 ± 2.87 | 84.00 ± 0.82 | 62.33 ± 1.25 |
+| 0.008 | 98.33 ± 0.47† | 88.33 ± 2.87 | 84.00 ± 0.82 | 62.33 ± 1.25 |
 
 **(b) Pixels+goal std=0.08 成功率（%）**
 
@@ -232,15 +234,19 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 |---|---:|---:|---:|---:|
 | 0 (base) | 50.00 ± 1.41 |  4.67 ± 2.05 | 15.00 ± 2.16 | 46.33 ± 3.68 |
 | 0.001 | 87.67 ± 1.89 | 43.33 ± 3.09 | 46.00 ± 1.63 | 51.33 ± 5.79 |
-| 0.002 | 93.33 ± 0.94 | 71.33 ± 3.68 | 85.67 ± 1.70 | 60.67 ± 0.47 |
-| 0.003 | 94.67 ± 2.87 | 83.00 ± 3.74 | 73.67 ± 0.47 | **67.33 ± 1.89** |
+| 0.002 | 93.33 ± 0.94 | 71.33 ± 3.68 | 85.67 ± 1.70‡ | 60.67 ± 0.47 |
+| 0.003 | 94.67 ± 2.87 | 83.00 ± 3.74 | 73.67 ± 0.47 | 67.33 ± 1.89 |
 | 0.004 | 95.00 ± 2.45 | 81.33 ± 2.87 | 80.00 ± 1.41 | 67.00 ± 3.56 |
 | 0.005 | 95.67 ± 2.36 | 75.00 ± 6.48 | 68.00 ± 3.56 | 59.67 ± 2.05 |
-| **0.006** | 96.67 ± 2.49 | **87.00 ± 3.74** | **84.67 ± 4.03** | 65.00 ± 2.94 |
-| 0.007 | 96.33 ± 2.05 | 82.33 ± 4.64 | 81.33 ± 1.25 | 68.00 ± 1.41 |
-| **0.008** | **98.67 ± 0.94** | 85.33 ± 2.62 | 83.00 ± 4.32 | 60.33 ± 0.94 |
+| 0.006 | 96.67 ± 2.49 | 87.00 ± 3.74‡ | 84.67 ± 4.03 | 65.00 ± 2.94 |
+| 0.007 | 96.33 ± 2.05 | 82.33 ± 4.64 | 81.33 ± 1.25 | 68.00 ± 1.41‡ |
+| 0.008 | 98.67 ± 0.94‡ | 85.33 ± 2.62 | 83.00 ± 4.32 | 60.33 ± 0.94 |
 
-读表提示：同一列内 ≤ 3pt 的差距处于 1–2 std 噪声范围，不应解读为显著；**任务最优**（加粗）相对最近邻平均高出 ≥ 5pt。
+读表提示：
+- `†` 表示该任务列上的 clean point-best。
+- `‡` 表示该任务列上的 px+goal 0.08 point-best。
+- 表 3 / 图 4 另用 **representative diagnostic checkpoint** 一词，表示完整诊断 suite 实际执行的 ckpt，不必与 unified eval 协议下的 point-best 完全一致。
+- 因为许多相邻配置只差 ≤ 3pt，且跨 seed std 有重叠，我们将最优解释为 plateau，除非 gap 明显大于 seed-level variability。
 
 ![Fig 2 — Noise-training sweep: clean vs OOD per task; no single std_max is jointly optimal](assets/paper1_figs/fig2_sweep.png)
 
@@ -256,15 +262,15 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 - Reacher 在 std=0.006 达到最优 (86.00 / 84.67)。std=0.001 clean 61.67 vs base 58.67，差距处于跨 seed std (~2.5pt) 范围内，因此数据只支持"低噪声 ≈ base"而**不**支持"低噪声反而损害"；拐点在 std=0.002（跃升到 85.67），暗示 Reacher 需要一个**最小噪声门槛**而非梯度式提升。
 - Cube 的 noise sweep 效果最弱：clean 没有单调提升趋势（最优在 0.001 的 69.33），px+g 0.08 也仅在 0.003–0.007 区间有轻微改善（67.33 vs base 46.33，+21pt）——结构化 manipulation 对 input-side global noise 不敏感。
 
-**（2）per-task 调参是必要的，不是可选的。** task 间最优 std_max 差异巨大：TwoRoom 0.008（重 noise）、PushT clean 0.003 / robustness 0.006、Reacher 0.006、Cube robust 0.003 / clean ~0.001 或 0.004。这划清了全局噪声增广的边界：**它是"input-side 全局 noise"的最强形式，但解决 OOD robustness 需要支付一个 per-task tuning cost。**
+**（2）per-task 调参是必要的，不是可选的。** task 间最优 std_max 差异巨大：TwoRoom clean/OOD point-best 都在 0.008；PushT clean point-best 在 0.003、px+goal 0.08 point-best 在 0.006；Reacher clean point-best 在 0.006、px+goal 0.08 point-best 在 0.002；Cube 的 px+goal 0.08 point-best 在 0.007，而 clean 在 0.001 / 0.004 / 0.007 一带形成浅 plateau。这划清了全局噪声增广的边界：**它是"input-side 全局 noise"的最强形式，但解决 OOD robustness 需要支付一个 per-task tuning cost。**
 
 **（3）四任务对 noise 的敏感度形成 clear gradient**：PushT（−81.66pt base drop）> Reacher（−43.67pt）> TwoRoom（−44.00pt）> Cube（−20.34pt）。但 noise training 的修复效果并不与敏感度成正比——TwoRoom 修复最彻底（+48.67pt @ std=0.008），Cube 修复最弱（+21.00pt），说明 input-side global noise 对"视觉冗余型"任务最有效，对"结构化操作型"任务边际收益有限。
 
 ### 4.4 诊断分析：为什么全局噪声不是万能药
 
-表 3 展示了关键诊断指标在 LeWM-base 和 LeWM+noise（各任务最优剂量）上的对比。
+表 3 展示了关键诊断指标在 LeWM-base 和各任务 **representative diagnostic checkpoint** 上的对比。
 
-**表 3：表征诊断对比（LeWM-base vs 各任务的代表性 noise-trained ckpt）**。各任务的 σ 选择（0.008 / 0.002 / 0.006 / 0.001）是当时跑诊断 suite 的 ckpt。在新的统一 3-seed × 100 协议下 PushT 的 *clean* 最优略移至 std = 0.003（与 std = 0.002 相差 ±2pt 以内）；本表诊断仍保留在 std = 0.002 ckpt 上——这里要展示的"压缩 vs. 分辨率"模式在该邻域内稳健。
+**表 3：表征诊断对比（LeWM-base vs 各任务的 representative noise-trained diagnostic checkpoint）**。各任务的 σ 选择（0.008 / 0.002 / 0.006 / 0.001）是当时跑诊断 suite 的 ckpt。在新的统一 3-seed × 100 协议下 PushT 的 clean point-best 略移至 std = 0.003（与 std = 0.002 相差 ±2pt 以内）；本表诊断仍保留在 std = 0.002 ckpt 上——这里要展示的"压缩 vs. 分辨率"模式在该邻域内稳健。
 
 | Metric | TwoRoom base | TwoRoom noise (0.008) | PushT base | PushT noise (0.002) | Reacher base | Reacher noise (0.006) | Cube base | Cube noise (0.001) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -276,15 +282,15 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 | `action_mean_pred_shift_norm` | 0.5329 | 0.4482 | 0.1283 | 0.1200 | 0.2518 | 0.2585 | 0.2364 | 0.2320 |
 | `predictor_rollout_T8_l2` | 18.62 | 17.90 | 18.65 | 16.50 | 15.17 | 0.44 | 20.20 | 19.25 |
 
-**Notes (Tab 3)**: (i) `transition_resolution_ratio_l2` 和 `_cos` 在 TwoRoom 一行的表示与早期版本对换（原稿误植）；本表以 `geometry_summary.json` / `task_resolution.json` 直接读出值为准。(ii) Reacher/Cube best 值取自对应 ckpt `eval_results/diagnostics/{geometry_summary, task_resolution, predictor_sensitivity}.json`（max-std=0.1, history-only noise）。(iii) Cube base `predictor_rollout_T8_l2 = 20.20` 与 Reacher base `15.17` 表明 LeWM 基线的 long-horizon rollout drift 在四任务上量级相近；Cube best=19.25 / Reacher best=0.44 的巨大差异表明 noise training 对 rollout-drift 的修复效应是 **task-dependent**（Reacher 修复 35×，Cube 几乎不变）。
+**Notes (Tab 3)**: (i) `transition_resolution_ratio_l2` 和 `_cos` 在 TwoRoom 一行的表示与早期版本对换（原稿误植）；本表以 `geometry_summary.json` / `task_resolution.json` 直接读出值为准。(ii) Reacher/Cube representative diagnostics 取自对应 ckpt `eval_results/diagnostics/{geometry_summary, task_resolution, predictor_sensitivity}.json`（max-std=0.1, history-only noise）。(iii) Cube base `predictor_rollout_T8_l2 = 20.20` 与 Reacher base `15.17` 表明 LeWM 基线的 long-horizon rollout drift 在四任务上量级相近；Cube representative=19.25 / Reacher representative=0.44 的巨大差异表明 noise training 对 rollout-drift 的修复效应是 **task-dependent**（Reacher 修复 35×，Cube 几乎不变）。
 
 **机制解释**：
 
 - **TwoRoom**：低维、离散、视觉冗余，压缩表征（effective rank 从 47.6 → 33.6）是可接受甚至有利的。NN distance 降低意味着潜空间更紧凑，规划更容易。
-- **PushT**：需要连续接触与姿态分辨率。即使在最优轻噪声（0.002）下，`transition_resolution_ratio_l2` 已出现轻微压缩趋势。若增至重噪声（如 0.006），该指标将进一步下降，导致接触过渡的关键帧被抹平。
+- **PushT**：需要连续接触与姿态分辨率。即使在 representative diagnostic checkpoint（std = 0.002）上，`transition_resolution_ratio_l2` 已出现轻微压缩趋势。若增至重噪声（如 0.006），该指标将进一步下降，导致接触过渡的关键帧被抹平。
 - **预测器 rollout 的陷阱**：`predictor_rollout_T8_l2` 下降不一定代表好消息。它可能意味着 latent 更容易预测，但不是更适合控制——预测稳定性可以通过牺牲分辨率得到。
 
-![Fig 4 — Per-task diagnostic radar: base vs noise-best on 6 metrics](assets/paper1_figs/fig4_radar.png)
+![Fig 4 — Per-task diagnostic radar: base vs representative noise-trained diagnostic checkpoint on 6 metrics](assets/paper1_figs/fig4_radar.png)
 
 ### 4.5 跨 Checkpoint 相关性验证
 
@@ -311,7 +317,7 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 | `predictor_target_to_nn_cos_ratio_at_max_std` | — (rank ties) | +0.06 | −0.12 | +0.14 |
 | `predictor_rollout_T8_l2_at_max_std`          | — (rank ties) | −0.03 | **+0.79** | +0.50 |
 
-TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化奇异，无法计算。PushT、Reacher、Cube 读得很清楚：固定 `std_max` 后，**fragility metric 对 OOD drop 几乎不携带信息**；**多步 predictor drift** 在 Reacher 上仍带强信号（+0.79），在 Cube 上带中等信号（+0.50）。Reacher 的偏相关 +0.79 是整个矩阵中**唯一**非平凡的 within-protocol 相关。
+TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化奇异，无法计算。PushT、Reacher、Cube 读得很清楚：去掉 `std_max` 的单调 sweep 趋势后，**fragility metric 对 OOD drop 几乎不携带信息**；**多步 predictor drift** 在 Reacher 上仍带强信号（+0.79），在 Cube 上带中等信号（+0.50）。Reacher 的偏相关 +0.79 是整个矩阵中**唯一**非平凡的残余相关。
 
 **表 5：PushT LeWM n=9 sweep —— fragility metric vs eval，含偏相关**
 
@@ -330,16 +336,16 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 读法：
 
-1. **同一训练协议下该指标对 ckpt 质量确实有可观信号**：partial ρ 在 clean 上 **−0.59**、在 px+goal 0.08 上 **−0.41**——两个都是有意义的负相关。也即同 `std_max` 下 fragility ratio 低的 PushT 模型 clean 与 OOD 两端都更好。
+1. **去掉 `std_max` 的单调趋势后，该指标对 ckpt 质量仍有可观残余信号**：partial ρ 在 clean 上 **−0.59**、在 px+goal 0.08 上 **−0.41**——两个都是有意义的负相关。也即在 PushT n=9 sweep 上，fragility ratio 越低的 ckpt，在剥离 `std_max` sweep 趋势后 clean 与 OOD 两端都更好。
 2. **但它不预测训练协议层面的 OOD drop**：unconditional ρ(metric, drop) = −0.77 看似惊人，但条件于 `std_max` 后塌缩到 **+0.06**（符号翻转，几乎为 0）。drop 的强相关是 mediated effect：`std_max` 同时决定 metric (ρ=+0.83) 和 drop (ρ=−0.93)。固定 `std_max` 后，该指标无法预测 clean 与 OOD 的 gap。
-3. **注意 clean 上 unconditional ↔ partial 的符号翻转**：ρ(metric, clean) unconditional 仅 −0.33——新 3-seed 协议下 PushT clean 在 sweep 全程几乎平坦（80.67–89.67），`std_max` 几乎不动 clean。partial 后**反而增强**到 −0.59，正是因为该指标真正捕捉的就是 within-protocol 信号。
-4. **实践读法**：toolkit 是 within-protocol 的模型选择工具。它**不是** noise 训练的替代品——当 OOD gap 本身是关心的量时，必须用 noise 训练，而不是依赖 cross-ckpt 诊断量。
+3. **注意 clean 上 unconditional ↔ partial 的符号翻转**：ρ(metric, clean) unconditional 仅 −0.33——新 3-seed 协议下 PushT clean 在 sweep 全程几乎平坦（80.67–89.67），`std_max` 几乎不动 clean。partial 后**反而增强**到 −0.59，正是因为该指标真正捕捉的是去掉 `std_max` 趋势后的残余信号。
+4. **实践读法**：toolkit 是去掉 sweep-level `std_max` 效应后的模型选择工具。它**不是** noise 训练的替代品——当 OOD gap 本身是关心的量时，必须用 noise 训练，而不是依赖 cross-ckpt 诊断量。
 
 #### 4.5.5 该诊断量到底预测的是什么：clean vs OOD
 
 上面的偏相关分析定调：
 
-- 该指标是 **within-protocol 的 ckpt-quality 信号**——在同一 `std_max` 下，fragility ratio 低的 ckpt 在 clean 与 OOD 两端都更好（PushT 上 partial ρ = −0.59 / −0.41）。
+- 该指标是 **超出 sweep-level `std_max` 效应之外的残余 ckpt-quality 信号**——去掉 `std_max` 单调趋势后，fragility ratio 低的 ckpt 在 clean 与 OOD 两端都更好（PushT 上 partial ρ = −0.59 / −0.41）。
 - 该指标**不能分离 noise-robustness**——它与 clean/OOD **gap** 的边际相关完全被 `std_max` 中介掉（partial ρ = +0.06）。
 
 图 3 双面板让两者都可见。Panel (a) plot metric × clean，unconditional Spearman ρ = −0.33（within-`std_max` slope 由偏相关捕捉）。Panel (b) plot metric × OOD drop，边际 ρ = −0.77，但 colour-bar（编码 `std_max`）暴露了结构：低 `std_max` ckpt（浅蓝）位于高 drop，高 `std_max` ckpt（深蓝）位于低 drop，metric 沿 `std_max` 走。固定 `std_max` 后该指标无法区分小 drop 与大 drop。
@@ -350,17 +356,9 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 §4.4 给出"压缩了什么"，§4.5 给出"哪些指标跨 ckpt 预测 eval"，但都没回答 **"故障发生在 encoder、predictor 还是 cost surface？"** 我们用两个互补实验做三层归因。
 
-#### 4.6.1 Eval-only cost swap：cost surface 不是主因
+#### 4.6.1 辅助 cost-swap sanity check：单靠 cost function 不太可能解释崩溃
 
-如果失败主要来自 planning-time cost function 形态（例如 cosine cost 在噪声下饱和），那只换 cost 类型应能显著回升。我们用 TwoRoom checkpoint 做 eval-only 对照（保持 ckpt 不变，仅在 CEM 推理时切换 cost）：
-
-| 变体 | cost type | cost space | std=0.03 pix+goal 成功率 |
-|---|---|---|---:|
-| A (default) | cosine | normalized | 36.0 |
-| B (swap) | mse | raw | 42.0 |
-| —— 参考：同 ckpt clean eval (num_eval=300) | — | — | 69.7 |
-
-仅换 cost 仅回升 +6pt（36→42），远低于 clean 表现（69.7）。结论：**cost surface 不是主因**；upstream 的 noisy-goal embedding corruption 决定下界。
+我们在一个 TwoRoom checkpoint 上做了 one-off eval-only cost swap，该实验**不属于** 36 个 canonical ckpt 的统一评测表；完整细节见附录 E。把 CEM cost 从 cosine/normalized 换成 mse/raw，只把 px+goal 0.03 成功率从 36.0 提到 42.0，仍远低于一个单独 clean reference 69.7。作为 sanity check，这说明 **cost function alone is unlikely to explain the OOD collapse**。
 
 #### 4.6.2 Latent-noise probing：encoder 是主要瓶颈
 
@@ -374,23 +372,23 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 **关键 finding**（基于 §4.5 LeWM n=9 sweep + 统一 3-seed × 100 eval，在两个全覆盖的诊断指标上）：
 
-- **PushT**：多步 input-space `predictor_rollout_T8_l2_at_max_std` 与 OOD drop 的 unconditional ρ = +0.88（表 4），主要被 `std_max` 驱动；within-protocol partial ρ 塌缩到 −0.03。单步 `predictor_target_to_nn_cos_ratio_at_max_std`（unconditional ρ = −0.77，partial +0.06）讲同一个故事。**encoder–predictor 两条信号都被训练 noise 中介；固定后两者都不预测 PushT 的 OOD drop**。
-- **Reacher**：`predictor_rollout_T8_l2_at_max_std` unconditional ρ = +0.87 *且* partial ρ = **+0.79**——整个矩阵唯一的非平凡 within-protocol 相关。说明 **Reacher 上多步 predictor drift 携带超出 `std_max` 之外的真实 OOD-drop 信息**。
-- **Cube**：`predictor_rollout_T8_l2_at_max_std` unconditional ρ = +0.54、partial ρ = +0.50——within-protocol 中等信号。encoder–predictor drift 部分解释了 Cube 较小但非零的 OOD 敏感性。
+- **PushT**：多步 input-space `predictor_rollout_T8_l2_at_max_std` 与 OOD drop 的 unconditional ρ = +0.88（表 4），主要被 `std_max` 驱动；去掉单调 `std_max` 趋势后，partial ρ 塌缩到 −0.03。单步 `predictor_target_to_nn_cos_ratio_at_max_std`（unconditional ρ = −0.77；去掉同一趋势后的 partial 为 +0.06）讲同一个故事。**encoder–predictor 两条信号都被训练 noise 中介；扣除这一 sweep-level 效应后，两者都不预测 PushT 的 OOD drop**。
+- **Reacher**：`predictor_rollout_T8_l2_at_max_std` unconditional ρ = +0.87 *且* partial ρ = **+0.79**——整个矩阵唯一的非平凡残余相关。说明 **Reacher 上多步 predictor drift 携带超出 `std_max` 之外的真实 OOD-drop 信息**。
+- **Cube**：`predictor_rollout_T8_l2_at_max_std` unconditional ρ = +0.54、partial ρ = +0.50——残余中等信号。encoder–predictor drift 部分解释了 Cube 较小但非零的 OOD 敏感性。
 - **TwoRoom**：偏相关因 clean / drop 在 sweep 上饱和（rank 平局）无法计算。unconditional ρ 仍显示 encoder–predictor 对 `std_max` 有强响应。
 
 **三层归因结论**：
 
-| 任务 | 主因 | within-protocol 残余信号 |
+| 任务 | 主因 | 去除 `std_max` 趋势后的残余信号 |
 |---|---|---|
 | TwoRoom | encoder 主导（rank 饱和） | n/a |
-| PushT | encoder + 单步 predictor（两者均被 `std_max` 中介） | 无 within-protocol 指标可以分离 OOD drop |
+| PushT | encoder + 单步 predictor（两者均被 `std_max` 中介） | 去掉 sweep-level `std_max` 趋势后，无残余指标可以分离 OOD drop |
 | Reacher | encoder + multi-step rollout | multi-step predictor drift 携带真实残余信号（partial ρ = +0.79）|
 | Cube | encoder | multi-step drift 上中等残余（partial ρ = +0.50）|
 
-四任务的共同主因是 **encoder shift 透过 predictor 的放大**；**cost surface 不是任一任务的主要解释变量**（§4.6.1 cost-swap 在 TwoRoom 上仅 +6pt，远低于 clean 上限）。这也是 §3.3 第 5 层 task resolution 指标（`transition_resolution_ratio`, `id_probe_r2`）在 §4.4 给出强信号的根本原因：当 encoder 学到的 latent 邻域结构被噪声破坏到超过 NN 距离尺度时，下游 predictor 与 planner 都已经在错误邻域上工作了。
+四任务的共同主因是 **encoder shift 透过 predictor 的放大**；§4.6.1 的辅助 cost-swap sanity check 说明单靠 cost function 不太可能解释崩溃，但我们**不**把那个 single-checkpoint ablation 当作 task-wide quantitative attribution。这也是 §3.3 第 5 层 task resolution 指标（`transition_resolution_ratio`, `id_probe_r2`）在 §4.4 给出强信号的根本原因：当 encoder 学到的 latent 邻域结构被噪声破坏到超过 NN 距离尺度时，下游 predictor 与 planner 都已经在错误邻域上工作了。
 
-![Fig 5 — Mechanism attribution: encoder shift transduced by predictor dominates; cost surface is not the bottleneck](assets/paper1_figs/fig5_mechanism.png)
+![Fig 5 — Mechanism schematic: pixels → encoder → predictor → CEM](assets/paper1_figs/fig5_mechanism.png)
 
 ---
 
@@ -425,7 +423,7 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 为方便实践者判断何时该用本 toolkit、何时不该用，列出三条边界：
 
-**边界 1：toolkit 在 clean 控制质量维度排序 ckpt，不是在 OOD-specific 鲁棒性维度。** §4.5.5 已经显示最强 cross-ckpt 诊断量（`predictor_target_to_nn_cos_ratio_at_max_std`）与 clean 强相关（ρ ≈ −0.8）但与 OOD drop 弱相关（ρ ≈ −0.3）。用该 toolkit 来从 sweep 中挑出**最好训练**的 ckpt；**不要**用它替代实际 OOD eval 当目标问题是鲁棒性时。
+**边界 1：toolkit 排序的是残余 ckpt 质量，不是 OOD-specific 鲁棒性。** 在 PushT 上，条件于 `std_max` 后，最强 cross-ckpt 诊断量（`predictor_target_to_nn_cos_ratio_at_max_std`）与 clean success 的 partial Spearman ρ = **−0.59**，与 px+goal 0.08 success 的 partial ρ = **−0.41**；但与 clean-to-OOD drop 的 partial ρ 只有 **+0.06**。因此它能在去掉 `std_max` sweep 趋势后帮你挑强 ckpt，但**不能**替代实际 OOD eval。
 
 **边界 2：per-state controllability variance 弱的任务出可靠协议外。** Reacher（低维连续 reaching）和 TwoRoom（视觉冗余离散导航）的诊断量与 eval 的 Spearman ρ 不能通过我们的偏相关判据。两个任务 within-method 方差不足以让无标签指标区分"好"与"坏" ckpt。Toolkit 能描述这两个任务的模型压缩了什么（表 3），但**不能**预测 ckpt 间相对质量。
 
@@ -491,17 +489,17 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 [7] E. D. Cubuk et al., "RandAugment: Practical automated data augmentation with a reduced search space," *NeurIPS*, 2020.
 
-[8] Anonymous, "Improving joint embedding predictive architecture with diffusion noise (N-JEPA)," *arXiv:2507.15216*, 2025.
+[8] Y. Qiu, R. Zhu, Y.-c. Chen, "Improving joint embedding predictive architecture with diffusion noise (N-JEPA)," *arXiv:2507.15216*, 2025.
 
-[9] Y. Huang, "VJEPA: Variational joint embedding predictive architectures as probabilistic world models," *arXiv:2602.19322*, 2026.
+[9] Y. Huang, "VJEPA: Variational joint embedding predictive architectures as probabilistic world models," *arXiv:2601.14354*, 2026.
 
-[10] Anonymous, "US-JEPA: A joint embedding predictive architecture for medical ultrasound," *arXiv preprint*, 2025–2026. *(Anonymous; cite by title.)*
+[10] A. Radhachandran, V. Ivezić, S. Athreya, R. Anilkumar, C. W. Arnold, W. Speier, "US-JEPA: A joint embedding predictive architecture for medical ultrasound," *arXiv:2602.19322*, 2026.
 
 [11] D. Hafner et al., "Mastering diverse domains through world models (DreamerV3)," *Nature*, 2024.
 
 [12] N. Hansen et al., "TD-MPC2: Scalable, robust world models for continuous control," *ICLR*, 2024.
 
-[13] Anonymous, "Zero-shot visual generalization in model-based reinforcement learning (ViGMO)," *OpenReview submission*, 2024–2025.
+[13] M. Park, S. Noh, H. Myung, D. Lee, "Zero-shot visual generalization in model-based reinforcement learning via latent consistency (ViGMO)," *OpenReview (ICLR 2026 submission)*, 2025.
 
 [14] A. Tamkin et al., "Feature dropout: Revisiting the role of augmentations in contrastive learning," *NeurIPS*, 2022.
 
@@ -583,11 +581,12 @@ class AddNormalizedGaussianNoise:
 
 | 图 | Layout | 数据源 | 渲染建议 |
 |---|---|---|---|
-| **图 1 (hero)** | 4 个子图竖排：每个任务一个；每子图三条 bar（clean / px+g 0.08 base / px+g 0.08 best）+ 任务名 | 表 1 + 表 2 | matplotlib horizontal bar + diverging color；ratio annotation |
+| **图 1 (hero)** | 4 个子图竖排：每个任务一个；每子图三条 bar（clean / px+g 0.08 base / px+g 0.08 point-best）+ 任务名 | 表 1 + 表 2 | matplotlib horizontal bar + diverging color；ratio annotation |
 | **图 2 (sweep curve)** | 4 子图（任务） × 3 折线（clean / px+g 0.05 / px+g 0.08）；x = std_max | 表 2 | shared y-axis 0–100；mark per-task optimum vertical line |
-| **图 3 (双面板 scatter)** | 双面板：(a) metric × clean；(b) metric × OOD drop；x = predictor_target_to_nn_cos_ratio_at_max_std (log scale)；color = std_max | n=9 LeWM PushT ckpt 的 `predictor_sensitivity.json` + 统一 3-seed × 100 eval | panel (a) unconditional Spearman ρ = −0.33（within-protocol partial −0.59）；panel (b) unconditional ρ = −0.77，但 colour-bar 显示 std_max 中介效应（partial ρ = +0.06）|
-| **图 4 (diagnostic radar)** | 4 任务 × 6 指标 radar；base vs best 叠层 | 表 3 | 6 个核心指标按"任务相关 vs 任务无关"分两组 |
-| **图 5 (mechanism flow)** | flow chart：pixels → encoder → predictor → cost → planning，每节点标注 ρ-贡献 | §4.6.2 | 用 graphviz/tikz；PushT 数据为主，其它任务作 sub-panel |
+| **图 3 (双面板 scatter)** | 双面板：(a) metric × clean；(b) metric × OOD drop；x = predictor_target_to_nn_cos_ratio_at_max_std (log scale)；color = std_max | n=9 LeWM PushT ckpt 的 `predictor_sensitivity.json` + `canonical_evals_20260517.json` | panel (a) unconditional Spearman ρ = −0.33（条件于 `std_max` 后 partial −0.59）；panel (b) unconditional ρ = −0.77，但 colour-bar 显示 std_max 中介效应（partial ρ = +0.06）|
+| **图 4 (diagnostic radar)** | 4 任务 × 6 指标 radar；base vs representative diagnostic checkpoint 叠层 | 表 3 | 6 个核心指标按"任务相关 vs 任务无关"分两组 |
+| **图 5 (mechanism flow)** | pipeline schematic：pixels → encoder → predictor → CEM | §4.6 叙事 | 定量归因来自 §4.6.2 的两个全覆盖 LeWM n=9 predictor 指标；条件于 `std_max` 后只有 Reacher multi-step drift 留下非平凡残余信号 |
+| **图 6 (Pareto)** | 每任务在 (clean, px+g 0.08) 平面上的 sweep 轨迹 | `canonical_evals_20260517.json` | ringed marker = px+goal 0.08 point-best |
 
 现有 `assets/diagnostics/` 中可直接复用的：
 - `noise_angle_curve_goal.png`：encoder shift 随 std 的曲线（4 任务）→ supplementary
@@ -624,7 +623,7 @@ class AddNormalizedGaussianNoise:
 | **Latent Noise** | `cka_linear_at_max_std` | 0.1986 | 0.5536 | 0.3085 | 0.1814 | CKA clean vs noisy |
 | | `latent_cost_surface_slope_z` | 635.31 | 1.3886 | 599.45 | 0.6208 | goal latent 扰动 cost 斜率 |
 
-**完整 sweep 数据**：LeWM 9 档（base + 0to001–0to008-p1）的逐档诊断原始值见本地生成的 `canonical_evals_20260508.json` 与 `canonical_correlations_20260508.json`。
+**完整 sweep 数据**：LeWM 9 档（base + 0to001–0to008-p1）的 canonical eval 聚合值见 `canonical_evals_20260517.json`；图 3 的相关性可由该 JSON 加每个 ckpt 的 `predictor_sensitivity.json` 重算。
 
 ---
 
@@ -649,10 +648,10 @@ $$
 | Task / model | Clean | goal 0.05 | pixels 0.05 | px+goal 0.05 | goal 0.08 | px+goal 0.08 |
 |---|---:|---:|---:|---:|---:|---:|
 | TwoRoom LeWM-base | 94.00 | 73.33 | 72.33 | 61.33 | 58.67 | 50.00 |
-| TwoRoom LeWM+noise best | 98.33 | 98.00 | 98.33 | 98.00 | 98.67 | 98.67 |
+| TwoRoom LeWM+noise point-best | 98.33 | 98.00 | 98.33 | 98.00 | 98.67 | 98.67 |
 | TwoRoom hetero | **99.67** | 85.33 | 96.67 | 84.67 | 73.33 | 55.33 |
 | PushT LeWM-base | 86.33 | 38.00 | 17.00 | 12.00 | 11.33 | 4.67 |
-| PushT LeWM+noise best | **89.33** | 87.67 | 88.00 | 88.33 | 89.67 | 87.00 |
+| PushT LeWM+noise point-best | **89.33** | 87.67 | 88.00 | 88.33 | 89.67 | 87.00 |
 | **PushT hetero** | **13.33** | 7.67 | 7.67 | 7.67 | 9.67 | 6.00 |
 
 **读表**：TwoRoom hetero clean 99.67%（与低维离散任务受益于 stronger invariance / clustering 的先验一致）但高噪声 robust 不如 noise training。**PushT hetero clean 13.33% — 方法级失败**，不是 robustness tradeoff。
@@ -663,7 +662,8 @@ $$
 |---|---:|---:|---:|---:|
 | `clean_nn_cos_dist_median` | 0.0449 | 0.0281 | 0.2360 | 0.1051 |
 | `clean_effective_rank` | 47.60 | 33.59 | 76.42 | 42.85 |
-| `transition_resolution_ratio_l2` | 0.5538 | 0.3780 | 0.3015 | **0.1023** |
+| `transition_resolution_ratio_cos` | 0.5538 | 0.3780 | 0.0868 | 0.0101 |
+| `transition_resolution_ratio_l2` | 0.7216 | 0.6055 | 0.3015 | **0.1023** |
 | `id_probe_r2` | 0.2889 | -0.0573 | 0.7739 | **0.2678** |
 | `action_mean_pred_shift_norm` | 0.5329 | 0.4482 | 0.1283 | 0.0841 |
 | `predictor_rollout_T8_l2` | 18.62 | 17.90 | 18.65 | 14.01 |
@@ -673,6 +673,20 @@ Hetero loss 在两个任务上都压缩表征。TwoRoom 低维、离散、视觉
 **机制**：σ-head 确实正确学到了 per-transition prediction difficulty（PushT 接触帧 σ 高、TwoRoom 穿门 σ 高等等），但**用 σ 作为自动权重去 down-weight 高误差 transition** 恰恰把 PushT 的接触-控制关键状态错误归为"不重要"并抹掉。这就是更广义的 trade-off 教训：在接触主导的控制任务上 **hard ≠ unimportant**。
 
 这条 finding 指向我们正在探索的后续方向：以 detached difficulty 信号驱动的 per-token **consistency**（而非 loss-reweighting）controller，保留 mean prediction path 的梯度分布。该工作独立于本文的诊断研究，将在后续工作单独报告。
+
+---
+
+## 附录 E — One-off cost-swap sanity check
+
+本附录记录 §4.6.1 引用的 eval-only cost-swap ablation。它**不属于** 36 个 canonical ckpt 的统一评测表，且 clean reference 使用单独的 `num_eval = 300`，因此这里只将其作为 sanity check，而不是 pooled statistic。
+
+| 变体 | cost type | cost space | std = 0.03, px+goal success |
+|---|---|---|---:|
+| A (default) | cosine | normalized | 36.0 |
+| B (swap) | mse | raw | 42.0 |
+| 参考：同 ckpt clean eval (`num_eval = 300`) | — | — | 69.7 |
+
+只换 cost 仅回升 +6pt（36 → 42），仍远低于 clean reference 69.7。谨慎表述应是：**a sanity check suggests the cost function alone is unlikely to explain the OOD collapse**。
 
 ---
 

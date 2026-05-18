@@ -1,5 +1,7 @@
 # Action-Aware Adaptive Latent Resolution
 
+> **Note**（2026-05-18）：本 notebook 保留了方法探索阶段使用的 legacy evaluation numbers。Paper 1 的 canonical 统计口径以 `canonical_evals_20260517.json` 及其 release artifacts 为准。
+
 > **Status**（2026-05-09）：直接异方差损失训练（hetero loss）已完成首轮 TwoRoom + PushT 验证。结果支持"σ head 能学到 prediction difficulty"，但否定了"直接用 hetero loss 替换 MSE"作为 PushT 上的主方法：PushT clean eval 从 LeWM-base 87.33 降到 13.33，诊断显示 transition/action resolution 被严重压缩。下一步主线改为 **probe-only σ + action-aware adaptive consistency + resolution guardrail**。
 >
 > **Probe-only + Gate logging 更新（2026-05-09/10）**：probe-only 救回 PushT（clean 81.67 ≈ LeWM-base 87.33），probe+gate logging 不破坏 TwoRoom（clean 95.00），三个结构判据全部通过。gate logging（α=0，仅记录不进入 loss）验证成功；下一步进入小权重 consistency，但必须以 PushT clean/resolution guardrail 为硬约束。

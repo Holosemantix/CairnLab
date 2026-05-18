@@ -1,4 +1,4 @@
-# Understanding the Invariance–Resolution Trade-off in Latent Predictive World Models: A Diagnostic Study of JEPA-Based Control
+# Latent Prediction Is Not Visual Robustness: Diagnosing the Invariance–Resolution Trade-off in JEPA World Models for Control
 
 *Chinese version: [paper_invariance_resolution_tradeoff_zh.md](paper_invariance_resolution_tradeoff_zh.md).*
 

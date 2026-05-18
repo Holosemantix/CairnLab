@@ -23,9 +23,8 @@ Usage:
         [--out cross_check_corr.json]
 
 Reads each ckpt's `eval_results/diagnostics/diagnostics_summary.json` and
-a locally generated canonical eval JSON (default:
-`canonical_evals_20260508.json`, gitignored; override with `--evals`).
-Pure stdlib; no scipy needed.
+a canonical eval JSON (default: `assets/paper1_data/canonical_evals_20260517.json`;
+override with `--evals`). Pure stdlib; no scipy needed.
 """
 
 from __future__ import annotations
@@ -38,7 +37,7 @@ import random
 from pathlib import Path
 from typing import Mapping, Sequence
 
-CANONICAL_EVALS = "canonical_evals_20260508.json"
+CANONICAL_EVALS = "assets/paper1_data/canonical_evals_20260517.json"
 
 CANON = [
     ("LeWM-base",        "{tk}_lewm_20260430",                                                                "LeWM", 0.000),

@@ -1,7 +1,6 @@
-# 潜空间预测世界模型中不变性与控制分辨率的张力：
-# 一项基于 JEPA 架构的系统诊断研究
+# 潜在预测不等于视觉鲁棒性：诊断面向控制的 JEPA 世界模型中的不变性–分辨率权衡
 
-**标题（英文）**: Understanding the Invariance-Resolution Trade-off in Latent Predictive World Models: A Diagnostic Study of JEPA-Based Control
+**标题（英文）**: Latent Prediction Is Not Visual Robustness: Diagnosing the Invariance–Resolution Trade-off in JEPA World Models for Control
 
 *English version: [paper_invariance_resolution_tradeoff.md](paper_invariance_resolution_tradeoff.md).*
 

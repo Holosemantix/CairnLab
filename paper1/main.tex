@@ -109,11 +109,11 @@ This exposes a fundamental tension: \textbf{global noise augmentation cannot dis
 
 \paragraph{C1.} A systematic quantification of visual-OOD fragility of JEPA + CEM control across four representative tasks. We sweep 4 tasks $\times$ 8 noise levels with a unified sample budget of 300 trajectories per condition (either 1 seed $\times$ 300 episodes or 3 seeds $\times$ 100 episodes).
 
-\paragraph{C2.} The ``invariance--resolution trade-off'' concept and a five-layer diagnostic protocol that operationalises it. We define five complementary diagnostic layers (encoder shift, encoder geometry, predictor sensitivity, latent-noise response, task resolution) with 17+ concrete metrics, validated by Spearman correlations on the canonical $n = 8$ LeWM checkpoint set and a 9-level within-method sweep, with partial correlations conditioned on training noise to separate ckpt-quality signal from confounding-by-protocol.
+\paragraph{C2.} The ``invariance--resolution trade-off'' concept and a five-layer diagnostic protocol that operationalises it. We define five complementary diagnostic layers (encoder shift, encoder geometry, predictor sensitivity, latent-noise response, task resolution) with 17+ concrete metrics, validated by Spearman correlations on the 4-task $\times$ $n = 9$ LeWM sweep under unified 3-seed $\times$ 100 evaluation, with partial correlations conditioned on training noise to separate ckpt-quality signal from confounding-by-protocol.
 
 \paragraph{C3.} A mechanistic account of why global noise augmentation has limited returns. The diagnostic layers show that on TwoRoom the gains come from desirable representation compression (drop in effective rank) --- a low-dimensional discrete task does not need high resolution --- whereas in PushT the same compression at heavy noise drives \transres{} from $0.30$ to $0.10$ and \idprobe{} from $0.77$ to $0.27$, erasing task-relevant state information.
 
-\paragraph{C4.} An honest delineation of cross-ckpt diagnostics. The strongest cross-checkpoint diagnostic (\fragility{}) predicts \emph{overall ckpt quality} (Spearman $\rho \approx -0.73$ on the $n = 9$ LeWM PushT sweep against clean success rate; the same metric correlates with px+goal 0.08 success at partial $\rho \approx -0.67$ after conditioning on training noise). However, the apparent $\rho(\text{metric}, \text{OOD drop}) = -0.77$ is mediated by \stdmax{}: after partialling out \stdmax{}, that correlation drops to $+0.13$. The metric is a model-selection tool within a fixed training protocol, not an OOD oracle (\Cref{sec:diag-cross,sec:disc-boundary}).
+\paragraph{C4.} An honest delineation of cross-ckpt diagnostics. The strongest cross-checkpoint diagnostic (\fragility{}) carries a within-protocol ckpt-quality signal (partial Spearman $\rho = -0.59$ on clean and $-0.41$ on px+goal 0.08 after conditioning on \stdmax{}, on the $n = 9$ LeWM PushT sweep with unified 3-seed $\times$ 100 eval). However, the apparent $\rho(\text{metric}, \text{OOD drop}) = -0.77$ is mediated by \stdmax{}: after partialling out \stdmax{}, that correlation collapses to $+0.06$. The metric is a model-selection tool within a fixed training protocol, not an OOD oracle (\Cref{sec:diag-cross,sec:disc-boundary}).
 
 \subsection{Organisation}
 \Cref{sec:related} reviews related work; \Cref{sec:bg} defines the LeWM background, noise protocol, and diagnostic framework; \Cref{sec:exp} reports the experimental findings; \Cref{sec:disc} discusses mechanism and implications; \Cref{sec:conc} concludes.
@@ -169,8 +169,7 @@ We add per-frame Gaussian noise to the LeWM input pipeline via \code{utils.py::A
 To rule out spurious correlations we adopt two complementary analyses on the same LeWM PushT sweep:
 
 \begin{description}
-  \item[Canonical $n = 8$.] Eight LeWM checkpoints (1 base + 7 representative noise levels). Compute Pearson and Spearman correlations of each diagnostic with clean and OOD success rates.
-  \item[$n = 9$ LeWM sweep with partial correlation.] All 9 LeWM PushT checkpoints (base + \stdmax{} $\in \{0.001, \dots, 0.008\}$, with the 3-seed retrained 0to006 used in the canonical set). Compute Spearman $\rho$ and \emph{partial} Spearman conditioned on \stdmax{}. The partialling step matters: many diagnostics correlate with control performance only because both quantities co-vary with the training noise level along the sweep.
+  \item[LeWM $n = 9$ sweep with partial correlation.] All 9 LeWM checkpoints per task (base + \stdmax{} $\in \{0.001, \dots, 0.008\}$). Compute Spearman $\rho$ and \emph{partial} Spearman conditioned on \stdmax{}. The partialling step matters: many diagnostics correlate with control performance only because both quantities co-vary with the training noise level along the sweep. Within-protocol partial correlation is the relevant test for whether a diagnostic carries signal beyond \stdmax{}.
 \end{description}
 
 We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw $\rho$ tells you ``which checkpoint over the entire sweep behaves better''; the partial $\rho$ tells you ``which checkpoint \emph{within a fixed training protocol} behaves better''. The two questions are distinct, and we will see in \Cref{sec:diag-cross} that they have markedly different answers for the same metric. A larger cross-architecture protocol (varying the latent geometry of the world model itself) is left to future work; we will add a non-JEPA baseline (DreamerV3 or TD-MPC2 on the same tasks) in a follow-up version.
@@ -186,7 +185,7 @@ We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw
 
 \paragraph{Training.} Each configuration trained with 3 random seeds (42 / 43 / 44); each seed evaluated on 100 trajectories.
 
-\paragraph{Clean-metric definition.} All ``clean'' and noised success rates report a unified \textbf{3-seed $\times$ 100} protocol (seeds 42/43/44, \code{num\_eval=100} each, $300$ trajectories total per condition); every cell of Tables~\ref{tab:base},~\ref{tab:sweep-clean},~\ref{tab:sweep-px08} is mean $\pm$ across-seed std over $n = 3$. The earlier mixed convention (single-seed $\times$ 300 for some checkpoints, 3-seed $\times$ 100 for others) has been retired: all 36 checkpoints (4 tasks $\times$ \{base, \stdmax{} $0.001$--$0.008$\}) have been re-evaluated under this unified protocol. Per-seed raw metrics live at \code{<ckpt>/eval\_results/<cond>\_seed\{42,43,44\}\_metrics.txt}; aggregates are dumped to \code{canonical\_evals\_20260517.json}.
+\paragraph{Evaluation protocol.} All success rates in this paper --- clean and noised, across all 36 checkpoints (4 tasks $\times$ \{base, \stdmax{} $0.001$--$0.008$\}) --- are computed under a single protocol: $n = 3$ seeds (42/43/44), \code{num\_eval = 100} trajectories per seed ($300$ trajectories per condition per checkpoint). Every cell of Tables~\ref{tab:base},~\ref{tab:sweep-clean},~\ref{tab:sweep-px08} is mean $\pm$ across-seed std over $n = 3$. Raw per-seed metrics live at \code{<ckpt>/eval\_results/<cond>\_seed\{42,43,44\}\_metrics.txt}; the aggregated source-of-truth for downstream analysis is \code{canonical\_evals\_20260517.json}. All \S\ref{sec:diag-cross} cross-ckpt correlations and \S\ref{sec:diag-mech} mechanism numbers are computed against these aggregated values.
 
 \paragraph{Hardware.} Single NVIDIA A100 (80\,GB); training takes 2--4\,h per task per configuration.
 
@@ -343,32 +342,49 @@ Metric & TwoRoom & TwoRoom & PushT & PushT & Reacher & Reacher & Cube & Cube \\
 
 \subsection{Cross-checkpoint correlation analysis}\label{sec:diag-cross}
 
-\Cref{tab:corr-n8} reports task-specific cross-ckpt correlations for the strongest candidate metrics on the canonical $n = 8$ set.
+\Cref{tab:corr-n8} reports task-specific cross-ckpt correlations on the LeWM $n = 9$ sweep using the unified 3-seed $\times$ 100 evaluation.
+
+We analyse two single-value-per-checkpoint diagnostic metrics that have full coverage on all 9 checkpoints per task: \fragility{} (the ``fragility metric'' --- single-step predictor target shift normalised by NN distance, at the diagnostic's max-std injection) and \code{predictor\_rollout\_T8\_l2\_at\_max\_std} (the corresponding multi-step drift). Both are extracted from \code{eval\_results/diagnostics/predictor\_sensitivity.json} and are pure ckpt-level quantities (independent of the evaluation protocol).
 
 \begin{table}[H]
 \centering
-\caption{Diagnostic metric $\leftrightarrow$ eval correlation (canonical $n = 8$).}
+\caption{LeWM $n = 9$ sweep: per-task Pearson $r$ / Spearman $\rho$ vs OOD drop (clean $-$ px+g $0.08$). Eval values come from the unified 3-seed $\times$ 100 protocol.}
 \label{tab:corr-n8}
 \small
 \begin{tabular}{lrrrr}
 \toprule
 Metric & TwoRoom ($r$/$\rho$) & PushT ($r$/$\rho$) & Reacher ($r$/$\rho$) & Cube ($r$/$\rho$) \\
 \midrule
-\fragility{}                 & $-0.96$/$-0.43$ & $\mathbf{-0.80}$/$\mathbf{-0.93}$ & $-0.56$/$-0.58$ & $+0.17$/$+0.04$ \\
-\code{latent\_cost\_surface\_slope\_z}                  & $+0.47$/$+0.61$ & $\mathbf{+0.74}$/$\mathbf{+0.93}$ & $-0.20$/$-0.14$ & $-0.28$/$-0.37$ \\
-\code{predictor\_rollout\_T8\_l2}                       & $+0.22$/$+0.23$ & $+0.68$/$+0.79$ & $\mathbf{-0.71}$/$\mathbf{-0.83}$ & $+0.41$/$+0.76$ \\
-\code{cka\_linear\_at\_max\_std}                        & $+0.58$/$+0.29$ & $-0.08$/$-0.02$ & $+0.92$/$+0.68$ & $\mathbf{-0.85}$/$\mathbf{-0.96}$ \\
+\fragility{}                                & $+0.96$/$+0.72$ & $\mathbf{-0.54}$/$\mathbf{-0.77}$ & $+0.97$/$+0.35$ & $+0.36$/$+0.21$ \\
+\code{predictor\_rollout\_T8\_l2\_at\_max\_std} & $+0.89$/$+1.00$ & $\mathbf{+0.99}$/$\mathbf{+0.88}$ & $\mathbf{+0.99}$/$\mathbf{+0.87}$ & $+0.92$/$+0.54$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{$n = 9$ LeWM PushT sweep, with partial correlation conditioned on \stdmax{}.}
-
-To strengthen the analysis we replace eval-only correlation with partial correlation conditioned on the training noise level. On the $n = 9$ LeWM PushT sweep (canonical ckpts including the 3-seed retrained 0to006), the strongest single per-token diagnostic, \fragility{}, gives the following picture (\Cref{tab:partial-corr}).
+\paragraph{Reading.} Unconditional correlations are large because both diagnostic metrics and the OOD drop are driven by the same upstream variable --- \stdmax{}. The relevant test is partial correlation conditioned on \stdmax{} (\Cref{tab:partial-corr-4tasks}).
 
 \begin{table}[H]
 \centering
-\caption{Spearman $\rho$ (unconditional) and partial Spearman $\rho$ conditioned on \stdmax{}, for the fragility metric on the $n = 9$ LeWM PushT sweep.}
+\caption{Partial Spearman $\rho(\text{metric},\,\text{OOD drop} \mid \stdmax{})$, $n = 9$ per task.}
+\label{tab:partial-corr-4tasks}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+Metric & TwoRoom & PushT & Reacher & Cube \\
+\midrule
+\fragility{}                                & --- (rank ties) & $+0.06$ & $-0.12$ & $+0.14$ \\
+\code{predictor\_rollout\_T8\_l2\_at\_max\_std} & --- (rank ties) & $-0.03$ & $\mathbf{+0.79}$ & $+0.50$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The TwoRoom partial estimates are undefined because saturating success rates produce rank ties that make residualisation singular at $n = 9$. PushT, Reacher and Cube give clean readings: once training noise is held fixed, the \textbf{fragility metric carries essentially no information about the size of the OOD drop} on any task; the \textbf{multi-step predictor drift} still carries signal on Reacher ($+0.79$) and weak signal on Cube ($+0.50$). The Reacher partial $\rho$ is the only non-trivial within-protocol correlation in the entire matrix.
+
+\paragraph{PushT $n = 9$ detailed view (fragility metric).}
+
+\begin{table}[H]
+\centering
+\caption{Spearman $\rho$ (unconditional) and partial Spearman $\rho$ conditioned on \stdmax{}, for the fragility metric on the PushT $n = 9$ LeWM sweep under unified 3-seed $\times$ 100 eval.}
 \label{tab:partial-corr}
 \small
 \begin{tabular}{lr}
@@ -376,37 +392,38 @@ To strengthen the analysis we replace eval-only correlation with partial correla
 Quantity & Spearman $\rho$ \\
 \midrule
 $\rho(\stdmax{}, \text{metric})$ & $+0.83$ \\
-$\rho(\stdmax{}, \text{clean})$ & $-0.43$ \\
+$\rho(\stdmax{}, \text{clean})$ & $0.00$ \\
 $\rho(\stdmax{}, \text{px+goal } 0.08)$ & $+0.82$ \\
 $\rho(\stdmax{}, \text{OOD drop})$ & $-0.93$ \\
 \midrule
-$\rho(\text{metric}, \text{clean})$ unconditional & $\mathbf{-0.73}$ \\
-$\rho(\text{metric}, \text{clean}) \mid \stdmax{}$ partial & $\mathbf{-0.73}$ \\
+$\rho(\text{metric}, \text{clean})$ unconditional & $-0.33$ \\
+$\rho(\text{metric}, \text{clean}) \mid \stdmax{}$ partial & $\mathbf{-0.59}$ \\
 $\rho(\text{metric}, \text{px+g } 0.08)$ unconditional & $+0.55$ \\
-$\rho(\text{metric}, \text{px+g } 0.08) \mid \stdmax{}$ partial & $\mathbf{-0.67}$ \\
+$\rho(\text{metric}, \text{px+g } 0.08) \mid \stdmax{}$ partial & $\mathbf{-0.41}$ \\
 $\rho(\text{metric}, \text{OOD drop})$ unconditional & $-0.77$ \\
-$\rho(\text{metric}, \text{OOD drop}) \mid \stdmax{}$ partial & $+0.13$ \\
+$\rho(\text{metric}, \text{OOD drop}) \mid \stdmax{}$ partial & $+0.06$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 The honest interpretation:
 \begin{enumerate}
-  \item \textbf{Within a fixed training protocol the metric strongly predicts both clean and OOD performance.} Partial $\rho$ on clean is $-0.73$ and on px+goal 0.08 is $-0.67$ --- both meaningful negative correlations. Among models trained at the \emph{same} \stdmax{}, the one with lower fragility ratio achieves better clean \emph{and} better noisy success.
-  \item \textbf{The metric does NOT predict OOD drop beyond training protocol.} The unconditional $\rho(\text{metric}, \text{drop}) = -0.77$ looks impressive, but partialling out \stdmax{} collapses it to $+0.13$. The drop's strong correlation with the metric is a mediated effect: \stdmax{} drives both the metric ($\rho = +0.83$) and the drop ($\rho = -0.93$). Once \stdmax{} is fixed, the metric tells you nothing new about how much the \emph{gap} between clean and noisy performance will be.
+  \item \textbf{Within a fixed training protocol the metric does carry a meaningful ckpt-quality signal.} Partial $\rho$ on clean is $-0.59$ and on px+goal 0.08 is $-0.41$ --- both negative, both meaningful at this sample size. Among PushT models trained at the \emph{same} \stdmax{}, the one with lower fragility ratio achieves better clean \emph{and} better noisy success.
+  \item \textbf{The metric does NOT predict OOD drop beyond training protocol.} The unconditional $\rho(\text{metric}, \text{drop}) = -0.77$ looks impressive, but partialling out \stdmax{} collapses it to $+0.06$ (sign-flipped, near zero). The drop's strong correlation with the metric is a mediated effect: \stdmax{} drives both the metric ($\rho = +0.83$) and the drop ($\rho = -0.93$). Once \stdmax{} is fixed, the metric tells you nothing new about how much the \emph{gap} between clean and noisy performance will be.
+  \item \textbf{Note the unconditional-vs-partial sign reversal on clean.} $\rho(\text{metric}, \text{clean})$ is only $-0.33$ unconditionally --- clean success rate is roughly flat across the PushT sweep under the 3-seed protocol (range $80.67$--$89.67$), so \stdmax{} barely moves clean. The partial correlation \emph{strengthens} to $-0.59$ once \stdmax{} is removed, exactly because the within-protocol signal is what the metric tracks.
   \item \textbf{Practical reading.} The toolkit is a model-selection tool that ranks checkpoints within a fixed training protocol. It is \emph{not} a substitute for actually training with noise when the OOD gap is the quantity of interest.
 \end{enumerate}
 
 \subsubsection{What this diagnostic actually predicts: clean vs OOD}\label{sec:diag-clean-vs-ood}
 
-Older versions of this analysis reported only the unconditional $\rho$ between the fragility metric and ``eval''. Earlier internal write-ups described that quantity as predicting OOD failure; the partial-correlation analysis above shows the more nuanced reality:
+The partial-correlation analysis above settles the interpretation:
 
 \begin{itemize}
-  \item The metric is a \textbf{strong ckpt-quality signal} --- within any fixed training protocol, lower fragility ratio means better control on \emph{both} clean and noisy evaluation (partial $\rho \approx -0.7$ on both).
-  \item The metric \textbf{does not isolate noise-robustness} --- its apparent correlation with the gap between clean and noisy success is fully mediated by \stdmax{}.
+  \item The metric is a \textbf{ckpt-quality signal within a fixed training protocol} --- lower fragility ratio means better control on \emph{both} clean and noisy evaluation (partial $\rho = -0.59$ / $-0.41$ on PushT).
+  \item The metric \textbf{does not isolate noise-robustness} --- its apparent correlation with the gap between clean and noisy success is fully mediated by \stdmax{} (partial $\rho = +0.06$).
 \end{itemize}
 
-The PushT scatter (\Cref{fig:scatter}) makes both halves of this visible. Panel (a) plots metric vs clean, showing a strong negative trend (Spearman $\rho = -0.73$). Panel (b) plots metric vs OOD drop, showing the same trend at unconditional $\rho = -0.77$, but the colour-bar (encoding \stdmax{}) reveals the structure: low-\stdmax{} ckpts (light blue) live at high drop, high-\stdmax{} ckpts (dark blue) live at low drop, and the metric tracks \stdmax{} itself. Once \stdmax{} is held constant, the metric does not separate small-drop from large-drop ckpts.
+The PushT scatter (\Cref{fig:scatter}) makes both halves visible. Panel (a) plots metric vs clean (unconditional Spearman $\rho = -0.33$; the within-\stdmax{} slope is what the partial correlation captures). Panel (b) plots metric vs OOD drop (unconditional $\rho = -0.77$), but the colour-bar (encoding \stdmax{}) reveals the structure: low-\stdmax{} ckpts (light blue) live at high drop, high-\stdmax{} ckpts (dark blue) live at low drop, and the metric tracks \stdmax{} itself. Once \stdmax{} is held constant, the metric does not separate small-drop from large-drop ckpts.
 
 \begin{figure}[H]
 \centering
@@ -446,36 +463,37 @@ Swapping cost recovers only $+6$\,pt ($36 \to 42$), far below the clean baseline
 Directly injecting noise into the latent $z$ (skipping the encoder) decouples encoder contributions from predictor + cost. Comparing diagnostic signals across two injection points (pixels vs.\ latent $z$, both history-only noise at max std):
 
 \begin{itemize}
-  \item \textbf{TwoRoom.} \code{latent\_predictor\_rollout\_T8\_l2\_history} $\leftrightarrow$ eval $\rho = +0.738$, slightly stronger than input-space \code{predictor\_rollout\_T8\_l2} ($\rho = +0.667$) --- encoder remains dominant but predictor adds an independent contribution.
-  \item \textbf{PushT.} Input-space and latent-only signals are nearly collinear ($+0.627$ / $+0.636$); the single-step \fragility{} ($\rho = -0.791$) is the strongest. Encoder + single-step predictor jointly dominate; cost surface (\code{latent\_cost\_surface\_slope\_z}, $\rho = +0.93$) is collinear with the latent rollout.
-  \item \textbf{Reacher / Cube.} \code{latent\_cost\_surface\_slope\_z} $|\rho| < 0.4$ --- cost surface is not an explanatory variable.
+  \item \textbf{PushT.} The multi-step input-space metric \code{predictor\_rollout\_T8\_l2\_at\_max\_std} has unconditional $\rho = +0.88$ vs OOD drop (\Cref{tab:corr-n8}), driven primarily by \stdmax{}; the within-protocol partial $\rho$ collapses to $-0.03$. The single-step \fragility{} (unconditional $\rho = -0.77$; within-protocol partial $+0.06$) tells the same story. Both encoder--predictor signals are mediated by training noise; once it is held fixed, neither isolates OOD drop on PushT.
+  \item \textbf{Reacher.} \code{predictor\_rollout\_T8\_l2\_at\_max\_std} has unconditional $\rho = +0.87$ \emph{and} partial $\rho = \mathbf{+0.79}$ vs OOD drop --- the only within-protocol non-trivial correlation in the matrix. On Reacher, multi-step predictor drift carries genuine OOD-drop information beyond \stdmax{}.
+  \item \textbf{Cube.} \code{predictor\_rollout\_T8\_l2\_at\_max\_std} has unconditional $\rho = +0.54$ and partial $\rho = +0.50$ --- a moderate within-protocol signal. Encoder--predictor drift partially explains Cube's small but non-zero OOD sensitivity.
+  \item \textbf{TwoRoom.} Partial correlations are undefined because clean / drop are saturated across the sweep (rank ties). Unconditional $\rho$ still indicates strong encoder--predictor sensitivity to \stdmax{}.
 \end{itemize}
 
 \Cref{tab:attribution} summarises the three-layer attribution.
 
 \begin{table}[H]
 \centering
-\caption{Three-layer attribution by task.}
+\caption{Three-layer attribution by task (LeWM $n = 9$ sweep, unified 3-seed $\times$ 100 eval).}
 \label{tab:attribution}
 \small
 \begin{tabular}{lll}
 \toprule
-Task & Primary cause & Secondary \\
+Task & Primary cause & Within-protocol residual \\
 \midrule
-TwoRoom & encoder dominant & independent predictor contribution \\
-PushT   & encoder + single-step predictor & cost surface (collinear with latent rollout) \\
-Reacher & encoder + multi-step rollout & --- \\
-Cube    & encoder & --- \\
+TwoRoom & encoder dominant (rank-saturated) & n/a \\
+PushT   & encoder + single-step predictor (both mediated by \stdmax{}) & no within-protocol metric isolates OOD drop \\
+Reacher & encoder + multi-step rollout & multi-step drift residual signal (partial $\rho = +0.79$) \\
+Cube    & encoder & moderate residual on multi-step drift (partial $\rho = +0.50$) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The common primary cause across the four tasks is \textbf{encoder shift transduced by the predictor}; \textbf{cost surface is not a principal explanatory variable on any task}. This is also the root reason Layer-5 task-resolution metrics carry strong signal in \Cref{sec:exp-diag}: once the encoder's latent-neighbourhood structure is corrupted beyond the NN distance scale, downstream predictor and planner are already operating on the wrong neighbourhood.
+The common primary cause across the four tasks is \textbf{encoder shift transduced by the predictor}; \textbf{cost surface is not a principal explanatory variable on any task} (\Cref{sec:mech-cost-swap} cost-swap on TwoRoom recovers only $+6$\,pt, far below the clean ceiling). This is also the root reason Layer-5 task-resolution metrics carry strong signal in \Cref{sec:exp-diag}: once the encoder's latent-neighbourhood structure is corrupted beyond the NN distance scale, downstream predictor and planner are already operating on the wrong neighbourhood.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig5_mechanism.png}
-\caption{Mechanism attribution. Left: three-layer attribution flow (pixels $\to$ encoder $\to$ predictor $\to$ cost / CEM). Right: $|\rho|$ of the strongest per-layer signal vs eval drop per task ($n = 8$).}
+\caption{Mechanism attribution. Left: three-layer attribution flow (pixels $\to$ encoder $\to$ predictor $\to$ cost / CEM). Right: $|\rho|$ of the strongest per-layer signal vs eval drop per task (LeWM $n = 9$ sweep).}
 \label{fig:mechanism}
 \end{figure}
 

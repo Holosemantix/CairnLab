@@ -294,90 +294,64 @@ def _read_predictor_target_ratio(ckpt_dir: Path) -> float:
     return float("nan")
 
 
+_CANONICAL_EVALS_CACHE: Dict[str, Dict] = {}
+
+
+def _load_canonical_evals() -> Dict:
+    """Load canonical_evals_20260517.json from the repo root (cached)."""
+    if _CANONICAL_EVALS_CACHE:
+        return _CANONICAL_EVALS_CACHE
+    fp = Path(__file__).resolve().parent.parent / "canonical_evals_20260517.json"
+    if not fp.exists():
+        return {}
+    with open(fp) as f:
+        _CANONICAL_EVALS_CACHE.update(json.load(f))
+    return _CANONICAL_EVALS_CACHE
+
+
 def _read_eval_metrics(ckpt_dir: Path) -> Dict[str, float]:
-    """Parse summary.txt and return {'clean': float, 'px08': float}."""
-    import re
-    summ = Path(ckpt_dir) / "eval_results" / "summary.txt"
-    if not summ.exists():
-        return {"clean": float("nan"), "px08": float("nan")}
-    text = summ.read_text(errors="ignore")
-    sections: Dict[str, float] = {}
-    block_re = re.compile(
-        r"==\s*(?P<name>[\w.+]+)\s*==\s*\n\s*\{'success_rate':\s*(?P<sr>[-+0-9.eE]+)"
-    )
-    for m in block_re.finditer(text):
-        try:
-            sections[m.group("name")] = float(m.group("sr"))
-        except ValueError:
-            continue
-
-    def _resolve(prefer_names, seed_prefix):
-        for n in prefer_names:
-            if n in sections:
-                return sections[n]
-        seed_vals = [v for k, v in sections.items() if k.startswith(seed_prefix + "_seed")]
-        if seed_vals:
-            return sum(seed_vals) / len(seed_vals)
-        return float("nan")
-
-    return {
-        "clean": _resolve(["clean_300", "clean"], "clean"),
-        "px08":  _resolve(["pixels_goal_std0.08"], "pixels_goal_std0.08"),
-    }
+    """Look up the ckpt in canonical_evals_20260517.json (unified 3-seed × 100)
+    and return {'clean': mean, 'px08': mean}. The script is figure-only — the
+    canonical aggregate is the single source of truth, so we never fall back
+    to per-ckpt summary.txt parsing for figure rendering.
+    """
+    target = str(ckpt_dir)
+    canon = _load_canonical_evals()
+    for task_rows in canon.values():
+        for entry in task_rows.values():
+            if entry.get("path") == target:
+                m = entry.get("metrics", {})
+                clean = m.get("clean", {}).get("mean", float("nan"))
+                px08  = m.get("pixels_goal_std0.08", {}).get("mean", float("nan"))
+                return {"clean": float(clean), "px08": float(px08)}
+    return {"clean": float("nan"), "px08": float("nan")}
 
 
 def _read_eval_drop(ckpt_dir: Path) -> float:
-    """clean − px+g 0.08 from summary.txt.
-
-    Two summary formats coexist in the repo:
-      (A) single-seed × 300: blocks `== clean ==`, `== clean_300 ==`,
-          `== pixels_goal_std0.08 ==`, ...
-      (B) 3-seed × 100:      blocks `== clean_seed42/43/44 ==`,
-          `== pixels_goal_std0.08_seed42/43/44 ==`, ...
-    Each block is followed by a python-repr dict starting with
-    `'success_rate': <float>`. We parse all blocks and:
-      - prefer `clean_300` then `clean`; otherwise mean of `clean_seed*`.
-      - prefer `pixels_goal_std0.08`; otherwise mean of `pixels_goal_std0.08_seed*`.
-    """
-    import re
-    summ = Path(ckpt_dir) / "eval_results" / "summary.txt"
-    if not summ.exists():
+    """clean − px+g 0.08 from canonical_evals_20260517.json (unified 3-seed × 100)."""
+    ev = _read_eval_metrics(ckpt_dir)
+    if math.isnan(ev["clean"]) or math.isnan(ev["px08"]):
         return float("nan")
-    text = summ.read_text(errors="ignore")
-    sections: Dict[str, float] = {}
-    block_re = re.compile(
-        r"==\s*(?P<name>[\w.+]+)\s*==\s*\n\s*\{'success_rate':\s*(?P<sr>[-+0-9.eE]+)"
-    )
-    for m in block_re.finditer(text):
-        try:
-            sections[m.group("name")] = float(m.group("sr"))
-        except ValueError:
-            continue
-
-    def _resolve(prefer_names, seed_prefix):
-        for n in prefer_names:
-            if n in sections:
-                return sections[n]
-        seed_vals = [v for k, v in sections.items() if k.startswith(seed_prefix + "_seed")]
-        if seed_vals:
-            return sum(seed_vals) / len(seed_vals)
-        return float("nan")
-
-    clean = _resolve(["clean_300", "clean"], "clean")
-    px08 = _resolve(["pixels_goal_std0.08"], "pixels_goal_std0.08")
-    if math.isnan(clean) or math.isnan(px08):
-        return float("nan")
-    return clean - px08
+    return ev["clean"] - ev["px08"]
 
 
 def _spearman(xs: np.ndarray, ys: np.ndarray) -> float:
-    """Spearman ρ via rank-Pearson (no scipy required)."""
+    """Spearman ρ via rank-Pearson, with mid-rank tie averaging (no scipy)."""
     if len(xs) < 3:
         return float("nan")
     def _rank(a):
-        order = np.argsort(a)
-        ranks = np.empty_like(order, dtype=float)
-        ranks[order] = np.arange(len(a), dtype=float)
+        a = np.asarray(a, dtype=float)
+        order = np.argsort(a, kind="mergesort")
+        ranks = np.empty(len(a), dtype=float)
+        i = 0
+        while i < len(a):
+            j = i
+            while j + 1 < len(a) and a[order[j + 1]] == a[order[i]]:
+                j += 1
+            avg = (i + j) / 2.0 + 1.0
+            for k in range(i, j + 1):
+                ranks[order[k]] = avg
+            i = j + 1
         return ranks
     rx, ry = _rank(xs), _rank(ys)
     rx = rx - rx.mean()

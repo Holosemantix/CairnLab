@@ -10,8 +10,8 @@ defaults:
   - launcher: local
   - data: pusht_baseline           # override with `data=tworoom_baseline` etc.
 
-exp_name: ???                      # required at CLI, e.g. pusht_pldm_noise_0to006_p1
-output_model_name: ${exp_name}
+output_model_name: ???             # required at CLI, e.g. pusht_pldm_noise_0to006_p1
+exp_name: ${output_model_name}
 subdir: ${exp_name}
 
 seed: 3072
@@ -71,7 +71,7 @@ swanlab:
     logdir: /tmp/swanlab
 
 wandb:
-  enabled: False
+  enabled: True
   config:
     entity: qun-team
     project: worldmodels

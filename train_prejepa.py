@@ -39,7 +39,6 @@ import lightning as pl
 import stable_pretraining as spt
 import stable_worldmodel as swm
 import torch
-from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.loggers import WandbLogger
 from loguru import logger as logging
 from omegaconf import OmegaConf, open_dict
@@ -54,7 +53,6 @@ except ImportError:
 
 # --- upstream PreJEPA components (no duplication) ---------------------------
 from stable_worldmodel.data import column_normalizer as get_column_normalizer
-from stable_worldmodel.wm.utils import save_pretrained
 
 # Re-use the upstream training script's helper functions verbatim so behaviour
 # stays in lock-step with their published checkpoints.
@@ -79,30 +77,7 @@ else:  # fallback: assume upstream is on PYTHONPATH as a package, not script
     )
 
 # --- our additions ----------------------------------------------------------
-from utils import TransformDataset, get_img_noise_transform
-
-
-class SaveCkptCallback(Callback):
-    """Mirror upstream SaveCkptCallback but local so we don't depend on the
-    upstream script's class identity across reloads."""
-
-    def __init__(self, run_name, cfg, epoch_interval: int = 1):
-        super().__init__()
-        self.run_name = run_name
-        self.cfg = cfg
-        self.epoch_interval = epoch_interval
-
-    def on_train_epoch_end(self, trainer, pl_module):
-        if not trainer.is_global_zero:
-            return
-        ep = trainer.current_epoch + 1
-        if ep % self.epoch_interval == 0 or ep == trainer.max_epochs:
-            save_pretrained(
-                pl_module.model,
-                run_name=self.run_name,
-                config=self.cfg,
-                filename=f"weights_epoch_{ep}.pt",
-            )
+from utils import ModelObjectCallBack, TransformDataset, get_img_noise_transform
 
 
 @hydra.main(version_base=None, config_path="./config/train", config_name="prejepa")
@@ -206,7 +181,7 @@ def run(cfg):
 
     # --- Run dir / logger -------------------------------------------------
     run_id = cfg.get("subdir") or ""
-    run_dir = Path(swm.data.utils.get_cache_dir(sub_folder="checkpoints"), run_id)
+    run_dir = Path(swm.data.utils.get_cache_dir(), run_id)
     run_dir.mkdir(parents=True, exist_ok=True)
     logging.info(f"PreJEPA run dir: {run_dir}")
     with open(run_dir / "config.yaml", "w") as f:
@@ -225,7 +200,11 @@ def run(cfg):
         **cfg.trainer,
         callbacks=[
             spt.callbacks.CPUOffloadCallback(),
-            SaveCkptCallback(run_name=cfg.output_model_name, cfg=cfg, epoch_interval=5),
+            ModelObjectCallBack(
+                dirpath=run_dir,
+                filename=cfg.output_model_name,
+                epoch_interval=1,
+            ),
             pl.pytorch.callbacks.LearningRateMonitor(logging_interval="step"),
         ],
         num_sanity_val_steps=1,

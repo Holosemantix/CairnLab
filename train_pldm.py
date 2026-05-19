@@ -48,6 +48,7 @@ from stable_worldmodel.wm.utils import save_pretrained
 
 # --- our additions ---------------------------------------------------------
 from utils import (
+    ModelObjectCallBack,
     TransformDataset,
     get_img_noise_transform,
     get_img_preprocessor,
@@ -83,26 +84,7 @@ def pldm_forward(self, batch, stage, cfg):
     return output
 
 
-class SaveCkptCallback(Callback):
-    """Save the PLDM model object via swm.save_pretrained at each epoch."""
 
-    def __init__(self, run_name, cfg, epoch_interval: int = 1):
-        super().__init__()
-        self.run_name = run_name
-        self.cfg = cfg
-        self.epoch_interval = epoch_interval
-
-    def on_train_epoch_end(self, trainer, pl_module):
-        super().on_train_epoch_end(trainer, pl_module)
-        if trainer.is_global_zero:
-            ep = trainer.current_epoch + 1
-            if ep % self.epoch_interval == 0 or ep == trainer.max_epochs:
-                save_pretrained(
-                    pl_module.model,
-                    run_name=self.run_name,
-                    config=self.cfg,
-                    filename=f"weights_epoch_{ep}.pt",
-                )
 
 
 @hydra.main(version_base=None, config_path="./config/train", config_name="pldm")
@@ -201,7 +183,7 @@ def run(cfg):
 
     # ----- run dir / logger ----------------------------------------------
     run_id = cfg.get("subdir") or ""
-    run_dir = Path(swm.data.utils.get_cache_dir(sub_folder="checkpoints"), run_id)
+    run_dir = Path(swm.data.utils.get_cache_dir(), run_id)
     run_dir.mkdir(parents=True, exist_ok=True)
     with open(run_dir / "config.yaml", "w") as f:
         OmegaConf.save(cfg, f)
@@ -216,8 +198,10 @@ def run(cfg):
         logger_obj = WandbLogger(**cfg.wandb.config)
         logger_obj.log_hyperparams(OmegaConf.to_container(cfg))
 
-    object_dump_callback = SaveCkptCallback(
-        run_name=cfg.output_model_name, cfg=cfg, epoch_interval=5,
+    object_dump_callback = ModelObjectCallBack(
+        dirpath=run_dir,
+        filename=cfg.output_model_name,
+        epoch_interval=5,
     )
 
     trainer = pl.Trainer(

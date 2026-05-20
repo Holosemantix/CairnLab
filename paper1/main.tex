@@ -124,6 +124,8 @@ This exposes a fundamental tension: \textbf{global noise augmentation cannot dis
 \subsection{JEPA and latent world models}
 JEPA~\cite{lecun2022path} predicts in latent space rather than reconstructing pixels. I-JEPA~\cite{assran2023ijepa} predicts target representations from a masked context; V-JEPA~\cite{bardes2024vjepa,assran2025vjepa2} extends the framework to video understanding and video-driven world modelling; LeWM~\cite{maes2026lewm} is the first end-to-end stable JEPA world model, using \textbf{SIGReg} (Sketch Isotropic Gaussian Regularizer) --- random projections plus Epps--Pulley empirical-characteristic-function matching~\cite{eppspulley1983} --- to prevent representation collapse without batch normalisation. LeWM is our baseline. The original LeWM paper reports a Violation-of-Expectation experiment showing the model is sensitive to physical perturbations (object teleportation) but not to visual perturbations (colour change). VoE however measures prediction error (surprise), not control success rate, and colour change differs from pixel-level Gaussian noise. We give the first picture, to our knowledge, of LeWM's control success rate under pixel-noise corruption.
 
+For one external-baseline sanity check we also evaluate PLDM as implemented in \code{stable-worldmodel}~\cite{maes2026stableworldmodel}. We use it only to test whether the clean-trained visual-noise cliff is isolated to LeWM; the full sweep, diagnostic correlations, and trade-off claims remain LeWM-only.
+
 \subsection{Robustness studies of JEPA}
 N-JEPA~\cite{njepa2025} introduces diffusion-noise augmentation into I-JEPA, improving linear-probing robustness on ImageNet. VJEPA~\cite{huang2026vjepa} tests a Noisy-TV distractor on synthetic 1D signals and reports JEPA retains $R^2 > 0.84$ under high noise. US-JEPA~\cite{usjepa2025} tests Gaussian blur, contrast reduction, and speckle noise on medical ultrasound. None of these studies the pixel-noise robustness of a JEPA \emph{world model} on \emph{robotic control}. Furthermore, VJEPA's optimistic conclusion ($R^2 > 0.84$ in 1D) contrasts with our control-time observation (success rate $\to 4.67\%$), suggesting that the ``natural robustness'' of JEPA may be an artefact of evaluation modality.
 
@@ -222,6 +224,8 @@ Cube    & $66.67 \pm 2.62$ & $53.33 \pm 3.30$ & $46.33 \pm 3.68$ & $\mathbf{-20.
 \end{figure}
 
 LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual std $= 0.05$ applied to pixels and goal jointly already produces large drops on all tasks: PushT loses $74+$ pts (down to near-random $4.67\%$ at std $= 0.08$), TwoRoom $30+$ pts, Reacher $30+$ pts, Cube $\sim 13$ pts (at std $= 0.05$). \textbf{This is not a marginal phenomenon}: a JEPA + CEM world model without noise-aware training has essentially no resistance to visual corruption. The drop pattern across tasks is informative: Cube degrades least ($-20.33$\,pt at std $= 0.08$) --- structured manipulation has some natural robustness --- while PushT degrades most catastrophically ($-81.67$\,pt), confirming that contact-heavy continuous control is most sensitive to visual precision.
+
+As an external-baseline sanity check, a clean-trained PLDM checkpoint on PushT under the same 3-evaluation-seed $\times$ 100-trajectory protocol drops from $75.33 \pm 3.68$ clean to $43.67 \pm 4.64$ at px+goal 0.05 and $10.00 \pm 2.16$ at px+goal 0.08 (\Cref{sec:appendix-F}). This supports the narrow statement that the control-time visual-noise cliff is not isolated to LeWM. It does \emph{not} establish that the noise-training trade-off or the LeWM diagnostic correlations generalize across architectures; those require the ongoing PLDM/DINO-WM sweeps.
 
 \subsection{Noise augmentation closes the gap --- at the cost of task-specific tuning}\label{sec:exp-sweep}
 
@@ -532,7 +536,7 @@ Our sweep suggests a simple operational recipe:
 
 \subsection{Limitations and future directions}\label{sec:disc-limit}
 
-\paragraph{Limitation 1 --- Single backbone family.} We validate on LeWM. Other JEPA variants (EMA-target I-JEPA / V-JEPA lineage; variational JEPA) may exhibit different noise responses.
+\paragraph{Limitation 1 --- Single backbone family.} The full sweep and diagnostic analysis are validated on LeWM. The PushT PLDM sanity check in \Cref{sec:appendix-F} shows a similar clean-trained visual-noise cliff, but it is not a cross-architecture sweep; other JEPA variants (EMA-target I-JEPA / V-JEPA lineage; variational JEPA) may exhibit different noise responses.
 
 \paragraph{Limitation 2 --- Gaussian pixel noise only.} Real-world visual corruption includes motion blur, contrast variation, occlusion, and lighting change; whether the trade-off transfers is open.
 
@@ -750,5 +754,27 @@ Reference: separate clean eval of the same checkpoint ($\text{num\_eval} = 300$)
 \end{table}
 
 Swapping cost recovers only $+6$\,pt ($36 \to 42$), still far below the clean reference ($69.7$). The narrow reading is therefore: \textbf{a sanity check suggests the cost function alone is unlikely to explain the OOD collapse.}
+
+%% ===========================================================================
+\section{External baseline sanity check: clean-trained PLDM on PushT}\label{sec:appendix-F}
+
+This appendix records the PushT PLDM baseline referenced in \Cref{sec:exp-cliff}. PLDM is taken from the \code{stable-worldmodel} baseline suite~\cite{maes2026stableworldmodel}. The run is clean-trained (\code{image\_noise.std\_max = 0}, \code{noise\_prob = 0}) and evaluated with the same three evaluation seeds (42/43/44) and 100 trajectories per seed as the LeWM canonical tables. It is outside the 36-checkpoint LeWM sweep and is not used in \Cref{tab:corr-n9,tab:partial-corr-4tasks,tab:partial-corr}.
+
+\begin{table}[H]
+\centering
+\caption{Clean-trained PLDM external-baseline sanity check on PushT. Values are success rate mean $\pm$ population std over 3 evaluation seeds $\times$ 100 trajectories.}
+\label{tab:pldm-pusht}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+Model & clean & px+goal 0.05 & px+goal 0.08 & clean $\to$ 0.08 drop \\
+\midrule
+LeWM-base & $86.33 \pm 2.36$ & $12.00 \pm 4.55$ & $\phantom{0}4.67 \pm 2.05$ & $-81.67$ \\
+PLDM clean-trained & $75.33 \pm 3.68$ & $43.67 \pm 4.64$ & $10.00 \pm 2.16$ & $-65.33$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The result supports a limited external-baseline reading: clean-trained visual world models can share the same control-time pixel+goal noise failure mode. PLDM starts from a lower clean success than LeWM-base on PushT, but still loses $65.33$\,pt under px+goal 0.08. Its diagnostic profile also cautions against equating geometry robustness with control robustness: the released PLDM aggregate has \code{clean\_effective\_rank} $= 130.13$, \code{geometry\_flag = robust}, \transres{}\_l2 $= 0.4710$, and \idprobe{} $= 0.7570$, yet control success under px+goal 0.08 remains $10.00\%$. The released source-of-truth is \code{assets/paper1\_data/canonical\_external\_baselines\_20260520.json}.
 
 \end{document}

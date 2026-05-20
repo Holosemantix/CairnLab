@@ -73,6 +73,8 @@ Joint-Embedding Predictive Architecture (JEPA) 由 LeCun [1] 提出，核心思�
 
 **与本文的关系**：LeWM 是我们的基线系统。原始论文报道了 Violation-of-Expectation (VoE) 实验，证明 LeWM 对物理扰动（物体瞬移）敏感，但对视觉扰动（颜色变化）不敏感。然而 (i) VoE 测量的是预测误差（surprise），不是控制成功率；(ii) 颜色变化与像素级高斯噪声是两种不同性质的扰动。本文给出 LeWM 在 JEPA + CEM world-model pipeline 下、面对像素级高斯噪声时的控制成功率画像。**就我们所知**，这是 JEPA 世界模型在视觉 OOD 下控制鲁棒性的首个系统性研究。
 
+作为一个外部 baseline sanity check，我们还评估了 `stable-worldmodel` [21] 中实现的 PLDM。这里的 PLDM 只用于检验 clean-trained visual-noise cliff 是否是 LeWM 独有现象；完整 sweep、诊断相关性和 trade-off 结论仍只基于 LeWM。
+
 ### 2.2 JEPA 的鲁棒性研究
 
 N-JEPA [8] 在 I-JEPA 上引入了扩散噪声增广（diffusion noise），通过 noise-to-teacher 和 context-to-noise 损失提升 ImageNet 线性探测的鲁棒性。VJEPA [9] 在合成 1D 信号上测试了"Noisy TV" distractor，报告 JEPA 在高噪声下仍保持 R² > 0.84。US-JEPA [10] 在医学超声上测试了高斯模糊、对比度降低和散斑噪声。
@@ -202,6 +204,8 @@ $$
 | PushT | 86.33 ± 2.36 | 12.00 ± 4.55 | 4.67 ± 2.05 | **−81.67** |
 | Reacher | 58.67 ± 1.25 | 27.00 ± 5.10 | 15.00 ± 2.16 | **−43.67** |
 | Cube | 66.67 ± 2.62 | 53.33 ± 3.30 | 46.33 ± 3.68 | **−20.33** |
+
+作为外部 baseline sanity check，一个 clean-trained PushT PLDM checkpoint 在同样的 3 evaluation seeds × 100 trajectories 协议下，从 **75.33 ± 3.68** clean 降到 **43.67 ± 4.64**（px+goal 0.05）和 **10.00 ± 2.16**（px+goal 0.08），详见附录 F。这只支持一个窄结论：control-time visual-noise cliff 不是 LeWM 独有。它**不**证明 noise-training trade-off 或 LeWM 诊断相关性能跨架构泛化；这些需要正在跑的 PLDM / DINO-WM sweep。
 
 ![Fig 1 — Visual OOD cliff in LeWM and recovery by noise training](assets/paper1_figs/fig1_hero.png)
 
@@ -442,7 +446,7 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 ### 5.5 局限与未来方向
 
-**局限 1：仅在 LeWM 上验证。** 虽然 LeWM 是 JEPA 世界模型的代表性实现，但其他 JEPA 变体（V-JEPA / I-JEPA 流派 EMA target、变分 JEPA 等）可能有不同的噪声响应。
+**局限 1：完整 sweep 与诊断分析仅在 LeWM 上验证。** 附录 F 的 PushT PLDM sanity check 显示 clean-trained visual-noise cliff 也出现在一个外部 baseline 上，但它不是跨架构 sweep。其他 JEPA 变体（V-JEPA / I-JEPA 流派 EMA target、变分 JEPA 等）仍可能有不同的噪声响应。
 
 **局限 2：仅测试了高斯像素噪声。** 真实世界 visual corruption 还包括运动模糊、对比度变化、遮挡、光照变化等；本文的 trade-off 在这些场景的迁移性是 open question。
 
@@ -513,6 +517,8 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 [19] T. W. Epps, K. J. Pulley, "A test for normality based on the empirical characteristic function," *Biometrika*, 1983. *(Statistical foundation of SIGReg in [5].)*
 
 [20] A. Bardes, J. Ponce, Y. LeCun, "VICReg: Variance-invariance-covariance regularization for self-supervised learning," *ICLR*, 2022. *(Anti-collapse baseline.)*
+
+[21] L. Maes, Q. Le Lidec, D. Haramati, N. Massaudi, D. Scieur, Y. LeCun, R. Balestriero, "stable-worldmodel-v1: Reproducible world modeling research and evaluation," *arXiv:2602.08968*, 2026. *(本文附录 F 所用 PLDM baseline implementation 的来源。)*
 
 ---
 
@@ -686,6 +692,19 @@ Hetero loss 在两个任务上都压缩表征。TwoRoom 低维、离散、视觉
 | 参考：同 ckpt clean eval (`num_eval = 300`) | — | — | 69.7 |
 
 只换 cost 仅回升 +6pt（36 → 42），仍远低于 clean reference 69.7。谨慎表述应是：**a sanity check suggests the cost function alone is unlikely to explain the OOD collapse**。
+
+---
+
+## 附录 F — 外部 baseline sanity check：PushT clean-trained PLDM
+
+本附录记录 §4.2 引用的 PushT PLDM baseline。PLDM 来自 `stable-worldmodel` baseline suite [21]。该 run 是 clean-trained（`image_noise.std_max = 0`, `noise_prob = 0`），并使用与 LeWM canonical tables 相同的 3 evaluation seeds（42/43/44）× 每 seed 100 trajectories 协议。它不属于 36-checkpoint LeWM sweep，也不参与表 4/4b/5 的相关性计算。
+
+| Model | clean | px+goal 0.05 | px+goal 0.08 | clean → 0.08 drop |
+|---|---:|---:|---:|---:|
+| LeWM-base | 86.33 ± 2.36 | 12.00 ± 4.55 | 4.67 ± 2.05 | −81.67 |
+| PLDM clean-trained | 75.33 ± 3.68 | 43.67 ± 4.64 | 10.00 ± 2.16 | −65.33 |
+
+这组结果支持一个有限的外部 baseline 解读：clean-trained visual world model 可以共享同类 control-time pixel+goal noise failure mode。PLDM 在 PushT clean 上低于 LeWM-base，但 px+goal 0.08 下仍损失 65.33pt。它的诊断也提醒我们不能把 geometry robustness 等同于 control robustness：released PLDM aggregate 中 `clean_effective_rank = 130.13`、`geometry_flag = robust`、`transition_resolution_ratio_l2 = 0.4710`、`id_probe_r2 = 0.7570`，但 px+goal 0.08 控制成功率仍只有 10.00%。该组数据的 source-of-truth 是 `assets/paper1_data/canonical_external_baselines_20260520.json`。
 
 ---
 

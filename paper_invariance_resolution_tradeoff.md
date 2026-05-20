@@ -71,6 +71,8 @@ JEPA [1] predicts in latent space rather than reconstructing pixels. I-JEPA [2] 
 
 **Relation to this paper.** LeWM is the baseline system in our experiments. The original LeWM paper reports a Violation-of-Expectation experiment showing the model is sensitive to physical perturbations (object teleportation) but not to visual perturbations (colour change). Note however that (i) VoE measures prediction error (surprise), not control success rate, and (ii) colour change and pixel-level Gaussian noise are distinct corruptions. We give the first picture, to our knowledge, of LeWM's control success rate under pixel-noise corruption.
 
+For one external-baseline sanity check we also evaluate PLDM as implemented in `stable-worldmodel` [21]. We use it only to test whether the clean-trained visual-noise cliff is isolated to LeWM; the full sweep, diagnostic correlations, and trade-off claims remain LeWM-only.
+
 ### 2.2 Robustness studies of JEPA
 
 N-JEPA [8] introduces diffusion-noise augmentation into I-JEPA via noise-to-teacher and context-to-noise losses, improving linear-probing robustness on ImageNet. VJEPA [9] tests a "Noisy TV" distractor on synthetic 1D signals and reports JEPA retains R² > 0.84 under high noise. US-JEPA [10] tests Gaussian blur, contrast reduction, and speckle noise on medical ultrasound.
@@ -189,6 +191,8 @@ Table 1 reports LeWM-base success rates under clean and noised eval (mean ± std
 | Cube    | 66.67 ± 2.62 | 53.33 ± 3.30 | 46.33 ± 3.68 | **−20.33** |
 
 ![Fig 1 — Visual OOD cliff in LeWM and recovery by noise training](assets/paper1_figs/fig1_hero.png)
+
+As an external-baseline sanity check, a clean-trained PLDM checkpoint on PushT under the same 3-evaluation-seed × 100-trajectory protocol drops from **75.33 ± 3.68** clean to **43.67 ± 4.64** at px+goal 0.05 and **10.00 ± 2.16** at px+goal 0.08 (Appendix F). This supports the narrow statement that the control-time visual-noise cliff is not isolated to LeWM. It does **not** establish that the noise-training trade-off or the LeWM diagnostic correlations generalize across architectures; those require the ongoing PLDM/DINO-WM sweeps.
 
 LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual std = 0.05 applied to pixels and goal jointly already produces large drops on all tasks. PushT loses 74+ pts (down to near-random 4.67% at std = 0.08), TwoRoom 30+ pts, Reacher 30+ pts, Cube ~13 pts (at std = 0.05). **This is not a marginal phenomenon**: a JEPA + CEM world model without noise-aware training has essentially no resistance to visual corruption. The drop pattern across tasks is informative: Cube degrades least (−20.33 pt at std = 0.08) — structured manipulation has some natural robustness to pixel noise — whereas PushT degrades most catastrophically (−81.67 pt), confirming that contact-heavy continuous control is most sensitive to visual precision.
 
@@ -427,7 +431,7 @@ Our sweep data suggest a simple operational recipe:
 
 ### 5.5 Limitations and future directions
 
-**Limitation 1 — Single backbone family.** We validate on LeWM. Other JEPA variants (EMA-target I-JEPA / V-JEPA lineage; variational JEPA) may exhibit different noise responses.
+**Limitation 1 — Single backbone family.** The full sweep and diagnostic analysis are validated on LeWM. The PushT PLDM sanity check in Appendix F shows a similar clean-trained visual-noise cliff, but it is not a cross-architecture sweep; other JEPA variants (EMA-target I-JEPA / V-JEPA lineage; variational JEPA) may exhibit different noise responses.
 
 **Limitation 2 — Gaussian pixel noise only.** Real-world visual corruption includes motion blur, contrast variation, occlusion, and lighting change; whether the trade-off transfers to these regimes is open.
 
@@ -498,6 +502,8 @@ The paper does not propose a new training algorithm. Its contribution is a syste
 [19] T. W. Epps, K. J. Pulley, "A test for normality based on the empirical characteristic function," *Biometrika*, 1983. *(Statistical foundation of SIGReg in [5].)*
 
 [20] A. Bardes, J. Ponce, Y. LeCun, "VICReg: Variance-invariance-covariance regularization for self-supervised learning," *ICLR*, 2022. *(Anti-collapse baseline.)*
+
+[21] L. Maes, Q. Le Lidec, D. Haramati, N. Massaudi, D. Scieur, Y. LeCun, R. Balestriero, "stable-worldmodel-v1: Reproducible world modeling research and evaluation," *arXiv:2602.08968*, 2026. *(Source of the PLDM baseline implementation used in Appendix F.)*
 
 ---
 
@@ -670,6 +676,19 @@ This appendix records the eval-only cost-swap ablation referenced in §4.6.1. It
 | Reference: separate clean eval of the same checkpoint (`num_eval = 300`) | — | — | 69.7 |
 
 Swapping cost recovers only +6 pt (36 → 42), far below the clean reference (69.7). The narrow reading is therefore: **a sanity check suggests the cost function alone is unlikely to explain the OOD collapse**.
+
+---
+
+## Appendix F — External baseline sanity check: clean-trained PLDM on PushT
+
+This appendix records the PushT PLDM baseline referenced in §4.2. PLDM is taken from the `stable-worldmodel` baseline suite [21]. The run is clean-trained (`image_noise.std_max = 0`, `noise_prob = 0`) and evaluated with the same three evaluation seeds (42/43/44) and 100 trajectories per seed as the LeWM canonical tables. It is outside the 36-checkpoint LeWM sweep and is not used in Tables 4/4b/5.
+
+| Model | clean | px+goal 0.05 | px+goal 0.08 | clean → 0.08 drop |
+|---|---:|---:|---:|---:|
+| LeWM-base | 86.33 ± 2.36 | 12.00 ± 4.55 | 4.67 ± 2.05 | −81.67 |
+| PLDM clean-trained | 75.33 ± 3.68 | 43.67 ± 4.64 | 10.00 ± 2.16 | −65.33 |
+
+The result supports a limited external-baseline reading: clean-trained visual world models can share the same control-time pixel+goal noise failure mode. PLDM starts from a lower clean success than LeWM-base on PushT, but still loses 65.33 pt under px+goal 0.08. Its diagnostic profile also cautions against equating geometry robustness with control robustness: the released PLDM aggregate has `clean_effective_rank = 130.13`, `geometry_flag = robust`, `transition_resolution_ratio_l2 = 0.4710`, and `id_probe_r² = 0.7570`, yet control success under px+goal 0.08 remains 10.00%. The released source-of-truth is `assets/paper1_data/canonical_external_baselines_20260520.json`.
 
 ---
 

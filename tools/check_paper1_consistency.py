@@ -24,6 +24,7 @@ RELEASE_FILES = [
     ROOT / "paper1" / "references.bib",
     ROOT / "DATA_MANIFEST.md",
     ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json",
+    ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json",
 ]
 
 REQUIRED_ARTIFACTS = [
@@ -31,6 +32,8 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "canonical_evals_20260517.schema.json",
     ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json",
     ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.schema.json",
+    ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json",
+    ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.schema.json",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -280,6 +283,36 @@ def check_canonical_diagnostics_json() -> None:
                     fail(f"canonical diagnostics {task}/{which} missing metric {metric!r}")
 
 
+def check_external_baselines_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    entry = data.get("baselines", {}).get("PushT", {}).get("PLDM_clean_trained")
+    if not isinstance(entry, dict):
+        fail("external baseline JSON missing PushT/PLDM_clean_trained")
+    if entry.get("subdir") != "pusht_pldm_baseline":
+        fail(f"unexpected PLDM subdir: {entry.get('subdir')!r}")
+    if entry.get("citation") != "maes2026stableworldmodel":
+        fail(f"unexpected PLDM citation key: {entry.get('citation')!r}")
+
+    training = entry.get("training", {})
+    if training.get("image_noise_std_max") != 0.0 or training.get("image_noise_noise_prob") != 0.0:
+        fail("PLDM external baseline is expected to be clean-trained")
+
+    required_eval = {"clean", "pixels_goal_std0.05", "pixels_goal_std0.08"}
+    evaluation = entry.get("evaluation", {})
+    missing = required_eval - set(evaluation)
+    if missing:
+        fail(f"PLDM external baseline missing eval conditions: {sorted(missing)}")
+    for metric_name, summary in evaluation.items():
+        check_metric_summary("PushT/PLDM_clean_trained", "external", metric_name, summary)
+
+    clean = evaluation["clean"]["mean"]
+    px08 = evaluation["pixels_goal_std0.08"]["mean"]
+    if round(clean - px08, 2) != 65.33:
+        fail(f"unexpected PLDM clean-to-px+goal0.08 drop: {clean - px08}")
+
+
 def check_published_correlations() -> None:
     evals = json.loads((ROOT / "assets" / "paper1_data" / "canonical_evals_20260517.json").read_text(encoding="utf-8"))
     diag = json.loads((ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json").read_text(encoding="utf-8"))
@@ -361,6 +394,7 @@ def main() -> int:
         ("forbidden text", check_forbidden_text),
         ("canonical json", check_canonical_json),
         ("canonical diagnostics json", check_canonical_diagnostics_json),
+        ("external baselines json", check_external_baselines_json),
         ("published correlations", check_published_correlations),
     ]
     for name, fn in checks:

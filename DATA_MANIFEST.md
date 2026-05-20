@@ -6,6 +6,8 @@ This manifest documents the released evaluation aggregate for Paper 1:
 - Schema: `assets/paper1_data/canonical_evals_20260517.schema.json`
 - Canonical diagnostics: `assets/paper1_data/canonical_diagnostics_20260517.json`
 - Diagnostics schema: `assets/paper1_data/canonical_diagnostics_20260517.schema.json`
+- External baseline sanity check: `assets/paper1_data/canonical_external_baselines_20260520.json`
+- External baseline schema: `assets/paper1_data/canonical_external_baselines_20260520.schema.json`
 - Scope: 36 LeWM checkpoints = 4 tasks × 9 configs (`base` + `std_max` 0.001..0.008)
 - Evaluation protocol: **3 evaluation seeds** (`42`, `43`, `44`) × **100 trajectories per seed**
 - Important clarification: these are **evaluation seeds**, not 3 independently trained models per configuration
@@ -99,8 +101,10 @@ where `<cond>` is one of:
   - 4 tasks × 9 ckpts of `predictor_rollout_T8_l2_at_max_std`
   - finalized Table 3 representative diagnostic values
   - published Table 4 / Table 4b / Table 5 correlation numbers
+- The external baseline release stores one PushT clean-trained PLDM run (`pusht_pldm_baseline`) evaluated under the same 3 evaluation seeds × 100 trajectories protocol. It is a sanity check outside the 36-checkpoint LeWM sweep and is not used for the LeWM cross-checkpoint correlations.
 - `tools/check_paper1_consistency.py` verifies:
   - the JSON exists
   - the released structure is 4 tasks × 9 configs
   - each config contains `clean`, `pixels_goal_std0.05`, and `pixels_goal_std0.08` with `mean`/`std`
   - the stored `mean`/`std` agree with the 3 released seed values
+  - the external PLDM sanity-check aggregate is clean-trained and recomputes its reported means/stds/drop

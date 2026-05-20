@@ -75,6 +75,39 @@ def get_dataset(cfg, dataset_name):
     return dataset
 
 
+def _world_evaluate_compat(world, dataset, start_steps, goal_offset, eval_budget,
+                           episodes_idx, callables, video):
+    """Bridge across two swm releases:
+
+    * 0.0.6 wheel (and earlier): ``World.evaluate_from_dataset(dataset, ...,
+      goal_offset_steps=, video_path=)``.
+    * Post-PR-#221 source: ``World.evaluate(dataset=, ..., goal_offset=,
+      video=)`` (the old method became the private ``_evaluate_from_dataset``).
+
+    Same args in / same dict out either way, so neither LeWM nor PLDM
+    eval paths need to know which swm is installed.
+    """
+    if hasattr(world, "evaluate_from_dataset"):
+        return world.evaluate_from_dataset(
+            dataset,
+            start_steps=start_steps,
+            goal_offset_steps=goal_offset,
+            eval_budget=eval_budget,
+            episodes_idx=episodes_idx,
+            callables=callables,
+            video_path=video,
+        )
+    return world.evaluate(
+        dataset=dataset,
+        start_steps=start_steps,
+        goal_offset=goal_offset,
+        eval_budget=eval_budget,
+        episodes_idx=episodes_idx,
+        callables=callables,
+        video=video,
+    )
+
+
 def apply_inference_overrides(model, cfg):
     inference_cfg = cfg.eval.get("inference")
     if inference_cfg is None:
@@ -210,14 +243,15 @@ def run(cfg: DictConfig):
             batch_video_path = results_path / f"batch_{batch_start}"
             batch_video_path.mkdir(parents=True, exist_ok=True)
 
-            batch_metrics = world.evaluate_from_dataset(
-                dataset,
+            batch_metrics = _world_evaluate_compat(
+                world,
+                dataset=dataset,
                 start_steps=batch_start_idx,
-                goal_offset_steps=cfg.eval.goal_offset_steps,
+                goal_offset=cfg.eval.goal_offset_steps,
                 eval_budget=cfg.eval.eval_budget,
                 episodes_idx=batch_episodes,
                 callables=OmegaConf.to_container(cfg.eval.get("callables"), resolve=True),
-                video_path=batch_video_path,
+                video=batch_video_path,
             )
             all_successes.extend(batch_metrics["episode_successes"][:actual_bs])
             batch_seeds = batch_metrics.get("seeds")
@@ -230,14 +264,15 @@ def run(cfg: DictConfig):
             "seeds": np.array(all_seeds) if all_seeds else None,
         }
     else:
-        metrics = world.evaluate_from_dataset(
-            dataset,
+        metrics = _world_evaluate_compat(
+            world,
+            dataset=dataset,
             start_steps=eval_start_idx.tolist(),
-            goal_offset_steps=cfg.eval.goal_offset_steps,
+            goal_offset=cfg.eval.goal_offset_steps,
             eval_budget=cfg.eval.eval_budget,
             episodes_idx=eval_episodes.tolist(),
             callables=OmegaConf.to_container(cfg.eval.get("callables"), resolve=True),
-            video_path=results_path,
+            video=results_path,
         )
     end_time = time.time()
 

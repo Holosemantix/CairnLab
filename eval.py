@@ -128,7 +128,12 @@ def run(cfg: DictConfig):
     policy = cfg.get("policy", "random")
 
     if policy != "random":
-        model = swm.policy.AutoCostModel(cfg.policy, cache_dir=cfg.cache_dir)
+        # AutoCostModel's default fallback is get_cache_dir(sub_folder='checkpoints'),
+        # which adds a spurious 'checkpoints/' segment that train.py / train_pldm.py
+        # do NOT use when saving. Pass STABLEWM_HOME explicitly so the lookup path
+        # matches the save path.
+        eval_cache_dir = cfg.cache_dir or str(swm.data.utils.get_cache_dir())
+        model = swm.policy.AutoCostModel(cfg.policy, cache_dir=eval_cache_dir)
         apply_inference_overrides(model, cfg)
         model = model.to("cuda")
         model = model.eval()

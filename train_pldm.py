@@ -85,9 +85,11 @@ def pldm_forward(self, batch, stage, cfg):
 @hydra.main(version_base=None, config_path="./config/train", config_name="pldm")
 def run(cfg):
     # ----- dataset --------------------------------------------------------
-    dataset_cfg = OmegaConf.to_container(cfg.data.dataset, resolve=True)
-    dataset_name = dataset_cfg.pop("name")
-    dataset = swm.data.load_dataset(dataset_name, transform=None, format='hdf5', **dataset_cfg)
+    # Use HDF5Dataset directly (matches train.py:793). swm.data.load_dataset's
+    # _resolve_dataset does NOT append a `.h5` suffix, so it can't find files
+    # like `datasets/tworoom.h5` that the LeWM pipeline writes / expects.
+    # HDF5Dataset, in contrast, auto-appends `.h5` when given just a `name=`.
+    dataset = swm.data.HDF5Dataset(**cfg.data.dataset, transform=None)
 
     img_processor = get_img_preprocessor("pixels", "pixels", cfg.img_size)
     extra_transforms = []

@@ -50,6 +50,7 @@ from utils import (
     TransformDataset,
     get_img_noise_transform,
     get_img_preprocessor,
+    resolve_h5_dataset_path,
 )
 
 
@@ -85,11 +86,15 @@ def pldm_forward(self, batch, stage, cfg):
 @hydra.main(version_base=None, config_path="./config/train", config_name="pldm")
 def run(cfg):
     # ----- dataset --------------------------------------------------------
-    # Use HDF5Dataset directly (matches train.py:793). swm.data.load_dataset's
-    # _resolve_dataset does NOT append a `.h5` suffix, so it can't find files
-    # like `datasets/tworoom.h5` that the LeWM pipeline writes / expects.
-    # HDF5Dataset, in contrast, auto-appends `.h5` when given just a `name=`.
-    dataset = swm.data.HDF5Dataset(**cfg.data.dataset, transform=None)
+    # Resolve the H5 path explicitly so we work with both the 0.0.6-wheel
+    # flat layout (<STABLEWM_HOME>/<name>.h5) and the post-PR-#221 layout
+    # (<STABLEWM_HOME>/datasets/<name>.h5). Passing `path=` bypasses the
+    # hard-coded `sub_folder='datasets'` in the source version of
+    # HDF5Dataset.__init__.
+    data_cfg = OmegaConf.to_container(cfg.data.dataset, resolve=True)
+    dataset_name = data_cfg.pop("name")
+    h5_path = resolve_h5_dataset_path(dataset_name)
+    dataset = swm.data.HDF5Dataset(path=str(h5_path), transform=None, **data_cfg)
 
     img_processor = get_img_preprocessor("pixels", "pixels", cfg.img_size)
     extra_transforms = []

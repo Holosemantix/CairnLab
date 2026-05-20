@@ -1,8 +1,38 @@
+import os
 import numpy as np
 import torch
 from pathlib import Path
 from stable_pretraining import data as dt
 from lightning.pytorch.callbacks import Callback
+
+
+def resolve_h5_dataset_path(name: str, cache_dir=None) -> Path:
+    """Find ``<name>.h5`` under STABLEWM_HOME in either layout.
+
+    Two swm versions disagree on the on-disk layout:
+
+    * **0.0.6 wheel**: ``<STABLEWM_HOME>/<name>.h5`` (flat).
+    * **Post-PR-#221 source**: ``<STABLEWM_HOME>/datasets/<name>.h5``
+      (hard-coded ``sub_folder='datasets'``).
+
+    This helper checks both candidate paths and returns whichever exists,
+    so train.py / train_pldm.py can pass ``path=`` to ``HDF5Dataset`` and
+    bypass the hard-coded sub_folder logic in the source-overlay version
+    while still finding 0.0.6-style flat layouts.
+    """
+    base = Path(cache_dir) if cache_dir else Path(
+        os.environ.get("STABLEWM_HOME", Path.home() / ".stable_worldmodel")
+    )
+    candidates = [
+        base / f"{name}.h5",                  # 0.0.6 wheel / flat
+        base / "datasets" / f"{name}.h5",      # post-PR-#221 layout
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    raise FileNotFoundError(
+        f"HDF5 dataset '{name}' not found; tried: {[str(p) for p in candidates]}"
+    )
 
 
 class TransformDataset(torch.utils.data.Dataset):

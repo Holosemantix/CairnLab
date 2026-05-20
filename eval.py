@@ -13,7 +13,7 @@ from omegaconf import DictConfig, OmegaConf
 from sklearn import preprocessing
 from torchvision.transforms import v2 as transforms
 import stable_worldmodel as swm
-from utils import AddNormalizedGaussianNoise
+from utils import AddNormalizedGaussianNoise, resolve_h5_dataset_path
 
 
 def _should_corrupt_target(cfg, target: str):
@@ -66,11 +66,13 @@ def get_episodes_length(dataset, episodes):
 
 
 def get_dataset(cfg, dataset_name):
-    dataset_path = Path(cfg.cache_dir or swm.data.utils.get_cache_dir())
+    # Resolve the H5 path explicitly so we tolerate both swm layouts
+    # (flat 0.0.6-wheel layout and post-PR-#221 `datasets/` subdir).
+    dataset_path = Path(cfg.cache_dir) if cfg.cache_dir else None
+    h5_path = resolve_h5_dataset_path(dataset_name, cache_dir=dataset_path)
     dataset = swm.data.HDF5Dataset(
-        dataset_name,
+        path=str(h5_path),
         keys_to_cache=cfg.dataset.keys_to_cache,
-        cache_dir=dataset_path,
     )
     return dataset
 

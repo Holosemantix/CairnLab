@@ -111,7 +111,7 @@ This exposes a fundamental tension: \textbf{global noise augmentation cannot dis
 
 \paragraph{C2.} The ``invariance--resolution trade-off'' concept and a five-layer diagnostic protocol that operationalises it. We define five complementary diagnostic layers (encoder shift, encoder geometry, predictor sensitivity, latent-noise response, task resolution) with 17+ concrete metrics, validated by Spearman correlations on the 4-task $\times$ $n = 9$ LeWM sweep under unified 3-seed $\times$ 100 evaluation, with partial correlations conditioned on training noise to separate residual ckpt-quality signal from the monotone sweep trend induced by \stdmax{}.
 
-\paragraph{C3.} A mechanistic account of why global noise augmentation has limited returns. The diagnostic layers show that on TwoRoom the gains come from desirable representation compression (drop in effective rank) --- a low-dimensional discrete task does not need high resolution --- whereas in PushT the same compression at heavy noise drives \transres{} from $0.30$ to $0.10$ and \idprobe{} from $0.77$ to $0.27$, erasing task-relevant state information.
+\paragraph{C3.} A mechanistic account of why global noise augmentation has limited returns. The diagnostic layers show that on TwoRoom the gains coincide with desirable representation compression (effective rank $47.60 \to 33.59$) --- a low-dimensional discrete task does not need high resolution --- whereas PushT starts from a high-resolution, high-controllability representation (effective rank $76.42$, \idprobe{} $0.7739$). Even the light representative PushT diagnostic checkpoint compresses rank substantially ($76.42 \to 42.85$) with modest downward movement in task-resolution metrics (\transres{}\_l2 $0.3015 \to 0.2800$; \idprobe{} $0.7739 \to 0.7500$), so further compression cannot be assumed safe for contact-heavy tasks.
 
 \paragraph{C4.} An honest delineation of cross-ckpt diagnostics. The strongest cross-checkpoint diagnostic (\fragility{}) carries a residual ckpt-quality signal beyond the sweep-level \stdmax{} effect (partial Spearman $\rho = -0.59$ on clean and $-0.41$ on px+goal 0.08 after conditioning on \stdmax{}, on the $n = 9$ LeWM PushT sweep with unified 3-seed $\times$ 100 eval). However, the apparent $\rho(\text{metric}, \text{OOD drop}) = -0.77$ is mediated by \stdmax{}: after partialling out \stdmax{}, that correlation collapses to $+0.06$. The metric is a model-selection tool after controlling for the sweep-level \stdmax{} trend, not an OOD oracle (\Cref{sec:diag-cross,sec:disc-boundary}).
 
@@ -128,10 +128,10 @@ JEPA~\cite{lecun2022path} predicts in latent space rather than reconstructing pi
 N-JEPA~\cite{njepa2025} introduces diffusion-noise augmentation into I-JEPA, improving linear-probing robustness on ImageNet. VJEPA~\cite{huang2026vjepa} tests a Noisy-TV distractor on synthetic 1D signals and reports JEPA retains $R^2 > 0.84$ under high noise. US-JEPA~\cite{usjepa2025} tests Gaussian blur, contrast reduction, and speckle noise on medical ultrasound. None of these studies the pixel-noise robustness of a JEPA \emph{world model} on \emph{robotic control}. Furthermore, VJEPA's optimistic conclusion ($R^2 > 0.84$ in 1D) contrasts with our control-time observation (success rate $\to 4.67\%$), suggesting that the ``natural robustness'' of JEPA may be an artefact of evaluation modality.
 
 \subsection{World models and input augmentation}
-In RL world-model literature, DreamerV3~\cite{hafner2024dreamerv3} and TD-MPC2~\cite{hansen2024tdmpc2} rely on convolutional inductive bias for some implicit noise tolerance. ViGMO~\cite{vigmo} tests Gaussian noise and blur on DMC tasks, finds ``sensor noise is a fundamentally different distribution shift'', and proposes a latent-consistency loss. ViGMO addresses model-based RL, not JEPA architectures; its conclusion is directionally aligned with ours, but our contribution adds mechanistic decomposition via the five-layer diagnostic, not just performance reporting.
+In RL world-model literature, DreamerV3~\cite{hafner2025dreamerv3} and TD-MPC2~\cite{hansen2024tdmpc2} rely on learned visual encoders and latent dynamics, which may provide some implicit tolerance to benign visual variation but do not by themselves settle sensor-noise robustness. ViGMO~\cite{vigmo} tests Gaussian noise and blur on DMC tasks, finds ``sensor noise is a fundamentally different distribution shift'', and proposes a latent-consistency loss. ViGMO addresses model-based RL, not JEPA architectures; its conclusion is directionally aligned with ours, but our contribution adds mechanistic decomposition via the five-layer diagnostic, not just performance reporting.
 
 \subsection{The invariance--resolution tension}
-Tamkin et al.~\cite{tamkin2022featuredropout} argue, in the contrastive-learning context, that label-destroying augmentations can be useful --- augmentations act as feature dropout rather than pure invariance inducers. Zhang et al.~\cite{zhang2022rethinkaug} note that overly strong augmentation imposes excess invariance and erases fine-grained downstream information. These insights are well-established in contrastive learning for classification, but their manifestation in \emph{latent predictive world models} --- where the downstream task is planning rather than discrimination --- has not been systematically studied. The present paper extends the discussion from classification to control with a quantitative framework.
+Tamkin et al.~\cite{tamkin2023featuredropout} argue, in the contrastive-learning context, that label-destroying augmentations can be useful --- augmentations act as feature dropout rather than pure invariance inducers. Zhang and Ma~\cite{zhang2022rethinkaug} note that augmentation modules can impose invariances that must be matched to the task. These insights are well-established in contrastive learning for classification, but their manifestation in \emph{latent predictive world models} --- where the downstream task is planning rather than discrimination --- has not been systematically studied. The present paper extends the discussion from classification to control with a quantitative framework.
 
 \subsection{Representation diagnostics and collapse analysis}
 Self-supervised learning broadly uses effective rank~\cite{roy2007effrank}, condition number, and participation ratio to diagnose dimensional collapse~\cite{jing2022dimcollapse}. Next-Latent Prediction~\cite{teoh2025nextlatent} uses effective latent rank to assess world-model compactness. VICReg~\cite{bardes2022vicreg} provides an anti-collapse regularizer distinct from SIGReg. Individual metrics are not new; our contribution is to combine them into a coherent five-layer protocol with per-token noise sensitivity, cross-ckpt correlation, and a partial-correlation validation scheme conditioning on training noise.
@@ -172,7 +172,7 @@ To rule out spurious correlations we adopt two complementary analyses on the sam
   \item[LeWM $n = 9$ sweep with partial correlation.] All 9 LeWM checkpoints per task (base + \stdmax{} $\in \{0.001, \dots, 0.008\}$). Compute Spearman $\rho$ and \emph{partial} Spearman conditioned on \stdmax{}. The partialling step matters: many diagnostics correlate with control performance only because both quantities co-vary with the training noise level along the sweep. The relevant question is whether a diagnostic retains a residual ckpt-quality signal after removing the monotone sweep trend associated with \stdmax{}.
 \end{description}
 
-We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw $\rho$ tells you ``which checkpoint over the entire sweep behaves better''; the partial $\rho$ tells you whether a diagnostic retains a residual ckpt-quality signal after removing the monotone trend associated with \stdmax{}. The two questions are distinct, and we will see in \Cref{sec:diag-cross} that they have markedly different answers for the same metric. A larger cross-architecture protocol (varying the latent geometry of the world model itself) is left to future work; we will add a non-JEPA baseline (DreamerV3 or TD-MPC2 on the same tasks) in a follow-up version.
+We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw $\rho$ tells you ``which checkpoint over the entire sweep behaves better''; the partial $\rho$ tells you whether a diagnostic retains a residual ckpt-quality signal after removing the monotone trend associated with \stdmax{}. The two questions are distinct, and we will see in \Cref{sec:diag-cross} that they have markedly different answers for the same metric. A larger cross-architecture protocol (varying the latent geometry of the world model itself) is left to follow-up work with external baselines.
 
 %% ===========================================================================
 \section{Experiments}\label{sec:exp}
@@ -207,9 +207,9 @@ We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw
 Task & clean & px+goal 0.05 & px+goal 0.08 & clean $\to$ 0.08 drop \\
 \midrule
 TwoRoom & $94.00 \pm 3.56$ & $61.33 \pm 5.31$ & $50.00 \pm 1.41$ & $\mathbf{-44.00}$ \\
-PushT   & $86.33 \pm 2.36$ & $12.00 \pm 4.55$ & $\phantom{0}4.67 \pm 2.05$ & $\mathbf{-81.66}$ \\
+PushT   & $86.33 \pm 2.36$ & $12.00 \pm 4.55$ & $\phantom{0}4.67 \pm 2.05$ & $\mathbf{-81.67}$ \\
 Reacher & $58.67 \pm 1.25$ & $27.00 \pm 5.10$ & $15.00 \pm 2.16$ & $\mathbf{-43.67}$ \\
-Cube    & $66.67 \pm 2.62$ & $53.33 \pm 3.30$ & $46.33 \pm 3.68$ & $\mathbf{-20.34}$ \\
+Cube    & $66.67 \pm 2.62$ & $53.33 \pm 3.30$ & $46.33 \pm 3.68$ & $\mathbf{-20.33}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -221,7 +221,7 @@ Cube    & $66.67 \pm 2.62$ & $53.33 \pm 3.30$ & $46.33 \pm 3.68$ & $\mathbf{-20.
 \label{fig:hero}
 \end{figure}
 
-LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual std $= 0.05$ applied to pixels and goal jointly already produces large drops on all tasks: PushT loses $74+$ pts (down to near-random $4.67\%$ at std $= 0.08$), TwoRoom $30+$ pts, Reacher $30+$ pts, Cube $\sim 13$ pts (at std $= 0.05$). \textbf{This is not a marginal phenomenon}: a JEPA + CEM world model without noise-aware training has essentially no resistance to visual corruption. The drop pattern across tasks is informative: Cube degrades least ($-20.34$\,pt at std $= 0.08$) --- structured manipulation has some natural robustness --- while PushT degrades most catastrophically ($-81.66$\,pt), confirming that contact-heavy continuous control is most sensitive to visual precision.
+LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual std $= 0.05$ applied to pixels and goal jointly already produces large drops on all tasks: PushT loses $74+$ pts (down to near-random $4.67\%$ at std $= 0.08$), TwoRoom $30+$ pts, Reacher $30+$ pts, Cube $\sim 13$ pts (at std $= 0.05$). \textbf{This is not a marginal phenomenon}: a JEPA + CEM world model without noise-aware training has essentially no resistance to visual corruption. The drop pattern across tasks is informative: Cube degrades least ($-20.33$\,pt at std $= 0.08$) --- structured manipulation has some natural robustness --- while PushT degrades most catastrophically ($-81.67$\,pt), confirming that contact-heavy continuous control is most sensitive to visual precision.
 
 \subsection{Noise augmentation closes the gap --- at the cost of task-specific tuning}\label{sec:exp-sweep}
 
@@ -289,7 +289,7 @@ TwoRoom peaks globally at \stdmax{} $= 0.008$ ($98.33$ / $98.67$); clean rises m
 Optimal \stdmax{} varies substantially: TwoRoom clean/OOD point-best $0.008$, PushT clean point-best $0.003$ / px+g 0.08 point-best $0.006$, Reacher clean point-best $0.006$ / px+g 0.08 point-best $0.002$, Cube px+g 0.08 point-best $0.007$ with a shallow clean plateau around $0.001$ / $0.004$ / $0.007$. Global input-side noise is the strongest ``global'' form of invariance pressure, but closing the OOD gap requires per-task tuning cost.
 
 \paragraph{(3) Tasks form a clear sensitivity ordering at the extremes.}
-PushT is clearly most sensitive ($-81.66$ base drop), Cube least sensitive ($-20.34$), while TwoRoom ($-44.00$) and Reacher ($-43.67$) are effectively tied around a $44$-pt drop. Recovery does not scale with sensitivity: TwoRoom recovers most fully ($+48.67$ pt at $\stdmax = 0.008$), Cube least ($+21.00$ pt). Input-side global noise is most effective on visually redundant tasks and gives diminishing returns on structured manipulation.
+PushT is clearly most sensitive ($-81.67$ base drop), Cube least sensitive ($-20.33$), while TwoRoom ($-44.00$) and Reacher ($-43.67$) are effectively tied around a $44$-pt drop. Recovery does not scale with sensitivity: TwoRoom recovers most fully ($+48.67$ pt at $\stdmax = 0.008$), Cube least ($+21.67$ pt). Input-side global noise is most effective on visually redundant tasks and gives diminishing returns on structured manipulation.
 
 Plotting the same sweep as a (clean, OOD) trajectory per task (\Cref{fig:pareto}) makes the trade-off visually explicit: each task's sweep curve moves from base far below the $y = x$ diagonal toward the upper-right, with per-task curvature determined by how much OOD gain a task can buy from a given drop in clean.
 
@@ -503,7 +503,7 @@ The trade-off has the following four-task signature in this paper:
 
 Task-specificity explains why there is no single optimal noise level.
 
-\paragraph{Scope.} Whether the trade-off generalises to other latent world-model architectures is an open question we do not address. Reconstruction-based world models (DreamerV3~\cite{hafner2024dreamerv3} / TD-MPC2~\cite{hansen2024tdmpc2}) explicitly force preservation of pixel information; ViGMO~\cite{vigmo} observes related task-specific noise sensitivity on DMC. EMA-target JEPA (I-JEPA / V-JEPA lineage) and variational JEPA may exhibit different dynamics. This paper's scope is LeWM + CEM; universalising the trade-off exceeds the present evidence.
+\paragraph{Scope.} Whether the trade-off generalises to other latent world-model architectures is an open question we do not address. Reconstruction-based world models such as DreamerV3~\cite{hafner2025dreamerv3} explicitly model observations, while decoder-free latent MPC systems such as TD-MPC2~\cite{hansen2024tdmpc2} may exhibit different compression dynamics. ViGMO~\cite{vigmo} observes related task-specific noise sensitivity on DMC. EMA-target JEPA (I-JEPA / V-JEPA lineage) and variational JEPA may exhibit different dynamics. This paper's scope is LeWM + CEM; universalising the trade-off exceeds the present evidence.
 
 \subsection{When the diagnostic toolkit works --- and when it does not}\label{sec:disc-boundary}
 
@@ -524,10 +524,10 @@ The toolkit therefore has a precise scope: it is a \emph{clean-evaluation auxili
 
 Our sweep suggests a simple operational recipe:
 \begin{enumerate}
-  \item Inspect the clean baseline's \fragility{}. If $< 10^{-5}$ (PushT / Cube regime), the task is pixel-noise sensitive; start sweeping at \stdmax{} $\in [0.001, 0.003]$ with clean as primary constraint.
-  \item Check \code{clean\_effective\_rank} and \transres{}. High rank, high ratio (PushT: 76 / 0.30) $\to$ resource-rich; cap the sweep at $0.005$. Low rank, low ratio (TwoRoom: 47 / 0.72) $\to$ visually redundant; sweep safely up to $0.008+$.
+  \item Inspect the clean baseline's \fragility{} as a screening diagnostic, not as an OOD oracle. Very small values (PushT / Cube regime) indicate that local encoder--predictor shift is small relative to the clean NN scale, but they do not by themselves rank OOD sensitivity.
+  \item Check \code{clean\_effective\_rank}, \transres{}, and task semantics together. PushT combines high rank and high controllability (\idprobe{} $=0.7739$), so noise should be swept with clean performance as a guardrail. TwoRoom is visually redundant and retains high transition separability (\transres{}\_l2 $=0.7216$), so a wider sweep up to $0.008+$ is reasonable.
   \item Use \emph{two endpoints} in evaluation (clean and max-noise). Checking only one misses one of the optima: PushT's clean optimum at $0.003$ vs robustness optimum at $0.006$ is the clearest example.
-  \item Under compute budget, a 4-level sweep (\{0.001, 0.003, 0.005, 0.007\}) already locates the optimum within $\pm 0.001$.
+  \item Under compute budget, start with a coarse 4-level sweep (\{0.001, 0.003, 0.005, 0.007\}), then refine around the best clean/OOD candidates. The coarse grid is a screening step, not a guarantee of locating the exact point-best \stdmax{}.
 \end{enumerate}
 
 \subsection{Limitations and future directions}\label{sec:disc-limit}
@@ -542,7 +542,7 @@ Our sweep suggests a simple operational recipe:
 
 \paragraph{Future direction 1 --- Per-token adaptive consistency.} \Cref{sec:diag-cross,sec:exp-mech} identify the strongest signal \fragility{}, a ckpt-level scalar. Whether its per-token variant can serve as a per-token consistency controller is an open methodological question, under investigation in follow-up work.
 
-\paragraph{Future direction 2 --- Cross-architecture replication.} Running the sweep and diagnostic protocol on DreamerV3 / TD-MPC2 would reveal whether the trade-off is JEPA-specific or shared by all latent-compression world models.
+\paragraph{Future direction 2 --- Cross-architecture replication.} Running the sweep and diagnostic protocol on external world-model baselines would reveal whether the trade-off is JEPA-specific or shared by broader latent world-model families.
 
 \paragraph{Future direction 3 --- Theoretical grounding.} Reformulating the trade-off in an information-bottleneck / rate-distortion language is an attractive direction; we did not pursue it because the empirical phenomenology may not yet be stable enough for formal modelling.
 
@@ -614,7 +614,7 @@ Clean evaluation uses no noise, 100 trajectories per seed $\times$ 3 seeds (42/4
 All experiments run on a single NVIDIA A100 (80\,GB). Training: $\sim$2\,h/task for LeWM-base, $\sim$2.5\,h/task/configuration for LeWM+noise. Diagnostic analysis: $\sim$30\,min/task/checkpoint.
 
 \subsection{Main-figure rendering}
-The six main figures are produced by \code{tools/paper1\_figs.py}. Run \code{python -m tools.paper1\_figs --out-dir assets/paper1\_figs}. The script reads \code{assets/paper1\_data/canonical\_evals\_20260517.json} together with \code{eval\_results/diagnostics/predictor\_sensitivity.json}; no model loading is required.
+The six main figures are produced by \code{tools/paper1\_figs.py}. Run \code{python -m tools.paper1\_figs --out-dir assets/paper1\_figs}. The script reads \code{assets/paper1\_data/canonical\_evals\_20260517.json} together with \code{assets/paper1\_data/canonical\_diagnostics\_20260517.json}; no checkpoint or model loading is required.
 
 %% ===========================================================================
 \section{Full diagnostic profile of LeWM-base on four tasks}\label{sec:appendix-B}

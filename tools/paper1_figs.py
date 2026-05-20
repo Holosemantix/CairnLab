@@ -5,7 +5,7 @@ Run:
 
 Generates:
     fig1_hero.png      — 4-task OOD cliff + per-task px+g 0.08 point-best recovery
-    fig2_sweep.png     — 4 panels of clean / px+g 0.05 / px+g 0.08 vs std_max
+    fig2_sweep.png     — 4 panels of clean / px+g 0.08 vs std_max
     fig3_scatter.png   — PushT n=9 LeWM scatter: predictor_target_to_nn_cos_ratio
                          (max-std) vs clean / eval-drop
     fig4_radar.png     — 4-task diagnostic radar (base vs representative ckpt)

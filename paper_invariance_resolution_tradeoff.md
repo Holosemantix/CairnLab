@@ -53,9 +53,9 @@ The paper makes the following contributions:
 
 **Contribution 2: The "invariance–resolution trade-off" concept and a five-layer diagnostic protocol that operationalises it.** We define five complementary diagnostic layers (encoder shift, encoder geometry, predictor sensitivity, latent-noise response, task resolution) with 17+ concrete metrics, validated by Spearman correlations on the 4-task × n = 9 LeWM sweep under unified 3-seed × 100 evaluation, with partial correlations conditioned on training noise to separate residual ckpt-quality signal from the monotone sweep trend induced by `std_max`.
 
-**Contribution 3: A mechanistic account of why global noise augmentation has limited returns.** Through the diagnostic layers we show that on TwoRoom the gains come from desirable representation compression (drop in effective rank) — a low-dimensional discrete task does not need high resolution — whereas in PushT the same amount of compression at heavy noise drives `transition_resolution_ratio` from 0.30 to 0.10 and `id_probe_r²` from 0.77 to 0.27, erasing task-relevant state information.
+**Contribution 3: A mechanistic account of why global noise augmentation has limited returns.** Through the diagnostic layers we show that on TwoRoom the gains coincide with desirable representation compression (effective rank 47.60 → 33.59) — a low-dimensional discrete task does not need high resolution — whereas PushT starts from a high-resolution, high-controllability representation (effective rank 76.42, `id_probe_r² = 0.7739`). Even the light representative PushT diagnostic checkpoint compresses rank substantially (76.42 → 42.85) with modest downward movement in task-resolution metrics (`transition_resolution_ratio_l2` 0.3015 → 0.2800; `id_probe_r²` 0.7739 → 0.7500), so further compression cannot be assumed safe for contact-heavy tasks.
 
-**Contribution 4: A clean negative result on automated transition reweighting.** Direct heteroscedastic-NLL training (using predicted uncertainty σ to weight transitions) on PushT collapses clean success from 86.33% to 13.33%, showing that "hard" transitions and "unimportant" transitions are not interchangeable in contact-heavy control.
+**Contribution 4: An honest delineation of cross-checkpoint diagnostics.** The strongest cross-checkpoint diagnostic (`predictor_target_to_nn_cos_ratio_at_max_std`) carries a residual checkpoint-quality signal beyond the sweep-level `std_max` effect (partial Spearman ρ = −0.59 on clean and −0.41 on px+goal 0.08 after conditioning on `std_max`, on the n = 9 LeWM PushT sweep with unified 3-seed × 100 eval). However, the apparent ρ(metric, OOD drop) = −0.77 is mediated by `std_max`: after partialling out `std_max`, that correlation collapses to +0.06. The metric is a model-selection tool after controlling for the sweep-level `std_max` trend, not an OOD oracle.
 
 ### 1.4 Organisation
 
@@ -79,13 +79,13 @@ N-JEPA [8] introduces diffusion-noise augmentation into I-JEPA via noise-to-teac
 
 ### 2.3 World models and input augmentation
 
-In RL world-model literature, DreamerV3 [11] and TD-MPC2 [12] rely on convolutional inductive bias for some implicit noise tolerance. ViGMO [13] tests Gaussian noise and blur on DMC tasks, finds "sensor noise is a fundamentally different distribution shift", and proposes a latent-consistency loss.
+In RL world-model literature, DreamerV3 [11] and TD-MPC2 [12] rely on learned visual encoders and latent dynamics, which may provide some implicit tolerance to benign visual variation but do not by themselves settle sensor-noise robustness. ViGMO [13] tests Gaussian noise and blur on DMC tasks, finds "sensor noise is a fundamentally different distribution shift", and proposes a latent-consistency loss.
 
 **Relation.** ViGMO addresses model-based RL (DrQ-v2, DreamerV3), not JEPA architectures. Its conclusion that "sensor noise is special" is directionally aligned with ours; our contribution adds *mechanistic decomposition* via the five-layer diagnostic, not just performance reporting.
 
 ### 2.4 The invariance–resolution tension
 
-Tamkin et al. [14] argue, in the contrastive-learning context, that "label-destroying augmentations can be useful" and that augmentations act as feature dropout rather than pure invariance inducers. Zhang et al. [15] note that overly strong augmentation imposes excess invariance and erases fine-grained downstream information.
+Tamkin et al. [14] argue, in the contrastive-learning context, that label-destroying augmentations can be useful and that augmentations act as feature dropout rather than pure invariance inducers. Zhang and Ma [15] note that augmentation modules can impose invariances that must be matched to the task.
 
 **Relation.** These insights are well-established in contrastive learning for classification, but their manifestation in *latent predictive world models* — where the downstream task is planning rather than discrimination — has not been systematically studied. The present paper extends the discussion from classification to control, with a quantitative framework.
 
@@ -153,7 +153,7 @@ To ensure the diagnostic signals are not spurious training artefacts, we adopt t
 
 We report **both** the raw Spearman and the partial-on-`std_max` quantities. The raw ρ tells you "which checkpoint over the entire sweep behaves better"; the partial ρ tells you whether a diagnostic retains a **residual ckpt-quality signal after removing the monotone trend associated with `std_max`**. The two questions are distinct, and we will see in §4.5 that they have markedly different answers for the same metric.
 
-> A larger cross-architecture protocol (varying the latent geometry of the world model itself) is left to future work; we will add a non-JEPA baseline (DreamerV3 or TD-MPC2 on the same tasks) in a follow-up version.
+> A larger cross-architecture protocol (varying the latent geometry of the world model itself) is left to follow-up work with external baselines.
 
 ---
 
@@ -184,13 +184,13 @@ Table 1 reports LeWM-base success rates under clean and noised eval (mean ± std
 | Task | clean | px+goal 0.05 | px+goal 0.08 | clean → 0.08 drop |
 |---|---:|---:|---:|---:|
 | TwoRoom | 94.00 ± 3.56 | 61.33 ± 5.31 | 50.00 ± 1.41 | **−44.00** |
-| PushT   | 86.33 ± 2.36 | 12.00 ± 4.55 |  4.67 ± 2.05 | **−81.66** |
+| PushT   | 86.33 ± 2.36 | 12.00 ± 4.55 |  4.67 ± 2.05 | **−81.67** |
 | Reacher | 58.67 ± 1.25 | 27.00 ± 5.10 | 15.00 ± 2.16 | **−43.67** |
-| Cube    | 66.67 ± 2.62 | 53.33 ± 3.30 | 46.33 ± 3.68 | **−20.34** |
+| Cube    | 66.67 ± 2.62 | 53.33 ± 3.30 | 46.33 ± 3.68 | **−20.33** |
 
 ![Fig 1 — Visual OOD cliff in LeWM and recovery by noise training](assets/paper1_figs/fig1_hero.png)
 
-LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual std = 0.05 applied to pixels and goal jointly already produces large drops on all tasks. PushT loses 74+ pts (down to near-random 4.67% at std = 0.08), TwoRoom 30+ pts, Reacher 30+ pts, Cube ~13 pts (at std = 0.05). **This is not a marginal phenomenon**: a JEPA + CEM world model without noise-aware training has essentially no resistance to visual corruption. The drop pattern across tasks is informative: Cube degrades least (−20.34 pt at std = 0.08) — structured manipulation has some natural robustness to pixel noise — whereas PushT degrades most catastrophically (−81.66 pt), confirming that contact-heavy continuous control is most sensitive to visual precision.
+LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual std = 0.05 applied to pixels and goal jointly already produces large drops on all tasks. PushT loses 74+ pts (down to near-random 4.67% at std = 0.08), TwoRoom 30+ pts, Reacher 30+ pts, Cube ~13 pts (at std = 0.05). **This is not a marginal phenomenon**: a JEPA + CEM world model without noise-aware training has essentially no resistance to visual corruption. The drop pattern across tasks is informative: Cube degrades least (−20.33 pt at std = 0.08) — structured manipulation has some natural robustness to pixel noise — whereas PushT degrades most catastrophically (−81.67 pt), confirming that contact-heavy continuous control is most sensitive to visual precision.
 
 ### 4.3 Noise augmentation closes the gap — at the cost of task-specific tuning
 
@@ -244,11 +244,11 @@ The same sweep, plotted as a (clean, OOD) trajectory per task, makes the trade-o
 - TwoRoom peaks globally at std = 0.008 (98.33 / 98.67); clean rises monotonically with noise — visually redundant tasks benefit from heavy noise.
 - PushT peaks on clean at std = 0.003 (89.67), but on robustness (px+g 0.08) at std = 0.006 (87.00 vs. 0.002's 71.33; +15.67 pt). **Clean and robust optima dissociate within the task.**
 - Reacher lies on a 0.002–0.006 plateau: clean point-best is at std = 0.006 (86.00), while px+goal 0.08 point-best is at std = 0.002 (85.67). Very low noise (std = 0.001) gives clean 61.67 vs base 58.67 — within across-seed std (~2.5 pts), so the data support **"low noise is statistically equivalent to base"**, not "low noise hurts".
-- Cube responds least to noise: clean is non-monotonic (peaks at std = 0.001 with 69.33), and px+g 0.08 improves only in the 0.003–0.007 range (67.33 vs. base 46.33; +21 pt). Structured manipulation is largely insensitive to global input noise.
+- Cube responds least to noise: clean is non-monotonic (peaks at std = 0.001 with 69.33), and px+g 0.08 improves only in the 0.003–0.007 range (point-best 68.00 vs. base 46.33; +21.67 pt). Structured manipulation is largely insensitive to global input noise.
 
 **(2) Per-task tuning is necessary, not optional.** Optimal std_max varies substantially across tasks: TwoRoom clean/OOD point-best 0.008, PushT clean point-best 0.003 / px+goal 0.08 point-best 0.006, Reacher clean point-best 0.006 / px+goal 0.08 point-best 0.002, Cube px+goal 0.08 point-best 0.007 with a shallow clean plateau around 0.001 / 0.004 / 0.007. This delineates the boundary of global input-side noise: **it is the strongest "global" form of invariance pressure, but closing the OOD gap requires per-task tuning cost.**
 
-**(3) The four tasks form a clear sensitivity ordering at the extremes.** PushT is clearly most sensitive (−81.66 base drop), Cube least sensitive (−20.34), while TwoRoom (−44.00) and Reacher (−43.67) are effectively tied around a 44-pt drop. However the recovery effect of noise training does not scale with sensitivity — TwoRoom recovers most fully (+48.67 pt at std = 0.008), Cube recovers least (+21.00 pt). This indicates that input-side global noise is most effective on "visually redundant" tasks and offers limited returns on "structured manipulation".
+**(3) The four tasks form a clear sensitivity ordering at the extremes.** PushT is clearly most sensitive (−81.67 base drop), Cube least sensitive (−20.33), while TwoRoom (−44.00) and Reacher (−43.67) are effectively tied around a 44-pt drop. However the recovery effect of noise training does not scale with sensitivity — TwoRoom recovers most fully (+48.67 pt at std = 0.008), Cube recovers least (+21.67 pt). This indicates that input-side global noise is most effective on "visually redundant" tasks and offers limited returns on "structured manipulation".
 
 ### 4.4 Diagnostic analysis: why global noise is not a silver bullet
 
@@ -397,7 +397,7 @@ Task-specificity explains why there is no single optimal noise level.
 
 **Scope.** Whether the trade-off generalises to other latent world-model architectures is an **open question we do not address**:
 
-- **Reconstruction-based world models** (DreamerV3 / TD-MPC2). The reconstruction loss explicitly forces preservation of pixel information; the trade-off may manifest differently. ViGMO [13] observes related task-specific noise sensitivity on DMC; the qualitative direction agrees but the quantitative regime differs.
+- **Other world-model families.** Reconstruction-based world models such as DreamerV3 explicitly model observations, while decoder-free latent MPC systems such as TD-MPC2 may exhibit different compression dynamics. ViGMO [13] observes related task-specific noise sensitivity on DMC; the qualitative direction agrees but the quantitative regime differs.
 - **EMA-target JEPA** (I-JEPA / V-JEPA lineage). Different encoder update dynamics may modulate SIGReg's anti-collapse behaviour under noise.
 - **Variational / information-bottleneck JEPA** (VJEPA [9]). An explicit KL term provides a second invariance pressure; whether it is complementary or orthogonal to input-side noise training is unknown.
 
@@ -419,11 +419,11 @@ The toolkit therefore has a precise scope: it is a **clean-evaluation auxiliary*
 
 Our sweep data suggest a simple operational recipe:
 
-1. **First, inspect the clean baseline's `predictor_target_to_nn_cos_ratio_at_max_std`.** If below 1e-5 (PushT / Cube regime), the task is pixel-noise sensitive; start sweeping at `std_max ∈ [0.001, 0.003]` with clean performance as the primary constraint.
-2. **Then check `clean_effective_rank` and `transition_resolution_ratio`.** High rank and high ratio (PushT: 76 / 0.30) → resource-rich task; cap the sweep at 0.005 to avoid destroying resolution. Low rank and low ratio (TwoRoom: 47 / 0.72) → visually redundant; sweep safely up to 0.008+.
+1. **First, inspect the clean baseline's `predictor_target_to_nn_cos_ratio_at_max_std` as a screening diagnostic, not as an OOD oracle.** Very small values (PushT / Cube regime) indicate that local encoder–predictor shift is small relative to the clean NN scale, but they do not by themselves rank OOD sensitivity.
+2. **Then check `clean_effective_rank`, `transition_resolution_ratio`, and task semantics together.** PushT combines high rank and high controllability (`id_probe_r² = 0.7739`), so noise should be swept with clean performance as a guardrail. TwoRoom is visually redundant and retains high transition separability (`transition_resolution_ratio_l2 = 0.7216`), so a wider sweep up to 0.008+ is reasonable.
 3. **`noise_prob` and `std_min`.** We fix `noise_prob = 1.0` and `std_min = 0`. Softening the training distribution via `noise_prob ∈ [0.5, 1.0]` is future work.
 4. **Use two endpoints in eval.** Clean and max-noise; checking only one misses one of the two optima (PushT's clean optimum at 0.003 vs. robustness optimum at 0.006 is the clearest example).
-5. **Under compute budget,** a 4-level sweep (`{0.001, 0.003, 0.005, 0.007}`) already locates the optimum within ±0.001.
+5. **Under compute budget,** start with a coarse 4-level sweep (`{0.001, 0.003, 0.005, 0.007}`), then refine around the best clean/OOD candidates. The coarse grid is a screening step, not a guarantee of locating the exact point-best `std_max`.
 
 ### 5.5 Limitations and future directions
 
@@ -437,7 +437,7 @@ Our sweep data suggest a simple operational recipe:
 
 **Future direction 1 — Per-token adaptive consistency.** Our strongest diagnostic, `predictor_target_to_nn_cos_ratio_at_max_std`, is a ckpt-level scalar. Whether its per-token variant can serve as a per-token consistency controller is a separate methodological question (an investigation we have ongoing).
 
-**Future direction 2 — Cross-architecture replication.** Running the sweep and diagnostic protocol on DreamerV3 / TD-MPC2 would reveal whether the trade-off is JEPA-specific or shared by all latent-compression world models.
+**Future direction 2 — Cross-architecture replication.** Running the sweep and diagnostic protocol on external world-model baselines would reveal whether the trade-off is JEPA-specific or shared by broader latent world-model families.
 
 **Future direction 3 — Theoretical grounding.** Reformulating the trade-off in an information-bottleneck / rate-distortion language is an attractive direction; we did not pursue it because the empirical phenomenology may not yet be stable enough for formal modelling.
 
@@ -465,7 +465,7 @@ The paper does not propose a new training algorithm. Its contribution is a syste
 
 [3] A. Bardes et al., "Revisiting feature prediction for learning visual representations from video (V-JEPA)," *Trans. Machine Learning Research / arXiv:2404.08471*, 2024.
 
-[4] M. Assran et al., "V-JEPA 2: Self-supervised video models enable understanding, prediction, and planning," *arXiv:2506.09985*, 2025.
+[4] M. Assran et al., "V-JEPA 2: Self-supervised video models enable understanding, prediction and planning," *arXiv:2506.09985*, 2025.
 
 [5] L. Maes, Q. Le Lidec, D. Scieur, Y. LeCun, R. Balestriero, "LeWorldModel: Stable end-to-end joint-embedding predictive architecture from pixels," *arXiv:2603.19312*, 2026. *(LeWM; SIGReg defined therein.)*
 
@@ -479,21 +479,21 @@ The paper does not propose a new training algorithm. Its contribution is a syste
 
 [10] A. Radhachandran, V. Ivezić, S. Athreya, R. Anilkumar, C. W. Arnold, W. Speier, "US-JEPA: A joint embedding predictive architecture for medical ultrasound," *arXiv:2602.19322*, 2026.
 
-[11] D. Hafner et al., "Mastering diverse domains through world models (DreamerV3)," *Nature*, 2024.
+[11] D. Hafner, J. Pasukonis, J. Ba, T. Lillicrap, "Mastering diverse control tasks through world models," *Nature*, 2025.
 
 [12] N. Hansen et al., "TD-MPC2: Scalable, robust world models for continuous control," *ICLR*, 2024.
 
 [13] M. Park, S. Noh, H. Myung, D. Lee, "Zero-shot visual generalization in model-based reinforcement learning via latent consistency (ViGMO)," *OpenReview (ICLR 2026 submission)*, 2025.
 
-[14] A. Tamkin et al., "Feature dropout: Revisiting the role of augmentations in contrastive learning," *NeurIPS*, 2022.
+[14] A. Tamkin, M. Glasgow, X. He, N. Goodman, "Feature dropout: Revisiting the role of augmentations in contrastive learning," *NeurIPS*, 2023.
 
-[15] J. Zhang et al., "Rethinking the augmentation module in contrastive learning," *ECCV*, 2022.
+[15] J. Zhang, K. Ma, "Rethinking the augmentation module in contrastive learning: Learning hierarchical augmentation invariance with expanded views," *CVPR*, 2022.
 
 [16] O. Roy and M. Vetterli, "The effective rank: A measure of effective dimensionality," *EUSIPCO*, 2007.
 
 [17] L. Jing, P. Vincent, Y. LeCun, Y. Tian, "Understanding dimensional collapse in contrastive self-supervised learning," *ICLR*, 2022.
 
-[18] Z. Teoh et al., "Next-latent prediction transformers learn compact world models," *NeurIPS*, 2025.
+[18] J. Teoh et al., "Next-latent prediction transformers learn compact world models," *arXiv:2511.05963*, 2025.
 
 [19] T. W. Epps, K. J. Pulley, "A test for normality based on the empirical characteristic function," *Biometrika*, 1983. *(Statistical foundation of SIGReg in [5].)*
 

@@ -55,9 +55,9 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 **贡献 2：提出了"不变性-分辨率权衡"（Invariance-Resolution Trade-off）概念及其诊断框架。** 我们定义了五层诊断协议（编码器偏移层、编码器几何层、预测器敏感性层、潜空间噪声响应层、任务分辨率层），包含 17+ 个指标，并在 4 任务 × n=9 LeWM sweep 上做 Spearman 相关性与"条件于训练 noise 强度 `std_max`"的偏相关分析，区分 ckpt-quality 信号与被训练协议混淆的虚假相关。
 
-**贡献 3：揭示了噪声增广的深层机制。** 通过诊断指标，我们证明：重噪声在 TwoRoom 上通过压缩 effective rank 获得收益（低维离散任务不需要高分辨率），但在 PushT 上过度压缩导致 transition resolution ratio 从 0.30 崩至 0.10、ID probe R² 从 0.77 跌至 0.27——任务相关状态信息被抹除。
+**贡献 3：揭示了噪声增广的深层机制。** 通过诊断指标，我们证明：TwoRoom 的收益伴随有益的 representation compression（effective rank 47.60 → 33.59），低维离散任务不需要高分辨率；而 PushT 从高分辨率、高可控性表征出发（effective rank 76.42，`id_probe_r² = 0.7739`），即使 light representative diagnostic checkpoint 也已经显著压缩 rank（76.42 → 42.85），并且 task-resolution 指标已经出现温和下行（`transition_resolution_ratio_l2` 0.3015 → 0.2800；`id_probe_r²` 0.7739 → 0.7500）。因此对 contact-heavy 任务，进一步压缩不能默认安全。
 
-**贡献 4：报道了一个方法级负结果。** 直接异方差损失 reweighting（heteroscedastic loss）在 PushT 上导致 clean 成功率跌至 13.33%，证明让模型"自动决定哪些 transition 不重要"会摧毁接触控制任务。
+**贡献 4：诚实划定 cross-checkpoint diagnostic 的适用边界。** 最强 cross-ckpt 诊断量 `predictor_target_to_nn_cos_ratio_at_max_std` 在移除 sweep-level `std_max` 趋势后仍保留 residual ckpt-quality 信号（PushT n=9 sweep 上，clean partial Spearman ρ = −0.59，px+goal 0.08 partial ρ = −0.41）。但它并不是 OOD oracle：表面上的 ρ(metric, OOD drop)=−0.77 由 `std_max` 中介，partial out `std_max` 后只剩 +0.06。因此该指标适合在控制 `std_max` 趋势后辅助 model selection，不能替代真实 OOD eval。
 
 ### 1.4 本文组织
 
@@ -81,7 +81,7 @@ N-JEPA [8] 在 I-JEPA 上引入了扩散噪声增广（diffusion noise），通�
 
 ### 2.3 世界模型与输入增广
 
-在强化学习世界模型领域，DreamerV3 [11]、TD-MPC2 [12] 等方法通常依赖卷积网络的归纳偏置获得一定程度的噪声容忍。ViGMO [13] 在 DMC 任务上测试了高斯噪声和模糊，发现"传感器噪声是一种根本不同的分布偏移"，并提出了潜空间一致性损失（Latent-Consistency loss）。
+在强化学习世界模型领域，DreamerV3 [11]、TD-MPC2 [12] 等方法依赖 learned visual encoders 与 latent dynamics，这可能带来对 benign visual variation 的一定隐式容忍，但并不能直接回答 sensor-noise robustness。ViGMO [13] 在 DMC 任务上测试了高斯噪声和模糊，发现"传感器噪声是一种根本不同的分布偏移"，并提出了潜空间一致性损失（Latent-Consistency loss）。
 
 **与本文的关系**：ViGMO 关注的是 RL/MBRL 方法（DrQ-v2, DreamerV3），不是 JEPA 架构。其"传感器噪声是特殊分布偏移"的结论与我们的发现一致，但我们的诊断更深入：不仅报告性能下降，还通过表征指标揭示了**为什么**下降。
 
@@ -161,7 +161,7 @@ $$
 
 正文同时给出 **原始** Spearman 与 **条件于 std_max** 的两类相关。原始 ρ 回答"sweep 全程中哪个 ckpt 整体更好"；偏相关回答"**去掉 `std_max` 的单调趋势后**，诊断量是否还排序残余 ckpt 质量"。这两个问题不同——§4.5 会显示同一个指标在两个口径下结论截然不同。
 
-> 更大规模的跨架构验证（变换世界模型 latent geometry 本身）作为后续工作；我们计划在 v2 加入非 JEPA baseline（DreamerV3 或 TD-MPC2 在同任务上对比）。
+> 更大规模的跨架构验证（变换世界模型 latent geometry 本身）留给后续 external-baseline 版本。
 
 ---
 
@@ -199,13 +199,13 @@ $$
 | 任务 | clean | px+goal 0.05 | px+goal 0.08 | clean → 0.08 drop |
 |---|---:|---:|---:|---:|
 | TwoRoom | 94.00 ± 3.56 | 61.33 ± 5.31 | 50.00 ± 1.41 | **−44.00** |
-| PushT | 86.33 ± 2.36 | 12.00 ± 4.55 | 4.67 ± 2.05 | **−81.66** |
+| PushT | 86.33 ± 2.36 | 12.00 ± 4.55 | 4.67 ± 2.05 | **−81.67** |
 | Reacher | 58.67 ± 1.25 | 27.00 ± 5.10 | 15.00 ± 2.16 | **−43.67** |
-| Cube | 66.67 ± 2.62 | 53.33 ± 3.30 | 46.33 ± 3.68 | **−20.34** |
+| Cube | 66.67 ± 2.62 | 53.33 ± 3.30 | 46.33 ± 3.68 | **−20.33** |
 
 ![Fig 1 — Visual OOD cliff in LeWM and recovery by noise training](assets/paper1_figs/fig1_hero.png)
 
-LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要加入 visual std=0.05 到 pixels+goal 两端，所有任务都出现显著退化。PushT 跌 74pt+（接近随机 4.67%, std=0.08）、TwoRoom 跌 30pt+、Reacher 跌 30pt+、Cube 跌 ~13pt（std=0.05）。**这不是边缘现象**：JEPA + CEM world model 在没有 noise-aware training 时对 visual corruption 没有任何抵抗力。Cube 的退化幅度最小（std=0.08 处 −20.34pt），说明结构化 manipulation 任务对视觉噪声有一定天然鲁棒性；PushT 的退化最剧烈（−81.66pt），印证 contact-heavy 连续控制对视觉精度最敏感。
+LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要加入 visual std=0.05 到 pixels+goal 两端，所有任务都出现显著退化。PushT 跌 74pt+（接近随机 4.67%, std=0.08）、TwoRoom 跌 30pt+、Reacher 跌 30pt+、Cube 跌 ~13pt（std=0.05）。**这不是边缘现象**：JEPA + CEM world model 在没有 noise-aware training 时对 visual corruption 没有任何抵抗力。Cube 的退化幅度最小（std=0.08 处 −20.33pt），说明结构化 manipulation 任务对视觉噪声有一定天然鲁棒性；PushT 的退化最剧烈（−81.67pt），印证 contact-heavy 连续控制对视觉精度最敏感。
 
 ### 4.3 噪声增广关闭鲁棒性缺口：但代价是任务特异性
 
@@ -259,11 +259,11 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 - TwoRoom 在 std=0.008 达到全局最优 (98.33 / 98.67)，clean 随 noise 单调上升——视觉冗余任务从重 noise 中获益最大。
 - PushT 在 std=0.003 达到峰值 clean 89.67，但 robustness (px+g 0.08) 最优在 std=0.006（87.00 vs 0.002 的 71.33，+15.67pt）——**clean 与 robustness 最优剂量分离**。
 - Reacher 位于 0.002–0.006 的 plateau：clean point-best 在 std=0.006（86.00），px+goal 0.08 point-best 在 std=0.002（85.67）。std=0.001 clean 61.67 vs base 58.67，差距处于跨 seed std (~2.5pt) 范围内，因此数据只支持"低噪声 ≈ base"而**不**支持"低噪声反而损害"。
-- Cube 的 noise sweep 效果最弱：clean 没有单调提升趋势（最优在 0.001 的 69.33），px+g 0.08 也仅在 0.003–0.007 区间有轻微改善（67.33 vs base 46.33，+21pt）——结构化 manipulation 对 input-side global noise 不敏感。
+- Cube 的 noise sweep 效果最弱：clean 没有单调提升趋势（最优在 0.001 的 69.33），px+g 0.08 也仅在 0.003–0.007 区间有轻微改善（point-best 68.00 vs base 46.33，+21.67pt）——结构化 manipulation 对 input-side global noise 不敏感。
 
 **（2）per-task 调参是必要的，不是可选的。** task 间最优 std_max 差异巨大：TwoRoom clean/OOD point-best 都在 0.008；PushT clean point-best 在 0.003、px+goal 0.08 point-best 在 0.006；Reacher clean point-best 在 0.006、px+goal 0.08 point-best 在 0.002；Cube 的 px+goal 0.08 point-best 在 0.007，而 clean 在 0.001 / 0.004 / 0.007 一带形成浅 plateau。这划清了全局噪声增广的边界：**它是"input-side 全局 noise"的最强形式，但解决 OOD robustness 需要支付一个 per-task tuning cost。**
 
-**（3）四任务在两端形成清晰的敏感度排序**：PushT（−81.66pt base drop）最敏感，Cube（−20.34pt）最不敏感，而 TwoRoom（−44.00pt）与 Reacher（−43.67pt）基本并列在约 44pt 的 drop 水平。但 noise training 的修复效果并不与敏感度成正比——TwoRoom 修复最彻底（+48.67pt @ std=0.008），Cube 修复最弱（+21.00pt），说明 input-side global noise 对"视觉冗余型"任务最有效，对"结构化操作型"任务边际收益有限。
+**（3）四任务在两端形成清晰的敏感度排序**：PushT（−81.67pt base drop）最敏感，Cube（−20.33pt）最不敏感，而 TwoRoom（−44.00pt）与 Reacher（−43.67pt）基本并列在约 44pt 的 drop 水平。但 noise training 的修复效果并不与敏感度成正比——TwoRoom 修复最彻底（+48.67pt @ std=0.008），Cube 修复最弱（+21.67pt），说明 input-side global noise 对"视觉冗余型"任务最有效，对"结构化操作型"任务边际收益有限。
 
 ### 4.4 诊断分析：为什么全局噪声不是万能药
 
@@ -412,7 +412,7 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 **普适性边界**：是否该 trade-off 同样存在于其它 latent world model 架构是一个 **未在本文回答的 open question**。具体地：
 
-- **重建式世界模型**（DreamerV3 / TD-MPC2）：reconstruction loss 显式要求保留像素信息，可能呈现不同的 trade-off 表现；ViGMO 在 DMC 上观察到类似 task-specific 噪声敏感性 [13]，方向一致但 quantitative regime 不同。
+- **其它世界模型家族**：DreamerV3 这类 reconstruction-based world model 显式建模 observations，而 TD-MPC2 这类 decoder-free latent MPC 系统可能呈现不同的 compression dynamics；ViGMO 在 DMC 上观察到类似 task-specific 噪声敏感性 [13]，方向一致但 quantitative regime 不同。
 - **基于 EMA target encoder 的 JEPA**（V-JEPA / I-JEPA 流派）：encoder 的更新动力学不同，可能减弱 SIGReg 的 anti-collapse 效应在噪声下的退化。
 - **变分 JEPA / 信息瓶颈式架构**（VJEPA [9]）：显式 KL term 提供另一种 invariance pressure，与本文的 input-side noise training 是否互补/正交不清楚。
 
@@ -434,11 +434,11 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 本文的 sweep 数据给出一个简单可操作的 recipe：
 
-1. **先看 clean baseline 的 `predictor_target_to_nn_cos_ratio_at_max_std`**：若 < 1e-5（PushT / Cube 量级），任务对像素噪声敏感，preferred starting point 是 `std_max ∈ [0.001, 0.003]`，并以 clean 性能为主要约束。
-2. **再看 `clean_effective_rank` 与 `transition_resolution_ratio`**：rank 高且 ratio 高（PushT 76 / 0.30）→ 资源任务，重噪声会破坏 resolution，sweep 上界压在 0.005；rank 低且 ratio 低（TwoRoom 47 / 0.72）→ 视觉冗余任务，可放心扫到 0.008+。
+1. **先把 clean baseline 的 `predictor_target_to_nn_cos_ratio_at_max_std` 当作 screening diagnostic，而不是 OOD oracle。** 很小的值（PushT / Cube 量级）说明 local encoder–predictor shift 相对 clean NN scale 很小，但它本身并不能排序 OOD sensitivity。
+2. **再把 `clean_effective_rank`、`transition_resolution_ratio` 与任务语义一起看。** PushT 同时有高 rank 与高 controllability（`id_probe_r² = 0.7739`），所以 sweep noise 时必须用 clean performance 做 guardrail。TwoRoom 视觉冗余且 transition separability 高（`transition_resolution_ratio_l2 = 0.7216`），因此可以合理扫到 0.008+。
 3. **noise_prob 与 std_min**：本文固定 `noise_prob=1.0, std_min=0`；如需软化训练分布，可改 `noise_prob ∈ [0.5, 1.0]`（未在本文 sweep，是 future work）。
 4. **eval 上一定要双标**：clean + max-noise 两个 endpoint，单看 clean 会错过 robust 最优剂量，反之亦然（PushT 最显著：clean 最优 0.003，robust 最优 0.006）。
-5. **资源不足时**：每任务跑 4 档 sweep（{0.001, 0.003, 0.005, 0.007}）已能定位 ±0.001 内的最优区间。
+5. **资源不足时**：先跑 4 档 coarse sweep（{0.001, 0.003, 0.005, 0.007}），再围绕 clean/OOD 候选最优点补局部细化。coarse grid 是 screening step，不保证一次定位 exact point-best `std_max`。
 
 ### 5.5 局限与未来方向
 
@@ -452,7 +452,7 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 **未来方向 1：per-token 自适应一致性。** §4.5 / §4.6 识别的最强信号 `predictor_target_to_nn_cos_ratio` 是 ckpt-level scalar；它的 per-token 化能否作为 per-token consistency 的 controller signal，是一个独立的方法学问题（**作为本工作的方法学延伸正在研究中**，结果待后续工作）。
 
-**未来方向 2：跨架构验证。** 在 DreamerV3、TD-MPC2 上重复本文的 sweep 与诊断协议，将揭示这一 trade-off 是 JEPA 特有的，还是所有潜空间压缩模型的共同属性。
+**未来方向 2：跨架构验证。** 在外部 world-model baselines 上重复本文的 sweep 与诊断协议，将揭示这一 trade-off 是 JEPA 特有的，还是更广义 latent world-model family 的共同属性。
 
 **未来方向 3：理论侧。** Information bottleneck / rate-distortion 视角下重新形式化该 trade-off 是值得尝试的；本文未走这条路因为我们尚未确认 empirical phenomenology 已经稳定到值得建立形式化模型的程度。
 
@@ -480,7 +480,7 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 [3] A. Bardes et al., "Revisiting feature prediction for learning visual representations from video (V-JEPA)," *Trans. Machine Learning Research / arXiv:2404.08471*, 2024.
 
-[4] M. Assran et al., "V-JEPA 2: Self-supervised video models enable understanding, prediction, and planning," *arXiv:2506.09985*, 2025.
+[4] M. Assran et al., "V-JEPA 2: Self-supervised video models enable understanding, prediction and planning," *arXiv:2506.09985*, 2025.
 
 [5] L. Maes, Q. Le Lidec, D. Scieur, Y. LeCun, R. Balestriero, "LeWorldModel: Stable end-to-end joint-embedding predictive architecture from pixels," *arXiv:2603.19312*, 2026. *(LeWM; SIGReg defined therein.)*
 
@@ -494,21 +494,21 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 [10] A. Radhachandran, V. Ivezić, S. Athreya, R. Anilkumar, C. W. Arnold, W. Speier, "US-JEPA: A joint embedding predictive architecture for medical ultrasound," *arXiv:2602.19322*, 2026.
 
-[11] D. Hafner et al., "Mastering diverse domains through world models (DreamerV3)," *Nature*, 2024.
+[11] D. Hafner, J. Pasukonis, J. Ba, T. Lillicrap, "Mastering diverse control tasks through world models," *Nature*, 2025.
 
 [12] N. Hansen et al., "TD-MPC2: Scalable, robust world models for continuous control," *ICLR*, 2024.
 
 [13] M. Park, S. Noh, H. Myung, D. Lee, "Zero-shot visual generalization in model-based reinforcement learning via latent consistency (ViGMO)," *OpenReview (ICLR 2026 submission)*, 2025.
 
-[14] A. Tamkin et al., "Feature dropout: Revisiting the role of augmentations in contrastive learning," *NeurIPS*, 2022.
+[14] A. Tamkin, M. Glasgow, X. He, N. Goodman, "Feature dropout: Revisiting the role of augmentations in contrastive learning," *NeurIPS*, 2023.
 
-[15] J. Zhang et al., "Rethinking the augmentation module in contrastive learning," *ECCV*, 2022.
+[15] J. Zhang, K. Ma, "Rethinking the augmentation module in contrastive learning: Learning hierarchical augmentation invariance with expanded views," *CVPR*, 2022.
 
 [16] O. Roy and M. Vetterli, "The effective rank: A measure of effective dimensionality," *EUSIPCO*, 2007.
 
 [17] L. Jing, P. Vincent, Y. LeCun, Y. Tian, "Understanding dimensional collapse in contrastive self-supervised learning," *ICLR*, 2022.
 
-[18] Z. Teoh et al., "Next-latent prediction transformers learn compact world models," *NeurIPS*, 2025.
+[18] J. Teoh et al., "Next-latent prediction transformers learn compact world models," *arXiv:2511.05963*, 2025.
 
 [19] T. W. Epps, K. J. Pulley, "A test for normality based on the empirical characteristic function," *Biometrika*, 1983. *(Statistical foundation of SIGReg in [5].)*
 

@@ -71,7 +71,7 @@ JEPA [1] predicts in latent space rather than reconstructing pixels. I-JEPA [2] 
 
 **Relation to this paper.** LeWM is the baseline system in our experiments. The original LeWM paper reports a Violation-of-Expectation experiment showing the model is sensitive to physical perturbations (object teleportation) but not to visual perturbations (colour change). Note however that (i) VoE measures prediction error (surprise), not control success rate, and (ii) colour change and pixel-level Gaussian noise are distinct corruptions. We give the first picture, to our knowledge, of LeWM's control success rate under pixel-noise corruption.
 
-For one external-baseline sanity check we also evaluate PLDM as implemented in `stable-worldmodel` [21]. We use it only to test whether the clean-trained visual-noise cliff is isolated to LeWM; the full sweep, diagnostic correlations, and trade-off claims remain LeWM-only.
+For one external-baseline sanity check we also evaluate PLDM [21] as implemented in `stable-worldmodel` [22]. We use it only to test whether the clean-trained visual-noise cliff is isolated to LeWM; the full sweep, diagnostic correlations, and trade-off claims remain LeWM-only.
 
 ### 2.2 Robustness studies of JEPA
 
@@ -503,7 +503,9 @@ The paper does not propose a new training algorithm. Its contribution is a syste
 
 [20] A. Bardes, J. Ponce, Y. LeCun, "VICReg: Variance-invariance-covariance regularization for self-supervised learning," *ICLR*, 2022. *(Anti-collapse baseline.)*
 
-[21] L. Maes, Q. Le Lidec, D. Haramati, N. Massaudi, D. Scieur, Y. LeCun, R. Balestriero, "stable-worldmodel-v1: Reproducible world modeling research and evaluation," *arXiv:2602.08968*, 2026. *(Source of the PLDM baseline implementation used in Appendix F.)*
+[21] V. Sobal, W. Zhang, K. Cho, R. Balestriero, T. G. J. Rudner, Y. LeCun, "Stress-Testing Offline Reward-Free Reinforcement Learning: A Case for Planning with Latent Dynamics Models," *7th Robot Learning Workshop: Towards Robots with Human-Level Abilities*, 2025. *(PLDM method reference.)*
+
+[22] L. Maes, Q. Le Lidec, D. Haramati, N. Massaudi, D. Scieur, Y. LeCun, R. Balestriero, "stable-worldmodel-v1: Reproducible world modeling research and evaluation," *arXiv:2602.08968*, 2026. *(Source of the PLDM baseline implementation used in Appendix F.)*
 
 ---
 
@@ -681,7 +683,7 @@ Swapping cost recovers only +6 pt (36 → 42), far below the clean reference (69
 
 ## Appendix F — External baseline sanity check: clean-trained PLDM on PushT
 
-This appendix records the PushT PLDM baseline referenced in §4.2. PLDM is taken from the `stable-worldmodel` baseline suite [21]. The run is clean-trained (`image_noise.std_max = 0`, `noise_prob = 0`) and evaluated with the same three evaluation seeds (42/43/44) and 100 trajectories per seed as the LeWM canonical tables. It is outside the 36-checkpoint LeWM sweep and is not used in Tables 4/4b/5.
+This appendix records the PushT PLDM baseline referenced in §4.2. PLDM is the latent-dynamics planning model from Sobal et al. [21]; our run uses the implementation distributed through the `stable-worldmodel` baseline suite [22]. The run is clean-trained (`image_noise.std_max = 0`, `noise_prob = 0`) and evaluated with the same three evaluation seeds (42/43/44) and 100 trajectories per seed as the LeWM canonical tables. It is outside the 36-checkpoint LeWM sweep and is not used in Tables 4/4b/5.
 
 | Model | clean | px+goal 0.05 | px+goal 0.08 | clean → 0.08 drop |
 |---|---:|---:|---:|---:|

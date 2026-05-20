@@ -73,7 +73,7 @@ Joint-Embedding Predictive Architecture (JEPA) 由 LeCun [1] 提出，核心思�
 
 **与本文的关系**：LeWM 是我们的基线系统。原始论文报道了 Violation-of-Expectation (VoE) 实验，证明 LeWM 对物理扰动（物体瞬移）敏感，但对视觉扰动（颜色变化）不敏感。然而 (i) VoE 测量的是预测误差（surprise），不是控制成功率；(ii) 颜色变化与像素级高斯噪声是两种不同性质的扰动。本文给出 LeWM 在 JEPA + CEM world-model pipeline 下、面对像素级高斯噪声时的控制成功率画像。**就我们所知**，这是 JEPA 世界模型在视觉 OOD 下控制鲁棒性的首个系统性研究。
 
-作为一个外部 baseline sanity check，我们还评估了 `stable-worldmodel` [21] 中实现的 PLDM。这里的 PLDM 只用于检验 clean-trained visual-noise cliff 是否是 LeWM 独有现象；完整 sweep、诊断相关性和 trade-off 结论仍只基于 LeWM。
+作为一个外部 baseline sanity check，我们还评估了 PLDM [21]，具体实现来自 `stable-worldmodel` [22]。这里的 PLDM 只用于检验 clean-trained visual-noise cliff 是否是 LeWM 独有现象；完整 sweep、诊断相关性和 trade-off 结论仍只基于 LeWM。
 
 ### 2.2 JEPA 的鲁棒性研究
 
@@ -518,7 +518,9 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 [20] A. Bardes, J. Ponce, Y. LeCun, "VICReg: Variance-invariance-covariance regularization for self-supervised learning," *ICLR*, 2022. *(Anti-collapse baseline.)*
 
-[21] L. Maes, Q. Le Lidec, D. Haramati, N. Massaudi, D. Scieur, Y. LeCun, R. Balestriero, "stable-worldmodel-v1: Reproducible world modeling research and evaluation," *arXiv:2602.08968*, 2026. *(本文附录 F 所用 PLDM baseline implementation 的来源。)*
+[21] V. Sobal, W. Zhang, K. Cho, R. Balestriero, T. G. J. Rudner, Y. LeCun, "Stress-Testing Offline Reward-Free Reinforcement Learning: A Case for Planning with Latent Dynamics Models," *7th Robot Learning Workshop: Towards Robots with Human-Level Abilities*, 2025. *(PLDM 方法引用。)*
+
+[22] L. Maes, Q. Le Lidec, D. Haramati, N. Massaudi, D. Scieur, Y. LeCun, R. Balestriero, "stable-worldmodel-v1: Reproducible world modeling research and evaluation," *arXiv:2602.08968*, 2026. *(本文附录 F 所用 PLDM baseline implementation 的来源。)*
 
 ---
 
@@ -697,7 +699,7 @@ Hetero loss 在两个任务上都压缩表征。TwoRoom 低维、离散、视觉
 
 ## 附录 F — 外部 baseline sanity check：PushT clean-trained PLDM
 
-本附录记录 §4.2 引用的 PushT PLDM baseline。PLDM 来自 `stable-worldmodel` baseline suite [21]。该 run 是 clean-trained（`image_noise.std_max = 0`, `noise_prob = 0`），并使用与 LeWM canonical tables 相同的 3 evaluation seeds（42/43/44）× 每 seed 100 trajectories 协议。它不属于 36-checkpoint LeWM sweep，也不参与表 4/4b/5 的相关性计算。
+本附录记录 §4.2 引用的 PushT PLDM baseline。PLDM 是 Sobal et al. [21] 的 latent-dynamics planning model；本文实验使用 `stable-worldmodel` baseline suite [22] 中分发的实现。该 run 是 clean-trained（`image_noise.std_max = 0`, `noise_prob = 0`），并使用与 LeWM canonical tables 相同的 3 evaluation seeds（42/43/44）× 每 seed 100 trajectories 协议。它不属于 36-checkpoint LeWM sweep，也不参与表 4/4b/5 的相关性计算。
 
 | Model | clean | px+goal 0.05 | px+goal 0.08 | clean → 0.08 drop |
 |---|---:|---:|---:|---:|

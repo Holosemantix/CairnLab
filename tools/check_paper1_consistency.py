@@ -292,7 +292,7 @@ def check_external_baselines_json() -> None:
         fail("external baseline JSON missing PushT/PLDM_clean_trained")
     if entry.get("subdir") != "pusht_pldm_baseline":
         fail(f"unexpected PLDM subdir: {entry.get('subdir')!r}")
-    if entry.get("citation") != "maes2026stableworldmodel":
+    if entry.get("citation") != "sobal2025stresstesting;maes2026stableworldmodel":
         fail(f"unexpected PLDM citation key: {entry.get('citation')!r}")
 
     training = entry.get("training", {})

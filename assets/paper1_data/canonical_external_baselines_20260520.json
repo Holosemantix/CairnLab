@@ -10,7 +10,7 @@
   "baselines": {
     "PushT": {
       "PLDM_clean_trained": {
-        "citation": "sobal2025stresstesting;maes2026stableworldmodel",
+        "citation": "sobal2022jointembeddingpredictivearchitectures;sobal2025stresstesting;maes2026stableworldmodel",
         "subdir": "pusht_pldm_baseline",
         "training": {
           "image_noise_std_min": 0.0,

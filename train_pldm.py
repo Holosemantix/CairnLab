@@ -207,12 +207,11 @@ def run(cfg):
         enable_checkpointing=True,
     )
 
-    ckpt_path = run_dir / f"{cfg.output_model_name}_weights.ckpt"
     manager = spt.Manager(
         trainer=trainer,
         module=module,
         data=data_module,
-        ckpt_path=ckpt_path if ckpt_path.exists() else None,
+        ckpt_path=run_dir / f"{cfg.output_model_name}_weights.ckpt",
     )
     manager()
 

@@ -133,7 +133,7 @@ Figure 3 是 PushT n=9 LeWM sweep 的核心诊断图。
 
 pixels → encoder shift → predictor transduction → CEM planner failure。
 
-Figure 5 是 schematic，不再画旧的 cross-method cost-surface attribution bar。
+Figure 5 是 mechanism schematic，正向概括当前版本的机制链：视觉噪声先改变 encoder latent neighborhood，再通过 predictor 传导到未来状态估计，最终让 CEM planner 在错误的轨迹评估上优化。
 
 Cost-swap 只保留为 TwoRoom one-off sanity check：换 CEM cost 只从 36 到 42，远低于 clean reference 69.7。因此只能说 cost function alone unlikely to explain collapse，不能说 cost surface 在所有任务都不是主因。
 

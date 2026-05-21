@@ -122,7 +122,22 @@ Evaluation comprises clean and noised conditions. Noised conditions use two inte
 
 ### 3.3 Five-layer diagnostic framework
 
-The framework decomposes the JEPA + CEM forward pass — pixels → encoder $f$ → latent $z$ → predictor $g$ → cost surface → planned actions — into five sequential stages and instruments each transition with one or more metrics. Layers 1–2 characterise the encoder output (how the latent shifts under noise; how the latent space is globally organised); Layer 3 measures how the predictor amplifies that shift; Layer 4 isolates the predictor and cost surface by injecting noise directly into the latent; Layer 5 quantifies the planning-relevant information that the latent still carries. Each layer probes one transition, so an observed failure can be localised to a single stage. Most individual metrics already have a literature home (cited inline below); the contribution is the composite protocol — and a handful of metrics introduced for this paper (the **fragility ratio**, `transition_resolution_ratio`, `latent_robust_radius_z`) that explicitly normalise predictor and cost-surface sensitivity by the local nearest-neighbour scale of the clean encoder.
+The framework decomposes the JEPA + CEM forward pass — pixels → encoder $f$ → latent $z$ → predictor $g$ → cost surface → planned actions — into five sequential stages and instruments each transition with one or more metrics. Layers 1–2 characterise the encoder output (how the latent shifts under noise; how the latent space is globally organised); Layer 3 measures how the predictor amplifies that shift; Layer 4 isolates the predictor and cost surface by injecting noise directly into the latent; Layer 5 quantifies the planning-relevant information that the latent still carries. Each layer probes one transition, so an observed failure can be localised to a single stage. Most individual metrics already have a literature home (cited inline below); the contribution is the composite protocol — and a handful of metrics introduced for this paper (the **fragility ratio**, `transition_resolution_ratio`, `latent_robust_radius_z`) that explicitly normalise predictor and cost-surface sensitivity by the local nearest-neighbour scale of the clean encoder. We use nearest-neighbour distance as a local latent scale primitive in the spirit of kNN-based OOD detection [24], but the scale-normalised ratios below are introduced for this diagnostic protocol.
+
+Minimal notation. Let $z_i=f(x_i)$ and $\tilde z_i=f(\tilde x_i)$ be clean and noised latents for the same token, and let $d_{\cos}(a,b)=1-\frac{a^\top b}{\|a\|\|b\|}$. Define the clean local scale $d_i^{NN}=\min_{j\ne i} d_{\cos}(z_i,z_j)$. The main introduced ratios are:
+
+$$
+r_i^{enc}=\frac{d_{\cos}(z_i,\tilde z_i)}{d_i^{NN}+\epsilon},\qquad
+r_i^{pred}=\frac{d_{\cos}(g(z)_i,g(\tilde z)_i)}{d_i^{NN}+\epsilon},
+$$
+
+$$
+\texttt{transition\_resolution\_ratio}_d=
+\frac{\operatorname{median}_t d(z_t,z_{t+1})}
+{\operatorname{median}_{(t,t')\in\mathcal F} d(z_t,z_{t'})+\epsilon}.
+$$
+
+Here $r_i^{enc}$ corresponds to `noise_to_nn_cos_ratio`, $r_i^{pred}$ to the fragility ratio, $d$ is either cosine or L2 distance for `transition_resolution_ratio`, and $\mathcal F$ denotes random far pairs from different temporal locations. Layer 1 otherwise uses standard Euclidean/cosine displacements; no method-specific external citation is needed for the raw angle or L2 quantities.
 
 **Layer 1 — Encoder shift.** Magnitude and direction of latent displacement under input noise. Key metrics:
 - `noise_angle_deg` — angle between clean and noisy latents.
@@ -278,6 +293,8 @@ Table 3 compares core diagnostic metrics on LeWM-base versus a representative no
 
 - **TwoRoom.** Low-dimensional, discrete, visually redundant. Compressing the representation (effective rank 47.6 → 33.6) is acceptable and even beneficial. Smaller NN distances mean a more compact latent space that planning navigates more easily.
 - **PushT.** Continuous contact requires fine-grained pose resolution. Even at light noise (std = 0.002, the representative diagnostic checkpoint here), `transition_resolution_ratio_l2` already trends slightly downward. At heavier noise (e.g. std = 0.006) this metric would drop further, erasing the contact-transition keyframes.
+- **Reacher.** Low-dimensional continuous reaching does not show a task-resolution collapse in Table 3: effective rank, `transition_resolution_ratio`, and `id_probe_r²` remain flat or slightly improve. The notable change is the large reduction in multi-step predictor drift (15.17 → 0.44), matching the later finding that Reacher's residual OOD-drop signal lives in the rollout metric rather than in the single-step fragility ratio.
+- **Cube.** Cube is moderately resolution-demanding but less fragile than PushT. The representative checkpoint leaves rank, `transition_resolution_ratio`, `id_probe_r²`, and rollout drift almost unchanged, consistent with Cube's smaller visual-OOD cliff and the moderate residual signal of multi-step drift in Table 4b.
 - **A predictor-rollout caveat.** A drop in `predictor_rollout_T8_l2` is not unambiguously good news. It can also mean the latent has become more *predictable* without being more *controllable* — predictor stability can be bought by sacrificing resolution.
 
 ### 4.5 Cross-checkpoint correlation analysis
@@ -508,6 +525,8 @@ The paper does not propose a new training algorithm. Its contribution is a syste
 [22] V. Sobal, W. Zhang, K. Cho, R. Balestriero, T. G. J. Rudner, Y. LeCun, "Stress-Testing Offline Reward-Free Reinforcement Learning: A Case for Planning with Latent Dynamics Models," *7th Robot Learning Workshop: Towards Robots with Human-Level Abilities*, 2025. *(Concrete PLDM latent-dynamics planning baseline.)*
 
 [23] L. Maes, Q. Le Lidec, D. Haramati, N. Massaudi, D. Scieur, Y. LeCun, R. Balestriero, "stable-worldmodel-v1: Reproducible world modeling research and evaluation," *arXiv:2602.08968*, 2026. *(Source of the PLDM baseline implementation used in Appendix F.)*
+
+[24] Y. Sun, Y. Ming, X. Zhu, Y. Li, "Out-of-distribution detection with deep nearest neighbors," *ICML*, 2022. *(Nearest-neighbour distance as a local representation-space scale primitive.)*
 
 ---
 

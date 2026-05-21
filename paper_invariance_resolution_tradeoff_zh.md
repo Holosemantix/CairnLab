@@ -125,7 +125,22 @@ $$
 
 ### 3.3 五层诊断框架
 
-诊断框架沿 JEPA + CEM 前向通路（pixels → encoder $f$ → 潜变量 $z$ → predictor $g$ → cost surface → planned actions）拆成五个顺序阶段，每个阶段配一组指标。第 1–2 层刻画编码器输出（噪声下潜空间如何偏移、整体几何如何组织），第 3 层度量 predictor 对偏移的放大，第 4 层把 encoder 旁路、直接在潜空间注入噪声以分离 predictor 与 cost 的贡献，第 5 层评估潜空间还残留多少与规划相关的信息。每层只刻画一次 forward 转换，使观察到的失败可以定位到具体阶段。大多数单一指标已有文献来源（下文逐项标注）；本文的贡献是**这一套组合协议**——以及一小批为本文引入的指标（**fragility ratio**、`transition_resolution_ratio`、`latent_robust_radius_z`），它们显式地用 clean encoder 的最近邻尺度对 predictor 与 cost surface 的敏感度做归一化。
+诊断框架沿 JEPA + CEM 前向通路（pixels → encoder $f$ → 潜变量 $z$ → predictor $g$ → cost surface → planned actions）拆成五个顺序阶段，每个阶段配一组指标。第 1–2 层刻画编码器输出（噪声下潜空间如何偏移、整体几何如何组织），第 3 层度量 predictor 对偏移的放大，第 4 层把 encoder 旁路、直接在潜空间注入噪声以分离 predictor 与 cost 的贡献，第 5 层评估潜空间还残留多少与规划相关的信息。每层只刻画一次 forward 转换，使观察到的失败可以定位到具体阶段。大多数单一指标已有文献来源（下文逐项标注）；本文的贡献是**这一套组合协议**——以及一小批为本文引入的指标（**fragility ratio**、`transition_resolution_ratio`、`latent_robust_radius_z`），它们显式地用 clean encoder 的最近邻尺度对 predictor 与 cost surface 的敏感度做归一化。我们借鉴 kNN-based OOD detection [24] 中把最近邻距离作为局部 latent scale 的思想；但下述 scale-normalized ratios 是本文诊断协议中新引入的量。
+
+最小符号定义如下。令 $z_i=f(x_i)$ 与 $\tilde z_i=f(\tilde x_i)$ 表示同一 token 的 clean / noisy latent，令 $d_{\cos}(a,b)=1-\frac{a^\top b}{\|a\|\|b\|}$。clean 局部尺度定义为 $d_i^{NN}=\min_{j\ne i}d_{\cos}(z_i,z_j)$。本文引入的核心比值为：
+
+$$
+r_i^{enc}=\frac{d_{\cos}(z_i,\tilde z_i)}{d_i^{NN}+\epsilon},\qquad
+r_i^{pred}=\frac{d_{\cos}(g(z)_i,g(\tilde z)_i)}{d_i^{NN}+\epsilon},
+$$
+
+$$
+\texttt{transition\_resolution\_ratio}_d=
+\frac{\operatorname{median}_t d(z_t,z_{t+1})}
+{\operatorname{median}_{(t,t')\in\mathcal F}d(z_t,z_{t'})+\epsilon}.
+$$
+
+其中 $r_i^{enc}$ 对应 `noise_to_nn_cos_ratio`，$r_i^{pred}$ 对应 fragility ratio，`transition_resolution_ratio` 中的 $d$ 可以是 cosine 或 L2 距离，$\mathcal F$ 表示不同时间位置的 random far pairs。第 1 层其余指标只是标准 Euclidean / cosine displacement，因此 raw angle 或 L2 本身不需要额外方法引用。
 
 **第 1 层：编码器偏移（Encoder Shift）**
 衡量输入噪声引起的潜空间偏移方向和幅度。核心指标：
@@ -291,6 +306,8 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 
 - **TwoRoom**：低维、离散、视觉冗余，压缩表征（effective rank 从 47.6 → 33.6）是可接受甚至有利的。NN distance 降低意味着潜空间更紧凑，规划更容易。
 - **PushT**：需要连续接触与姿态分辨率。即使在 representative diagnostic checkpoint（std = 0.002）上，`transition_resolution_ratio_l2` 已出现轻微压缩趋势。若增至重噪声（如 0.006），该指标将进一步下降，导致接触过渡的关键帧被抹平。
+- **Reacher**：低维连续 reaching 没有出现 task-resolution collapse；effective rank、`transition_resolution_ratio`、`id_probe_r²` 基本持平或略升。主要变化是多步 predictor drift 从 15.17 降到 0.44，这与后文 Reacher 的 residual OOD-drop signal 出现在 rollout metric 上一致。
+- **Cube**：需要中等空间分辨率，但比 PushT 不敏感。representative checkpoint 的 rank、`transition_resolution_ratio`、`id_probe_r²` 和 rollout drift 基本保持，符合 Cube 较小的 visual-OOD cliff 以及 Table 4b 中 multi-step drift 的中等残余信号。
 - **预测器 rollout 的陷阱**：`predictor_rollout_T8_l2` 下降不一定代表好消息。它可能意味着 latent 更容易预测，但不是更适合控制——预测稳定性可以通过牺牲分辨率得到。
 
 ![Fig 4 — Per-task diagnostic radar: base vs representative noise-trained diagnostic checkpoint on 6 metrics](assets/paper1_figs/fig4_radar.png)
@@ -523,6 +540,8 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 [22] V. Sobal, W. Zhang, K. Cho, R. Balestriero, T. G. J. Rudner, Y. LeCun, "Stress-Testing Offline Reward-Free Reinforcement Learning: A Case for Planning with Latent Dynamics Models," *7th Robot Learning Workshop: Towards Robots with Human-Level Abilities*, 2025. *(具体 PLDM latent-dynamics planning baseline。)*
 
 [23] L. Maes, Q. Le Lidec, D. Haramati, N. Massaudi, D. Scieur, Y. LeCun, R. Balestriero, "stable-worldmodel-v1: Reproducible world modeling research and evaluation," *arXiv:2602.08968*, 2026. *(本文附录 F 所用 PLDM baseline implementation 的来源。)*
+
+[24] Y. Sun, Y. Ming, X. Zhu, Y. Li, "Out-of-distribution detection with deep nearest neighbors," *ICML*, 2022. *(把最近邻距离作为表征空间局部尺度的参考。)*
 
 ---
 

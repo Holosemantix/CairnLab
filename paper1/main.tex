@@ -172,7 +172,19 @@ We add per-frame Gaussian noise to the LeWM input pipeline via \codebrk{utils.py
 
 \subsection{Five-layer diagnostic framework}\label{sec:bg-five-layers}
 
-The framework decomposes the JEPA + CEM forward pass --- pixels $\to$ encoder $f$ $\to$ latent $z$ $\to$ predictor $g$ $\to$ cost surface $\to$ planned actions --- into five sequential stages and instruments each transition with one or more metrics. Layers~1--2 characterise the encoder output (how the latent shifts under noise; how the latent space is globally organised); Layer~3 measures how the predictor amplifies that shift; Layer~4 isolates the predictor and cost surface by injecting noise directly into the latent; Layer~5 quantifies the planning-relevant information that the latent still carries. Each layer probes one transition, so an observed failure can be localised to a single stage. Most individual metrics already have a literature home (cited inline below); the contribution is the composite protocol --- and a handful of metrics introduced for this paper (the \emph{\fragility{}}, \transres{}, \code{latent\_robust\_radius\_z}) that explicitly normalise predictor and cost-surface sensitivity by the local nearest-neighbour scale of the clean encoder.
+The framework decomposes the JEPA + CEM forward pass --- pixels $\to$ encoder $f$ $\to$ latent $z$ $\to$ predictor $g$ $\to$ cost surface $\to$ planned actions --- into five sequential stages and instruments each transition with one or more metrics. Layers~1--2 characterise the encoder output (how the latent shifts under noise; how the latent space is globally organised); Layer~3 measures how the predictor amplifies that shift; Layer~4 isolates the predictor and cost surface by injecting noise directly into the latent; Layer~5 quantifies the planning-relevant information that the latent still carries. Each layer probes one transition, so an observed failure can be localised to a single stage. Most individual metrics already have a literature home (cited inline below); the contribution is the composite protocol --- and a handful of metrics introduced for this paper (the \emph{\fragility{}}, \transres{}, \code{latent\_robust\_radius\_z}) that explicitly normalise predictor and cost-surface sensitivity by the local nearest-neighbour scale of the clean encoder. We use nearest-neighbour distance as a local latent scale primitive in the spirit of kNN-based OOD detection~\cite{sun2022knnood}, but the scale-normalised ratios below are introduced for this diagnostic protocol.
+
+\paragraph{Minimal notation.} Let $z_i=f(x_i)$ and $\tilde z_i=f(\tilde x_i)$ be clean and noised latents for the same token, and let $d_{\cos}(a,b)=1-\frac{a^{\top}b}{\lVert a\rVert\lVert b\rVert}$. Define the clean local scale $d_i^{\mathrm{NN}}=\min_{j\ne i}d_{\cos}(z_i,z_j)$. The main introduced ratios are:
+\begin{align}
+  r_i^{\mathrm{enc}} &= \frac{d_{\cos}(z_i,\tilde z_i)}{d_i^{\mathrm{NN}}+\epsilon}\,,
+  &
+  r_i^{\mathrm{pred}} &= \frac{d_{\cos}\!\big(g(z)_i, g(\tilde z)_i\big)}{d_i^{\mathrm{NN}}+\epsilon}\,,
+  \label{eq:diag-ratios}\\
+  \transres{}_{d} &= \frac{\operatorname{median}_{t}\, d(z_t,z_{t+1})}
+  {\operatorname{median}_{(t,t')\in\mathcal{F}}\, d(z_t,z_{t'})+\epsilon}\,,
+  \label{eq:transition-resolution}
+\end{align}
+where $r_i^{\mathrm{enc}}$ corresponds to \code{noise\_to\_nn\_cos\_ratio}, $r_i^{\mathrm{pred}}$ to the \fragility{}, $d$ is either cosine or L2 distance for \transres{}, and $\mathcal{F}$ denotes random far pairs from different temporal locations. Layer~1 otherwise uses standard Euclidean/cosine displacements; no method-specific external citation is needed for the raw angle or L2 quantities.
 
 \paragraph{Layer 1 --- Encoder shift.} The magnitude and direction of latent displacement under input noise. Metrics: \code{noise\_angle\_deg}, \code{noise\_l2}, \code{noise\_to\_nn\_cos\_ratio} (encoder shift normalised by the clean nearest-neighbour (NN) cosine distance --- introduced here), \code{noise\_angle\_slope} (the per-unit-std angular gain).
 
@@ -363,6 +375,8 @@ Metric & TwoRoom & TwoRoom & PushT & PushT & Reacher & Reacher & Cube & Cube \\
 \begin{itemize}
   \item \textbf{TwoRoom.} Low-dimensional, discrete, visually redundant. Compressing the representation (effective rank $47.6 \to 33.6$) is acceptable and even beneficial: a more compact latent space is easier to plan in.
   \item \textbf{PushT.} Continuous contact requires fine-grained pose resolution. Even at the representative diagnostic checkpoint (\stdmax{} $= 0.002$), \transres{}\_l2 already trends slightly downward. At heavier noise (e.g.\ $0.006$) the metric would drop further, erasing contact-transition keyframes.
+  \item \textbf{Reacher.} Low-dimensional continuous reaching does not show a resolution collapse in Table~\ref{tab:diag-base-vs-best}: effective rank, \transres{}, and \idprobe{} remain flat or slightly improve. The notable change is the large reduction in multi-step predictor drift ($15.17 \to 0.44$), matching the later finding that Reacher's residual OOD-drop signal lives in the rollout metric rather than in the single-step \fragility{}.
+  \item \textbf{Cube.} Cube is moderately resolution-demanding but less fragile than PushT. The representative checkpoint leaves rank, \transres{}, \idprobe{}, and rollout drift almost unchanged, consistent with Cube's smaller visual-OOD cliff and the moderate residual signal of multi-step drift in Table~\ref{tab:partial-corr-4tasks}.
   \item \textbf{Predictor-rollout caveat.} A drop in \code{predictor\_rollout\_T8\_l2} is not unambiguously good news. It can also mean the latent has become more \emph{predictable} without being more \emph{controllable}: predictor stability bought by sacrificing resolution.
 \end{itemize}
 

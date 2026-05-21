@@ -187,7 +187,11 @@ class RiskAwareCEMSolver:
         return value.to(device=self.device, dtype=target_dtype)
 
     def prepare_init_action(
-        self, info_dict: dict, init_action: torch.Tensor | None = None
+        self,
+        info_dict: dict,
+        init_action: torch.Tensor | None = None,
+        *,
+        n_envs: int,
     ) -> torch.Tensor | None:
         """Normalize warm-start actions and fill missing horizon tail.
 
@@ -197,7 +201,7 @@ class RiskAwareCEMSolver:
         """
         if init_action is None:
             actions = torch.zeros(
-                [self.n_envs, 0, self.action_dim],
+                [n_envs, 0, self.action_dim],
                 device=self.device,
                 dtype=self.dtype,
             )
@@ -208,16 +212,18 @@ class RiskAwareCEMSolver:
             return actions[:, : self.horizon]
 
         remaining = self.horizon - actions.shape[1]
-        tail = self._actionable_warm_start_tail(info_dict, remaining)
+        tail = self._actionable_warm_start_tail(info_dict, remaining, n_envs=n_envs)
         if tail is None:
             tail = torch.zeros(
-                [self.n_envs, remaining, self.action_dim],
+                [n_envs, remaining, self.action_dim],
                 device=self.device,
                 dtype=self.dtype,
             )
         return torch.cat([actions, tail], dim=1)
 
-    def _actionable_warm_start_tail(self, info_dict: dict, remaining: int) -> torch.Tensor | None:
+    def _actionable_warm_start_tail(
+        self, info_dict: dict, remaining: int, *, n_envs: int
+    ) -> torch.Tensor | None:
         if not hasattr(self.model, "get_action"):
             return None
 
@@ -239,7 +245,7 @@ class RiskAwareCEMSolver:
                 action = torch.from_numpy(action)
             if not torch.is_tensor(action):
                 action = torch.as_tensor(action)
-            action = action.to(device=self.device, dtype=self.dtype).reshape(self.n_envs, -1)
+            action = action.to(device=self.device, dtype=self.dtype).reshape(n_envs, -1)
             if action.shape[-1] == self._action_dim:
                 action = action.repeat(1, self._config.action_block)
             if action.shape[-1] != self.action_dim:
@@ -252,16 +258,16 @@ class RiskAwareCEMSolver:
         return torch.cat(tail, dim=1) if tail else None
 
     def init_action_distrib(
-        self, actions: torch.Tensor | None = None
+        self, n_envs: int, actions: torch.Tensor | None = None
     ) -> tuple[torch.Tensor, torch.Tensor]:
         var = self.var_scale * torch.ones(
-            [self.n_envs, self.horizon, self.action_dim],
+            [n_envs, self.horizon, self.action_dim],
             device=self.device,
             dtype=self.dtype,
         )
         mean = (
             torch.zeros(
-                [self.n_envs, 0, self.action_dim],
+                [n_envs, 0, self.action_dim],
                 device=self.device,
                 dtype=self.dtype,
             )
@@ -272,7 +278,7 @@ class RiskAwareCEMSolver:
         remaining = self.horizon - mean.shape[1]
         if remaining > 0:
             new_mean = torch.zeros(
-                [self.n_envs, remaining, self.action_dim],
+                [n_envs, remaining, self.action_dim],
                 device=self.device,
                 dtype=self.dtype,
             )
@@ -291,10 +297,9 @@ class RiskAwareCEMSolver:
             "var": [],
         }
 
-        init_action = self.prepare_init_action(info_dict, init_action)
-        mean, var = self.init_action_distrib(init_action)
-
-        total_envs = self.n_envs
+        total_envs = len(next(iter(info_dict.values())))
+        init_action = self.prepare_init_action(info_dict, init_action, n_envs=total_envs)
+        mean, var = self.init_action_distrib(total_envs, init_action)
         robust_stats: list[dict[str, Any]] = []
 
         for start_idx in range(0, total_envs, self.batch_size):

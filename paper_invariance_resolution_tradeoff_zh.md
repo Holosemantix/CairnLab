@@ -179,7 +179,7 @@ $$
 
 **Evaluation seeds**：每个 ckpt 用 3 个 evaluation seeds（42/43/44）评测，每个 seed 100 trajectories。
 
-**硬件**：单 GPU（NVIDIA H800，80 GB），训练时长沿用 LeWM 基线公开的训练 schedule；诊断分析的开销远小于一次训练。
+**硬件**：训练运行在单 GPU（NVIDIA H800，80 GB）上，训练 schedule 沿用 LeWM 基线公开的设置。
 
 **Evaluation 协议**：本文所有成功率——clean 与所有噪声条件，跨全部 36 ckpt（4 任务 × {base, std 0.001..0.008}）——均按统一协议计算：`n = 3` seeds (42/43/44)，每 seed `num_eval = 100` trajectories（每个条件每个 ckpt 共 300 trajectories）。表 1 / 表 2 的每个 cell 是 `n=3` 跨 seed 的 mean ± population std，与 `assets/paper1_data/canonical_evals_20260517.json` 保持一致。每 seed 原始 metrics 位于 `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`；下游 eval 聚合源是 `assets/paper1_data/canonical_evals_20260517.json`。Figure 3 与表 4/4b/5 的 released diagnostic source-of-truth 是 `assets/paper1_data/canonical_diagnostics_20260517.json`。
 

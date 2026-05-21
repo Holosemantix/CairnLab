@@ -53,6 +53,10 @@
 % seqsplit lets long monospace identifiers (e.g. snake_case metric names) break
 % across line ends, eliminating overfull \hbox warnings on long \code{...} runs.
 \usepackage{seqsplit}
+% Allow extra inter-word space on the last pass to absorb the occasional
+% paragraph that microtype alone cannot fit — keeps the right margin clean
+% on lines that would otherwise overflow by a few points.
+\emergencystretch=3em
 
 %% --- Macros -----------------------------------------------------------------
 % \code{...} renders a short identifier in monospace; for verbose code names we
@@ -63,7 +67,8 @@
 \newcommand{\code}[1]{\texttt{\small #1}}
 \newcommand{\codebrk}[1]{\texttt{\small\seqsplit{#1}}}
 \newcommand{\stdmax}{\code{std\_max}}
-\newcommand{\fragmetric}{\code{predictor\_target\_to\_nn\_cos\_ratio\_at\_max\_std}}
+% Use seqsplit so the long identifier can break across line ends in body text.
+\newcommand{\fragmetric}{\codebrk{predictor\_target\_to\_nn\_cos\_ratio\_at\_max\_std}}
 \newcommand{\fragility}{fragility ratio}
 \newcommand{\transres}{\code{transition\_resolution\_ratio}}
 \newcommand{\idprobe}{\code{id\_probe\_r{}\textsuperscript{2}}}
@@ -163,7 +168,7 @@ where $\mathcal{L}_{\text{pred}}$ is the latent-space mean-squared error (MSE) b
 
 \subsection{Input-side noise augmentation}\label{sec:bg-noise}
 
-We add per-frame Gaussian noise to the LeWM input pipeline via \code{utils.py::AddNormalizedGaussianNoise} (\Cref{sec:appendix-A}). Each frame is independently noised: $\mathrm{Bernoulli}(p)$ decides whether the frame is corrupted, and if so the standard deviation is drawn from $\mathrm{Uniform}(0, \text{std\_max})$. We fix $p = 1.0$ and sweep \stdmax{} $\in \{0.001, \dots, 0.008\}$ (eight levels). Evaluation uses two noised conditions: pixels+goal $0.05$ and pixels+goal $0.08$ (Gaussian noise of the indicated std applied to both pixels and the goal image).
+We add per-frame Gaussian noise to the LeWM input pipeline via \codebrk{utils.py::AddNormalizedGaussianNoise} (\Cref{sec:appendix-A}). Each frame is independently noised: $\mathrm{Bernoulli}(p)$ decides whether the frame is corrupted, and if so the standard deviation is drawn from $\mathrm{Uniform}(0, \text{std\_max})$. We fix $p = 1.0$ and sweep \stdmax{} $\in \{0.001, \dots, 0.008\}$ (eight levels). Evaluation uses two noised conditions: pixels+goal $0.05$ and pixels+goal $0.08$ (Gaussian noise of the indicated std applied to both pixels and the goal image).
 
 \subsection{Five-layer diagnostic framework}\label{sec:bg-five-layers}
 
@@ -637,10 +642,10 @@ class AddNormalizedGaussianNoise:
 Clean evaluation uses no noise, 100 trajectories per seed $\times$ 3 seeds (42/43/44), totalling 300 trajectories per condition. Noisy evaluation adds Gaussian noise of std $\in \{0.05, 0.08\}$ to both pixels and the goal image under the same 3-seed protocol. Success criterion is task-specific (PushT: T-block pose match; TwoRoom: target region; Reacher: joint-angle match; Cube: cube position match).
 
 \subsection{Compute}
-All experiments run on a single NVIDIA H800 (80\,GB) and follow the LeWM training schedule released with the baseline. Diagnostic analysis is run once per checkpoint and takes a small fraction of a single training run.
+Training runs on a single NVIDIA H800 (80\,GB) and follows the LeWM training schedule released with the baseline.
 
 \subsection{Main-figure rendering}
-The six main figures are produced by \code{tools/paper1\_figs.py}. Run \code{python -m tools.paper1\_figs --out-dir assets/paper1\_figs}. The script reads \dataset{canonical\_evals\_20260517.json} together with \dataset{canonical\_diagnostics\_20260517.json}; no checkpoint or model loading is required.
+The six main figures are produced by \code{tools/paper1\_figs.py}; run \codebrk{python -m tools.paper1\_figs --out-dir assets/paper1\_figs}. The script reads \dataset{canonical\_evals\_20260517.json} together with \dataset{canonical\_diagnostics\_20260517.json}; no checkpoint or model loading is required.
 
 %% ===========================================================================
 \section{Full diagnostic profile of LeWM-base on four tasks}\label{sec:appendix-B}
@@ -653,6 +658,7 @@ The six main figures are produced by \code{tools/paper1\_figs.py}. Run \code{pyt
 \label{tab:full-diag}
 \small
 \setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrrr}
 \toprule
 Layer / Metric & TwoRoom & PushT & Reacher & Cube & Unit / note \\
@@ -689,7 +695,8 @@ Layer / Metric & TwoRoom & PushT & Reacher & Cube & Unit / note \\
 \code{cka\_linear\_at\_max\_std} & 0.1986 & 0.5536 & 0.3085 & 0.1814 & CKA clean vs noisy \\
 \code{latent\_cost\_surface\_slope\_z} & 635.31 & 1.3886 & 599.45 & 0.6208 & goal latent cost slope \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 %% ===========================================================================
@@ -712,6 +719,8 @@ This appendix records the full data behind \Cref{sec:disc-limit} Limitation 4. T
 \caption{Heteroscedastic-loss evaluation.}
 \label{tab:hetero-eval}
 \small
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrrrr}
 \toprule
 Task / model & Clean & goal 0.05 & pixels 0.05 & px+goal 0.05 & goal 0.08 & px+goal 0.08 \\
@@ -723,7 +732,8 @@ PushT LeWM-base         & 86.33 & 38.00 & 17.00 & 12.00 & 11.33 &  4.67 \\
 PushT LeWM+noise point-best   & \textbf{89.33} & 87.67 & 88.00 & 88.33 & 89.67 & 87.00 \\
 \textbf{PushT hetero}   & \textbf{13.33} &  7.67 &  7.67 &  7.67 &  9.67 &  6.00 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 TwoRoom hetero reaches $99.67\%$ clean --- consistent with the prior that low-dimensional discrete tasks benefit from stronger invariance / clustering --- but lags noise training on high-noise robustness. \textbf{PushT hetero clean is $13.33\%$ --- a method-level failure}, not a robustness trade-off.
@@ -733,6 +743,8 @@ TwoRoom hetero reaches $99.67\%$ clean --- consistent with the prior that low-di
 \caption{Representation diagnostics of the hetero-loss failure.}
 \label{tab:hetero-diag}
 \small
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrr}
 \toprule
 Metric & TwoRoom base & TwoRoom hetero & PushT base & PushT hetero \\
@@ -745,7 +757,8 @@ Metric & TwoRoom base & TwoRoom hetero & PushT base & PushT hetero \\
 \code{action\_mean\_pred\_shift\_norm} & 0.5329 & 0.4482 & 0.1283 & 0.0841 \\
 \code{predictor\_rollout\_T8\_l2}      & 18.62  & 17.90  & 18.65  & 14.01  \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 Hetero-loss compresses the representation in both tasks. For TwoRoom (low-dimensional, discrete, redundant), compression is acceptable. For PushT, \transres{}\_l2 collapses from $0.3015$ to $0.1023$ and \idprobe{} from $0.7739$ to $0.2678$ --- task-relevant state information is erased. The drop in \code{predictor\_rollout\_T8\_l2} is not good news either: the latent has become more \emph{predictable} without being more \emph{controllable}.
@@ -761,16 +774,16 @@ This appendix records the eval-only cost-swap ablation referenced in \Cref{sec:m
 
 \begin{table}[H]
 \centering
-\caption{One-off eval-only cost swap on a TwoRoom checkpoint, std $= 0.03$ pixels+goal.}
+\caption{One-off eval-only cost swap on a TwoRoom checkpoint, std $= 0.03$ pixels+goal. Reference row reports a separate clean eval of the same checkpoint ($\text{num\_eval} = 300$).}
 \label{tab:cost-swap}
 \small
-\begin{tabular}{llll r}
+\begin{tabular}{llcr}
 \toprule
 Variant & Cost type & Cost space & Success rate \\
 \midrule
-A (default) & cosine & normalized & 36.0 \\
-B (swap)    & mse    & raw        & 42.0 \\
-Reference: separate clean eval of the same checkpoint ($\text{num\_eval} = 300$) & --- & --- & 69.7 \\
+A (default)           & cosine & normalized & 36.0 \\
+B (swap)              & mse    & raw        & 42.0 \\
+Clean reference (same ckpt) & ---    & ---        & 69.7 \\
 \bottomrule
 \end{tabular}
 \end{table}

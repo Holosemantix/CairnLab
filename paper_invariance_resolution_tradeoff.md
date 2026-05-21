@@ -173,7 +173,7 @@ We report **both** the raw Spearman and the partial-on-`std_max` quantities. The
 
 **Evaluation protocol.** All success rates in this paper — clean and noised, across all 36 ckpts (4 tasks × {base, std 0.001..0.008}) — are computed under a single protocol: `n = 3` seeds (42/43/44), `num_eval = 100` trajectories per seed (300 trajectories per condition per ckpt). Every cell of Tables 1 and 2 is mean ± across-seed population std over `n = 3`, matching `assets/paper1_data/canonical_evals_20260517.json`. Raw per-seed metrics are stored at `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`; the aggregated source-of-truth for downstream evaluation analysis lives at `assets/paper1_data/canonical_evals_20260517.json`. The released diagnostic source-of-truth for Figure 3 and Tables 4/4b/5 is `assets/paper1_data/canonical_diagnostics_20260517.json`.
 
-**Hardware.** Single NVIDIA H800 (80 GB) GPU. Training follows the LeWM schedule released with the baseline; diagnostic analysis is a small fraction of a single training run.
+**Hardware.** Training runs on a single NVIDIA H800 (80 GB) GPU and follows the LeWM training schedule released with the baseline.
 
 **Main figures.** This paper has 6 main figures rendered by `tools/paper1_figs.py` and stored in `assets/paper1_figs/`. Figure 1 (the hero) summarises the OOD cliff and per-task px+goal 0.08 point-best recovery; Figure 2 shows the per-task noise sweep; Figure 3 shows the LeWM PushT scatter of the strongest cross-ckpt diagnostic against clean vs OOD-drop; Figure 4 shows the per-task representative diagnostic radar; Figure 5 shows the mechanism schematic; Figure 6 shows the per-task Pareto trajectory of (clean, OOD) under the noise sweep.
 

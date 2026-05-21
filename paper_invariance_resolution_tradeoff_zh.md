@@ -43,7 +43,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 - **TwoRoom**（视觉冗余型导航）：clean 性能随噪声单调上升，在 std=0.008 达到最优（98.33% / 98.67%）
 - **PushT**（接触控制型操作）：clean 最优在 std=0.003（89.67%），但 robustness（px+goal 0.08）最优在 std=0.006（87.00%）——clean 与 robustness 的最优剂量分离
 - **Reacher**（运动规划）：位于 0.002–0.006 的 plateau 上；clean point-best 在 std=0.006（86.00%），px+goal 0.08 point-best 在 std=0.002（85.67%）。极轻噪声（0.001）在统计上与 base 等价（61.67% vs 58.67%，差距 3pt 处于 ~2.5pt 的跨 seed std 范围内），说明该任务需要一个**最小噪声门槛**才开始受益
-- **Cube**（结构化操作）：噪声 sweep 效果最弱，clean 没有单调提升趋势
+- **Cube**（结构化 3D 操作）：噪声 sweep 收益是四任务中最弱的，clean 上也无单调趋势。我们把它读作 trade-off 的最弱表现而非例外——结构化动作序列加上可预测的视觉-动作耦合本身已经提供了一定鲁棒性，所以 input-side 噪声增广能买到的额外收益少
 
 这一发现揭示了一个根本性的张力：**全局噪声增广无法区分"应该被不变性丢弃的视觉背景冗余"和"应该被保留分辨率的控制关键特征"**。
 

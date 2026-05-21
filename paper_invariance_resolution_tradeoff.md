@@ -41,7 +41,7 @@ A systematic sweep across four tasks at eight levels of `std_max ∈ {0.001, …
 - **TwoRoom** (visually redundant navigation): clean success rises monotonically with noise, peaking at std = 0.008 (98.33% / 98.67%).
 - **PushT** (contact-heavy manipulation): clean peaks at std = 0.003 (89.67%), but robustness at px+goal 0.08 peaks at std = 0.006 (87.00%) — clean and robust optima dissociate.
 - **Reacher** (continuous reaching): lies on a 0.002–0.006 plateau; clean point-best is at std = 0.006 (86.00%), while px+goal 0.08 point-best is at std = 0.002 (85.67%). Very low noise (0.001) is statistically indistinguishable from base (61.67% vs 58.67%, within across-seed std of ~2.5 pts), suggesting a *minimum* noise threshold before the task starts to benefit.
-- **Cube** (structured manipulation): noise sweep is weakest; no monotone trend on clean.
+- **Cube** (structured 3D manipulation): noise sweep is the weakest of the four, with no monotone trend on clean. We read this as the trade-off's mildest manifestation rather than an absence: a structured action sequence and predictable visual–action coupling supply enough robustness that input-side augmentation buys comparatively little.
 
 This finding exposes a fundamental tension: **global noise augmentation cannot distinguish "background visual redundancy that should be made invariant" from "control-relevant features that should retain resolution".**
 

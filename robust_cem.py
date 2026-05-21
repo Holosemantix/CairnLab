@@ -118,6 +118,7 @@ class RiskAwareCEMSolver:
         topk: int = 30,
         device: str | torch.device = "cpu",
         seed: int = 1234,
+        callbacks: list[Any] | None = None,
         robust: Any | None = None,
     ) -> None:
         self.model = model
@@ -130,6 +131,7 @@ class RiskAwareCEMSolver:
         self._dtype = self._infer_model_dtype()
         self.torch_gen = torch.Generator(device=device).manual_seed(seed)
         self.cpu_gen = torch.Generator(device="cpu").manual_seed(seed + 100003)
+        self.callbacks = list(callbacks) if callbacks else []
         self.robust = _robust_config(robust)
         self.last_robust_stats: dict[str, Any] = {}
         self.robust_history: list[dict[str, Any]] = []
@@ -195,34 +197,44 @@ class RiskAwareCEMSolver:
     ) -> torch.Tensor | None:
         """Normalize warm-start actions and fill missing horizon tail.
 
-        Current JEPA checkpoints are Costable-only, so this degenerates to
-        zero-padding. If a future Costable+Actionable model exposes
-        ``get_action()``, use it to fill the missing planning blocks.
+        This mirrors stable-worldmodel's prepare_init_action: Costable-only
+        checkpoints zero-pad, while Costable+Actionable models can fill the
+        missing tail through ``get_action(..., horizon=, prefix_actions=)``.
         """
         if init_action is None:
-            actions = torch.zeros(
-                [n_envs, 0, self.action_dim],
-                device=self.device,
-                dtype=self.dtype,
-            )
+            actions = None
         else:
             actions = init_action.to(device=self.device, dtype=self.dtype)
+            assert actions.shape[0] == n_envs, (
+                f"init_action batch size {actions.shape[0]} != n_envs {n_envs}"
+            )
+            assert actions.shape[2] == self.action_dim, (
+                f"init_action action_dim {actions.shape[2]} != action_dim {self.action_dim}"
+            )
 
-        if actions.shape[1] >= self.horizon:
+        n_prev = actions.shape[1] if actions is not None else 0
+        remaining = self.horizon - n_prev
+        if remaining <= 0:
             return actions[:, : self.horizon]
 
-        remaining = self.horizon - actions.shape[1]
-        tail = self._actionable_warm_start_tail(info_dict, remaining, n_envs=n_envs)
+        tail = self._actionable_warm_start_tail(info_dict, remaining, actions, n_envs=n_envs)
         if tail is None:
             tail = torch.zeros(
                 [n_envs, remaining, self.action_dim],
                 device=self.device,
                 dtype=self.dtype,
             )
-        return torch.cat([actions, tail], dim=1)
+        if actions is not None:
+            return torch.cat([actions.to(tail.device), tail], dim=1)
+        return tail
 
     def _actionable_warm_start_tail(
-        self, info_dict: dict, remaining: int, *, n_envs: int
+        self,
+        info_dict: dict,
+        remaining: int,
+        prefix_actions: torch.Tensor | None,
+        *,
+        n_envs: int,
     ) -> torch.Tensor | None:
         if not hasattr(self.model, "get_action"):
             return None
@@ -234,12 +246,47 @@ class RiskAwareCEMSolver:
             else:
                 prepared_info[k] = v
 
+        try:
+            tail = self.model.get_action(
+                prepared_info,
+                horizon=remaining,
+                prefix_actions=prefix_actions,
+            )
+        except TypeError as exc:  # pragma: no cover - legacy Actionable fallback
+            logging.warning(
+                "Actionable warm-start did not accept horizon/prefix_actions; "
+                f"falling back to repeated one-step get_action: {exc}"
+            )
+            return self._legacy_actionable_tail(prepared_info, remaining, n_envs=n_envs)
+        except Exception as exc:  # pragma: no cover - compatibility fallback
+            logging.warning(f"Actionable warm-start failed; falling back to zeros: {exc}")
+            return None
+
+        if isinstance(tail, np.ndarray):
+            tail = torch.from_numpy(tail)
+        if not torch.is_tensor(tail):
+            tail = torch.as_tensor(tail)
+        tail = tail.to(device=self.device, dtype=self.dtype)
+        if tail.ndim == 2:
+            tail = tail.unsqueeze(1)
+        if tail.shape != (n_envs, remaining, self.action_dim):
+            logging.warning(
+                "Actionable warm-start produced shape "
+                f"{tuple(tail.shape)}, expected {(n_envs, remaining, self.action_dim)}; "
+                "falling back to zeros."
+            )
+            return None
+        return tail
+
+    def _legacy_actionable_tail(
+        self, prepared_info: dict, remaining: int, *, n_envs: int
+    ) -> torch.Tensor | None:
         tail = []
         for _ in range(remaining):
             try:
                 action = self.model.get_action(prepared_info)
             except Exception as exc:  # pragma: no cover - compatibility fallback
-                logging.warning(f"Actionable warm-start failed; falling back to zeros: {exc}")
+                logging.warning(f"Legacy Actionable warm-start failed; falling back to zeros: {exc}")
                 return None
             if isinstance(action, np.ndarray):
                 action = torch.from_numpy(action)
@@ -250,7 +297,7 @@ class RiskAwareCEMSolver:
                 action = action.repeat(1, self._config.action_block)
             if action.shape[-1] != self.action_dim:
                 logging.warning(
-                    "Actionable warm-start produced action dim "
+                    "Legacy Actionable warm-start produced action dim "
                     f"{action.shape[-1]}, expected {self.action_dim}; falling back to zeros."
                 )
                 return None
@@ -302,6 +349,9 @@ class RiskAwareCEMSolver:
         mean, var = self.init_action_distrib(total_envs, init_action)
         robust_stats: list[dict[str, Any]] = []
 
+        for cb in self.callbacks:
+            cb.reset()
+
         for start_idx in range(0, total_envs, self.batch_size):
             end_idx = min(start_idx + self.batch_size, total_envs)
             current_bs = end_idx - start_idx
@@ -313,6 +363,9 @@ class RiskAwareCEMSolver:
             final_batch_cost = None
             final_topk_candidates = None
             final_topk_point_costs = None
+
+            for cb in self.callbacks:
+                cb.start_batch()
 
             for _step in range(self.n_steps):
                 is_last_step = _step == self.n_steps - 1
@@ -347,8 +400,25 @@ class RiskAwareCEMSolver:
 
                 elite_candidates = topk_candidates[:, : self.topk]
                 elite_vals = topk_vals[:, : self.topk]
+                prev_mean = batch_mean
+                prev_var = batch_var
                 batch_mean = elite_candidates.mean(dim=1)
                 batch_var = elite_candidates.std(dim=1)
+
+                for cb in self.callbacks:
+                    cb(
+                        step=_step,
+                        candidates=candidates,
+                        costs=costs,
+                        topk_vals=elite_vals,
+                        topk_inds=topk_inds[:, : self.topk],
+                        topk_candidates=elite_candidates,
+                        mean=batch_mean,
+                        var=batch_var,
+                        prev_mean=prev_mean,
+                        prev_var=prev_var,
+                    )
+
                 final_batch_cost = elite_vals.mean(dim=1).cpu().tolist()
                 final_topk_candidates = topk_candidates
                 final_topk_point_costs = topk_vals
@@ -372,6 +442,11 @@ class RiskAwareCEMSolver:
         outputs["actions"] = mean.detach().cpu()
         outputs["mean"] = [mean.detach().cpu()]
         outputs["var"] = [var.detach().cpu()]
+        if self.callbacks:
+            outputs["callbacks"] = {}
+            for cb in self.callbacks:
+                cb.end_solve()
+                outputs["callbacks"][cb.output_key] = cb.history
 
         self.last_robust_stats = {
             "enabled": self.robust.enabled,

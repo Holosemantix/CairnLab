@@ -1,7 +1,5 @@
 # Paper 1 故事线大纲
 
-本文档面向合作者快速理解和讨论 Paper 1 的叙事逻辑。它不是论文正文的 source of truth；正式数值、表格、图和引用以 `main.tex`、`paper_invariance_resolution_tradeoff.md`、`assets/paper1_data/` 为准。
-
 ## 一句话版本
 
 LeWM 这类 JEPA + CEM 世界模型在 clean 视觉输入上能规划，但未经噪声训练时会在 control-time pixel/goal noise 下严重崩溃；简单的全局 input-side noise augmentation 能大幅恢复 OOD 成功率，但没有全局最优剂量，因为它同时带来有益的 invariance 和有害的 task-resolution compression。本文用 4 个任务、36 个 LeWM checkpoint、统一 3 evaluation seeds × 100 trajectories 协议，以及五层表征诊断，把这个现象定义为 invariance-resolution trade-off。

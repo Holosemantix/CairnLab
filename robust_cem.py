@@ -32,6 +32,8 @@ class RobustCEMConfig:
     quantile_q: float = 0.8
     lambda_std: float = 1.0
     log_debug: bool = True
+    robust_history_limit: int = 256
+    tta_clamp: bool = True
 
 
 def _cfg_get(cfg: Any, key: str, default: Any) -> Any:
@@ -59,6 +61,8 @@ def _robust_config(cfg: Any) -> RobustCEMConfig:
         quantile_q=float(_cfg_get(cfg, "quantile_q", 0.8)),
         lambda_std=float(_cfg_get(cfg, "lambda_std", 1.0)),
         log_debug=bool(_cfg_get(cfg, "log_debug", True)),
+        robust_history_limit=int(_cfg_get(cfg, "robust_history_limit", 256)),
+        tta_clamp=bool(_cfg_get(cfg, "tta_clamp", True)),
     )
 
 
@@ -122,7 +126,8 @@ class RiskAwareCEMSolver:
         self.num_samples = num_samples
         self.n_steps = n_steps
         self.topk = topk
-        self.device = device
+        self.device = torch.device(device)
+        self._dtype = self._infer_model_dtype()
         self.torch_gen = torch.Generator(device=device).manual_seed(seed)
         self.cpu_gen = torch.Generator(device="cpu").manual_seed(seed + 100003)
         self.robust = _robust_config(robust)
@@ -155,6 +160,10 @@ class RiskAwareCEMSolver:
         return self._n_envs
 
     @property
+    def dtype(self) -> torch.dtype:
+        return self._dtype
+
+    @property
     def action_dim(self) -> int:
         return self._action_dim * self._config.action_block
 
@@ -165,17 +174,109 @@ class RiskAwareCEMSolver:
     def __call__(self, *args: Any, **kwargs: Any) -> dict:
         return self.solve(*args, **kwargs)
 
+    def _infer_model_dtype(self) -> torch.dtype:
+        if hasattr(self.model, "parameters"):
+            try:
+                return next(self.model.parameters()).dtype
+            except StopIteration:
+                pass
+        return torch.float32
+
+    def _tensor_to_solver(self, value: torch.Tensor) -> torch.Tensor:
+        target_dtype = self.dtype if value.is_floating_point() else None
+        return value.to(device=self.device, dtype=target_dtype)
+
+    def prepare_init_action(
+        self, info_dict: dict, init_action: torch.Tensor | None = None
+    ) -> torch.Tensor | None:
+        """Normalize warm-start actions and fill missing horizon tail.
+
+        Current JEPA checkpoints are Costable-only, so this degenerates to
+        zero-padding. If a future Costable+Actionable model exposes
+        ``get_action()``, use it to fill the missing planning blocks.
+        """
+        if init_action is None:
+            actions = torch.zeros(
+                [self.n_envs, 0, self.action_dim],
+                device=self.device,
+                dtype=self.dtype,
+            )
+        else:
+            actions = init_action.to(device=self.device, dtype=self.dtype)
+
+        if actions.shape[1] >= self.horizon:
+            return actions[:, : self.horizon]
+
+        remaining = self.horizon - actions.shape[1]
+        tail = self._actionable_warm_start_tail(info_dict, remaining)
+        if tail is None:
+            tail = torch.zeros(
+                [self.n_envs, remaining, self.action_dim],
+                device=self.device,
+                dtype=self.dtype,
+            )
+        return torch.cat([actions, tail], dim=1)
+
+    def _actionable_warm_start_tail(self, info_dict: dict, remaining: int) -> torch.Tensor | None:
+        if not hasattr(self.model, "get_action"):
+            return None
+
+        prepared_info = {}
+        for k, v in info_dict.items():
+            if torch.is_tensor(v):
+                prepared_info[k] = self._tensor_to_solver(v)
+            else:
+                prepared_info[k] = v
+
+        tail = []
+        for _ in range(remaining):
+            try:
+                action = self.model.get_action(prepared_info)
+            except Exception as exc:  # pragma: no cover - compatibility fallback
+                logging.warning(f"Actionable warm-start failed; falling back to zeros: {exc}")
+                return None
+            if isinstance(action, np.ndarray):
+                action = torch.from_numpy(action)
+            if not torch.is_tensor(action):
+                action = torch.as_tensor(action)
+            action = action.to(device=self.device, dtype=self.dtype).reshape(self.n_envs, -1)
+            if action.shape[-1] == self._action_dim:
+                action = action.repeat(1, self._config.action_block)
+            if action.shape[-1] != self.action_dim:
+                logging.warning(
+                    "Actionable warm-start produced action dim "
+                    f"{action.shape[-1]}, expected {self.action_dim}; falling back to zeros."
+                )
+                return None
+            tail.append(action.unsqueeze(1))
+        return torch.cat(tail, dim=1) if tail else None
+
     def init_action_distrib(
         self, actions: torch.Tensor | None = None
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        var = self.var_scale * torch.ones([self.n_envs, self.horizon, self.action_dim])
-        mean = torch.zeros([self.n_envs, 0, self.action_dim]) if actions is None else actions
+        var = self.var_scale * torch.ones(
+            [self.n_envs, self.horizon, self.action_dim],
+            device=self.device,
+            dtype=self.dtype,
+        )
+        mean = (
+            torch.zeros(
+                [self.n_envs, 0, self.action_dim],
+                device=self.device,
+                dtype=self.dtype,
+            )
+            if actions is None
+            else actions.to(device=self.device, dtype=self.dtype)
+        )
 
         remaining = self.horizon - mean.shape[1]
         if remaining > 0:
-            device = mean.device
-            new_mean = torch.zeros([self.n_envs, remaining, self.action_dim])
-            mean = torch.cat([mean, new_mean], dim=1).to(device)
+            new_mean = torch.zeros(
+                [self.n_envs, remaining, self.action_dim],
+                device=self.device,
+                dtype=self.dtype,
+            )
+            mean = torch.cat([mean, new_mean], dim=1)
 
         return mean, var
 
@@ -190,9 +291,8 @@ class RiskAwareCEMSolver:
             "var": [],
         }
 
+        init_action = self.prepare_init_action(info_dict, init_action)
         mean, var = self.init_action_distrib(init_action)
-        mean = mean.to(self.device)
-        var = var.to(self.device)
 
         total_envs = self.n_envs
         robust_stats: list[dict[str, Any]] = []
@@ -210,6 +310,7 @@ class RiskAwareCEMSolver:
             final_topk_point_costs = None
 
             for _step in range(self.n_steps):
+                is_last_step = _step == self.n_steps - 1
                 candidates = torch.randn(
                     current_bs,
                     self.num_samples,
@@ -217,6 +318,7 @@ class RiskAwareCEMSolver:
                     self.action_dim,
                     generator=self.torch_gen,
                     device=self.device,
+                    dtype=self.dtype,
                 )
                 candidates = candidates * batch_var.unsqueeze(1) + batch_mean.unsqueeze(1)
                 candidates[:, 0] = batch_mean
@@ -232,7 +334,7 @@ class RiskAwareCEMSolver:
                 )
 
                 select_k = self.topk
-                if self.robust.enabled:
+                if self.robust.enabled and is_last_step:
                     select_k = min(self.num_samples, max(self.topk, int(self.robust.topk)))
                 topk_vals, topk_inds = torch.topk(costs, k=select_k, dim=1, largest=False)
                 batch_indices = torch.arange(current_bs, device=self.device).unsqueeze(1).expand(-1, select_k)
@@ -276,6 +378,8 @@ class RiskAwareCEMSolver:
         }
         if self.robust.enabled:
             self.robust_history.append(self.last_robust_stats)
+            if self.robust.robust_history_limit > 0:
+                self.robust_history = self.robust_history[-self.robust.robust_history_limit :]
             outputs["robust"] = self.last_robust_stats
 
         print(f"CEM solve time: {time.time() - start_time:.4f} seconds")
@@ -287,7 +391,7 @@ class RiskAwareCEMSolver:
         for k, v in info_dict.items():
             v_batch = v[start_idx:end_idx]
             if torch.is_tensor(v):
-                v_batch = v_batch.unsqueeze(1)
+                v_batch = self._tensor_to_solver(v_batch).unsqueeze(1)
                 v_batch = v_batch.expand(current_bs, num_samples, *v_batch.shape[2:])
             elif isinstance(v, np.ndarray):
                 v_batch = np.repeat(v_batch[:, None, ...], num_samples, axis=1)
@@ -297,7 +401,9 @@ class RiskAwareCEMSolver:
     def _num_risk_samples(self) -> int:
         if self.robust.belief_mode == "none":
             return 1
-        return max(1, self.robust.latent_samples or self.robust.tta_num)
+        if self.robust.belief_mode == "input_tta_empirical":
+            return max(1, self.robust.tta_num)
+        return max(1, self.robust.latent_samples)
 
     def _rerank_topk(
         self,
@@ -383,4 +489,17 @@ class RiskAwareCEMSolver:
         )
         if len(noise_shape) >= 2 and value.shape[1] != 1:
             noise = noise.expand_as(value)
-        return value + noise * self.robust.tta_noise_std
+        noised = value + noise * self.robust.tta_noise_std
+        if not self.robust.tta_clamp:
+            return noised
+
+        # Inputs are already ImageNet-normalized in eval.py, so [0, 1] would be
+        # the wrong range here. Clamp to the observed transformed tensor range
+        # per image/token to prevent TTA samples from leaving the local support.
+        feature_start = 3 if value.ndim >= 6 else 2
+        reduce_dims = tuple(range(feature_start, value.ndim))
+        if not reduce_dims:
+            return noised
+        lower = value.amin(dim=reduce_dims, keepdim=True)
+        upper = value.amax(dim=reduce_dims, keepdim=True)
+        return torch.minimum(torch.maximum(noised, lower), upper)

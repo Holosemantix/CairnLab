@@ -2,6 +2,7 @@ import os
 
 os.environ["MUJOCO_GL"] = "osmesa"
 
+import json
 import time
 from pathlib import Path
 
@@ -295,7 +296,8 @@ def run(cfg: DictConfig):
         f.write(f"evaluation_time: {end_time - start_time} seconds\n")
         if hasattr(policy, "solver") and hasattr(policy.solver, "last_robust_stats"):
             f.write("==== ROBUST_CEM ====\n")
-            f.write(f"{policy.solver.last_robust_stats}\n")
+            f.write(json.dumps(policy.solver.last_robust_stats, sort_keys=True))
+            f.write("\n")
             if hasattr(policy.solver, "robust_history"):
                 f.write(f"robust_history_len: {len(policy.solver.robust_history)}\n")
 

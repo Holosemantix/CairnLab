@@ -23,3 +23,5 @@ robust:
   quantile_q: 0.8
   lambda_std: 1.0
   log_debug: true
+  robust_history_limit: 256
+  tta_clamp: true

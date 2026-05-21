@@ -293,6 +293,11 @@ def run(cfg: DictConfig):
         f.write("==== RESULTS ====\n")
         f.write(f"metrics: {metrics}\n")
         f.write(f"evaluation_time: {end_time - start_time} seconds\n")
+        if hasattr(policy, "solver") and hasattr(policy.solver, "last_robust_stats"):
+            f.write("==== ROBUST_CEM ====\n")
+            f.write(f"{policy.solver.last_robust_stats}\n")
+            if hasattr(policy.solver, "robust_history"):
+                f.write(f"robust_history_len: {len(policy.solver.robust_history)}\n")
 
 
 if __name__ == "__main__":

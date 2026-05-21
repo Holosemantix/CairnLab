@@ -8,13 +8,13 @@
 
 Joint-Embedding Predictive Architectures (JEPAs) are commonly *believed* to learn abstract, invariant world representations: by predicting in latent space rather than reconstructing pixels, the encoder is expected to discard visual redundancy and noise. This expectation is a *community heuristic* rather than a published guarantee — to our knowledge no JEPA work formally claims pixel-noise robustness for control. We test the implicit assumption on **LeWorldModel (LeWM)**, a published JEPA world model, across four manipulation and navigation tasks (PushT, TwoRoom, Reacher, Cube) and eight levels of train-time pixel-noise augmentation. We find three things:
 
-1. **Visual OOD collapse in JEPA + CEM control.** Without noise-aware training, LeWM collapses under mild pixel noise: PushT control success drops from 86.33% (clean) to 4.67% (Gaussian std = 0.08, near-random); TwoRoom drops from 94.00% to 50.00%.
+1. **Visual out-of-distribution (OOD) collapse in JEPA + Cross-Entropy Method (CEM) control.** Without noise-aware training, LeWM collapses under mild pixel noise: PushT control success drops from 86.33% (clean) to 4.67% (Gaussian std = 0.08, near-random); TwoRoom drops from 94.00% to 50.00%.
 
-2. **No global-optimal noise level exists.** Tasks respond very differently to noise augmentation. Visually redundant navigation (TwoRoom) benefits from heavy noise (point-best at std = 0.008), whereas contact-heavy control (PushT) reaches peak *clean* at std = 0.003 but peak *robustness* at std = 0.006 — clean and robust optima dissociate within a single task.
+2. **No globally optimal noise level exists.** Tasks respond very differently to noise augmentation. Visually redundant navigation (TwoRoom) benefits from heavy noise (point-best at std = 0.008), whereas contact-heavy control (PushT) reaches peak *clean* at std = 0.003 but peak *robustness* at std = 0.006 — clean and robust optima dissociate within a single task.
 
-3. **A five-layer diagnostic protocol explains the underlying compression mechanism.** Instrumenting encoder shift, encoder geometry, predictor sensitivity, latent-noise response, and task resolution traces noise-induced control failure to a representational chain: representation compression (drop in effective rank) → loss of transition-key resolution (drop in `transition_resolution_ratio`) → loss of controllability (drop in `id_probe_r²`). When used as a **cross-checkpoint predictor**, the strongest single diagnostic (`predictor_target_to_nn_cos_ratio_at_max_std`) tracks a **residual ckpt-quality signal beyond the sweep-level `std_max` effect** (partial Spearman ρ = −0.59 on clean and −0.41 on px+g 0.08 after conditioning on `std_max`, on the n = 9 LeWM PushT sweep with unified 3-seed × 100 eval). The metric does *not* predict OOD drop beyond what training `std_max` already explains: the apparent ρ(metric, drop) = −0.77 collapses to +0.06 once `std_max` is partialled out. The diagnostic toolkit usefully ranks checkpoints after controlling for the sweep-level `std_max` trend, but does *not* substitute for actually training with noise when the goal is OOD robustness.
+3. **A five-layer diagnostic protocol explains the underlying compression mechanism.** Instrumenting encoder shift, encoder geometry, predictor sensitivity, latent-noise response, and task resolution traces noise-induced control failure to a representational chain: representation compression (drop in effective rank) → loss of transition-key resolution (drop in `transition_resolution_ratio`) → loss of controllability (drop in `id_probe_r²`). When used as a **cross-checkpoint predictor**, the strongest single diagnostic — which we call the **fragility ratio** (full code name `predictor_target_to_nn_cos_ratio_at_max_std`; defined in §3.3) — tracks a **residual checkpoint-quality signal beyond the sweep-level `std_max` effect** (partial Spearman ρ = −0.59 on clean and −0.41 on px+g 0.08 after conditioning on `std_max`, on the n = 9 LeWM PushT sweep with unified 3-seed × 100 eval). The metric does *not* predict OOD drop beyond what training `std_max` already explains: the apparent ρ(metric, drop) = −0.77 collapses to +0.06 once `std_max` is partialled out. The diagnostic toolkit usefully ranks checkpoints after controlling for the sweep-level `std_max` trend, but does *not* substitute for actually training with noise when the goal is OOD robustness.
 
-This paper does not propose a new training algorithm. Its contribution is (i) a systematic empirical study of JEPA + CEM visual OOD failure, (ii) a reproducible diagnostic toolkit, and (iii) an honest delineation of what cross-ckpt diagnostics can and cannot predict.
+This paper does not propose a new training algorithm. Its contribution is (i) a systematic empirical study of JEPA + CEM visual OOD failure, (ii) a reproducible diagnostic toolkit, and (iii) an explicit delineation of what cross-checkpoint diagnostics can and cannot predict.
 
 **Keywords**: world models; JEPA; visual robustness; representation diagnostics; invariance–resolution trade-off.
 
@@ -24,13 +24,13 @@ This paper does not propose a new training algorithm. Its contribution is (i) a 
 
 ### 1.1 The implicit invariance heuristic and where it breaks
 
-Since Yann LeCun proposed the Joint-Embedding Predictive Architecture (JEPA) [1], this paradigm has been advanced as a direction for self-supervised learning. Unlike generative models (VAEs, diffusion), JEPA does not reconstruct pixels; it predicts future *representations* in latent space. The motivating intuition — that predicting "what is invariant" rather than "what pixels look like" should yield abstract representations that discard visual redundancy and noise — is now part of the field's *informal vocabulary* in talks, blog posts, and survey articles [2,3].
+Since Yann LeCun proposed the Joint-Embedding Predictive Architecture (JEPA) [1], this paradigm has been advanced as a direction for self-supervised learning. Unlike generative models (variational autoencoders, diffusion), JEPA does not reconstruct pixels; it predicts future *representations* in latent space. The motivating intuition — that predicting "what is invariant" rather than "what pixels look like" should yield abstract representations that discard visual redundancy and noise — is now part of the field's *informal vocabulary* in talks, blog posts, and survey articles [2,3].
 
-We emphasise that this is a heuristic rather than a published guarantee. To our knowledge, no JEPA paper has *formally claimed* visual-OOD robustness for control-relevant downstream tasks. I-JEPA [2] and V-JEPA [3,4] established strong visual representations on ImageNet and video via masked prediction; LeWorldModel (LeWM) [5] extended the framework to end-to-end stable world-model training across four robotic control tasks. Existing robustness studies have probed JEPA only on image classification (N-JEPA [8]), synthetic 1D distractors (VJEPA [9]), or medical ultrasound (US-JEPA [10]); none on **JEPA-based control** under realistic pixel noise.
+This is a heuristic rather than a published guarantee. To our knowledge, no JEPA paper has *formally claimed* visual-OOD robustness for control-relevant downstream tasks. I-JEPA [2] and V-JEPA [3,4] established strong visual representations on ImageNet and video via masked prediction; LeWorldModel (LeWM) [5] extended the framework to end-to-end stable world-model training across four robotic control tasks. Existing robustness studies have probed JEPA only on image classification (N-JEPA [8]), synthetic 1D distractors (VJEPA [9]), or medical ultrasound (US-JEPA [10]); none on **JEPA-based control** under realistic pixel noise.
 
 This leaves a basic operational question open: **if the input image is degraded by sensor noise, lighting change, or camera jitter, does a JEPA + CEM world model still plan and act reliably?**
 
-The data say no. On PushT (2D pushing), the untrained-with-noise LeWM achieves 86.33% on clean images but falls to 4.67% under Gaussian pixel noise of std = 0.08 — essentially random. TwoRoom (2D navigation) drops from 94.00% to 50.00%. Latent prediction alone does not, in this regime, confer the visual robustness the community heuristic would predict.
+The empirical answer is no. On PushT (2D pushing), the untrained-with-noise LeWM achieves 86.33% on clean images but falls to 4.67% under Gaussian pixel noise of std = 0.08 — near-random. TwoRoom (2D navigation) drops from 94.00% to 50.00%. Latent prediction alone does not, in this regime, confer the visual robustness the community heuristic would predict.
 
 ### 1.2 The core tension: no globally optimal noise level
 
@@ -81,7 +81,7 @@ N-JEPA [8] introduces diffusion-noise augmentation into I-JEPA via noise-to-teac
 
 ### 2.3 World models and input augmentation
 
-In RL world-model literature, DreamerV3 [11] and TD-MPC2 [12] rely on learned visual encoders and latent dynamics, which may provide some implicit tolerance to benign visual variation but do not by themselves settle sensor-noise robustness. ViGMO [13] tests Gaussian noise and blur on DMC tasks, finds "sensor noise is a fundamentally different distribution shift", and proposes a latent-consistency loss.
+In the reinforcement-learning (RL) world-model literature, DreamerV3 [11] and TD-MPC2 [12] rely on learned visual encoders and latent dynamics, which may provide some implicit tolerance to benign visual variation but do not by themselves settle sensor-noise robustness. ViGMO [13] tests Gaussian noise and blur on DeepMind Control (DMC) tasks, finds "sensor noise is a fundamentally different distribution shift", and proposes a latent-consistency loss.
 
 **Relation.** ViGMO addresses model-based RL (DrQ-v2, DreamerV3), not JEPA architectures. Its conclusion that "sensor noise is special" is directionally aligned with ours; our contribution adds *mechanistic decomposition* via the five-layer diagnostic, not just performance reporting.
 
@@ -109,7 +109,7 @@ $$
 \mathcal{L}_{\text{LeWM}} = \mathcal{L}_{\text{pred}} + \lambda \cdot \mathcal{L}_{\text{SIGReg}}
 $$
 
-where $\mathcal{L}_{\text{pred}}$ is the latent-space MSE between predicted and target representations. **SIGReg (Sketch Isotropic Gaussian Regularizer)** projects each latent onto $M$ unit-norm random directions, computes the Epps–Pulley empirical-characteristic-function distance [19] between each projection and $\mathcal{N}(0,1)$, and aggregates with the Gauss-window weights — preventing collapse without explicit BatchNorm. (The Cramér–Wold theorem motivates the construction: equality of high-dimensional distributions reduces to equality of all one-dimensional projections of their characteristic functions.) Inference uses the Cross-Entropy Method (CEM) for latent-space MPC.
+where $\mathcal{L}_{\text{pred}}$ is the latent-space mean-squared error (MSE) between predicted and target representations. **SIGReg (Sketch Isotropic Gaussian Regularizer)** projects each latent onto $M$ unit-norm random directions, computes the Epps–Pulley empirical-characteristic-function distance [19] between each projection and $\mathcal{N}(0,1)$, and aggregates with the Gauss-window weights — preventing collapse without explicit BatchNorm. (The Cramér–Wold theorem motivates the construction: equality of high-dimensional distributions reduces to equality of all one-dimensional projections of their characteristic functions.) Inference uses the Cross-Entropy Method (CEM) for latent-space model predictive control (MPC).
 
 ### 3.2 Input-side noise augmentation
 
@@ -122,30 +122,30 @@ Evaluation comprises clean and noised conditions. Noised conditions use two inte
 
 ### 3.3 Five-layer diagnostic framework
 
-To understand how noise augmentation affects the latent representation, we define a five-layer diagnostic protocol:
+The framework decomposes the JEPA + CEM forward pass — pixels → encoder $f$ → latent $z$ → predictor $g$ → cost surface → planned actions — into five sequential stages and instruments each transition with one or more metrics. Layers 1–2 characterise the encoder output (how the latent shifts under noise; how the latent space is globally organised); Layer 3 measures how the predictor amplifies that shift; Layer 4 isolates the predictor and cost surface by injecting noise directly into the latent; Layer 5 quantifies the planning-relevant information that the latent still carries. Each layer probes one transition, so an observed failure can be localised to a single stage. Most individual metrics already have a literature home (cited inline below); the contribution is the composite protocol — and a handful of metrics introduced for this paper (the **fragility ratio**, `transition_resolution_ratio`, `latent_robust_radius_z`) that explicitly normalise predictor and cost-surface sensitivity by the local nearest-neighbour scale of the clean encoder.
 
-**Layer 1 — Encoder shift.** Quantifies the direction and magnitude of latent displacement induced by input noise. Key metrics:
+**Layer 1 — Encoder shift.** Magnitude and direction of latent displacement under input noise. Key metrics:
 - `noise_angle_deg` — angle between clean and noisy latents.
 - `noise_l2` — L2 displacement.
-- `noise_to_nn_cos_ratio` — noise displacement relative to local NN cosine distance.
-- `noise_angle_slope` — slope of angle vs noise std.
+- `noise_to_nn_cos_ratio` — encoder shift normalised by the clean nearest-neighbour (NN) cosine distance (introduced here).
+- `noise_angle_slope` — per-unit-std angular gain.
 
-**Layer 2 — Encoder geometry.** Quantifies global structure of the latent space. Key metrics:
-- `clean_nn_cos_dist` — local cosine distance to nearest neighbour.
-- `clean_effective_rank` — effective rank of the latent covariance.
-- `cka_linear_at_max_std` — Centered Kernel Alignment between clean and noisy latents.
+**Layer 2 — Encoder geometry.** Global structure of the encoded latent space. Key metrics:
+- `clean_nn_cos_dist` — local neighbourhood scale.
+- `clean_effective_rank` — effective rank of the latent covariance (Roy & Vetterli, 2007).
+- `cka_linear_at_max_std` — Centered Kernel Alignment (CKA; Kornblith et al., 2019) between clean and noisy latents at the max injection std.
 
-**Layer 3 — Predictor sensitivity.** Quantifies how the predictor amplifies input noise. Key metrics:
-- `predictor_target_to_nn_cos_ratio_at_max_std` — single-step predictor target shift normalised by clean NN distance. **The strongest cross-ckpt diagnostic we find.**
+**Layer 3 — Predictor sensitivity.** How the predictor amplifies the encoder shift. Key metrics:
+- **fragility ratio** (full code name `predictor_target_to_nn_cos_ratio_at_max_std`; introduced here) — single-step predictor target shift normalised by clean NN distance. The strongest cross-checkpoint diagnostic we identify.
 - `predictor_rollout_drift_T(T)` — autoregressive drift over T steps.
 
 **Layer 4 — Latent-noise response.** Inject noise directly in the latent `z` (bypassing the encoder) to isolate predictor and cost contributions:
-- `latent_cost_surface_slope_z` — slope of planning cost under perturbations of the goal latent.
-- `latent_robust_radius_z` — empirical robust radius in latent space.
+- `latent_cost_surface_slope_z` — slope of the planner's cost surface under perturbations of the goal latent.
+- `latent_robust_radius_z` — the largest perturbation that keeps the cost ranking stable (introduced here).
 
-**Layer 5 — Task resolution.** Quantifies how much control-relevant information the latent retains:
-- `transition_resolution_ratio_cos` / `transition_resolution_ratio_l2` — distinguishability of consecutive latents.
-- `id_probe_r²` — R² of a linear probe predicting state ID from the latent (a controllability proxy).
+**Layer 5 — Task resolution.** How much control-relevant information the latent retains:
+- `transition_resolution_ratio_cos` / `transition_resolution_ratio_l2` — ratio of inter-transition to intra-transition distance (introduced here as a planning-relevant analogue of class separability).
+- `id_probe_r²` — R² of a linear probe predicting state ID from the latent (a controllability proxy, in the spirit of linear-probe analysis by Alain & Bengio, 2017).
 
 ### 3.4 Cross-checkpoint validation protocol
 
@@ -173,7 +173,7 @@ We report **both** the raw Spearman and the partial-on-`std_max` quantities. The
 
 **Evaluation protocol.** All success rates in this paper — clean and noised, across all 36 ckpts (4 tasks × {base, std 0.001..0.008}) — are computed under a single protocol: `n = 3` seeds (42/43/44), `num_eval = 100` trajectories per seed (300 trajectories per condition per ckpt). Every cell of Tables 1 and 2 is mean ± across-seed population std over `n = 3`, matching `assets/paper1_data/canonical_evals_20260517.json`. Raw per-seed metrics are stored at `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`; the aggregated source-of-truth for downstream evaluation analysis lives at `assets/paper1_data/canonical_evals_20260517.json`. The released diagnostic source-of-truth for Figure 3 and Tables 4/4b/5 is `assets/paper1_data/canonical_diagnostics_20260517.json`.
 
-**Hardware.** Single NVIDIA A100 (80 GB) GPU; training takes 2–4 hours per task per configuration.
+**Hardware.** Single NVIDIA H800 (80 GB) GPU. Training follows the LeWM schedule released with the baseline; diagnostic analysis is a small fraction of a single training run.
 
 **Main figures.** This paper has 6 main figures rendered by `tools/paper1_figs.py` and stored in `assets/paper1_figs/`. Figure 1 (the hero) summarises the OOD cliff and per-task px+goal 0.08 point-best recovery; Figure 2 shows the per-task noise sweep; Figure 3 shows the LeWM PushT scatter of the strongest cross-ckpt diagnostic against clean vs OOD-drop; Figure 4 shows the per-task representative diagnostic radar; Figure 5 shows the mechanism schematic; Figure 6 shows the per-task Pareto trajectory of (clean, OOD) under the noise sweep.
 
@@ -240,7 +240,7 @@ Reading guidance:
 
 The same sweep, plotted as a (clean, OOD) trajectory per task, makes the trade-off visually explicit (Figure 6): each task's sweep curve moves from base far below the y = x diagonal toward the upper-right, with per-task curvature determined by how much OOD gain a task can buy from a given drop in clean. TwoRoom moves nearly along the diagonal up to (98, 98); PushT moves vertically (clean stays around 87–90 while OOD rises from 4 to 87); Reacher makes a big diagonal jump from (58, 15) to (86, 85); Cube barely moves.
 
-![Fig 6 — Per-task Pareto trajectory of (clean, OOD) under noise sweep](assets/paper1_figs/fig6_pareto.png)
+![Fig 3 — Per-task Pareto trajectory of (clean, OOD) under noise sweep](assets/paper1_figs/fig3_pareto.png)
 
 **Three observations.**
 
@@ -338,7 +338,7 @@ The partial-correlation analysis above settles the interpretation:
 
 The PushT scatter (Figure 3) makes both halves of this visible. Panel (a) plots metric × clean and shows the unconditional negative trend (Spearman ρ = −0.33; the residual trend after conditioning on `std_max` is what the partial correlation captures). Panel (b) plots metric × OOD drop and shows the unconditional ρ = −0.77, but the colour-bar (which encodes `std_max`) reveals the structure: low-`std_max` ckpts (light blue) live at high drop, high-`std_max` ckpts (dark blue) live at low drop, and the metric tracks `std_max` itself. After the `std_max` trend is removed, the metric does not separate small-drop from large-drop ckpts.
 
-![Fig 3 — PushT n = 9 LeWM sweep: fragility metric is a ckpt-quality predictor (a), the apparent OOD-drop correlation in (b) is mediated by std_max](assets/paper1_figs/fig3_scatter.png)
+![Fig 5 — PushT n = 9 LeWM sweep: fragility ratio is a checkpoint-quality predictor (a); the apparent OOD-drop correlation in (b) is mediated by std_max](assets/paper1_figs/fig5_scatter.png)
 
 ### 4.6 Mechanism attribution: where in the pipeline does noise cause failure?
 
@@ -376,7 +376,7 @@ Directly injecting noise into the latent `z` (skipping the encoder) decouples en
 
 The common primary cause across the four tasks is **encoder shift transduced by the predictor**. The auxiliary cost-swap sanity check in §4.6.1 suggests that the cost function alone is unlikely to explain the collapse, but we do not treat that single-checkpoint ablation as a task-wide quantitative attribution. This is also the root reason that Layer-5 task-resolution metrics (`transition_resolution_ratio`, `id_probe_r²`) carry strong signal in §4.4: once the encoder's latent neighbourhood structure is corrupted beyond the NN distance scale, downstream predictor and planner are already operating on the wrong neighbourhood.
 
-![Fig 5 — Mechanism schematic: pixels → encoder → predictor → CEM](assets/paper1_figs/fig5_mechanism.png)
+![Fig 6 — Mechanism schematic: pixels → encoder → predictor → CEM](assets/paper1_figs/fig6_mechanism.png)
 
 ---
 
@@ -437,7 +437,7 @@ Our sweep data suggest a simple operational recipe:
 
 **Limitation 3 — Diagnostic framework is empirical, not theoretical.** Our metrics are selected by cross-ckpt correlation. Establishing a formal causal chain "effective rank ↓ → resolution ratio ↓ → control failure" is future work. Reacher and TwoRoom fail the partial-correlation criterion for *all* metrics — directly exposing where the empirical framework breaks down.
 
-**Limitation 4 — Automated transition reweighting is not a substitute for noise training.** As a sanity check we also tested a scale-preserving heteroscedastic-NLL formulation in which a learned per-transition σ-head downweights high-error transitions. The result is informative as a negative finding: TwoRoom clean reaches 99.67% but high-noise robustness lags noise training; PushT clean *collapses* from 86.33 to 13.33% because contact-control transitions have high prediction error and are exactly the transitions the σ-weighting would discard. Full data are reported in Appendix D. The lesson — "hard ≠ unimportant" in contact control — connects the trade-off documented here to the broader question of per-token controllers, which we leave to follow-up work.
+**Limitation 4 — Automated transition reweighting is not a substitute for noise training.** As a sanity check we also tested a scale-preserving heteroscedastic negative-log-likelihood (NLL) formulation in which a learned per-transition σ-head downweights high-error transitions. The result is informative as a negative finding: TwoRoom clean reaches 99.67% but high-noise robustness lags noise training; PushT clean *collapses* from 86.33 to 13.33% because contact-control transitions have high prediction error and are exactly the transitions the σ-weighting would discard. Full data are reported in Appendix D. The lesson — "hard ≠ unimportant" in contact control — connects the trade-off documented here to the broader question of per-token controllers, which we leave to follow-up work.
 
 **Future direction 1 — Per-token adaptive consistency.** Our strongest diagnostic, `predictor_target_to_nn_cos_ratio_at_max_std`, is a ckpt-level scalar. Whether its per-token variant can serve as a per-token consistency controller is a separate methodological question (an investigation we have ongoing).
 

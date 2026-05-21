@@ -3,19 +3,24 @@
 Run:
     python -m tools.paper1_figs --out-dir assets/paper1_figs
 
-Generates:
-    fig1_hero.png      — 4-task OOD cliff + per-task px+g 0.08 point-best recovery
-    fig2_sweep.png     — 4 panels of clean / px+g 0.08 vs std_max
-    fig3_scatter.png   — PushT n=9 LeWM scatter: predictor_target_to_nn_cos_ratio
-                         (max-std) vs clean / eval-drop
-    fig4_radar.png     — 4-task diagnostic radar (base vs representative ckpt)
-    fig5_mechanism.png — mechanism schematic: pixels -> encoder -> predictor -> CEM
-    fig6_pareto.png    — per-task Pareto trajectory in (clean, px+g 0.08)
+The PNG filenames match the figure numbers in the rendered PDF
+(``fig{N}_*.png`` is the N-th figure in the document order):
+
+    fig1_hero.png       — 4-task OOD cliff + per-task px+g 0.08 point-best recovery
+    fig2_sweep.png      — 4 panels of clean / px+g 0.08 vs std_max
+    fig3_pareto.png     — per-task Pareto trajectory in (clean, px+g 0.08)
+    fig4_radar.png      — 4-task diagnostic radar (base vs representative ckpt)
+    fig5_scatter.png    — PushT n=9 LeWM scatter: predictor_target_to_nn_cos_ratio
+                          (max-std) vs clean / eval-drop
+    fig6_mechanism.png  — mechanism schematic: pixels -> encoder -> predictor -> CEM
+
+Figures are produced without an in-PNG ``Fig. N. ...'' suptitle so that the
+LaTeX caption is the single source of truth and figure numbers cannot drift.
 
 Data sources (no new computation needed):
 
 - Eval tables (§4.2, §4.3): assets/paper1_data/canonical_evals_20260517.json
-- Diagnostic tables / Figure 3 predictor metrics:
+- Diagnostic tables / scatter predictor metrics:
   assets/paper1_data/canonical_diagnostics_20260517.json
 """
 from __future__ import annotations
@@ -210,12 +215,14 @@ def fig1_hero(out_path: Path):
     for i, t in enumerate(tasks):
         drop = base_clean[i] - base_px08[i]
         recover = best_px08[i] - base_px08[i]
-        # drop label above the px+g 0.08 base bar
-        ax.text(x[i], base_px08[i] + 2,
-                f"−{drop:.0f}", ha="center", va="bottom",
-                color="#EE6677", fontsize=9, fontweight="bold")
-        # recover label above the OOD point-best bar
-        ax.text(x[i] + w, best_px08[i] + 2,
+        # drop label inside the lower portion of the red bar (anchored just
+        # above the bar's top so it does not collide with the recovery label
+        # on the adjacent green bar).
+        ax.text(x[i], base_px08[i] / 2.0,
+                f"−{drop:.0f}", ha="center", va="center",
+                color="white", fontsize=9, fontweight="bold")
+        # recover label above the green OOD point-best bar
+        ax.text(x[i] + w, best_px08[i] + 3.0,
                 f"+{recover:.0f}", ha="center", va="bottom",
                 color="#228833", fontsize=9, fontweight="bold")
         # OOD point-best sigma under the x-tick label
@@ -226,10 +233,8 @@ def fig1_hero(out_path: Path):
     ax.set_xticks(x)
     ax.set_xticklabels(tasks, fontsize=10)
     ax.set_ylabel("Success rate (%)")
-    ax.set_ylim(-14, 112)
+    ax.set_ylim(-14, 118)
     ax.set_yticks(range(0, 101, 20))
-    ax.set_title("Fig. 1. Visual OOD cliff in LeWM and recovery by px+g 0.08 point-best "
-                 "noise training (success rate, 4 tasks)", loc="left", pad=10)
     ax.legend(loc="upper right", frameon=False, ncol=1, fontsize=9)
     ax.grid(axis="y", alpha=0.3, linewidth=0.4)
 
@@ -265,9 +270,6 @@ def fig2_sweep(out_path: Path):
         ax.grid(alpha=0.25, linewidth=0.4)
     axes[0].set_ylabel("Success rate (%)")
     axes[0].legend(loc="lower right", frameon=False, fontsize=8.5)
-    fig.suptitle("Fig. 2. Noise-training sweep: clean vs OOD per task; "
-                 "no single std_max is jointly optimal across tasks",
-                 x=0.01, y=1.02, ha="left", fontsize=11)
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
@@ -374,9 +376,6 @@ def fig3_scatter(out_path: Path, data_root: Path):
                         fraction=0.025, pad=0.04)
     cbar.set_label("std_max during training", fontsize=8.5)
 
-    fig.suptitle("Fig. 3. PushT LeWM noise sweep (n=9): fragility metric tracks residual "
-                 "ckpt quality (a), not OOD-specific robustness (b)",
-                 x=0.01, y=1.02, ha="left", fontsize=11)
     fig.savefig(out_path)
     plt.close(fig)
     print(f"  wrote {out_path} (n={len(rows)} LeWM ckpts;  "
@@ -448,11 +447,7 @@ def fig4_radar(out_path: Path):
         ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.16),
                   frameon=False, fontsize=8.5, ncol=2)
 
-    fig.suptitle("Fig. 4. Per-task diagnostic profile: base vs representative "
-                 "noise-trained diagnostic checkpoint on 6 metrics  "
-                 "(min-max normalized across 4 tasks)",
-                 y=0.995, fontsize=11)
-    fig.subplots_adjust(left=0.07, right=0.94, top=0.88, bottom=0.05,
+    fig.subplots_adjust(left=0.07, right=0.94, top=0.94, bottom=0.05,
                         wspace=0.6, hspace=0.65)
     fig.savefig(out_path)
     plt.close(fig)
@@ -464,25 +459,33 @@ def fig4_radar(out_path: Path):
 # ============================================================================
 
 def fig5_mechanism(out_path: Path):
-    fig, ax = plt.subplots(figsize=(11.2, 4.6))
+    # Wider canvas + clearly separated bands eliminates the box / callout
+    # collisions of the previous layout. Vertical bands (top -> bottom):
+    #   0.82  upper callout (auxiliary sanity-check)
+    #   0.50  pipeline boxes + arrows
+    #   0.36  layer labels under arrows
+    #   0.20  quantitative attribution callout
+    #   0.06  one-line interpretation
+    fig, ax = plt.subplots(figsize=(11.5, 5.4))
     ax.axis("off")
 
-    box_hw, box_hh = 0.09, 0.10
+    box_hw, box_hh = 0.085, 0.07
+    box_y = 0.50
     box_centers = [0.10, 0.36, 0.62, 0.88]
     box_labels = ["pixels\n(noise +)", "encoder $f$", "predictor $g$", "CEM /\nplanner"]
     box_colors = ["#FDE7E9", "#E7F0FA", "#FCEFD8", "#E8F4EA"]
 
     for x, lab, color in zip(box_centers, box_labels, box_colors):
         ax.add_patch(plt.Rectangle(
-            (x - box_hw, 0.47), 2 * box_hw, 2 * box_hh,
+            (x - box_hw, box_y - box_hh), 2 * box_hw, 2 * box_hh,
             edgecolor="black", facecolor=color, linewidth=1.0
         ))
-        ax.text(x, 0.57, lab, ha="center", va="center", fontsize=10)
+        ax.text(x, box_y, lab, ha="center", va="center", fontsize=10)
 
     for i in range(len(box_centers) - 1):
         x0 = box_centers[i] + box_hw + 0.015
         x1 = box_centers[i + 1] - box_hw - 0.015
-        ax.annotate("", xy=(x1, 0.57), xytext=(x0, 0.57),
+        ax.annotate("", xy=(x1, box_y), xytext=(x0, box_y),
                     arrowprops=dict(arrowstyle="->", lw=1.5))
 
     layer_labels = [
@@ -496,7 +499,7 @@ def fig5_mechanism(out_path: Path):
         (box_centers[2] + box_centers[3]) / 2,
     ]
     for x, label in zip(layer_x, layer_labels):
-        ax.text(x, 0.34, label, ha="center", va="center",
+        ax.text(x, 0.36, label, ha="center", va="center",
                 fontsize=9, style="italic", color="#555555")
 
     ax.text(
@@ -504,21 +507,21 @@ def fig5_mechanism(out_path: Path):
         "Auxiliary cost-swap sanity check (not part of the canonical 36-ckpt table):\n"
         "TwoRoom one-off ablation, px+goal 0.03  36.0 → 42.0 after cosine→mse swap; clean ref = 69.7",
         ha="center", va="center", fontsize=8.5, color="#7A4B00",
-        bbox=dict(boxstyle="round,pad=0.35", facecolor="#FFF6E5",
+        bbox=dict(boxstyle="round,pad=0.4", facecolor="#FFF6E5",
                   edgecolor="#B57F2A", linewidth=0.7)
     )
 
     ax.text(
-        0.50, 0.17,
+        0.50, 0.20,
         "Quantitative attribution in §4.6.2 uses the two full-coverage LeWM n=9 predictor metrics.\n"
         "After conditioning on std_max, Reacher's multi-step drift is the only non-trivial residual signal.",
         ha="center", va="center", fontsize=8.8,
-        bbox=dict(boxstyle="round,pad=0.35", facecolor="#F5F5F5",
+        bbox=dict(boxstyle="round,pad=0.4", facecolor="#F5F5F5",
                   edgecolor="#AAAAAA", linewidth=0.7)
     )
 
     ax.text(
-        0.50, 0.05,
+        0.50, 0.06,
         "Interpretation: the common qualitative path is encoder shift transduced by the predictor;\n"
         "the cost function alone is unlikely to explain the collapse.",
         ha="center", va="center", fontsize=9.2
@@ -526,8 +529,6 @@ def fig5_mechanism(out_path: Path):
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    ax.set_title("Fig. 5. Mechanism schematic: where the OOD failure enters the pipeline",
-                 loc="left", fontsize=11, pad=10)
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
@@ -579,9 +580,6 @@ def fig6_pareto(out_path: Path):
     ax.set_ylim(0, 105)
     ax.set_xlabel("Clean success rate (%)")
     ax.set_ylabel("OOD success rate (%)  —  px+g 0.08")
-    ax.set_title("Fig. 6. Per-task Pareto trajectory of (clean, OOD) under noise sweep\n"
-                 "(open marker = base; solid markers = std_max sweep; ringed marker = px+g 0.08 point-best)",
-                 loc="left", fontsize=10, pad=10)
     ax.grid(alpha=0.25, linewidth=0.4)
     ax.legend(loc="lower right", frameon=False, fontsize=8.5, ncol=2)
     fig.tight_layout()
@@ -615,18 +613,21 @@ def main():
     print(f"Data root:  {data_root}")
     selected = set(args.only or ["1", "2", "3", "4", "5", "6"])
 
+    # Document-order filenames: hero=1, sweep=2, pareto=3, radar=4,
+    # scatter=5, mechanism=6. The original Python function names are kept
+    # so that internal references remain stable.
     if "1" in selected:
         fig1_hero(out_dir / "fig1_hero.png")
     if "2" in selected:
         fig2_sweep(out_dir / "fig2_sweep.png")
     if "3" in selected:
-        fig3_scatter(out_dir / "fig3_scatter.png", data_root)
+        fig6_pareto(out_dir / "fig3_pareto.png")
     if "4" in selected:
         fig4_radar(out_dir / "fig4_radar.png")
     if "5" in selected:
-        fig5_mechanism(out_dir / "fig5_mechanism.png")
+        fig3_scatter(out_dir / "fig5_scatter.png", data_root)
     if "6" in selected:
-        fig6_pareto(out_dir / "fig6_pareto.png")
+        fig5_mechanism(out_dir / "fig6_mechanism.png")
 
     print("done.")
 

@@ -16,7 +16,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 （3）**五层诊断协议揭示压缩机制**：通过编码器偏移、编码器几何、预测器敏感性、潜空间噪声响应、任务分辨率五层指标，我们将噪声引起的控制失败追溯到一条表征链：表征压缩（effective rank 下降）→ 关键帧分辨率丢失（transition resolution ratio 崩溃）→ 可控性退化（id_probe_r² 下降）。但作为**跨 checkpoint 预测量**使用时，最强的单一诊断量（`predictor_target_to_nn_cos_ratio_at_max_std`）追踪的是 **超出 sweep-level `std_max` 效应之外的残余 ckpt-quality 信号**（PushT n=9 sweep 上 partial Spearman ρ = −0.59 vs clean、−0.41 vs px+g 0.08，条件于 `std_max`，eval 数据为统一 3-seed × 100）；它**不预测训练协议层面的 OOD drop**——unconditional ρ(metric, drop) = −0.77，但条件于 `std_max` 后塌缩到 +0.06。诊断 toolkit 在去除 `std_max` sweep 趋势后有用，但**不能替代实际用 noise 训练**当目标是 OOD 鲁棒性时。
 
-本研究不提出新的训练算法，贡献为：(i) JEPA + CEM 视觉 OOD 失败的系统经验研究；(ii) 一套可复现的诊断 toolkit；(iii) 对 cross-ckpt 诊断量"能预测什么、不能预测什么"的诚实划界。
+本研究不提出新的训练算法，贡献为：(i) JEPA + CEM 视觉 OOD 失败的系统经验研究；(ii) 一套可复现的诊断 toolkit；(iii) 对跨 checkpoint 诊断量"能预测什么、不能预测什么"的明确划界。
 
 **关键词**：世界模型；JEPA；视觉鲁棒性；表征诊断；不变性-分辨率权衡
 
@@ -57,7 +57,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 **贡献 3：揭示了噪声增广的深层机制。** 通过诊断指标，我们证明：TwoRoom 的收益伴随有益的 representation compression（effective rank 47.60 → 33.59），低维离散任务不需要高分辨率；而 PushT 从高分辨率、高可控性表征出发（effective rank 76.42，`id_probe_r² = 0.7739`），即使 light representative diagnostic checkpoint 也已经显著压缩 rank（76.42 → 42.85），并且 task-resolution 指标已经出现温和下行（`transition_resolution_ratio_l2` 0.3015 → 0.2800；`id_probe_r²` 0.7739 → 0.7500）。因此对 contact-heavy 任务，进一步压缩不能默认安全。
 
-**贡献 4：诚实划定 cross-checkpoint diagnostic 的适用边界。** 最强 cross-ckpt 诊断量 `predictor_target_to_nn_cos_ratio_at_max_std` 在移除 sweep-level `std_max` 趋势后仍保留 residual ckpt-quality 信号（PushT n=9 sweep 上，clean partial Spearman ρ = −0.59，px+goal 0.08 partial ρ = −0.41）。但它并不是 OOD oracle：表面上的 ρ(metric, OOD drop)=−0.77 由 `std_max` 中介，partial out `std_max` 后只剩 +0.06。因此该指标适合在控制 `std_max` 趋势后辅助 model selection，不能替代真实 OOD eval。
+**贡献 4：明确划定跨 checkpoint 诊断的适用边界。** 最强跨 checkpoint 诊断量——本文称之为 **fragility ratio**（完整字段名 `predictor_target_to_nn_cos_ratio_at_max_std`，§3.3 定义）——在移除 sweep-level `std_max` 趋势后仍保留 residual checkpoint-quality 信号（PushT n=9 sweep 上，clean partial Spearman ρ = −0.59，px+goal 0.08 partial ρ = −0.41）。但它并不是 OOD oracle：表面上的 ρ(metric, OOD drop)=−0.77 由 `std_max` 中介，partial out `std_max` 后只剩 +0.06。因此该指标适合在控制 `std_max` 趋势后辅助 model selection，不能替代真实 OOD eval。
 
 ### 1.4 本文组织
 
@@ -125,35 +125,35 @@ $$
 
 ### 3.3 五层诊断框架
 
-为理解噪声增广对潜空间表征的深层影响，我们定义了五层诊断协议：
+诊断框架沿 JEPA + CEM 前向通路（pixels → encoder $f$ → 潜变量 $z$ → predictor $g$ → cost surface → planned actions）拆成五个顺序阶段，每个阶段配一组指标。第 1–2 层刻画编码器输出（噪声下潜空间如何偏移、整体几何如何组织），第 3 层度量 predictor 对偏移的放大，第 4 层把 encoder 旁路、直接在潜空间注入噪声以分离 predictor 与 cost 的贡献，第 5 层评估潜空间还残留多少与规划相关的信息。每层只刻画一次 forward 转换，使观察到的失败可以定位到具体阶段。大多数单一指标已有文献来源（下文逐项标注）；本文的贡献是**这一套组合协议**——以及一小批为本文引入的指标（**fragility ratio**、`transition_resolution_ratio`、`latent_robust_radius_z`），它们显式地用 clean encoder 的最近邻尺度对 predictor 与 cost surface 的敏感度做归一化。
 
 **第 1 层：编码器偏移（Encoder Shift）**
 衡量输入噪声引起的潜空间偏移方向和幅度。核心指标：
 - `noise_angle_deg`：clean 与 noisy 潜向量的夹角
 - `noise_l2`：clean 与 noisy 潜向量的 L2 距离
-- `noise_to_nn_cos_ratio`：noise 引起的偏移相对于 batch-local 最近邻距离的比值
+- `noise_to_nn_cos_ratio`：噪声偏移除以 clean 最近邻 (NN) cosine 距离（本文引入）
 - `noise_angle_slope`：随噪声强度增加的夹角变化率
 
 **第 2 层：编码器几何（Encoder Geometry）**
 衡量潜空间的全局结构。核心指标：
 - `clean_nn_cos_dist`：clean 潜空间中各 token 的最近邻 cosine 距离
-- `clean_effective_rank`：clean 潜空间的 effective rank（表征信息丰富度）
-- `cka_linear`：不同噪声强度下潜表征的 Centered Kernel Alignment
+- `clean_effective_rank`：clean 潜空间的 effective rank（Roy & Vetterli, 2007）
+- `cka_linear_at_max_std`：clean 与 noisy 潜表征间的 Centered Kernel Alignment (CKA; Kornblith et al., 2019)
 
 **第 3 层：预测器敏感性（Predictor Sensitivity）**
 衡量预测器对噪声的响应。核心指标：
-- `predictor_target_to_nn_cos_ratio_at_max_std`：在最大噪声下，predictor 目标偏移与 clean NN 距离的比值。**这是我们发现的最强诊断指标**
+- **fragility ratio**（完整字段名 `predictor_target_to_nn_cos_ratio_at_max_std`；本文引入）：在最大噪声下，predictor 目标偏移与 clean NN 距离的比值。**这是我们识别出的最强跨 checkpoint 诊断指标。**
 - `predictor_rollout_drift_T(T)`：长程 rollout 的漂移
 
 **第 4 层：潜空间噪声响应（Latent-Noise Response）**
 直接在潜空间加噪声（而非输入空间），分离 encoder 和 predictor 的贡献。核心指标：
 - `latent_cost_surface_slope_z`：潜空间噪声引起的 cost surface 斜率变化
-- `latent_robust_radius_z`：潜空间鲁棒半径
+- `latent_robust_radius_z`：使 cost 排序保持稳定的最大扰动半径（本文引入）
 
 **第 5 层：任务分辨率（Task Resolution）**
 衡量潜空间保留了多少任务相关的控制信息。核心指标：
-- `transition_resolution_ratio_cos` / `transition_resolution_ratio_l2`：相邻时间步潜向量的可区分性
-- `id_probe_r2`：从潜向量预测物理状态 ID 的 R²（可控性代理指标）
+- `transition_resolution_ratio_cos` / `transition_resolution_ratio_l2`：相邻 transition 的可区分性，作为面向规划的类可分性的类比指标（本文引入）
+- `id_probe_r2`：从潜向量做 inverse-dynamics 线性 probe 的 R²，作为可控性代理（沿用 Alain & Bengio, 2017 的 linear-probe 分析思路）
 
 ### 3.4 跨 Checkpoint 验证协议
 
@@ -179,7 +179,7 @@ $$
 
 **Evaluation seeds**：每个 ckpt 用 3 个 evaluation seeds（42/43/44）评测，每个 seed 100 trajectories。
 
-**硬件**：单 GPU（NVIDIA A100），训练约 2-4 小时/任务/配置。
+**硬件**：单 GPU（NVIDIA H800，80 GB），训练时长沿用 LeWM 基线公开的训练 schedule；诊断分析的开销远小于一次训练。
 
 **Evaluation 协议**：本文所有成功率——clean 与所有噪声条件，跨全部 36 ckpt（4 任务 × {base, std 0.001..0.008}）——均按统一协议计算：`n = 3` seeds (42/43/44)，每 seed `num_eval = 100` trajectories（每个条件每个 ckpt 共 300 trajectories）。表 1 / 表 2 的每个 cell 是 `n=3` 跨 seed 的 mean ± population std，与 `assets/paper1_data/canonical_evals_20260517.json` 保持一致。每 seed 原始 metrics 位于 `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`；下游 eval 聚合源是 `assets/paper1_data/canonical_evals_20260517.json`。Figure 3 与表 4/4b/5 的 released diagnostic source-of-truth 是 `assets/paper1_data/canonical_diagnostics_20260517.json`。
 
@@ -255,7 +255,7 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 
 同样的 sweep 数据画成 (clean, OOD) 轨迹（图 6）让 trade-off 视觉化：每个任务的 sweep 曲线从 base 远低于 y = x 对角线出发，向右上角移动，per-task 曲率取决于"clean 跌多少能换 OOD 升多少"。TwoRoom 几乎沿对角线移到 (98, 98)；PushT 几乎垂直上升（clean 维持在 87–90，OOD 从 4 升到 87）；Reacher 沿对角大跳 (58, 15) → (86, 85)；Cube 几乎不动。
 
-![Fig 6 — Per-task Pareto trajectory of (clean, OOD) under noise sweep](assets/paper1_figs/fig6_pareto.png)
+![Fig 3 — Per-task Pareto trajectory of (clean, OOD) under noise sweep](assets/paper1_figs/fig3_pareto.png)
 
 **三个核心观察：**
 
@@ -353,7 +353,7 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 图 3 双面板让两者都可见。Panel (a) plot metric × clean，unconditional Spearman ρ = −0.33（偏相关捕捉的是条件于 `std_max` 后留下的 residual trend）。Panel (b) plot metric × OOD drop，边际 ρ = −0.77，但 colour-bar（编码 `std_max`）暴露了结构：低 `std_max` ckpt（浅蓝）位于高 drop，高 `std_max` ckpt（深蓝）位于低 drop，metric 沿 `std_max` 走。去掉 `std_max` 趋势后，该指标无法区分小 drop 与大 drop。
 
-![Fig 3 — PushT n=9 LeWM sweep: fragility metric is a ckpt-quality predictor (a), the apparent OOD-drop correlation in (b) is mediated by std_max](assets/paper1_figs/fig3_scatter.png)
+![Fig 5 — PushT n=9 LeWM sweep: fragility ratio is a checkpoint-quality predictor (a); the apparent OOD-drop correlation in (b) is mediated by std_max](assets/paper1_figs/fig5_scatter.png)
 
 ### 4.6 机制归因：噪声从哪一层进入失败链
 
@@ -391,7 +391,7 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 四任务的共同主因是 **encoder shift 透过 predictor 的放大**；§4.6.1 的辅助 cost-swap sanity check 说明单靠 cost function 不太可能解释崩溃，但我们**不**把那个 single-checkpoint ablation 当作 task-wide quantitative attribution。这也是 §3.3 第 5 层 task resolution 指标（`transition_resolution_ratio`, `id_probe_r2`）在 §4.4 给出强信号的根本原因：当 encoder 学到的 latent 邻域结构被噪声破坏到超过 NN 距离尺度时，下游 predictor 与 planner 都已经在错误邻域上工作了。
 
-![Fig 5 — Mechanism schematic: pixels → encoder → predictor → CEM](assets/paper1_figs/fig5_mechanism.png)
+![Fig 6 — Mechanism schematic: pixels → encoder → predictor → CEM](assets/paper1_figs/fig6_mechanism.png)
 
 ---
 
@@ -452,7 +452,7 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 **局限 3：诊断框架是经验工具，不是理论模型。** 当前指标基于跨 ckpt 相关性挑出；建立 "effective rank 下降 → resolution ratio 崩溃 → control failure" 的形式化因果链是未来方向。Reacher 和 TwoRoom 在我们的偏相关判据下没有任何指标通过——这正暴露了 empirical 框架的边界。
 
-**局限 4：自动 transition reweighting 不能替代 noise 训练。** 作为 sanity check 我们额外测试了 scale-preserving 异方差 NLL 形式（per-transition σ-head 学习 prediction difficulty，并用 `exp(-σ)` 对 transition 自动 reweight）。结果是一个信息量大的负 finding：TwoRoom clean 达 99.67% 但高噪声 robust 不如 noise training；PushT clean **从 86.33 暴跌至 13.33%**——因为接触控制 transition 普遍 prediction error 高，恰恰是 σ-weighting 会丢弃的 transition。完整数据见附录 D。这条 "hard ≠ unimportant" 的教训把本文的 trade-off 与 per-token controller 的广义问题挂上钩，后者属于后续工作。
+**局限 4：自动 transition reweighting 不能替代 noise 训练。** 作为 sanity check 我们额外测试了 scale-preserving 异方差负对数似然 (NLL) 形式（per-transition σ-head 学习 prediction difficulty，并用 `exp(-σ)` 对 transition 自动 reweight）。结果是一个信息量大的负 finding：TwoRoom clean 达 99.67% 但高噪声 robust 不如 noise training；PushT clean **从 86.33 暴跌至 13.33%**——因为接触控制 transition 普遍 prediction error 高，恰恰是 σ-weighting 会丢弃的 transition。完整数据见附录 D。这条 "hard ≠ unimportant" 的教训把本文的 trade-off 与 per-token controller 的广义问题挂上钩，后者属于后续工作。
 
 **未来方向 1：per-token 自适应一致性。** §4.5 / §4.6 识别的最强信号 `predictor_target_to_nn_cos_ratio` 是 ckpt-level scalar；它的 per-token 化能否作为 per-token consistency 的 controller signal，是一个独立的方法学问题（**作为本工作的方法学延伸正在研究中**，结果待后续工作）。
 

@@ -442,7 +442,7 @@ if [ "${run_eval_sweep}" = "1" ]; then
     # the existing `eval_corruption_stds` name for backward compatibility;
     # for the new families we use suggestive names.
     eval_corruption_stds="${eval_corruption_stds-0.0 0.03 0.05 0.08}"
-    eval_blur_kernel_sizes="${eval_blur_kernel_sizes-1 3 7 15}"    # odd px; 1 = clean / no-op
+    eval_blur_kernel_sizes="${eval_blur_kernel_sizes-3 7 11 15}"    # odd px; kernel_size=1 is the no-op but omitted from defaults to avoid shell-word-split issues on cloud launchers
     eval_resize_factors="${eval_resize_factors-1.0 0.75 0.5 0.25}"  # 1.0 = clean
 
     # 构造 (label, magnitude, mode, seed, ctype) 任务列表。多 seed 时 label 后缀 _seed${seed}，

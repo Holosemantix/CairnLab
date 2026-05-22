@@ -524,7 +524,6 @@ fi
 #   diagnostic_skip_latent_noise=1 / diagnostic_skip_action_effect=1
 #                              per-tool overrides
 if [ "${run_diagnostics}" = "1" ]; then
-    noise_table_stds="${noise_table_stds:-0.0 0.005 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1}"
     diagnostic_rollout_steps="${diagnostic_rollout_steps:-1 2 4 8}"
     # Diagnostic corruption family. Defaults to the same family the eval
     # sweep uses (``eval_corruption_type``) so a blur eval run also gets
@@ -533,6 +532,26 @@ if [ "${run_diagnostics}" = "1" ]; then
     # ``_<corruption_type>`` suffix to the save dir to keep blur/resize
     # outputs from overwriting the canonical gaussian diagnostic files.
     diagnostic_corruption_type="${diagnostic_corruption_type:-${eval_corruption_type:-gaussian}}"
+
+    # Per-type default sweep magnitudes for the noise / predictor sensitivity
+    # probes. Each family needs different scales because the magnitudes have
+    # different units (std / sigma px / factor). Users can override via
+    # ``noise_table_stds`` (kept as the variable name for back-compat).
+    case "${diagnostic_corruption_type}" in
+        gaussian)
+            noise_table_stds="${noise_table_stds:-0.0 0.005 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1}"
+            ;;
+        gaussian_blur)
+            # sigma list (px). 0 = identity; ramp up to a heavy blur.
+            noise_table_stds="${noise_table_stds:-0 0.5 1 2 3 5}"
+            ;;
+        resize)
+            # factor list. 1.0 = identity; ramp down to a near-blob.
+            noise_table_stds="${noise_table_stds:-1.0 0.8 0.6 0.4 0.25 0.125}"
+            ;;
+        *) echo "[diagnostics] unknown diagnostic_corruption_type='${diagnostic_corruption_type}'"; exit 1 ;;
+    esac
+
     diag_args=(
         "--model" "${output_model_name}=${ckpt_abs}"
         "--dataset" "${diagnostic_dataset_name}"

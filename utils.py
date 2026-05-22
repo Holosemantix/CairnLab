@@ -152,6 +152,10 @@ def get_img_noise_transform(cfg, source: str = "pixels", target: str = "pixels")
 class AddGaussianBlur:
     """Per-frame Gaussian spatial blur on (..., C, H, W) tensors.
 
+    Each frame is convolved with a 2D Gaussian kernel of standard
+    deviation ``sigma``; the tensor shape is preserved (the blur is
+    purely a spectral low-pass and does *not* change spatial size).
+
     Mirrors :class:`AddNormalizedGaussianNoise`'s API so the same
     eval / corruption-sweep machinery can dispatch on it:
 
@@ -164,7 +168,12 @@ class AddGaussianBlur:
 
     The kernel size defaults to the smallest odd integer
     :math:`\\geq 6 \\sigma + 1` so the support covers about
-    :math:`\\pm 3 \\sigma` of the kernel mass.
+    :math:`\\pm 3 \\sigma` of the kernel mass. Indicative examples:
+
+        sigma = 0  -> no-op (returned unchanged)
+        sigma = 1  -> 7x7 kernel, sub-pixel-scale blur
+        sigma = 3  -> 19x19 kernel, moderate blur
+        sigma = 5  -> 31x31 kernel, heavy blur
     """
 
     def __init__(self, sigma_min, sigma_max, apply_prob: float = 1.0,
@@ -234,8 +243,16 @@ class AddGaussianBlur:
 
 
 class AddResize:
-    """Bilinear downscale-then-upscale: a low-pass that destroys
-    high-frequency detail without adding noise.
+    """Two-step bilinear corruption that destroys high-frequency detail
+    without changing the tensor shape:
+
+        Step 1 (downscale):  H x W  ->  round(H*factor) x round(W*factor)
+        Step 2 (upscale):    round(H*factor) x round(W*factor)  ->  H x W
+
+    The output shape matches the input shape exactly, so downstream code
+    (encoders, dataloaders) sees an unchanged interface; only the spectrum
+    of the image has been low-passed by the round-trip through a smaller
+    intermediate resolution.
 
     Per-frame independent sampling mirrors the noise transform's API:
 
@@ -243,8 +260,15 @@ class AddResize:
     - if so, ``factor ~ Uniform(factor_min, factor_max)`` is sampled.
 
     ``factor = 1.0`` is a no-op; smaller factors discard more detail.
+    Indicative examples on a 224x224 input:
+
+        factor=0.75 -> intermediate 168x168  (mild)
+        factor=0.50 -> intermediate 112x112  (moderate)
+        factor=0.25 -> intermediate  56x56   (heavy)
+        factor=0.10 -> intermediate  22x22   (extreme; only blobs survive)
+
     The eval convention is ``factor_min == factor_max`` with
-    ``apply_prob = 1.0``.
+    ``apply_prob = 1.0`` (deterministic round-trip on every frame).
     """
 
     def __init__(self, factor_min, factor_max, apply_prob: float = 1.0):

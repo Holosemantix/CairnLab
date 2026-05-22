@@ -78,7 +78,7 @@ def _clone_batch(batch: Mapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
 
 
 def _add_noise(x: torch.Tensor, magnitude: float, seed: int,
-               corruption_type: str = "gaussian") -> torch.Tensor:
+               corruption_type: str = "gaussian_noise") -> torch.Tensor:
     """Apply the configured corruption family at a single magnitude.
     Named ``_add_noise`` for symmetry with the rest of the diagnostic
     suite even though it now also handles blur / resize."""
@@ -187,14 +187,19 @@ def _make_history_noise_batch(
     std: float,
     seed: int,
     history_noise_only: bool,
-    corruption_type: str = "gaussian",
+    corruption_type: str = "gaussian_noise",
 ) -> Dict[str, torch.Tensor]:
     out = _clone_batch(batch)
-    # The "is corruption a no-op" check has to know the family — only
-    # gaussian and gaussian_blur use 0 as the zero magnitude; resize
-    # uses 1.0. The _add_noise dispatch handles this internally; we
-    # still short-circuit here for the cheap-zero gaussian path.
-    if corruption_type in ("gaussian", "gaussian_blur") and std <= 0:
+    # The "is corruption a no-op" check has to know the family because
+    # the zero-magnitude convention differs:
+    #   gaussian_noise: std <= 0
+    #   gaussian_blur:  kernel_size <= 1
+    #   resize:         factor >= 1.0
+    # _add_noise handles all three internally, but a cheap short-circuit
+    # here avoids an unnecessary clone for the common clean-frame case.
+    if corruption_type == "gaussian_noise" and std <= 0:
+        return out
+    if corruption_type == "gaussian_blur" and std <= 1:
         return out
     if corruption_type == "resize" and std >= 1.0:
         return out
@@ -219,7 +224,7 @@ def analyze_model_predictor_noise(
     history_noise_only: bool = True,
     seed: int = 3072,
     device: str = "cuda",
-    corruption_type: str = "gaussian",
+    corruption_type: str = "gaussian_noise",
 ) -> list[Dict[str, Any]]:
     model = load_model(ckpt, device)
     spaces = get_model_spaces(model)
@@ -328,7 +333,7 @@ def run_predictor_sensitivity(
     history_noise_only: bool = True,
     seed: int = 3072,
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
-    corruption_type: str = "gaussian",
+    corruption_type: str = "gaussian_noise",
 ) -> list[Dict[str, Any]]:
     if not models:
         raise ValueError("models must contain at least one label -> checkpoint path.")

@@ -53,7 +53,7 @@ optimizer:
 #   python train_pldm.py exp_name=pusht_pldm_noise_0to006_p1 \
 #     image_noise.std_max=0.006 image_noise.noise_prob=1.0
 image_noise:
-  type: gaussian
+  type: gaussian_noise
   std_min: 0.0
   std_max: 0.0
   noise_prob: 1.0

@@ -133,7 +133,13 @@ def get_img_preprocessor(source: str, target: str, img_size: int = 224):
 
 
 def get_img_noise_transform(cfg, source: str = "pixels", target: str = "pixels"):
-    noise_type = _cfg_get(cfg, "type", "gaussian")
+    """Build the training-time pixel noise transform from a config block.
+
+    Expected ``cfg.type`` is ``gaussian_noise`` (renamed from ``gaussian``
+    on 2026-05-22 to align with the eval-side corruption naming, which
+    now includes ``gaussian_blur`` and ``resize`` as sibling families).
+    """
+    noise_type = _cfg_get(cfg, "type", "gaussian_noise")
     std_min = _cfg_get(cfg, "std_min", 0.0)
     std_max = _cfg_get(cfg, "std_max", 0.0)
     noise_prob = _cfg_get(cfg, "noise_prob", 1.0)
@@ -141,7 +147,7 @@ def get_img_noise_transform(cfg, source: str = "pixels", target: str = "pixels")
 
     if noise.max_std <= 0:
         return None
-    if noise_type != "gaussian":
+    if noise_type != "gaussian_noise":
         raise ValueError(f"Unsupported image noise type: {noise_type}")
 
     return dt.transforms.WrapTorchTransform(
@@ -150,95 +156,97 @@ def get_img_noise_transform(cfg, source: str = "pixels", target: str = "pixels")
 
 
 class AddGaussianBlur:
-    """Per-frame Gaussian spatial blur on (..., C, H, W) tensors.
+    """Per-frame Gaussian spatial blur, parameterised by *kernel size* in
+    pixels. The tensor shape is preserved (the blur is a spectral
+    low-pass and does *not* change spatial size).
 
-    Each frame is convolved with a 2D Gaussian kernel of standard
-    deviation ``sigma``; the tensor shape is preserved (the blur is
-    purely a spectral low-pass and does *not* change spatial size).
+    User-facing API: ``kernel_size`` is the only knob. The kernel sigma
+    is derived from the kernel size by torchvision's auto rule
+    (``sigma = 0.3 * ((k - 1) * 0.5 - 1) + 0.8``, the OpenCV formula),
+    so users do not have to think about sigma at all.
 
-    Mirrors :class:`AddNormalizedGaussianNoise`'s API so the same
-    eval / corruption-sweep machinery can dispatch on it:
+    Even kernel sizes are rounded up to the next odd value.
+    ``kernel_size = 1`` is the identity (no-op).
+
+    Per-frame independent sampling mirrors the noise transform's API:
 
     - ``Bernoulli(apply_prob)`` decides whether each frame is blurred;
-    - if so, ``sigma ~ Uniform(sigma_min, sigma_max)`` is sampled per
-      frame.
+    - if so, ``kernel_size`` is sampled uniformly from the odd integers
+      in ``[kernel_size_min, kernel_size_max]``.
 
-    Eval convention is ``sigma_min == sigma_max`` with ``apply_prob = 1.0``
-    (deterministic blur of every frame).
+    Eval convention is ``kernel_size_min == kernel_size_max`` with
+    ``apply_prob = 1.0`` (deterministic blur of every frame).
 
-    The kernel size defaults to the smallest odd integer
-    :math:`\\geq 6 \\sigma + 1` so the support covers about
-    :math:`\\pm 3 \\sigma` of the kernel mass. Indicative examples:
+    Indicative kernel sizes (auto sigma in parentheses):
 
-        sigma = 0  -> no-op (returned unchanged)
-        sigma = 1  -> 7x7 kernel, sub-pixel-scale blur
-        sigma = 3  -> 19x19 kernel, moderate blur
-        sigma = 5  -> 31x31 kernel, heavy blur
+        kernel_size = 1   ->  no-op
+        kernel_size = 3   ->  3x3   (sigma 0.5)   light
+        kernel_size = 7   ->  7x7   (sigma 1.1)   mild
+        kernel_size = 15  ->  15x15 (sigma 2.3)   moderate
+        kernel_size = 31  ->  31x31 (sigma 4.7)   heavy
     """
 
-    def __init__(self, sigma_min, sigma_max, apply_prob: float = 1.0,
-                 kernel_size: int | None = None):
-        self.sigma_low = float(sigma_min)
-        self.sigma_high = float(sigma_max)
-        self.apply_prob = float(apply_prob)
-        self.kernel_size = kernel_size
-        if self.sigma_low < 0 or self.sigma_high < 0:
-            raise ValueError("blur sigma must be non-negative")
-        if self.sigma_low > self.sigma_high:
+    def __init__(self, kernel_size_min, kernel_size_max,
+                 apply_prob: float = 1.0):
+        ks_low = int(kernel_size_min)
+        ks_high = int(kernel_size_max)
+        if ks_low < 1 or ks_high < 1:
+            raise ValueError("kernel_size must be >= 1")
+        if ks_low > ks_high:
             raise ValueError(
-                "sigma range must be ordered: "
-                f"got sigma_min={sigma_min} > sigma_max={sigma_max}"
+                "kernel_size range must be ordered: "
+                f"got min={kernel_size_min} > max={kernel_size_max}"
             )
+        # Force odd; raise the floor / ceiling as needed.
+        if ks_low % 2 == 0:
+            ks_low += 1
+        if ks_high % 2 == 0:
+            ks_high += 1
+        self.ks_low = ks_low
+        self.ks_high = ks_high
+        self.apply_prob = float(apply_prob)
         if not 0.0 <= self.apply_prob <= 1.0:
             raise ValueError(f"apply_prob must be in [0, 1], got {apply_prob}")
 
     @property
-    def max_sigma(self) -> float:
-        return self.sigma_high if self.apply_prob > 0 else 0.0
-
-    @staticmethod
-    def _kernel_size_for(sigma: float, override: int | None) -> int:
-        if override is not None:
-            return override if override % 2 == 1 else override + 1
-        ks = 2 * int(math.ceil(3.0 * sigma)) + 1
-        return max(ks, 3)
+    def max_kernel_size(self) -> int:
+        return self.ks_high if self.apply_prob > 0 else 1
 
     def __call__(self, x):
         if not torch.is_tensor(x) or x.ndim < 3:
             return x
-        if self.sigma_high <= 0 or self.apply_prob <= 0:
+        if self.ks_high <= 1 or self.apply_prob <= 0:
             return x
 
-        # torchvision.transforms.v2 is available in this repo's deps
         from torchvision.transforms.v2.functional import gaussian_blur as _gblur
 
-        # Fast path: deterministic per-frame sigma (eval convention).
-        if self.sigma_low == self.sigma_high and self.apply_prob >= 1.0:
-            sigma = self.sigma_high
-            if sigma <= 0:
+        # Fast path: deterministic kernel size (eval convention).
+        if self.ks_low == self.ks_high and self.apply_prob >= 1.0:
+            ks = self.ks_high
+            if ks <= 1:
                 return x
-            ks = self._kernel_size_for(sigma, self.kernel_size)
-            return _gblur(x, kernel_size=[ks, ks], sigma=[sigma, sigma])
+            return _gblur(x, kernel_size=[ks, ks])
 
-        # Slow path: per-frame stochastic sigma (training convention).
+        # Slow path: per-frame stochastic kernel size (training-time).
         leading_shape = x.shape[:-3]
         n_frames = 1
         for d in leading_shape:
             n_frames *= int(d)
         x_flat = x.reshape(n_frames, *x.shape[-3:])
-        sigmas = torch.empty(n_frames, device=x.device, dtype=x.dtype).uniform_(
-            self.sigma_low, self.sigma_high
-        )
+        ks_choices = list(range(self.ks_low, self.ks_high + 1, 2))  # odd only
+        idx = torch.randint(0, len(ks_choices), (n_frames,), device=x.device)
         if self.apply_prob < 1.0:
-            mask = (torch.rand(n_frames, device=x.device) < self.apply_prob).to(x.dtype)
-            sigmas = sigmas * mask
+            apply_mask = torch.rand(n_frames, device=x.device) < self.apply_prob
+        else:
+            apply_mask = None
         out = x_flat.clone()
         for i in range(n_frames):
-            sigma = float(sigmas[i].item())
-            if sigma <= 0:
+            if apply_mask is not None and not bool(apply_mask[i]):
                 continue
-            ks = self._kernel_size_for(sigma, self.kernel_size)
-            out[i:i + 1] = _gblur(x_flat[i:i + 1], kernel_size=[ks, ks], sigma=[sigma, sigma])
+            ks = ks_choices[int(idx[i].item())]
+            if ks <= 1:
+                continue
+            out[i:i + 1] = _gblur(x_flat[i:i + 1], kernel_size=[ks, ks])
         return out.reshape(*x.shape)
 
 
@@ -338,33 +346,36 @@ class AddResize:
 
 
 def build_eval_corruption(cfg):
-    """Build an eval-time image-corruption transform from ``cfg.eval.corruption``.
+    """Build an eval-time image-corruption transform from
+    ``cfg.eval.corruption``.
 
-    Dispatches on ``cfg.type`` (default ``gaussian``); returns ``None`` if
-    the corruption is disabled or has a zero-magnitude parameter.
+    Dispatches on ``cfg.type``; returns ``None`` if the corruption is
+    disabled or has a no-op-magnitude parameter.
 
     Supported types and their parameters:
 
-    - ``gaussian`` (default): additive ImageNet-space noise via
+    - ``gaussian_noise`` (default): additive ImageNet-space noise via
       :class:`AddNormalizedGaussianNoise`. Uses ``std``.
     - ``gaussian_blur``: spatial Gaussian blur via :class:`AddGaussianBlur`.
-      Uses ``sigma``.
+      Uses ``kernel_size`` (odd integer; sigma is auto-derived).
     - ``resize``: bilinear downscale-then-upscale via :class:`AddResize`.
-      Uses ``factor``.
+      Uses ``factor`` (no-op at 1.0).
     """
     if cfg is None:
         return None
-    ctype = _cfg_get(cfg, "type", "gaussian")
-    if ctype == "gaussian":
+    ctype = _cfg_get(cfg, "type", "gaussian_noise")
+    if ctype == "gaussian_noise":
         std = float(_cfg_get(cfg, "std", 0.0))
         if std <= 0:
             return None
         return AddNormalizedGaussianNoise(std, std)
     if ctype == "gaussian_blur":
-        sigma = float(_cfg_get(cfg, "sigma", 0.0))
-        if sigma <= 0:
+        ks = int(round(float(_cfg_get(cfg, "kernel_size", 0))))
+        if ks <= 1:
             return None
-        return AddGaussianBlur(sigma, sigma)
+        if ks % 2 == 0:
+            ks += 1
+        return AddGaussianBlur(ks, ks)
     if ctype == "resize":
         factor = float(_cfg_get(cfg, "factor", 1.0))
         if factor >= 1.0:
@@ -373,29 +384,33 @@ def build_eval_corruption(cfg):
     raise ValueError(f"Unsupported corruption type: {ctype}")
 
 
-def make_eval_corruption(magnitude: float, ctype: str = "gaussian"):
+def make_eval_corruption(magnitude: float, ctype: str = "gaussian_noise"):
     """Build a corruption transform from a scalar magnitude and a type
     tag, intended for diagnostic-probe injection (where we want to
     parameterise the corruption strength as a single number rather than
     a config block).
 
     Magnitude semantics by type:
-        gaussian      → noise std
-        gaussian_blur → kernel sigma in pixels
-        resize        → downscale-then-upscale factor (1.0 is a no-op)
 
-    Returns ``None`` when the magnitude is the no-op value for the
-    chosen type (0 for additive / blur; 1.0 for resize), so callers can
-    short-circuit cleanly.
+    - ``gaussian_noise`` -> noise std (>0 enables)
+    - ``gaussian_blur``  -> kernel_size in pixels (>1 enables; rounded
+      up to next odd integer)
+    - ``resize``         -> downscale factor (<1.0 enables)
+
+    Returns ``None`` when the magnitude is at the no-op value for the
+    chosen type, so callers can short-circuit cleanly.
     """
-    if ctype == "gaussian":
+    if ctype == "gaussian_noise":
         if magnitude <= 0:
             return None
         return AddNormalizedGaussianNoise(magnitude, magnitude)
     if ctype == "gaussian_blur":
-        if magnitude <= 0:
+        ks = int(round(float(magnitude)))
+        if ks <= 1:
             return None
-        return AddGaussianBlur(magnitude, magnitude)
+        if ks % 2 == 0:
+            ks += 1
+        return AddGaussianBlur(ks, ks)
     if ctype == "resize":
         if magnitude >= 1.0:
             return None
@@ -407,27 +422,30 @@ def corruption_tag(cfg) -> str:
     """Build a filename-safe tag from a corruption config.
 
     Returns an empty string for an unconfigured or no-op corruption.
-    Naming is chosen so blur/resize tags do not collide with the
+    Naming is chosen so blur / resize tags do not collide with the
     existing Gaussian-noise tag ``std<X>`` used throughout the eval
-    summary tooling.
+    summary tooling:
 
-    - ``gaussian``      → ``std<X>``     (kept for backward compat)
-    - ``gaussian_blur`` → ``blur_sigma<X>``
-    - ``resize``        → ``rs_factor<X>``
+    - ``gaussian_noise`` -> ``std<X>``      (filename unchanged from
+      pre-rename history; this keeps existing aggregators working)
+    - ``gaussian_blur``  -> ``blur_ks<X>``  (kernel size)
+    - ``resize``         -> ``rs_factor<X>``
     """
     if cfg is None:
         return ""
-    ctype = _cfg_get(cfg, "type", "gaussian")
-    if ctype == "gaussian":
+    ctype = _cfg_get(cfg, "type", "gaussian_noise")
+    if ctype == "gaussian_noise":
         std = float(_cfg_get(cfg, "std", 0.0))
         if std <= 0:
             return ""
         return f"std{std:g}"
     if ctype == "gaussian_blur":
-        sigma = float(_cfg_get(cfg, "sigma", 0.0))
-        if sigma <= 0:
+        ks = int(round(float(_cfg_get(cfg, "kernel_size", 0))))
+        if ks <= 1:
             return ""
-        return f"blur_sigma{sigma:g}"
+        if ks % 2 == 0:
+            ks += 1
+        return f"blur_ks{ks}"
     if ctype == "resize":
         factor = float(_cfg_get(cfg, "factor", 1.0))
         if factor >= 1.0:

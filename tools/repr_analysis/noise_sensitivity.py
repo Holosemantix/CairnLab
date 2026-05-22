@@ -70,10 +70,10 @@ def _clone_batch(batch: Mapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
 
 
 def _add_eval_corruption(x: torch.Tensor, magnitude: float, seed: int,
-                         corruption_type: str = "gaussian") -> torch.Tensor:
-    """Apply the configured corruption (gaussian / gaussian_blur / resize)
-    at a single magnitude, deterministically seeded so a given probe
-    point is reproducible across runs."""
+                         corruption_type: str = "gaussian_noise") -> torch.Tensor:
+    """Apply the configured corruption (gaussian_noise / gaussian_blur
+    / resize) at a single magnitude, deterministically seeded so a given
+    probe point is reproducible across runs."""
     transform = make_eval_corruption(magnitude, corruption_type)
     if transform is None:
         return x.clone()
@@ -199,11 +199,12 @@ def analyze_model_noise(
     embedding_space: str | None = None,
     seed: int = 3072,
     device: str = "cuda",
-    corruption_type: str = "gaussian",
+    corruption_type: str = "gaussian_noise",
 ) -> list[Dict[str, Any]]:
     """``stds`` carries the corruption magnitudes regardless of family
-    (``std`` for ``gaussian``, ``sigma`` for ``gaussian_blur``,
-    ``factor`` for ``resize``). The name is kept for back-compat."""
+    (``std`` for ``gaussian_noise``, ``kernel_size`` for
+    ``gaussian_blur``, ``factor`` for ``resize``). The variable name is
+    kept for back-compat with the original noise-only API."""
     model = load_model(ckpt, device)
     spaces = get_model_spaces(model)
     space = resolve_space_name(embedding_space or spaces["inference_cost_space"])
@@ -276,7 +277,7 @@ def run_noise_sensitivity(
     embedding_space: str | None = None,
     seed: int = 3072,
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
-    corruption_type: str = "gaussian",
+    corruption_type: str = "gaussian_noise",
 ) -> list[Dict[str, Any]]:
     if not models:
         raise ValueError("models must contain at least one label -> checkpoint path.")

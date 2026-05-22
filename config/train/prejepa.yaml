@@ -80,7 +80,7 @@ trainer:
 # Override at CLI, e.g.:
 #   python train_prejepa.py exp_name=... image_noise.std_max=0.006
 image_noise:
-  type: gaussian
+  type: gaussian_noise
   std_min: 0.0
   std_max: 0.0
   noise_prob: 1.0

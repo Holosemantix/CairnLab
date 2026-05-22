@@ -280,30 +280,31 @@ def run_full_diagnostics(
     action_effect_n_trials: int = 128,
     action_effect_interp_steps: int = 16,
     action_effect_perturb_scale: float = 0.5,
-    corruption_type: str = "gaussian",
+    corruption_type: str = "gaussian_noise",
     log=print,
 ) -> Dict[str, Any]:
     """Run the full diagnostic suite.
 
     ``corruption_type`` selects the family of pixel-space perturbation
-    used by the noise / predictor probes. Defaults to ``gaussian`` --- the
-    original behaviour --- so existing callers see no change. Setting it
-    to ``gaussian_blur`` or ``resize`` swaps the injection class; the
-    ``stds`` sequence is reinterpreted as the corresponding magnitude
-    (kernel sigma in pixels, or downscale factor). The latent-noise probe
-    is intrinsically z-space Gaussian and is auto-skipped when
-    ``corruption_type != 'gaussian'`` (it would be ill-defined otherwise).
+    used by the noise / predictor probes. Defaults to ``gaussian_noise``
+    --- the original behaviour --- so existing callers see no change.
+    Setting it to ``gaussian_blur`` or ``resize`` swaps the injection
+    class; the ``stds`` sequence is reinterpreted as the corresponding
+    magnitude (kernel size in pixels, or downscale factor). The
+    latent-noise probe is intrinsically z-space Gaussian and is
+    auto-skipped when ``corruption_type != 'gaussian_noise'`` (it would
+    be ill-defined otherwise).
     """
     # (Module-level docstring above; per-call helper docstring follows.)
     # This is the notebook/API counterpart of the CLI. It returns all raw rows
     # plus formatted tables and the one-line roll-up used by P0 correlation work.
     # When `save_dir` is provided it also writes the same artifacts as the CLI.
-    if corruption_type not in ("gaussian", "gaussian_blur", "resize"):
+    if corruption_type not in ("gaussian_noise", "gaussian_blur", "resize"):
         raise ValueError(
             f"Unsupported corruption_type='{corruption_type}'. "
-            "Expected one of: gaussian, gaussian_blur, resize."
+            "Expected one of: gaussian_noise, gaussian_blur, resize."
         )
-    if corruption_type != "gaussian" and not skip_latent_noise:
+    if corruption_type != "gaussian_noise" and not skip_latent_noise:
         if log is not None:
             log(
                 "[diagnostics] note: latent_noise_sensitivity probes z-space "
@@ -604,23 +605,24 @@ def build_parser() -> argparse.ArgumentParser:
                         "(comparable across LeWM/SWM).")
     p.add_argument("--latent-noise-n-samples", type=int, default=1,
                    help="Independent noise samples averaged per (std, scope).")
-    p.add_argument("--corruption-type", default="gaussian",
-                   choices=["gaussian", "gaussian_blur", "resize"],
+    p.add_argument("--corruption-type", default="gaussian_noise",
+                   choices=["gaussian_noise", "gaussian_blur", "resize"],
                    help="Pixel-space corruption family for the noise / predictor "
                         "probes. The ``stds`` list is reinterpreted as the family's "
-                        "magnitude (sigma in px for gaussian_blur; factor for resize). "
-                        "Latent-noise probe is auto-skipped for non-gaussian types.")
+                        "magnitude (kernel_size in px for gaussian_blur; factor for "
+                        "resize). Latent-noise probe is auto-skipped when "
+                        "corruption_type is not gaussian_noise.")
     return p
 
 
 def main():
     args = build_parser().parse_args()
-    # Re-route the save dir when corruption_type != gaussian so blur and
-    # resize diagnostic outputs do not overwrite the canonical gaussian
-    # diagnostic JSONs. The caller can still override by passing a
-    # save_dir that already carries the desired suffix.
+    # Re-route the save dir when corruption_type != gaussian_noise so
+    # blur and resize diagnostic outputs do not overwrite the canonical
+    # gaussian_noise diagnostic JSONs. The caller can still override by
+    # passing a save_dir that already carries the desired suffix.
     save_dir = args.save_dir
-    if args.corruption_type != "gaussian" and not save_dir.rstrip("/").endswith(
+    if args.corruption_type != "gaussian_noise" and not save_dir.rstrip("/").endswith(
         f"_{args.corruption_type}"
     ):
         save_dir = save_dir.rstrip("/") + f"_{args.corruption_type}"

@@ -24,23 +24,25 @@ from utils import (
 
 def _corruption_magnitude(cfg) -> float:
     """Return a non-negative scalar summarising how much corruption the
-    config asks for, so callers can short-circuit no-op cases.
+    config asks for (zero == no-op), so callers can short-circuit no-op
+    cases.
 
     By type:
-        gaussian      → ``std`` (or max(std) for a list)
-        gaussian_blur → ``sigma``
-        resize        → ``1 - factor`` (factor==1 is a no-op)
+        gaussian_noise -> ``std`` (or max(std) for a list)
+        gaussian_blur  -> ``kernel_size - 1`` (kernel_size==1 is a no-op)
+        resize         -> ``1 - factor`` (factor==1 is a no-op)
     """
     if cfg is None:
         return 0.0
-    ctype = cfg.get("type", "gaussian")
-    if ctype == "gaussian":
+    ctype = cfg.get("type", "gaussian_noise")
+    if ctype == "gaussian_noise":
         std = cfg.get("std", 0.0)
         if not isinstance(std, (str, bytes, int, float)) and hasattr(std, "__len__"):
             return max(float(v) for v in std)
         return float(std)
     if ctype == "gaussian_blur":
-        return max(float(cfg.get("sigma", 0.0)), 0.0)
+        ks = float(cfg.get("kernel_size", 0))
+        return max(ks - 1.0, 0.0)
     if ctype == "resize":
         return max(1.0 - float(cfg.get("factor", 1.0)), 0.0)
     raise ValueError(f"Unsupported eval corruption type: {ctype}")
@@ -68,13 +70,18 @@ def img_transform(cfg, target: str):
 
     if _should_corrupt_target(cfg, target):
         corruption = cfg.eval.corruption
-        ctype = corruption.get("type", "gaussian")
-        if ctype == "gaussian":
+        ctype = corruption.get("type", "gaussian_noise")
+        if ctype == "gaussian_noise":
             std = float(corruption.get("std", 0.0))
             steps.append(AddNormalizedGaussianNoise(std, std))
         elif ctype == "gaussian_blur":
-            sigma = float(corruption.get("sigma", 0.0))
-            steps.append(AddGaussianBlur(sigma, sigma))
+            ks = int(round(float(corruption.get("kernel_size", 0))))
+            if ks <= 1:
+                pass
+            else:
+                if ks % 2 == 0:
+                    ks += 1
+                steps.append(AddGaussianBlur(ks, ks))
         elif ctype == "resize":
             factor = float(corruption.get("factor", 1.0))
             steps.append(AddResize(factor, factor))

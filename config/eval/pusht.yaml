@@ -31,7 +31,7 @@ eval:
   img_size: 224
   dataset_name: pusht_expert_train
   corruption:
-    type: gaussian
+    type: gaussian_noise
     std: 0.0 # 0 disables; pixel-space std converted for ImageNet-normalized tensors
     apply_to:
       - pixels

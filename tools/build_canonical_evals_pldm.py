@@ -124,12 +124,12 @@ def _std_key_from_subdir(subdir: str) -> str | None:
     ``0to008 ↔ 0.08``).
 
     ``..._pldm_baseline``          → ``"0.0"``
-    ``..._pldm_noise_0to001_p1``  → ``"0.01"``
-    ``..._pldm_noise_0to008_p1``  → ``"0.08"``
+    ``..._pldm_noise_0to001_p1``           → ``"0.01"``
+    ``..._pldm_noise_0to004_p1_20260522``  → ``"0.04"``
     """
     if subdir.endswith("_pldm_baseline"):
         return "0.0"
-    m = re.search(r"_pldm_noise_0to(\d+)_p1$", subdir)
+    m = re.search(r"_pldm_noise_0to(\d+)_p1(?:_\d{8})?$", subdir)
     if not m:
         return None
     # Drop leading zeros, then format as 0.NN
@@ -186,6 +186,9 @@ def build(root: Path, out_path: Path) -> dict:
             metrics = _collect_one_ckpt(eval_results)
             if metrics is None:
                 missing.append(f"{task} {ckpt_dir.name}: incomplete clean")
+                continue
+            previous = canonical[task].get(std_key)
+            if previous is not None and ckpt_dir.name <= previous["subdir"]:
                 continue
             canonical[task][std_key] = {
                 "path": str(ckpt_dir.resolve()),

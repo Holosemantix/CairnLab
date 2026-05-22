@@ -4,10 +4,9 @@ invariance–resolution paper.
 For each of the four tasks (TwoRoom, PushT, Reacher, Cube) we compute:
 
 1.  Within-PLDM Spearman ρ(metric, clean) / ρ(metric, OOD drop) and the
-    partial Spearman conditioned on std_max. n=8 (no PLDM baseline yet
-    for three tasks) or n=9 (PushT, which has a baseline).
+    partial Spearman conditioned on std_max. n=9 for every task.
 2.  Joint LeWM+PLDM Spearman and partial-on-(std_max, method dummy).
-    For PushT this is n=18; for the other three tasks n=17.
+    This is n=18 for every task.
 
 Outputs JSON for direct paper-table inclusion and prints a human-readable
 summary.
@@ -87,7 +86,7 @@ def partial_spearman_two(
     """Partial Spearman of x and y given two covariates (z1, z2).
 
     Iterates the single-covariate residualisation: first remove z1, then
-    z2. Stable for the small n=17/18 case we care about because the
+    z2. Stable for the small n=18 case we care about because the
     covariates we use (std_max, method-dummy) are not highly collinear.
     """
     # Residualise xs and ys against z1 in rank space, then partial on z2.

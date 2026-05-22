@@ -10,6 +10,12 @@
   },
   "predictor_metrics_by_task": {
     "Cube": {
+      "0.0": {
+        "diagnostic_max_std": 0.1,
+        "predictor_rollout_T8_l2_at_max_std": 18.982704162597656,
+        "predictor_target_to_nn_cos_ratio_at_max_std": 2.3532152568357963e-06,
+        "subdir": "cube_pldm_baseline"
+      },
       "0.01": {
         "diagnostic_max_std": 0.1,
         "predictor_rollout_T8_l2_at_max_std": 16.921491622924805,
@@ -116,6 +122,12 @@
       }
     },
     "Reacher": {
+      "0.0": {
+        "diagnostic_max_std": 0.1,
+        "predictor_rollout_T8_l2_at_max_std": 1.4514422416687012,
+        "predictor_target_to_nn_cos_ratio_at_max_std": 5.3304619911407726e-06,
+        "subdir": "reacher_pldm_baseline"
+      },
       "0.01": {
         "diagnostic_max_std": 0.1,
         "predictor_rollout_T8_l2_at_max_std": 1.980398416519165,
@@ -136,8 +148,8 @@
       },
       "0.04": {
         "diagnostic_max_std": 0.1,
-        "predictor_rollout_T8_l2_at_max_std": 13.976078033447266,
-        "predictor_target_to_nn_cos_ratio_at_max_std": 1.4986774171793392e-05,
+        "predictor_rollout_T8_l2_at_max_std": 1.2312943935394287,
+        "predictor_target_to_nn_cos_ratio_at_max_std": 4.933849413982036e-06,
         "subdir": "reacher_pldm_noise_0to004_p1"
       },
       "0.05": {
@@ -166,6 +178,12 @@
       }
     },
     "TwoRoom": {
+      "0.0": {
+        "diagnostic_max_std": 0.1,
+        "predictor_rollout_T8_l2_at_max_std": 20.362041473388672,
+        "predictor_target_to_nn_cos_ratio_at_max_std": 0.00010138967219451609,
+        "subdir": "tworoom_pldm_baseline"
+      },
       "0.01": {
         "diagnostic_max_std": 0.1,
         "predictor_rollout_T8_l2_at_max_std": 6.859189033508301,

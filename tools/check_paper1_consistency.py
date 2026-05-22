@@ -231,6 +231,36 @@ def check_canonical_json() -> None:
         fail(f"Expected 36 canonical configs, got {total_configs}")
 
 
+def check_pldm_canonical_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "canonical_evals_pldm_20260522.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    if set(data) != EXPECTED_TASKS:
+        fail(f"PLDM tasks mismatch: expected {sorted(EXPECTED_TASKS)}, got {sorted(data)}")
+
+    total_configs = 0
+    for task, configs in data.items():
+        if set(configs) != EXPECTED_CONFIGS:
+            fail(
+                f"PLDM {task} config mismatch: expected {sorted(EXPECTED_CONFIGS)}, "
+                f"got {sorted(configs)}"
+            )
+        total_configs += len(configs)
+        for std_key, entry in configs.items():
+            for key in ("path", "subdir", "metrics"):
+                if key not in entry:
+                    fail(f"PLDM {task}/{std_key} missing key {key!r}")
+            metrics = entry["metrics"]
+            missing_metrics = REQUIRED_METRICS - set(metrics)
+            if missing_metrics:
+                fail(f"PLDM {task}/{std_key} missing required metrics: {sorted(missing_metrics)}")
+            for metric_name in REQUIRED_METRICS:
+                check_metric_summary(f"PLDM/{task}", std_key, metric_name, metrics[metric_name])
+
+    if total_configs != 36:
+        fail(f"Expected 36 PLDM canonical configs, got {total_configs}")
+
+
 def check_canonical_diagnostics_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -287,6 +317,40 @@ def check_canonical_diagnostics_json() -> None:
                     fail(f"canonical diagnostics {task}/{which} missing metric {metric!r}")
 
 
+def check_pldm_diagnostics_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "canonical_diagnostics_pldm_20260522.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    predictor = data.get("predictor_metrics_by_task")
+    if not isinstance(predictor, dict) or set(predictor) != REQUIRED_DIAG_TASKS:
+        fail(
+            "PLDM diagnostics predictor tasks mismatch: "
+            f"expected {sorted(REQUIRED_DIAG_TASKS)}, got {sorted(predictor or {})}"
+        )
+
+    for task, configs in predictor.items():
+        if set(configs) != EXPECTED_CONFIGS:
+            fail(
+                f"PLDM diagnostics {task} config mismatch: "
+                f"expected {sorted(EXPECTED_CONFIGS)}, got {sorted(configs)}"
+            )
+        for std_key, entry in configs.items():
+            for key in (
+                "subdir",
+                "diagnostic_max_std",
+                "predictor_target_to_nn_cos_ratio_at_max_std",
+                "predictor_rollout_T8_l2_at_max_std",
+            ):
+                if key not in entry:
+                    fail(f"PLDM diagnostics {task}/{std_key} missing key {key!r}")
+            for key in (
+                "predictor_target_to_nn_cos_ratio_at_max_std",
+                "predictor_rollout_T8_l2_at_max_std",
+            ):
+                if not math.isfinite(float(entry[key])):
+                    fail(f"PLDM diagnostics {task}/{std_key}/{key} is not finite")
+
+
 def check_external_baselines_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -318,6 +382,46 @@ def check_external_baselines_json() -> None:
     px08 = evaluation["pixels_goal_std0.08"]["mean"]
     if round(clean - px08, 2) != 65.33:
         fail(f"unexpected PLDM clean-to-px+goal0.08 drop: {clean - px08}")
+
+
+def check_pldm_correlations_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "cross_method_corr_pldm_20260522.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    if set(data) != EXPECTED_TASKS:
+        fail(f"PLDM correlation tasks mismatch: expected {sorted(EXPECTED_TASKS)}, got {sorted(data)}")
+
+    expected_push = {
+        ("within_pldm", "partial_metric_drop_on_std"): -0.14,
+        ("joint", "partial_metric_drop_on_std_method"): 0.11,
+    }
+    for task, block in data.items():
+        rows = block.get("rows", {})
+        if len(rows.get("pldm", [])) != 9 or len(rows.get("lewm", [])) != 9:
+            fail(f"PLDM correlation {task} expected 9 LeWM rows and 9 PLDM rows")
+        within = block.get("within_pldm", {}).get("frag", {})
+        joint = block.get("joint", {}).get("frag", {})
+        if within.get("n") != 9:
+            fail(f"PLDM correlation {task} within-PLDM n mismatch: {within.get('n')}")
+        if joint.get("n") != 18:
+            fail(f"PLDM correlation {task} joint n mismatch: {joint.get('n')}")
+        for key in (
+            "partial_metric_clean_on_std",
+            "partial_metric_px08_on_std",
+            "partial_metric_drop_on_std",
+        ):
+            if key not in within or not math.isfinite(float(within[key])):
+                fail(f"PLDM correlation {task}/within_pldm/frag missing finite {key}")
+        if (
+            "partial_metric_drop_on_std_method" not in joint
+            or not math.isfinite(float(joint["partial_metric_drop_on_std_method"]))
+        ):
+            fail(f"PLDM correlation {task}/joint/frag missing finite partial drop")
+
+    for (section, key), want in expected_push.items():
+        got = round2(data["PushT"][section]["frag"][key])
+        if got != want:
+            fail(f"PLDM PushT correlation mismatch for {section}/{key}: got {got}, want {want}")
 
 
 def check_published_correlations() -> None:
@@ -400,8 +504,11 @@ def main() -> int:
         ("artifacts", check_artifacts),
         ("forbidden text", check_forbidden_text),
         ("canonical json", check_canonical_json),
+        ("pldm canonical json", check_pldm_canonical_json),
         ("canonical diagnostics json", check_canonical_diagnostics_json),
+        ("pldm diagnostics json", check_pldm_diagnostics_json),
         ("external baselines json", check_external_baselines_json),
+        ("pldm correlations json", check_pldm_correlations_json),
         ("published correlations", check_published_correlations),
     ]
     for name, fn in checks:

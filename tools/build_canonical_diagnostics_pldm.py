@@ -54,7 +54,7 @@ def _std_key_from_subdir(subdir: str) -> str | None:
     """``noise_0toNNN`` ↔ ``std_max = 0.NN`` (verified against per-ckpt config.yaml)."""
     if subdir.endswith("_pldm_baseline"):
         return "0.0"
-    m = re.search(r"_pldm_noise_0to(\d+)_p1$", subdir)
+    m = re.search(r"_pldm_noise_0to(\d+)_p1(?:_\d{8})?$", subdir)
     if not m:
         return None
     n = int(m.group(1))
@@ -111,6 +111,9 @@ def build(root: Path, out_path: Path) -> dict:
             row = _read_one(ckpt_dir / "eval_results")
             if row is None:
                 missing.append(f"{task} {ckpt_dir.name}: no diagnostics_summary")
+                continue
+            previous = canonical["predictor_metrics_by_task"][task].get(std_key)
+            if previous is not None and ckpt_dir.name <= previous["subdir"]:
                 continue
             row["subdir"] = ckpt_dir.name
             canonical["predictor_metrics_by_task"][task][std_key] = row

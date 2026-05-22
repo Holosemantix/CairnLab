@@ -8,10 +8,10 @@ This manifest documents the released evaluation aggregate for Paper 1:
 - Diagnostics schema: `assets/paper1_data/canonical_diagnostics_20260517.schema.json`
 - External baseline sanity check: `assets/paper1_data/canonical_external_baselines_20260520.json`
 - External baseline schema: `assets/paper1_data/canonical_external_baselines_20260520.schema.json`
-- **PLDM cross-method replication aggregate**: `assets/paper1_data/canonical_evals_pldm_20260522.json` (33 ckpts: 8 noise per task + PushT baseline; TwoRoom / Reacher / Cube baselines pending)
+- **PLDM cross-method replication aggregate**: `assets/paper1_data/canonical_evals_pldm_20260522.json` (36 ckpts: 4 tasks × 9 configs)
 - **PLDM cross-method replication diagnostics**: `assets/paper1_data/canonical_diagnostics_pldm_20260522.json`
 - **Cross-method correlations**: `assets/paper1_data/cross_method_corr_pldm_20260522.json` (within-LeWM / within-PLDM / joint partial Spearman; consumed by Appendix F)
-- Scope: 36 LeWM checkpoints = 4 tasks × 9 configs (`base` + `std_max` 0.01..0.08); 33 PLDM checkpoints (replication)
+- Scope: 36 LeWM checkpoints = 4 tasks × 9 configs (`base` + `std_max` 0.01..0.08); 36 PLDM checkpoints on the same grid
 - Evaluation protocol: **3 evaluation seeds** (`42`, `43`, `44`) × **100 trajectories per seed**
 - Important clarification: these are **evaluation seeds**, not 3 independently trained models per configuration
 
@@ -104,10 +104,12 @@ where `<cond>` is one of:
   - 4 tasks × 9 ckpts of `predictor_rollout_T8_l2_at_max_std`
   - finalized Table 3 representative diagnostic values
   - published Table 4 / Table 4b / Table 5 correlation numbers
-- The external baseline release stores one PushT clean-trained PLDM run (`pusht_pldm_baseline`) evaluated under the same 3 evaluation seeds × 100 trajectories protocol. It is a sanity check outside the 36-checkpoint LeWM sweep and is not used for the LeWM cross-checkpoint correlations.
+- The historical external baseline release stores one PushT clean-trained PLDM run (`pusht_pldm_baseline`) for backward compatibility. The primary PLDM release is now the full 36-checkpoint aggregate in `canonical_evals_pldm_20260522.json`.
+- The PLDM aggregate uses the same condition names, success-rate units, 3 evaluation seeds, and population-std convention as the LeWM aggregate. It is used only for Appendix F cross-method replication, not for the main LeWM-only Tables 1--5.
 - `tools/check_paper1_consistency.py` verifies:
   - the JSON exists
   - the released structure is 4 tasks × 9 configs
   - each config contains `clean`, `pixels_goal_std0.05`, and `pixels_goal_std0.08` with `mean`/`std`
   - the stored `mean`/`std` agree with the 3 released seed values
-  - the external PLDM sanity-check aggregate is clean-trained and recomputes its reported means/stds/drop
+  - the historical external PLDM sanity-check aggregate is clean-trained and recomputes its reported means/stds/drop
+  - the full PLDM aggregate is 4 tasks × 9 configs, contains required eval metrics, and recomputes means/stds from the three released seed values

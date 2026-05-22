@@ -49,13 +49,13 @@ This finding exposes a fundamental tension: **global noise augmentation cannot d
 
 The paper makes the following contributions:
 
-**Contribution 1: A systematic quantification of visual-OOD fragility of JEPA + CEM control across four representative tasks.** We sweep 4 tasks × 8 noise levels, and evaluate all 36 checkpoints under a unified 3-evaluation-seed × 100-trajectory protocol, for 300 trajectories per condition.
+**Contribution 1: A systematic quantification of visual-OOD fragility of JEPA + CEM control across four representative tasks.** We sweep 4 tasks × 8 noise levels, and evaluate all 36 checkpoints under a unified 3-evaluation-seed × 100-trajectory protocol, for 300 trajectories per condition. The same sweep replicates on a second method family (PLDM): TwoRoom moves into a high-noise plateau, PushT has a steep clean-trained cliff with large noise-training recovery, and Cube responds weakly.
 
-**Contribution 2: The "invariance–resolution trade-off" concept and a five-layer diagnostic protocol that operationalises it.** We define five complementary diagnostic layers (encoder shift, encoder geometry, predictor sensitivity, latent-noise response, task resolution) with 17+ concrete metrics, validated by Spearman correlations on the 4-task × n = 9 LeWM sweep under unified 3-seed × 100 evaluation, with partial correlations conditioned on training noise to separate residual ckpt-quality signal from the monotone sweep trend induced by `std_max`.
+**Contribution 2: The "invariance–resolution trade-off" concept and a five-layer diagnostic protocol that operationalises it.** We define five complementary diagnostic layers (encoder shift, encoder geometry, predictor sensitivity, latent-noise response, task resolution) with 17 concrete metrics, validated by Spearman correlations on the 4-task × n = 9 LeWM sweep under unified 3-seed × 100 evaluation, with partial correlations conditioned on training noise to separate residual ckpt-quality signal from the monotone sweep trend induced by `std_max`.
 
 **Contribution 3: A mechanistic account of why global noise augmentation has limited returns.** Through the diagnostic layers we show that on TwoRoom the gains coincide with desirable representation compression (effective rank 47.60 → 33.59) — a low-dimensional discrete task does not need high resolution — whereas PushT starts from a high-resolution, high-controllability representation (effective rank 76.42, `id_probe_r² = 0.7739`). Even the light representative PushT diagnostic checkpoint compresses rank substantially (76.42 → 42.85) with modest downward movement in task-resolution metrics (`transition_resolution_ratio_l2` 0.3015 → 0.2800; `id_probe_r²` 0.7739 → 0.7500), so further compression cannot be assumed safe for contact-heavy tasks.
 
-**Contribution 4: An honest delineation of cross-checkpoint diagnostics.** The strongest cross-checkpoint diagnostic (`predictor_target_to_nn_cos_ratio_at_max_std`) carries a residual checkpoint-quality signal beyond the sweep-level `std_max` effect (partial Spearman ρ = −0.59 on clean and −0.41 on px+goal 0.08 after conditioning on `std_max`, on the n = 9 LeWM PushT sweep with unified 3-seed × 100 eval). However, the apparent ρ(metric, OOD drop) = −0.77 is mediated by `std_max`: after partialling out `std_max`, that correlation collapses to +0.06. The metric is a model-selection tool after controlling for the sweep-level `std_max` trend, not an OOD oracle.
+**Contribution 4: An honest delineation of cross-checkpoint diagnostics.** The strongest cross-checkpoint diagnostic (`predictor_target_to_nn_cos_ratio_at_max_std`) carries a residual checkpoint-quality signal beyond the sweep-level `std_max` effect (partial Spearman ρ = −0.59 on clean and −0.41 on px+goal 0.08 after conditioning on `std_max`, on the n = 9 LeWM PushT sweep with unified 3-seed × 100 eval). However, the apparent ρ(metric, OOD drop) = −0.77 is mediated by `std_max`: after partialling out `std_max`, that correlation collapses to +0.06. The same null result reappears on PLDM PushT (partial ρ = −0.14) and in the joint LeWM+PLDM PushT sample (partial ρ = +0.11 after conditioning on `std_max` and method). The metric is a model-selection tool after controlling for the sweep-level `std_max` trend, not an OOD oracle.
 
 ### 1.4 Organisation
 
@@ -170,7 +170,7 @@ To ensure the diagnostic signals are not spurious training artefacts, we adopt t
 
 We report **both** the raw Spearman and the partial-on-`std_max` quantities. The raw ρ tells you "which checkpoint over the entire sweep behaves better"; the partial ρ tells you whether a diagnostic retains a **residual ckpt-quality signal after removing the monotone trend associated with `std_max`**. The two questions are distinct, and we will see in §4.5 that they have markedly different answers for the same metric.
 
-> A larger cross-architecture protocol (varying the latent geometry of the world model itself) is left to follow-up work with external baselines.
+> PLDM provides a first second-family replication in Appendix F; broader cross-architecture variants such as frozen/pretrained visual features remain follow-up work.
 
 ---
 
@@ -207,7 +207,7 @@ Table 1 reports LeWM-base success rates under clean and noised eval (mean ± std
 
 ![Fig 1 — Visual OOD cliff in LeWM and recovery by noise training](assets/paper1_figs/fig1_hero.png)
 
-The same direction of failure replicates on PLDM: a clean-trained PLDM checkpoint on PushT drops from **75.33% ± 3.68** clean to **10.00% ± 2.16** at px+goal 0.08 (−65.33 pt, Appendix F), and the per-task signatures of the noise-training sweep — TwoRoom's monotone rise to high `std_max`, PushT's large `std_max ≈ 0.03` recovery, Cube's weak response — carry over to the full PLDM sweep we report in Appendix F. Where the partial-correlation analysis can be repeated (PushT, the one task with a synced PLDM baseline), the C4 null on the fragility ratio also replicates: PLDM partial ρ(metric, OOD drop | `std_max`) = −0.14 (vs +0.06 on LeWM).
+The same direction of failure is visible on PLDM but with task-dependent strength. Clean-trained PLDM drops sharply on PushT (**75.33% ± 3.68** clean to **10.00% ± 2.16** at px+goal 0.08, −65.33 pt) and TwoRoom (**96.67% ± 1.70** to **51.67% ± 2.05**, −45.00 pt), while Reacher and Cube have much smaller clean-trained PLDM gaps (−3.33 and −4.33 pt; Appendix F). The noise-training signatures still carry over: TwoRoom recovers into a high-noise plateau, PushT has a large `std_max ≈ 0.03` recovery, and Cube responds weakly.
 
 LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual std = 0.05 applied to pixels and goal jointly already produces large drops on all tasks. PushT loses 74+ pts (down to near-random 4.67% at std = 0.08), TwoRoom 30+ pts, Reacher 30+ pts, Cube ~13 pts (at std = 0.05). **This is not a marginal phenomenon**: a JEPA + CEM world model without noise-aware training has essentially no resistance to visual corruption. The drop pattern across tasks is informative: Cube degrades least (−20.33 pt at std = 0.08) — structured manipulation has some natural robustness to pixel noise — whereas PushT degrades most catastrophically (−81.67 pt), confirming that contact-heavy continuous control is most sensitive to visual precision.
 
@@ -702,16 +702,61 @@ Swapping cost recovers only +6 pt (36 → 42), far below the clean reference (69
 
 ---
 
-## Appendix F — External baseline sanity check: clean-trained PLDM on PushT
+## Appendix F — Cross-method replication: PLDM noise sweep on four tasks
 
-This appendix records the PushT PLDM baseline referenced in §4.2. PLDM follows the joint-embedding predictive line from Sobal et al. [21]; the concrete latent-dynamics planning baseline is from Sobal et al. [22]. Our run uses the implementation distributed through the `stable-worldmodel` baseline suite [23]. The run is clean-trained (`image_noise.std_max = 0`, `noise_prob = 0`) and evaluated with the same three evaluation seeds (42/43/44) and 100 trajectories per seed as the LeWM canonical tables. It is outside the 36-checkpoint LeWM sweep and is not used in Tables 4/4b/5.
+This appendix records the complete PLDM sweep. PLDM follows the joint-embedding predictive line from Sobal et al. [21]; the concrete latent-dynamics planning baseline is from Sobal et al. [22]. Our run uses the implementation distributed through the `stable-worldmodel` baseline suite [23]. The release covers 4 tasks × 9 configurations (clean baseline plus `std_max ∈ {0.01,...,0.08}`), evaluated with the same 3 evaluation seeds (42/43/44) × 100 trajectories protocol as LeWM.
 
-| Model | clean | px+goal 0.05 | px+goal 0.08 | clean → 0.08 drop |
+Source of truth: `assets/paper1_data/canonical_evals_pldm_20260522.json`, `assets/paper1_data/canonical_diagnostics_pldm_20260522.json`, and `assets/paper1_data/cross_method_corr_pldm_20260522.json`.
+
+**Clean-trained PLDM cliff.**
+
+| Task | clean | px+goal 0.05 | px+goal 0.08 | clean → 0.08 drop |
 |---|---:|---:|---:|---:|
-| LeWM-base | 86.33 ± 2.36 | 12.00 ± 4.55 | 4.67 ± 2.05 | −81.67 |
-| PLDM clean-trained | 75.33 ± 3.68 | 43.67 ± 4.64 | 10.00 ± 2.16 | −65.33 |
+| TwoRoom | 96.67 ± 1.70 | 68.33 ± 3.30 | 51.67 ± 2.05 | −45.00 |
+| PushT | 75.33 ± 3.68 | 43.67 ± 4.64 | 10.00 ± 2.16 | −65.33 |
+| Reacher | 82.67 ± 1.70 | 82.33 ± 0.94 | 79.33 ± 0.94 | −3.33 |
+| Cube | 52.67 ± 3.30 | 51.33 ± 2.49 | 48.33 ± 2.87 | −4.33 |
 
-The result supports a limited external-baseline reading: clean-trained visual world models can share the same control-time pixel+goal noise failure mode. PLDM starts from a lower clean success than LeWM-base on PushT, but still loses 65.33 pt under px+goal 0.08. Its diagnostic profile also cautions against equating geometry robustness with control robustness: the released PLDM aggregate has `clean_effective_rank = 130.13`, `geometry_flag = robust`, `transition_resolution_ratio_l2 = 0.4710`, and `id_probe_r² = 0.7570`, yet control success under px+goal 0.08 remains 10.00%. The released source-of-truth is `assets/paper1_data/canonical_external_baselines_20260520.json`.
+**PLDM clean sweep.** `†` marks per-task clean point-best.
+
+| `std_max` | TwoRoom | PushT | Reacher | Cube |
+|---:|---:|---:|---:|---:|
+| 0 (base) | 96.67 ± 1.70 | 75.33 ± 3.68 | 82.67 ± 1.70 | 52.67 ± 3.30 |
+| 0.01 | 96.33 ± 0.94 | 72.33 ± 4.19 | 78.00 ± 0.82 | 51.33 ± 1.25 |
+| 0.02 | 97.33 ± 0.47 | 71.33 ± 3.86 | 82.33 ± 2.36 | 53.33 ± 1.70 |
+| 0.03 | 96.67 ± 1.70 | 76.67 ± 7.54 † | 83.00 ± 3.74 | 52.67 ± 3.30 |
+| 0.04 | 97.67 ± 0.47 | 68.67 ± 5.25 | 85.00 ± 2.16 † | 54.00 ± 2.94 |
+| 0.05 | 97.67 ± 1.25 | 74.33 ± 3.40 | 72.00 ± 1.41 | 54.00 ± 2.16 |
+| 0.06 | 98.00 ± 0.82 | 70.33 ± 6.18 | 79.00 ± 0.82 | 56.00 ± 4.97 † |
+| 0.07 | 98.00 ± 0.82 | 66.67 ± 8.38 | 80.67 ± 2.62 | 53.67 ± 3.68 |
+| 0.08 | 98.33 ± 0.94 † | 68.00 ± 1.41 | 80.33 ± 1.25 | 54.00 ± 1.63 |
+
+**PLDM px+goal 0.08 sweep.** `‡` marks per-task px+goal 0.08 point-best.
+
+| `std_max` | TwoRoom | PushT | Reacher | Cube |
+|---:|---:|---:|---:|---:|
+| 0 (base) | 51.67 ± 2.05 | 10.00 ± 2.16 | 79.33 ± 0.94 | 48.33 ± 2.87 |
+| 0.01 | 89.33 ± 3.30 | 16.67 ± 4.03 | 78.00 ± 1.63 | 53.00 ± 1.63 |
+| 0.02 | 93.33 ± 0.94 | 40.00 ± 0.82 | 79.33 ± 2.05 | 52.33 ± 3.40 |
+| 0.03 | 94.33 ± 1.70 | 72.00 ± 2.94 ‡ | 79.33 ± 2.36 | 55.67 ± 4.11 |
+| 0.04 | 98.00 ± 0.00 | 62.33 ± 7.41 | 81.33 ± 1.70 ‡ | 53.00 ± 3.56 |
+| 0.05 | 98.33 ± 0.94 ‡ | 69.33 ± 4.92 | 59.67 ± 3.30 | 53.00 ± 1.63 |
+| 0.06 | 97.33 ± 1.25 | 69.67 ± 5.25 | 76.00 ± 1.41 | 53.33 ± 3.09 |
+| 0.07 | 96.67 ± 0.47 | 67.00 ± 9.09 | 77.67 ± 3.30 | 52.00 ± 0.00 |
+| 0.08 | 97.00 ± 0.82 | 66.33 ± 4.78 | 80.67 ± 2.36 | 56.33 ± 1.25 ‡ |
+
+**Reading.** PLDM strengthens the task-level story but also keeps the scope precise. TwoRoom recovers from a 51.67% px+goal 0.08 baseline to a high-noise plateau at 98.33%. PushT recovers from 10.00% to 72.00% at `std_max=0.03`. Reacher is already robust under clean-trained PLDM and therefore is not evidence for a universal noise-training gain. Cube remains the weakest response.
+
+**PLDM fragility-ratio partial correlations.** The first three partial columns condition on `std_max` within PLDM; the last column uses the joint LeWM+PLDM sample and conditions on both `std_max` and method.
+
+| Task | PLDM n | clean partial | px+goal 0.08 partial | OOD-drop partial | joint OOD-drop partial |
+|---|---:|---:|---:|---:|---:|
+| TwoRoom | 9 | -0.26 | -0.85 | +0.87 | +0.56 |
+| PushT | 9 | -0.22 | +0.04 | -0.14 | +0.11 |
+| Reacher | 9 | -0.68 | -0.86 | +0.14 | +0.34 |
+| Cube | 9 | -0.36 | -0.05 | -0.41 | -0.13 |
+
+The PushT null result is the cross-method C4 check: after removing `std_max` and the method offset, the fragility ratio does not isolate OOD-specific robustness. TwoRoom/Reacher/Cube residuals remain task-specific and are reported as scope boundaries, not as a universal OOD oracle.
 
 ---
 

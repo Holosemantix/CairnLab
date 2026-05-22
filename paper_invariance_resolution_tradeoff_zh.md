@@ -51,13 +51,13 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 基于以上动机，本文提出了一套系统性的诊断研究，核心贡献如下：
 
-**贡献 1：系统量化了 JEPA + CEM 世界模型 pipeline 在视觉噪声下的控制脆弱性，覆盖 contact-heavy 操作、视觉冗余导航、低维连续控制、结构化操作四类代表任务。** 我们在 4 任务 × 8 档噪声强度上完成完整 sweep，所有 36 ckpt 均按统一的 3-seed × 100 trajectories 协议（seeds 42/43/44，每 seed `num_eval=100`，每格 300 trajectories）评测。
+**贡献 1：系统量化了 JEPA + CEM 世界模型 pipeline 在视觉噪声下的控制脆弱性，覆盖 contact-heavy 操作、视觉冗余导航、低维连续控制、结构化操作四类代表任务。** 我们在 4 任务 × 8 档噪声强度上完成完整 sweep，所有 36 ckpt 均按统一的 3-seed × 100 trajectories 协议（seeds 42/43/44，每 seed `num_eval=100`，每格 300 trajectories）评测。相同 sweep 也在第二个 method family（PLDM）上复现：TwoRoom 进入 high-noise plateau，PushT 有明显 clean-trained cliff 与 noise-training recovery，Cube 响应较弱。
 
-**贡献 2：提出了"不变性-分辨率权衡"（Invariance-Resolution Trade-off）概念及其诊断框架。** 我们定义了五层诊断协议（编码器偏移层、编码器几何层、预测器敏感性层、潜空间噪声响应层、任务分辨率层），包含 17+ 个指标，并在 4 任务 × n=9 LeWM sweep 上做 Spearman 相关性与"条件于训练 noise 强度 `std_max`"的偏相关分析，区分 ckpt-quality 信号与被训练协议混淆的虚假相关。
+**贡献 2：提出了"不变性-分辨率权衡"（Invariance-Resolution Trade-off）概念及其诊断框架。** 我们定义了五层诊断协议（编码器偏移层、编码器几何层、预测器敏感性层、潜空间噪声响应层、任务分辨率层），包含 17 个指标，并在 4 任务 × n=9 LeWM sweep 上做 Spearman 相关性与"条件于训练 noise 强度 `std_max`"的偏相关分析，区分 ckpt-quality 信号与被训练协议混淆的虚假相关。
 
 **贡献 3：揭示了噪声增广的深层机制。** 通过诊断指标，我们证明：TwoRoom 的收益伴随有益的 representation compression（effective rank 47.60 → 33.59），低维离散任务不需要高分辨率；而 PushT 从高分辨率、高可控性表征出发（effective rank 76.42，`id_probe_r² = 0.7739`），即使 light representative diagnostic checkpoint 也已经显著压缩 rank（76.42 → 42.85），并且 task-resolution 指标已经出现温和下行（`transition_resolution_ratio_l2` 0.3015 → 0.2800；`id_probe_r²` 0.7739 → 0.7500）。因此对 contact-heavy 任务，进一步压缩不能默认安全。
 
-**贡献 4：明确划定跨 checkpoint 诊断的适用边界。** 最强跨 checkpoint 诊断量——本文称之为 **fragility ratio**（完整字段名 `predictor_target_to_nn_cos_ratio_at_max_std`，§3.3 定义）——在移除 sweep-level `std_max` 趋势后仍保留 residual checkpoint-quality 信号（PushT n=9 sweep 上，clean partial Spearman ρ = −0.59，px+goal 0.08 partial ρ = −0.41）。但它并不是 OOD oracle：表面上的 ρ(metric, OOD drop)=−0.77 由 `std_max` 中介，partial out `std_max` 后只剩 +0.06。因此该指标适合在控制 `std_max` 趋势后辅助 model selection，不能替代真实 OOD eval。
+**贡献 4：明确划定跨 checkpoint 诊断的适用边界。** 最强跨 checkpoint 诊断量——本文称之为 **fragility ratio**（完整字段名 `predictor_target_to_nn_cos_ratio_at_max_std`，§3.3 定义）——在移除 sweep-level `std_max` 趋势后仍保留 residual checkpoint-quality 信号（PushT n=9 sweep 上，clean partial Spearman ρ = −0.59，px+goal 0.08 partial ρ = −0.41）。但它并不是 OOD oracle：表面上的 ρ(metric, OOD drop)=−0.77 由 `std_max` 中介，partial out `std_max` 后只剩 +0.06。相同 null 也在 PLDM PushT 上复现（partial ρ = −0.14），并在 joint LeWM+PLDM PushT 样本中保持接近 0（同时控制 `std_max` 和 method 后 partial ρ = +0.11）。因此该指标适合在控制 `std_max` 趋势后辅助 model selection，不能替代真实 OOD eval。
 
 ### 1.4 本文组织
 
@@ -220,7 +220,7 @@ $$
 | Reacher | 58.67 ± 1.25 | 27.00 ± 5.10 | 15.00 ± 2.16 | **−43.67** |
 | Cube | 66.67 ± 2.62 | 53.33 ± 3.30 | 46.33 ± 3.68 | **−20.33** |
 
-同方向的失败模式也在 PLDM 上复现：clean-trained PushT PLDM checkpoint 从 **75.33% ± 3.68** clean 降到 **10.00% ± 2.16**（px+goal 0.08，−65.33pt，附录 F），并且 noise-training sweep 的每任务信号——TwoRoom 在高 `std_max` 上单调上升、PushT 在 `std_max ≈ 0.03` 附近大幅 recovery、Cube 响应最弱——都在我们附录 F 给出的完整 PLDM sweep 中复现。在已经有 PLDM baseline 的 PushT 上重做 partial correlation，C4 的 null 结论也跨方法复现：PLDM partial ρ(metric, OOD drop | `std_max`) = −0.14（LeWM 上为 +0.06）。
+同方向的失败模式也在 PLDM 上出现，但强度是任务相关的。Clean-trained PLDM 在 PushT 上从 **75.33% ± 3.68** clean 降到 **10.00% ± 2.16**（px+goal 0.08，−65.33pt），在 TwoRoom 上从 **96.67% ± 1.70** 降到 **51.67% ± 2.05**（−45.00pt）；而 Reacher/Cube 的 clean-trained PLDM gap 明显更小（−3.33pt / −4.33pt，附录 F）。Noise-training 的每任务信号仍然复现：TwoRoom recovery 到 high-noise plateau，PushT 在 `std_max ≈ 0.03` 大幅 recovery，Cube 响应较弱。
 
 ![Fig 1 — Visual OOD cliff in LeWM and recovery by noise training](assets/paper1_figs/fig1_hero.png)
 
@@ -718,16 +718,61 @@ Hetero loss 在两个任务上都压缩表征。TwoRoom 低维、离散、视觉
 
 ---
 
-## 附录 F — 外部 baseline sanity check：PushT clean-trained PLDM
+## 附录 F — 跨方法复现：四任务 PLDM noise sweep
 
-本附录记录 §4.2 引用的 PushT PLDM baseline。PLDM 沿用 Sobal et al. [21] 的 joint-embedding predictive 路线；具体 latent-dynamics planning baseline 来自 Sobal et al. [22]。本文实验使用 `stable-worldmodel` baseline suite [23] 中分发的实现。该 run 是 clean-trained（`image_noise.std_max = 0`, `noise_prob = 0`），并使用与 LeWM canonical tables 相同的 3 evaluation seeds（42/43/44）× 每 seed 100 trajectories 协议。它不属于 36-checkpoint LeWM sweep，也不参与表 4/4b/5 的相关性计算。
+本附录记录完整 PLDM sweep。PLDM 沿用 Sobal et al. [21] 的 joint-embedding predictive 路线；具体 latent-dynamics planning baseline 来自 Sobal et al. [22]。本文实验使用 `stable-worldmodel` baseline suite [23] 中分发的实现。该 release 覆盖 4 任务 × 9 配置（clean baseline + `std_max ∈ {0.01,...,0.08}`），并使用与 LeWM canonical tables 相同的 3 evaluation seeds（42/43/44）× 每 seed 100 trajectories 协议。
 
-| Model | clean | px+goal 0.05 | px+goal 0.08 | clean → 0.08 drop |
+Source of truth: `assets/paper1_data/canonical_evals_pldm_20260522.json`, `assets/paper1_data/canonical_diagnostics_pldm_20260522.json`, `assets/paper1_data/cross_method_corr_pldm_20260522.json`。
+
+**Clean-trained PLDM cliff.**
+
+| Task | clean | px+goal 0.05 | px+goal 0.08 | clean → 0.08 drop |
 |---|---:|---:|---:|---:|
-| LeWM-base | 86.33 ± 2.36 | 12.00 ± 4.55 | 4.67 ± 2.05 | −81.67 |
-| PLDM clean-trained | 75.33 ± 3.68 | 43.67 ± 4.64 | 10.00 ± 2.16 | −65.33 |
+| TwoRoom | 96.67 ± 1.70 | 68.33 ± 3.30 | 51.67 ± 2.05 | −45.00 |
+| PushT | 75.33 ± 3.68 | 43.67 ± 4.64 | 10.00 ± 2.16 | −65.33 |
+| Reacher | 82.67 ± 1.70 | 82.33 ± 0.94 | 79.33 ± 0.94 | −3.33 |
+| Cube | 52.67 ± 3.30 | 51.33 ± 2.49 | 48.33 ± 2.87 | −4.33 |
 
-这组结果支持一个有限的外部 baseline 解读：clean-trained visual world model 可以共享同类 control-time pixel+goal noise failure mode。PLDM 在 PushT clean 上低于 LeWM-base，但 px+goal 0.08 下仍损失 65.33pt。它的诊断也提醒我们不能把 geometry robustness 等同于 control robustness：released PLDM aggregate 中 `clean_effective_rank = 130.13`、`geometry_flag = robust`、`transition_resolution_ratio_l2 = 0.4710`、`id_probe_r2 = 0.7570`，但 px+goal 0.08 控制成功率仍只有 10.00%。该组数据的 source-of-truth 是 `assets/paper1_data/canonical_external_baselines_20260520.json`。
+**PLDM clean sweep.** `†` 表示每任务 clean point-best。
+
+| `std_max` | TwoRoom | PushT | Reacher | Cube |
+|---:|---:|---:|---:|---:|
+| 0 (base) | 96.67 ± 1.70 | 75.33 ± 3.68 | 82.67 ± 1.70 | 52.67 ± 3.30 |
+| 0.01 | 96.33 ± 0.94 | 72.33 ± 4.19 | 78.00 ± 0.82 | 51.33 ± 1.25 |
+| 0.02 | 97.33 ± 0.47 | 71.33 ± 3.86 | 82.33 ± 2.36 | 53.33 ± 1.70 |
+| 0.03 | 96.67 ± 1.70 | 76.67 ± 7.54 † | 83.00 ± 3.74 | 52.67 ± 3.30 |
+| 0.04 | 97.67 ± 0.47 | 68.67 ± 5.25 | 85.00 ± 2.16 † | 54.00 ± 2.94 |
+| 0.05 | 97.67 ± 1.25 | 74.33 ± 3.40 | 72.00 ± 1.41 | 54.00 ± 2.16 |
+| 0.06 | 98.00 ± 0.82 | 70.33 ± 6.18 | 79.00 ± 0.82 | 56.00 ± 4.97 † |
+| 0.07 | 98.00 ± 0.82 | 66.67 ± 8.38 | 80.67 ± 2.62 | 53.67 ± 3.68 |
+| 0.08 | 98.33 ± 0.94 † | 68.00 ± 1.41 | 80.33 ± 1.25 | 54.00 ± 1.63 |
+
+**PLDM px+goal 0.08 sweep.** `‡` 表示每任务 px+goal 0.08 point-best。
+
+| `std_max` | TwoRoom | PushT | Reacher | Cube |
+|---:|---:|---:|---:|---:|
+| 0 (base) | 51.67 ± 2.05 | 10.00 ± 2.16 | 79.33 ± 0.94 | 48.33 ± 2.87 |
+| 0.01 | 89.33 ± 3.30 | 16.67 ± 4.03 | 78.00 ± 1.63 | 53.00 ± 1.63 |
+| 0.02 | 93.33 ± 0.94 | 40.00 ± 0.82 | 79.33 ± 2.05 | 52.33 ± 3.40 |
+| 0.03 | 94.33 ± 1.70 | 72.00 ± 2.94 ‡ | 79.33 ± 2.36 | 55.67 ± 4.11 |
+| 0.04 | 98.00 ± 0.00 | 62.33 ± 7.41 | 81.33 ± 1.70 ‡ | 53.00 ± 3.56 |
+| 0.05 | 98.33 ± 0.94 ‡ | 69.33 ± 4.92 | 59.67 ± 3.30 | 53.00 ± 1.63 |
+| 0.06 | 97.33 ± 1.25 | 69.67 ± 5.25 | 76.00 ± 1.41 | 53.33 ± 3.09 |
+| 0.07 | 96.67 ± 0.47 | 67.00 ± 9.09 | 77.67 ± 3.30 | 52.00 ± 0.00 |
+| 0.08 | 97.00 ± 0.82 | 66.33 ± 4.78 | 80.67 ± 2.36 | 56.33 ± 1.25 ‡ |
+
+**解读。** PLDM 增强的是 task-level story，同时也保持边界清晰：TwoRoom 从 51.67% 的 px+goal 0.08 baseline recovery 到 98.33% 的 high-noise plateau；PushT 从 10.00% recovery 到 `std_max=0.03` 的 72.00%；Reacher 在 clean-trained PLDM 下本身就很稳，因此不是 universal noise-training gain 的证据；Cube 仍是响应最弱的任务。
+
+**PLDM fragility-ratio partial correlations.** 前三列 partial 均在 PLDM 内条件于 `std_max`；最后一列使用 joint LeWM+PLDM 样本，同时条件于 `std_max` 和 method。
+
+| Task | PLDM n | clean partial | px+goal 0.08 partial | OOD-drop partial | joint OOD-drop partial |
+|---|---:|---:|---:|---:|---:|
+| TwoRoom | 9 | -0.26 | -0.85 | +0.87 | +0.56 |
+| PushT | 9 | -0.22 | +0.04 | -0.14 | +0.11 |
+| Reacher | 9 | -0.68 | -0.86 | +0.14 | +0.34 |
+| Cube | 9 | -0.36 | -0.05 | -0.41 | -0.13 |
+
+PushT null 是跨方法 C4 检查：移除 `std_max` 与 method offset 后，fragility ratio 不能隔离 OOD-specific robustness。TwoRoom/Reacher/Cube 的 residual correlation 保留为 scope boundary，不解释成 universal OOD oracle。
 
 ---
 

@@ -464,7 +464,7 @@ if [ "${run_eval_sweep}" = "1" ]; then
 
     jobs=()
     for mag in $_sweep_mags; do
-        # is_clean: gaussian → mag == 0 ; blur → mag == 0 ; resize → mag == 1.0
+        # is_clean: gaussian_noise → mag == 0.0 ; gaussian_blur → mag == 1 ; resize → mag == 1.0
         is_clean=$(awk -v m="$mag" -v z="$_zero_mag" 'BEGIN{print (m+0==z+0)?1:0}')
         for ((s=0; s<eval_seeds; s++)); do
             cur_seed=$(( eval_base_seed + s ))

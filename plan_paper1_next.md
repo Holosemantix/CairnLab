@@ -2,7 +2,7 @@
 
 > 配套 `paper_invariance_resolution_tradeoff.md` / `paper_invariance_resolution_tradeoff_zh.md` / `paper1/main.tex`。
 > 本文档汇总：故事强度评估、查重/新颖性结论、reviewer 视角写作整改清单、PLDM 数据补齐后的执行步骤。
-> 最后更新：2026-05-21（commit `bae6259` 已包含本文档的主要写作整改）。
+> 最后更新：2026-05-22 — PLDM 32-ckpt sweep（4 tasks × 8 std_max，无 baseline 三任务）已整合进 §Appendix F；待 baseline 完成做最后一次更新。
 
 ---
 
@@ -76,7 +76,50 @@ JEPA 世界模型 + CEM 控制 + pixel noise sweep + 5 层诊断 + partial-corre
 
 ---
 
-## 4. PLDM 数据补齐后的执行清单
+## 4. PLDM 数据集成进展
+
+> 数据落在 `/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-{pusht,tworooms,reacher,cube}/ckpt/<dataset>_pldm_{baseline,noise_*}/eval_results/...`。
+> 配置和 LeWM 完全一样：3 eval seeds × 100 traj。
+
+### 4.0 已完成（2026-05-22，commit 见下方）
+
+✅ Step A — 数据聚合
+- `assets/paper1_data/canonical_evals_pldm_20260522.json` — 33 ckpts（TwoRoom/Reacher/Cube 各 8 noise，PushT 1 base + 8 noise）
+- `assets/paper1_data/canonical_diagnostics_pldm_20260522.json` — 同上
+- 聚合脚本：`tools/build_canonical_evals_pldm.py` + `tools/build_canonical_diagnostics_pldm.py`
+
+✅ Step B — 跨方法相关性分析
+- `assets/paper1_data/cross_method_corr_pldm_20260522.json` — within-LeWM / within-PLDM / joint (LeWM+PLDM) partial Spearman
+- 脚本：`tools/pldm_correlation_analysis.py`
+
+✅ Step C — 论文升级
+- §1.3 Contributions C1/C4 加入 PLDM replication 证据
+- §2.1 Related-work PLDM 段：从"sanity check"升级为"second method family"
+- §4.2 OOD cliff 段：加 PLDM PushT 数字（75.33→10.00，-65.33pt）+ task-level 信号 carryover
+- §5.5 Limitation 1：从"Single backbone family"软化为"Two backbone families validated; broader JEPA variants remain open"
+- §Appendix F：从单 ckpt sanity check 扩展为完整 4-task PLDM sweep，含 tab:pldm-sweep-clean、tab:pldm-sweep-px08、tab:pldm-partial-corr-pusht + joint n=18 partial 结论
+- Abstract C3：保留主要 LeWM 表述，加一句"the same partial-correlation null replicates on PLDM PushT"
+- 摘要 + Contributions 措辞保持保守：什么 replicate 了 / 什么是 method-specific 都明示
+
+### 4.1 待 baseline 数据补齐后做（最后 1 次小修）
+
+> 当 TwoRoom / Reacher / Cube 的 `*_pldm_baseline` ckpt 补齐后：
+
+1. 重新跑两个 build 脚本（输出新的 `canonical_*_pldm_<NEW_DATE>.json`，或就 update 同日期 JSON）
+2. `tab:pldm-sweep-clean` / `tab:pldm-sweep-px08` 把三任务的 baseline 行填上（目前是 `---`）
+3. `cross_method_corr` 跑一遍：对 TwoRoom / Reacher / Cube 也会获得 PLDM n=9 而非 n=8；joint n=18 而非 n=17
+4. §Appendix F "PLDM full sweep --- clean evaluation" 表头脚注的"three other-task baselines are pending"删掉
+5. 重新编译 + push
+
+### 4.2 仍然是限制的项（不依赖 PLDM baseline）
+
+- Limitation 1 仍然适用："broader JEPA variants (I-JEPA / V-JEPA lineage; variational JEPA) remain open"
+- Limitation 2（Gaussian pixel noise only）仍然适用 —— 这是值得加一个 blur/contrast 单档的地方
+- §5.3 Scope 2（Reacher/TwoRoom partial-corr 失效）仍然适用 —— 但 PLDM TwoRoom partial-on-drop ρ=+0.86（n=8）的奇高值需要在文中谨慎处理（已在 Appendix F 文字里 hedge 过）
+
+---
+
+## 4b. 历史草案：完整 5-step PLDM 数据补齐流程（保留作为参考）
 
 > 数据期望落到 `/opt/.../lewm-{pusht,tworooms,reacher,cube}/ckpt/<dataset>_pldm_{baseline,noise_*}/eval_results/...`。
 > 配置和 LeWM 完全一样：4 tasks × 9 std_max × 3 eval seeds × 100 traj。

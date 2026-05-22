@@ -34,6 +34,10 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.schema.json",
     ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json",
     ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.schema.json",
+    # PLDM cross-method replication (added 2026-05-22)
+    ROOT / "assets" / "paper1_data" / "canonical_evals_pldm_20260522.json",
+    ROOT / "assets" / "paper1_data" / "canonical_diagnostics_pldm_20260522.json",
+    ROOT / "assets" / "paper1_data" / "cross_method_corr_pldm_20260522.json",
     ROOT / "DATA_MANIFEST.md",
 ]
 

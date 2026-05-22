@@ -73,7 +73,7 @@ Joint-Embedding Predictive Architecture (JEPA) 由 LeCun [1] 提出，核心思�
 
 **与本文的关系**：LeWM 是我们的基线系统。原始论文报道了 Violation-of-Expectation (VoE) 实验，证明 LeWM 对物理扰动（物体瞬移）敏感，但对视觉扰动（颜色变化）不敏感。然而 (i) VoE 测量的是预测误差（surprise），不是控制成功率；(ii) 颜色变化与像素级高斯噪声是两种不同性质的扰动。本文给出 LeWM 在 JEPA + CEM world-model pipeline 下、面对像素级高斯噪声时的控制成功率画像。**就我们所知**，这是 JEPA 世界模型在视觉 OOD 下控制鲁棒性的首个系统性研究。
 
-作为一个外部 baseline sanity check，我们还评估了 PLDM [21,22]，具体实现来自 `stable-worldmodel` [23]。这里的 PLDM 只用于检验 clean-trained visual-noise cliff 是否是 LeWM 独有现象；完整 sweep、诊断相关性和 trade-off 结论仍只基于 LeWM。
+作为第二个 method family，我们在完整 sweep grid 上评估了 PLDM [21,22]（实现来自 `stable-worldmodel` [23]，详见附录 F）。PLDM 的 sweep 覆盖与 LeWM 相同的 4 任务和 8 档 `std_max`，遵循同样的 3-seed × 100 trajectories 评测协议。我们用 PLDM 来检验哪些结论可跨 method family 复现，哪些是 LeWM 特有；trade-off 概念和诊断 toolkit 本身仍在 LeWM 上建立和分析，主文 LeWM canonical 表格保持 method-pure 以便清晰对照。
 
 ### 2.2 JEPA 的鲁棒性研究
 
@@ -220,7 +220,7 @@ $$
 | Reacher | 58.67 ± 1.25 | 27.00 ± 5.10 | 15.00 ± 2.16 | **−43.67** |
 | Cube | 66.67 ± 2.62 | 53.33 ± 3.30 | 46.33 ± 3.68 | **−20.33** |
 
-作为外部 baseline sanity check，一个 clean-trained PushT PLDM checkpoint 在同样的 3 evaluation seeds × 100 trajectories 协议下，从 **75.33 ± 3.68** clean 降到 **43.67 ± 4.64**（px+goal 0.05）和 **10.00 ± 2.16**（px+goal 0.08），详见附录 F。这只支持一个窄结论：control-time visual-noise cliff 不是 LeWM 独有。它**不**证明 noise-training trade-off 或 LeWM 诊断相关性能跨架构泛化；这些需要正在跑的 PLDM / DINO-WM sweep。
+同方向的失败模式也在 PLDM 上复现：clean-trained PushT PLDM checkpoint 从 **75.33% ± 3.68** clean 降到 **10.00% ± 2.16**（px+goal 0.08，−65.33pt，附录 F），并且 noise-training sweep 的每任务信号——TwoRoom 在高 `std_max` 上单调上升、PushT 在 `std_max ≈ 0.003` 附近大幅 recovery、Cube 响应最弱——都在我们附录 F 给出的完整 PLDM sweep 中复现。在已经有 PLDM baseline 的 PushT 上重做 partial correlation，C4 的 null 结论也跨方法复现：PLDM partial ρ(metric, OOD drop | `std_max`) = −0.14（LeWM 上为 +0.06）。
 
 ![Fig 1 — Visual OOD cliff in LeWM and recovery by noise training](assets/paper1_figs/fig1_hero.png)
 
@@ -463,7 +463,7 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 ### 5.5 局限与未来方向
 
-**局限 1：完整 sweep 与诊断分析仅在 LeWM 上验证。** 附录 F 的 PushT PLDM sanity check 显示 clean-trained visual-noise cliff 也出现在一个外部 baseline 上，但它不是跨架构 sweep。其他 JEPA 变体（V-JEPA / I-JEPA 流派 EMA target、变分 JEPA 等）仍可能有不同的噪声响应。
+**局限 1：两个 backbone family 已验证；更广 JEPA 变体待补。** Toolkit 与 trade-off 概念在 LeWM 上建立；附录 F 的 PLDM sweep 复现了 task-level 信号与 PushT 上的 partial-correlation null，但完整诊断（effective rank trajectory、transition resolution 等）目前仅在 LeWM 上给出。EMA-target JEPA（I-JEPA / V-JEPA 流派）与 variational JEPA 仍可能有不同的噪声响应，我们没有跑这些变体。
 
 **局限 2：仅测试了高斯像素噪声。** 真实世界 visual corruption 还包括运动模糊、对比度变化、遮挡、光照变化等；本文的 trade-off 在这些场景的迁移性是 open question。
 

@@ -10,6 +10,10 @@ cross_check_corr_*.json
 !assets/paper1_data/canonical_evals_20260517.schema.json
 !assets/paper1_data/canonical_diagnostics_20260517.json
 !assets/paper1_data/canonical_diagnostics_20260517.schema.json
+# PLDM cross-method replication aggregates (Appendix F)
+!assets/paper1_data/canonical_evals_pldm_20260522.json
+!assets/paper1_data/canonical_diagnostics_pldm_20260522.json
+!assets/paper1_data/cross_method_corr_pldm_20260522.json
 
 # Mac
 .DS_Store

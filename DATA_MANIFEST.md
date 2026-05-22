@@ -8,7 +8,10 @@ This manifest documents the released evaluation aggregate for Paper 1:
 - Diagnostics schema: `assets/paper1_data/canonical_diagnostics_20260517.schema.json`
 - External baseline sanity check: `assets/paper1_data/canonical_external_baselines_20260520.json`
 - External baseline schema: `assets/paper1_data/canonical_external_baselines_20260520.schema.json`
-- Scope: 36 LeWM checkpoints = 4 tasks × 9 configs (`base` + `std_max` 0.001..0.008)
+- **PLDM cross-method replication aggregate**: `assets/paper1_data/canonical_evals_pldm_20260522.json` (33 ckpts: 8 noise per task + PushT baseline; TwoRoom / Reacher / Cube baselines pending)
+- **PLDM cross-method replication diagnostics**: `assets/paper1_data/canonical_diagnostics_pldm_20260522.json`
+- **Cross-method correlations**: `assets/paper1_data/cross_method_corr_pldm_20260522.json` (within-LeWM / within-PLDM / joint partial Spearman; consumed by Appendix F)
+- Scope: 36 LeWM checkpoints = 4 tasks × 9 configs (`base` + `std_max` 0.001..0.008); 33 PLDM checkpoints (replication)
 - Evaluation protocol: **3 evaluation seeds** (`42`, `43`, `44`) × **100 trajectories per seed**
 - Important clarification: these are **evaluation seeds**, not 3 independently trained models per configuration
 

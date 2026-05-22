@@ -71,7 +71,7 @@ JEPA [1] predicts in latent space rather than reconstructing pixels. I-JEPA [2] 
 
 **Relation to this paper.** LeWM is the baseline system in our experiments. The original LeWM paper reports a Violation-of-Expectation experiment showing the model is sensitive to physical perturbations (object teleportation) but not to visual perturbations (colour change). Note however that (i) VoE measures prediction error (surprise), not control success rate, and (ii) colour change and pixel-level Gaussian noise are distinct corruptions. We give the first picture, to our knowledge, of LeWM's control success rate under pixel-noise corruption.
 
-For one external-baseline sanity check we also evaluate PLDM [21,22] as implemented in `stable-worldmodel` [23]. We use it only to test whether the clean-trained visual-noise cliff is isolated to LeWM; the full sweep, diagnostic correlations, and trade-off claims remain LeWM-only.
+For a second method family we evaluate PLDM [21,22] as implemented in `stable-worldmodel` [23] on the full sweep grid (Appendix F). The PLDM sweep covers the same four tasks and the same eight values of `std_max` as our LeWM sweep, under the same 3-seed × 100-trajectory evaluation protocol. We use PLDM to test which findings replicate across method families and which are LeWM-specific; the trade-off concept and the diagnostic toolkit themselves are introduced and analysed on LeWM, and the LeWM canonical tables in the main text are kept method-pure for clarity.
 
 ### 2.2 Robustness studies of JEPA
 
@@ -207,7 +207,7 @@ Table 1 reports LeWM-base success rates under clean and noised eval (mean ± std
 
 ![Fig 1 — Visual OOD cliff in LeWM and recovery by noise training](assets/paper1_figs/fig1_hero.png)
 
-As an external-baseline sanity check, a clean-trained PLDM checkpoint on PushT under the same 3-evaluation-seed × 100-trajectory protocol drops from **75.33 ± 3.68** clean to **43.67 ± 4.64** at px+goal 0.05 and **10.00 ± 2.16** at px+goal 0.08 (Appendix F). This supports the narrow statement that the control-time visual-noise cliff is not isolated to LeWM. It does **not** establish that the noise-training trade-off or the LeWM diagnostic correlations generalize across architectures; those require the ongoing PLDM/DINO-WM sweeps.
+The same direction of failure replicates on PLDM: a clean-trained PLDM checkpoint on PushT drops from **75.33% ± 3.68** clean to **10.00% ± 2.16** at px+goal 0.08 (−65.33 pt, Appendix F), and the per-task signatures of the noise-training sweep — TwoRoom's monotone rise to high `std_max`, PushT's large `std_max ≈ 0.003` recovery, Cube's weak response — carry over to the full PLDM sweep we report in Appendix F. Where the partial-correlation analysis can be repeated (PushT, the one task with a synced PLDM baseline), the C4 null on the fragility ratio also replicates: PLDM partial ρ(metric, OOD drop | `std_max`) = −0.14 (vs +0.06 on LeWM).
 
 LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual std = 0.05 applied to pixels and goal jointly already produces large drops on all tasks. PushT loses 74+ pts (down to near-random 4.67% at std = 0.08), TwoRoom 30+ pts, Reacher 30+ pts, Cube ~13 pts (at std = 0.05). **This is not a marginal phenomenon**: a JEPA + CEM world model without noise-aware training has essentially no resistance to visual corruption. The drop pattern across tasks is informative: Cube degrades least (−20.33 pt at std = 0.08) — structured manipulation has some natural robustness to pixel noise — whereas PushT degrades most catastrophically (−81.67 pt), confirming that contact-heavy continuous control is most sensitive to visual precision.
 
@@ -448,7 +448,7 @@ Our sweep data suggest a simple operational recipe:
 
 ### 5.5 Limitations and future directions
 
-**Limitation 1 — Single backbone family.** The full sweep and diagnostic analysis are validated on LeWM. The PushT PLDM sanity check in Appendix F shows a similar clean-trained visual-noise cliff, but it is not a cross-architecture sweep; other JEPA variants (EMA-target I-JEPA / V-JEPA lineage; variational JEPA) may exhibit different noise responses.
+**Limitation 1 — Two backbone families validated; broader JEPA variants remain open.** The toolkit and the trade-off concept are introduced on LeWM; the PLDM sweep in Appendix F replicates the task-level signatures and the partial-correlation null on PushT, but the full diagnostic apparatus (effective rank trajectory, transition resolution, etc.) is reported only on LeWM in the main text. EMA-target JEPA variants (I-JEPA / V-JEPA lineage) and variational JEPA may exhibit different noise responses; we did not run them.
 
 **Limitation 2 — Gaussian pixel noise only.** Real-world visual corruption includes motion blur, contrast variation, occlusion, and lighting change; whether the trade-off transfers to these regimes is open.
 

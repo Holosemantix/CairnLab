@@ -34,6 +34,7 @@ from utils import (
     get_img_noise_transform,
     get_img_preprocessor,
     ModelObjectCallBack,
+    resolve_h5_dataset_path,
     TransformDataset,
 )
 
@@ -419,7 +420,13 @@ def run(cfg):
     ##       dataset       ##
     #########################
 
-    dataset = swm.data.HDF5Dataset(**cfg.data.dataset, transform=None)
+    # Resolve H5 path explicitly to tolerate both swm layouts:
+    #   0.0.6 wheel:          <STABLEWM_HOME>/<name>.h5
+    #   post-PR-#221 source:  <STABLEWM_HOME>/datasets/<name>.h5
+    _data_cfg_for_h5 = OmegaConf.to_container(cfg.data.dataset, resolve=True)
+    _h5_name = _data_cfg_for_h5.pop("name")
+    _h5_path = resolve_h5_dataset_path(_h5_name)
+    dataset = swm.data.HDF5Dataset(path=str(_h5_path), transform=None, **_data_cfg_for_h5)
     transforms = [
         get_img_preprocessor(source="pixels", target="pixels", img_size=cfg.img_size)
     ]

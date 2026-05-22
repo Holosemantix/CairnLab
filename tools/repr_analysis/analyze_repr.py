@@ -35,7 +35,7 @@ import torch.nn.functional as F
 import stable_pretraining as spt
 import stable_worldmodel as swm
 
-from utils import get_column_normalizer, get_img_preprocessor
+from utils import get_column_normalizer, get_img_preprocessor, resolve_h5_dataset_path
 
 SECTION_ORDER = [
     "meta",
@@ -519,8 +519,14 @@ def load_dataset_samples(
     if state_key:
         keys_to_load.append(state_key)
 
+    # Resolve the H5 path explicitly so the diagnostic suite works against
+    # both swm layouts: 0.0.6 wheel (flat <base>/<name>.h5) and post-PR-#221
+    # source (<base>/datasets/<name>.h5). Passing `path=` bypasses the
+    # hard-coded sub_folder='datasets' in the source version. Nested names
+    # like "ogbench/cube_single_expert" are preserved verbatim.
+    h5_path = resolve_h5_dataset_path(dataset_name)
     ds = swm.data.HDF5Dataset(
-        name=dataset_name,
+        path=str(h5_path),
         num_steps=num_steps,
         frameskip=frameskip,
         keys_to_load=keys_to_load,

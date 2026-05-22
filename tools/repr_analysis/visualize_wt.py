@@ -42,7 +42,7 @@ from tools.repr_analysis.analyze_repr import (
     load_dataset_samples,
     load_model,
 )
-from utils import get_column_normalizer, get_img_preprocessor
+from utils import get_column_normalizer, get_img_preprocessor, resolve_h5_dataset_path
 
 
 def compute_action_gate_metrics_offline(
@@ -150,8 +150,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def build_episode_dataset(dataset_name: str, img_size: int, frameskip: int = 5):
+    # Resolve the H5 path explicitly so we tolerate both swm layouts
+    # (0.0.6 flat vs post-PR-#221 `datasets/` subdir). Nested names like
+    # "ogbench/cube_single_expert" are preserved verbatim.
+    h5_path = resolve_h5_dataset_path(dataset_name)
     dataset = swm.data.HDF5Dataset(
-        dataset_name,
+        path=str(h5_path),
         num_steps=1,
         frameskip=frameskip,
         transform=None,
@@ -589,8 +593,9 @@ def run_aggregate_analysis(args, model, history_size: int, save_dir: Path):
 
 def run_trajectory_analysis(args, model, history_size: int, save_dir: Path):
     dataset = build_episode_dataset(args.dataset, args.img_size, frameskip=args.frameskip)
+    raw_h5_path = resolve_h5_dataset_path(args.dataset)
     raw_dataset = swm.data.HDF5Dataset(
-        args.dataset,
+        path=str(raw_h5_path),
         num_steps=1,
         frameskip=args.frameskip,
         transform=None,

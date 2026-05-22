@@ -4,7 +4,7 @@ import hydra
 import torch
 import stable_pretraining as spt
 import stable_worldmodel as swm
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 from analyze.core import (
     collect_embeddings,
@@ -17,15 +17,20 @@ from analyze.core import (
     save_results,
     write_embedding_dump,
 )
-from utils import get_img_preprocessor
+from utils import get_img_preprocessor, resolve_h5_dataset_path
 
 
 def build_dataset(cfg: DictConfig):
     print(f"[analyze] Loading dataset: {cfg.data.dataset.name}")
+    # Resolve the H5 path explicitly so we tolerate both swm layouts
+    # (0.0.6 flat vs post-PR-#221 `datasets/` subdir).
+    data_cfg = OmegaConf.to_container(cfg.data.dataset, resolve=True)
+    h5_name = data_cfg.pop("name")
+    h5_path = resolve_h5_dataset_path(h5_name, cache_dir=cfg.cache_dir)
     dataset = swm.data.HDF5Dataset(
-        **cfg.data.dataset,
+        path=str(h5_path),
         transform=None,
-        cache_dir=cfg.cache_dir,
+        **data_cfg,
     )
     print(f"[analyze] Dataset path: {dataset.h5_path}")
     dataset.transform = spt.data.transforms.Compose(

@@ -280,14 +280,38 @@ def run_full_diagnostics(
     action_effect_n_trials: int = 128,
     action_effect_interp_steps: int = 16,
     action_effect_perturb_scale: float = 0.5,
+    corruption_type: str = "gaussian",
     log=print,
 ) -> Dict[str, Any]:
-    """Run the full diagnostic suite from one Python entrypoint.
+    """Run the full diagnostic suite.
 
-    This is the notebook/API counterpart of the CLI. It returns all raw rows
-    plus formatted tables and the one-line roll-up used by P0 correlation work.
-    When `save_dir` is provided it also writes the same artifacts as the CLI.
+    ``corruption_type`` selects the family of pixel-space perturbation
+    used by the noise / predictor probes. Defaults to ``gaussian`` --- the
+    original behaviour --- so existing callers see no change. Setting it
+    to ``gaussian_blur`` or ``resize`` swaps the injection class; the
+    ``stds`` sequence is reinterpreted as the corresponding magnitude
+    (kernel sigma in pixels, or downscale factor). The latent-noise probe
+    is intrinsically z-space Gaussian and is auto-skipped when
+    ``corruption_type != 'gaussian'`` (it would be ill-defined otherwise).
     """
+    # (Module-level docstring above; per-call helper docstring follows.)
+    # This is the notebook/API counterpart of the CLI. It returns all raw rows
+    # plus formatted tables and the one-line roll-up used by P0 correlation work.
+    # When `save_dir` is provided it also writes the same artifacts as the CLI.
+    if corruption_type not in ("gaussian", "gaussian_blur", "resize"):
+        raise ValueError(
+            f"Unsupported corruption_type='{corruption_type}'. "
+            "Expected one of: gaussian, gaussian_blur, resize."
+        )
+    if corruption_type != "gaussian" and not skip_latent_noise:
+        if log is not None:
+            log(
+                "[diagnostics] note: latent_noise_sensitivity probes z-space "
+                "Gaussian noise and is not defined for "
+                f"corruption_type={corruption_type!r}; skipping it."
+            )
+        skip_latent_noise = True
+
     output_dir = Path(save_dir) if save_dir is not None else None
     if output_dir is not None:
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -315,8 +339,8 @@ def run_full_diagnostics(
 
     if not skip_noise:
         if log is not None:
-            log("==[diagnostics] running noise_sensitivity ==")
-        noise_rows = run_noise_sensitivity(stds=stds, **common)
+            log(f"==[diagnostics] running noise_sensitivity (corruption_type={corruption_type}) ==")
+        noise_rows = run_noise_sensitivity(stds=stds, corruption_type=corruption_type, **common)
         if output_dir is not None:
             _save_rows(output_dir, "noise_sensitivity", noise_rows)
         try:
@@ -354,11 +378,12 @@ def run_full_diagnostics(
 
     if not skip_predictor:
         if log is not None:
-            log("==[diagnostics] running predictor_sensitivity ==")
+            log(f"==[diagnostics] running predictor_sensitivity (corruption_type={corruption_type}) ==")
         predictor_rows = run_predictor_sensitivity(
             stds=stds,
             rollout_steps=rollout_steps,
             history_noise_only=predictor_history_noise_only,
+            corruption_type=corruption_type,
             **common,
         )
         if output_dir is not None:
@@ -579,11 +604,26 @@ def build_parser() -> argparse.ArgumentParser:
                         "(comparable across LeWM/SWM).")
     p.add_argument("--latent-noise-n-samples", type=int, default=1,
                    help="Independent noise samples averaged per (std, scope).")
+    p.add_argument("--corruption-type", default="gaussian",
+                   choices=["gaussian", "gaussian_blur", "resize"],
+                   help="Pixel-space corruption family for the noise / predictor "
+                        "probes. The ``stds`` list is reinterpreted as the family's "
+                        "magnitude (sigma in px for gaussian_blur; factor for resize). "
+                        "Latent-noise probe is auto-skipped for non-gaussian types.")
     return p
 
 
 def main():
     args = build_parser().parse_args()
+    # Re-route the save dir when corruption_type != gaussian so blur and
+    # resize diagnostic outputs do not overwrite the canonical gaussian
+    # diagnostic JSONs. The caller can still override by passing a
+    # save_dir that already carries the desired suffix.
+    save_dir = args.save_dir
+    if args.corruption_type != "gaussian" and not save_dir.rstrip("/").endswith(
+        f"_{args.corruption_type}"
+    ):
+        save_dir = save_dir.rstrip("/") + f"_{args.corruption_type}"
     run_full_diagnostics(
         models=_parse_model_specs(args.model),
         dataset=args.dataset,
@@ -597,7 +637,7 @@ def main():
         embedding_space=args.embedding_space,
         seed=args.seed,
         device=args.device,
-        save_dir=args.save_dir,
+        save_dir=save_dir,
         plot=args.plot,
         skip_noise=args.skip_noise,
         skip_predictor=args.skip_predictor,
@@ -611,6 +651,7 @@ def main():
         action_effect_n_trials=args.action_effect_n_trials,
         action_effect_interp_steps=args.action_effect_interp_steps,
         action_effect_perturb_scale=args.action_effect_perturb_scale,
+        corruption_type=args.corruption_type,
     )
 
 

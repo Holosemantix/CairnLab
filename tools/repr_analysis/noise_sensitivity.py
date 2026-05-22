@@ -62,19 +62,24 @@ from tools.repr_analysis.analyze_repr import (
     resolve_space_name,
     to_serializable,
 )
-from utils import AddNormalizedGaussianNoise
+from utils import make_eval_corruption
 
 
 def _clone_batch(batch: Mapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
     return {k: v.clone() if torch.is_tensor(v) else v for k, v in batch.items()}
 
 
-def _add_eval_noise(x: torch.Tensor, std: float, seed: int) -> torch.Tensor:
-    if std <= 0:
+def _add_eval_corruption(x: torch.Tensor, magnitude: float, seed: int,
+                         corruption_type: str = "gaussian") -> torch.Tensor:
+    """Apply the configured corruption (gaussian / gaussian_blur / resize)
+    at a single magnitude, deterministically seeded so a given probe
+    point is reproducible across runs."""
+    transform = make_eval_corruption(magnitude, corruption_type)
+    if transform is None:
         return x.clone()
     with torch.random.fork_rng(devices=[x.device] if x.device.type == "cuda" else []):
         torch.manual_seed(seed)
-        return AddNormalizedGaussianNoise(std, std)(x)
+        return transform(x)
 
 
 def _select_frames(z: torch.Tensor, frame_scope: str) -> torch.Tensor:
@@ -194,7 +199,11 @@ def analyze_model_noise(
     embedding_space: str | None = None,
     seed: int = 3072,
     device: str = "cuda",
+    corruption_type: str = "gaussian",
 ) -> list[Dict[str, Any]]:
+    """``stds`` carries the corruption magnitudes regardless of family
+    (``std`` for ``gaussian``, ``sigma`` for ``gaussian_blur``,
+    ``factor`` for ``resize``). The name is kept for back-compat."""
     model = load_model(ckpt, device)
     spaces = get_model_spaces(model)
     space = resolve_space_name(embedding_space or spaces["inference_cost_space"])
@@ -205,8 +214,9 @@ def analyze_model_noise(
     rows: list[Dict[str, Any]] = []
     for std_idx, std in enumerate(stds):
         noisy_batch = _clone_batch(batch)
-        noisy_batch["pixels"] = _add_eval_noise(
-            noisy_batch["pixels"], float(std), seed + 1009 * std_idx
+        noisy_batch["pixels"] = _add_eval_corruption(
+            noisy_batch["pixels"], float(std),
+            seed + 1009 * std_idx, corruption_type=corruption_type,
         )
         noisy_outputs = encode_sequences(model, noisy_batch)
         noisy_z = get_embedding_space(noisy_outputs, space).detach()
@@ -266,6 +276,7 @@ def run_noise_sensitivity(
     embedding_space: str | None = None,
     seed: int = 3072,
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
+    corruption_type: str = "gaussian",
 ) -> list[Dict[str, Any]]:
     if not models:
         raise ValueError("models must contain at least one label -> checkpoint path.")
@@ -298,6 +309,7 @@ def run_noise_sensitivity(
                 embedding_space=embedding_space,
                 seed=seed,
                 device=device,
+                corruption_type=corruption_type,
             )
         )
     return rows

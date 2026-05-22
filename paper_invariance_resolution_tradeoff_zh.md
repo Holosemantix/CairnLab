@@ -26,7 +26,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 ### 1.1 JEPA 的不变性承诺与现实差距
 
-自 Yann LeCun 提出 Joint-Embedding Predictive Architecture (JEPA) [1] 以来，这一范式被推荐为自监督学习的方向。与生成式模型（VAE、扩散模型）不同，JEPA 不重建像素，而是在潜空间预测未来的表征。"通过预测什么不变而非像素长什么样可以让编码器自发学到抛弃视觉冗余和噪声的抽象表征"——这条直觉如今已是社区**非正式词汇**的一部分（出现在 talks、blog、综述中）[2,3]。
+自 Yann LeCun 提出 Joint-Embedding Predictive Architecture (JEPA) [1] 以来，这一范式被推荐为自监督学习的方向。与生成式模型（VAE、扩散模型）不同，JEPA 不重建像素，而是在潜空间预测未来的表征。一条常见的 motivating intuition——"在潜空间预测可能促使编码器抛弃视觉冗余和噪声、形成抽象表征"——出现在社区**非正式词汇**中（talks、blog、综述等）[2,3]，但 JEPA 原始论文本身并没有把它作为 formal property 提出。
 
 我们强调这是一条**启发**而非已发表的保证。就我们所知，没有任何 JEPA 论文**正式 claim** 过下游控制任务的视觉 OOD 鲁棒性。I-JEPA [2] 和 V-JEPA [3,4] 在 ImageNet 与视频任务上通过掩码预测建立了强表征；LeWorldModel (LeWM) [5] 把框架扩展到端到端稳定的世界模型训练，覆盖 4 个机器人控制任务。现有的 JEPA 鲁棒性研究只覆盖图像分类（N-JEPA [8]）、合成 1D distractor（VJEPA [9]）、或医学超声（US-JEPA [10]）——**没有人在真实像素噪声下研究 JEPA-based 控制**。
 

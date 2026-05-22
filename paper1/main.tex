@@ -82,7 +82,7 @@
 \maketitle
 
 \begin{abstract}
-Joint-Embedding Predictive Architectures (JEPAs) are commonly \emph{believed} to learn abstract, invariant world representations: by predicting in latent space rather than reconstructing pixels, the encoder is expected to discard visual redundancy and noise. This expectation is a \emph{community heuristic} rather than a published guarantee --- to our knowledge no JEPA work formally claims pixel-noise robustness for control. We test the implicit assumption on \textbf{LeWorldModel (LeWM)}~\cite{maes2026lewm}, a published JEPA world model, across four manipulation and navigation tasks (PushT, TwoRoom, Reacher, Cube) and eight levels of train-time pixel-noise augmentation. We find three things:
+A common motivation for Joint-Embedding Predictive Architectures (JEPAs) is that latent prediction may \emph{encourage} abstract, invariant representations: by predicting in latent space rather than reconstructing pixels, the encoder is expected to discard visual redundancy and noise that no useful predictor would rely on. This is an informal motivation rather than a published guarantee --- to our knowledge no JEPA work formally claims pixel-noise robustness for control. We test the implicit assumption on \textbf{LeWorldModel (LeWM)}~\cite{maes2026lewm}, a published JEPA world model, across four manipulation and navigation tasks (PushT, TwoRoom, Reacher, Cube) and eight levels of train-time pixel-noise augmentation. We find three things:
 \begin{enumerate}
   \item \textbf{Visual out-of-distribution (OOD) collapse in JEPA + Cross-Entropy Method (CEM) control.} Without noise-aware training, LeWM collapses under mild pixel noise: PushT control success drops from $86.33\%$ (clean) to $4.67\%$ (Gaussian \mbox{std = 0.08}, near-random); TwoRoom drops from $94.00\%$ to $50.00\%$.
   \item \textbf{No globally optimal noise level exists.} Tasks respond very differently to noise augmentation: visually redundant TwoRoom prefers heavy noise (point-best at \stdmax{} $= 0.08$), while contact-heavy PushT peaks on \emph{clean} at \stdmax{} $= 0.03$ but on \emph{robustness} at \stdmax{} $= 0.06$ --- clean and robust optima dissociate within a single task.
@@ -99,9 +99,9 @@ This paper does not propose a new training algorithm. Its contribution is (i) a 
 
 \subsection{The implicit invariance heuristic and where it breaks}\label{sec:intro-heuristic}
 
-Since Yann LeCun proposed JEPA~\cite{lecun2022path}, the paradigm has been advanced as a direction for self-supervised learning. Unlike generative models (variational autoencoders, diffusion), JEPA does not reconstruct pixels; it predicts future \emph{representations} in latent space. The motivating intuition --- that predicting ``what is invariant'' rather than ``what pixels look like'' yields abstract representations that discard visual redundancy and noise --- is now part of the field's informal vocabulary in talks, blog posts, and survey articles~\cite{assran2023ijepa,bardes2024vjepa}.
+Since Yann LeCun proposed JEPA~\cite{lecun2022path}, the paradigm has been advanced as a direction for self-supervised learning. Unlike generative models (variational autoencoders, diffusion), JEPA does not reconstruct pixels; it predicts future \emph{representations} in latent space. A common motivating intuition --- that predicting ``what is invariant'' rather than ``what pixels look like'' may encourage abstract representations that discard visual redundancy and noise --- appears in the field's informal vocabulary, in talks, blog posts, and survey articles~\cite{assran2023ijepa,bardes2024vjepa}, though the JEPA papers themselves do not commit to that claim as a formal property.
 
-This is a heuristic rather than a published guarantee. To our knowledge no JEPA paper has \emph{formally claimed} visual-OOD robustness for control-relevant downstream tasks. I-JEPA~\cite{assran2023ijepa} and V-JEPA~\cite{bardes2024vjepa,assran2025vjepa2} established strong visual representations on ImageNet and video via masked prediction; LeWorldModel (LeWM)~\cite{maes2026lewm} extended the framework to end-to-end stable world-model training across four robotic control tasks. Existing robustness studies probe JEPA only on image classification~\cite{njepa2025}, synthetic 1D distractors~\cite{huang2026vjepa}, or medical ultrasound~\cite{usjepa2025}; none on \emph{JEPA-based control} under realistic pixel noise.
+This is an informal motivation rather than a published guarantee. To our knowledge no JEPA paper has \emph{formally claimed} visual-OOD robustness for control-relevant downstream tasks. I-JEPA~\cite{assran2023ijepa} and V-JEPA~\cite{bardes2024vjepa,assran2025vjepa2} established strong visual representations on ImageNet and video via masked prediction; LeWorldModel (LeWM)~\cite{maes2026lewm} extended the framework to end-to-end stable world-model training across four robotic control tasks. Existing robustness studies probe JEPA only on image classification~\cite{njepa2025}, synthetic 1D distractors~\cite{huang2026vjepa}, or medical ultrasound~\cite{usjepa2025}; none on \emph{JEPA-based control} under realistic pixel noise.
 
 This leaves a basic operational question open: \textbf{if the input image is degraded by sensor noise, lighting change, or camera jitter, does a JEPA + CEM world model still plan and act reliably?}
 
@@ -832,7 +832,7 @@ PLDM clean-trained & $75.33 \pm 3.68$ & $43.67 \pm 4.64$ & $10.00 \pm 2.16$ & $-
 
 \begin{table}[H]
 \centering
-\caption{PLDM+noise sweep, \textbf{clean} success rate (\%). $\dagger$ marks the per-task clean point-best. PushT row at \stdmax{}~$= 0$ is the baseline of \Cref{tab:pldm-pusht}; the three other-task baselines are pending.}
+\caption{PLDM+noise sweep, \textbf{clean} success rate (\%). $\dagger$ marks the per-task clean point-best. PushT row at \stdmax{}~$= 0$ is the baseline of \Cref{tab:pldm-pusht}; the three other-task baselines are pending. Reacher~$\times$~\stdmax{}~$= 0.04$ (marked $^{\star}$) is a known intermittent training collapse and is being retrained at the time of writing; the surrounding three values ($0.03$, $0.05$, $0.06$) bracket the Reacher trend without depending on this cell.}
 \label{tab:pldm-sweep-clean}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -845,7 +845,7 @@ PLDM clean-trained & $75.33 \pm 3.68$ & $43.67 \pm 4.64$ & $10.00 \pm 2.16$ & $-
 0.01     & $96.33 \pm 0.94$ & $72.33 \pm 4.19$  & $78.00 \pm 0.82$ & $51.33 \pm 1.25$ \\
 0.02     & $97.33 \pm 0.47$ & $71.33 \pm 3.86$  & $82.33 \pm 2.36$ & $53.33 \pm 1.70$ \\
 0.03     & $96.67 \pm 1.70$ & $76.67 \pm 7.54^{\dagger}$  & $83.00 \pm 3.74^{\dagger}$ & $52.67 \pm 3.30$ \\
-0.04     & $97.67 \pm 0.47$ & $68.67 \pm 5.25$  & $45.00 \pm 5.10$ & $54.00 \pm 2.94$ \\
+0.04     & $97.67 \pm 0.47$ & $68.67 \pm 5.25$  & $45.00 \pm 5.10^{\star}$ & $54.00 \pm 2.94$ \\
 0.05     & $97.67 \pm 1.25$ & $74.33 \pm 3.40$  & $72.00 \pm 1.41$ & $54.00 \pm 2.16$ \\
 0.06     & $98.00 \pm 0.82$ & $70.33 \pm 6.18$  & $79.00 \pm 0.82$ & $56.00 \pm 4.97^{\dagger}$ \\
 0.07     & $98.00 \pm 0.82$ & $66.67 \pm 8.38$  & $80.67 \pm 2.62$ & $53.67 \pm 3.68$ \\
@@ -870,7 +870,7 @@ PLDM clean-trained & $75.33 \pm 3.68$ & $43.67 \pm 4.64$ & $10.00 \pm 2.16$ & $-
 0.01     & $89.33 \pm 3.30$ & $16.67 \pm 4.03$  & $78.00 \pm 1.63$ & $53.00 \pm 1.63$ \\
 0.02     & $93.33 \pm 0.94$ & $40.00 \pm 0.82$  & $79.33 \pm 2.05$ & $52.33 \pm 3.40$ \\
 0.03     & $94.33 \pm 1.70$ & $72.00 \pm 2.94^{\ddagger}$ & $79.33 \pm 2.36$ & $55.67 \pm 4.11$ \\
-0.04     & $98.00 \pm 0.00$ & $62.33 \pm 7.41$  & $24.00 \pm 5.10$ & $53.00 \pm 3.56$ \\
+0.04     & $98.00 \pm 0.00$ & $62.33 \pm 7.41$  & $24.00 \pm 5.10^{\star}$ & $53.00 \pm 3.56$ \\
 0.05     & $98.33 \pm 0.94^{\ddagger}$ & $69.33 \pm 4.92$ & $59.67 \pm 3.30$ & $53.00 \pm 1.63$ \\
 0.06     & $97.33 \pm 1.25$ & $69.67 \pm 5.25$  & $76.00 \pm 1.41$ & $53.33 \pm 3.09$ \\
 0.07     & $96.67 \pm 0.47$ & $67.00 \pm 9.09$  & $77.67 \pm 3.30$ & $52.00 \pm 0.00$ \\

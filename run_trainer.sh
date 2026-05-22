@@ -48,9 +48,21 @@
 #                              full  = eval sweep + full diagnostics（默认，旧行为）
 #                              clean = 只跑 clean eval，不跑 corruption sweep/diagnostics
 #                              none  = 不跑 eval/diagnostics
-#   eval_corruption_stds      eval sweep 噪声列表，空格分隔
+#   eval_corruption_type      eval sweep 损坏家族：gaussian (默认) | gaussian_blur | resize
+#                              gaussian      → 用 eval_corruption_stds 作为 std 列表
+#                              gaussian_blur → 用 eval_blur_sigmas 作为 sigma 列表
+#                              resize        → 用 eval_resize_factors 作为 factor 列表
+#                              输出文件名 tag 跟 std-类不冲突：
+#                                gaussian      → ..._std<X>_seed<N>
+#                                gaussian_blur → ..._blur_sigma<X>_seed<N>
+#                                resize        → ..._rs_factor<X>_seed<N>
+#   eval_corruption_stds      eval sweep 噪声列表（gaussian），空格分隔
 #                              默认 "0.0 0.03 0.05 0.08"
 #                              传 "" 跳过 eval sweep（仍跑 noise table）
+#   eval_blur_sigmas          eval sweep 模糊 sigma 列表（gaussian_blur 时使用）
+#                              默认 "0 1 3 5"（0 = clean）
+#   eval_resize_factors       eval sweep resize factor 列表（resize 时使用）
+#                              默认 "1.0 0.75 0.5 0.25"（1.0 = clean）
 #   eval_corruption_apply_to  eval sweep 加噪目标，逗号分隔；'+' 表示同一组里多目标
 #                              默认 "pixels+goal,pixels,goal"
 #                              （"pixels+goal" 表示同时加噪两端）
@@ -377,11 +389,15 @@ fi
 run_one_eval() {
     local job="$1"
     local gpu="$2"
+    # Job tuple format: label|magnitude|mode|seed|ctype
+    # ctype ∈ {gaussian, gaussian_blur, resize}; magnitude is reused as
+    # std / sigma / factor depending on ctype.
     IFS='|' read -ra parts <<< "$job"
     local label="${parts[0]}"
-    local std="${parts[1]}"
+    local mag="${parts[1]}"
     local mode="${parts[2]}"
     local seed="${parts[3]}"
+    local ctype="${parts[4]:-gaussian}"
 
     local args=(
         "--config-name=${dataset_name}.yaml"
@@ -391,12 +407,18 @@ run_one_eval() {
         "output.filename=${results_dir}/${label}_metrics.txt"
     )
     if [ "$mode" != "none" ]; then
-        args+=("eval.corruption.std=${std}")
+        args+=("eval.corruption.type=${ctype}")
+        case "$ctype" in
+            gaussian)       args+=("eval.corruption.std=${mag}") ;;
+            gaussian_blur)  args+=("eval.corruption.sigma=${mag}") ;;
+            resize)         args+=("eval.corruption.factor=${mag}") ;;
+            *) echo "[eval] unknown corruption type '${ctype}'"; return 1 ;;
+        esac
         local apply_list="${mode//+/,}"
         args+=("eval.corruption.apply_to=[${apply_list}]")
     fi
 
-    echo "[eval] start  gpu=${gpu} label=${label} std=${std} mode=${mode} seed=${seed}"
+    echo "[eval] start  gpu=${gpu} label=${label} ctype=${ctype} mag=${mag} mode=${mode} seed=${seed}"
     CUDA_VISIBLE_DEVICES=${gpu} python eval.py "${args[@]}" \
         > "${results_dir}/${label}.log" 2>&1
     local rc=$?
@@ -408,28 +430,52 @@ run_one_eval() {
 }
 
 if [ "${run_eval_sweep}" = "1" ]; then
-    eval_corruption_stds="${eval_corruption_stds-0.0 0.03 0.05 0.08}"
+    # Eval corruption family. Default is the existing pixel-noise sweep
+    # (`gaussian`). Choose `gaussian_blur` or `resize` to run an
+    # alternative corruption family on the same checkpoint; the output
+    # filenames are tagged so they do not collide with the noise sweep.
+    eval_corruption_type="${eval_corruption_type:-gaussian}"
     eval_corruption_apply_to="${eval_corruption_apply_to:-pixels+goal,pixels,goal}"
 
-    # 构造 (label, std, mode, seed) 任务列表。多 seed 时 label 后缀 _seed${seed}，
+    # Per-type magnitude lists (only the one matching eval_corruption_type
+    # is consumed; the others are ignored). For `gaussian` we keep the
+    # existing eval_corruption_stds name for backward compatibility; for
+    # the new families we use suggestive names.
+    eval_corruption_stds="${eval_corruption_stds-0.0 0.03 0.05 0.08}"
+    eval_blur_sigmas="${eval_blur_sigmas-0 1 3 5}"          # px; 0 = clean
+    eval_resize_factors="${eval_resize_factors-1.0 0.75 0.5 0.25}"  # 1.0 = clean
+
+    # 构造 (label, magnitude, mode, seed, ctype) 任务列表。多 seed 时 label 后缀 _seed${seed}，
     # 单 seed (eval_seeds=1) 时不加后缀以保持向后兼容（产出的文件名跟旧脚本一致）。
+    # 文件命名约定（避免与 noise sweep 撞名）：
+    #   gaussian:      <apply_to>_std<X>_seed<N>      (历史不变)
+    #   gaussian_blur: <apply_to>_blur_sigma<X>_seed<N>
+    #   resize:        <apply_to>_rs_factor<X>_seed<N>
     seed_suffix() {
         if [ "${eval_seeds}" -gt 1 ]; then echo "_seed$1"; else echo ""; fi
     }
 
+    case "${eval_corruption_type}" in
+        gaussian)       _sweep_mags="${eval_corruption_stds}"   ; _tag_prefix="std"        ; _zero_mag="0.0" ;;
+        gaussian_blur)  _sweep_mags="${eval_blur_sigmas}"       ; _tag_prefix="blur_sigma" ; _zero_mag="0"   ;;
+        resize)         _sweep_mags="${eval_resize_factors}"    ; _tag_prefix="rs_factor"  ; _zero_mag="1.0" ;;
+        *) echo "[eval] unknown eval_corruption_type='${eval_corruption_type}'"; exit 1 ;;
+    esac
+
     jobs=()
-    for std in $eval_corruption_stds; do
-        is_zero=$(awk -v s="$std" 'BEGIN{print (s+0==0)?1:0}')
+    for mag in $_sweep_mags; do
+        # is_clean: gaussian → mag == 0 ; blur → mag == 0 ; resize → mag == 1.0
+        is_clean=$(awk -v m="$mag" -v z="$_zero_mag" 'BEGIN{print (m+0==z+0)?1:0}')
         for ((s=0; s<eval_seeds; s++)); do
             cur_seed=$(( eval_base_seed + s ))
             suf=$(seed_suffix "${cur_seed}")
-            if [ "$is_zero" = "1" ]; then
-                jobs+=("clean${suf}|0.0|none|${cur_seed}")
+            if [ "$is_clean" = "1" ]; then
+                jobs+=("clean${suf}|${_zero_mag}|none|${cur_seed}|${eval_corruption_type}")
             else
                 IFS=',' read -ra modes <<< "${eval_corruption_apply_to}"
                 for mode in "${modes[@]}"; do
-                    local_label="$(echo "${mode}" | tr '+' '_')_std${std}${suf}"
-                    jobs+=("${local_label}|${std}|${mode}|${cur_seed}")
+                    local_label="$(echo "${mode}" | tr '+' '_')_${_tag_prefix}${mag}${suf}"
+                    jobs+=("${local_label}|${mag}|${mode}|${cur_seed}|${eval_corruption_type}")
                 done
             fi
         done
@@ -480,6 +526,13 @@ fi
 if [ "${run_diagnostics}" = "1" ]; then
     noise_table_stds="${noise_table_stds:-0.0 0.005 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1}"
     diagnostic_rollout_steps="${diagnostic_rollout_steps:-1 2 4 8}"
+    # Diagnostic corruption family. Defaults to the same family the eval
+    # sweep uses (``eval_corruption_type``) so a blur eval run also gets
+    # a blur diagnostic; explicit override is also supported.
+    # When non-gaussian, run_full_diagnostics.py auto-appends a
+    # ``_<corruption_type>`` suffix to the save dir to keep blur/resize
+    # outputs from overwriting the canonical gaussian diagnostic files.
+    diagnostic_corruption_type="${diagnostic_corruption_type:-${eval_corruption_type:-gaussian}}"
     diag_args=(
         "--model" "${output_model_name}=${ckpt_abs}"
         "--dataset" "${diagnostic_dataset_name}"
@@ -488,6 +541,7 @@ if [ "${run_diagnostics}" = "1" ]; then
         "--frameskip" "${frameskip}"
         "--save-dir" "${results_dir}/diagnostics"
         "--plot"
+        "--corruption-type" "${diagnostic_corruption_type}"
     )
     [ "${diagnostic_skip_predictor:-0}" = "1" ] && diag_args+=("--skip-predictor")
     [ "${diagnostic_skip_resolution:-0}" = "1" ] && diag_args+=("--skip-resolution")

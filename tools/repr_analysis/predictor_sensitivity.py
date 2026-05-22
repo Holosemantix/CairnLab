@@ -70,19 +70,24 @@ from tools.repr_analysis.analyze_repr import (
     resolve_space_name,
     to_serializable,
 )
-from utils import AddNormalizedGaussianNoise
+from utils import make_eval_corruption
 
 
 def _clone_batch(batch: Mapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
     return {k: v.clone() if torch.is_tensor(v) else v for k, v in batch.items()}
 
 
-def _add_noise(x: torch.Tensor, std: float, seed: int) -> torch.Tensor:
-    if std <= 0:
+def _add_noise(x: torch.Tensor, magnitude: float, seed: int,
+               corruption_type: str = "gaussian") -> torch.Tensor:
+    """Apply the configured corruption family at a single magnitude.
+    Named ``_add_noise`` for symmetry with the rest of the diagnostic
+    suite even though it now also handles blur / resize."""
+    transform = make_eval_corruption(magnitude, corruption_type)
+    if transform is None:
         return x.clone()
     with torch.random.fork_rng(devices=[x.device] if x.device.type == "cuda" else []):
         torch.manual_seed(seed)
-        return AddNormalizedGaussianNoise(std, std)(x)
+        return transform(x)
 
 
 def _safe_quantile(x: torch.Tensor, q: float) -> float:
@@ -182,17 +187,24 @@ def _make_history_noise_batch(
     std: float,
     seed: int,
     history_noise_only: bool,
+    corruption_type: str = "gaussian",
 ) -> Dict[str, torch.Tensor]:
     out = _clone_batch(batch)
-    if std <= 0:
+    # The "is corruption a no-op" check has to know the family — only
+    # gaussian and gaussian_blur use 0 as the zero magnitude; resize
+    # uses 1.0. The _add_noise dispatch handles this internally; we
+    # still short-circuit here for the cheap-zero gaussian path.
+    if corruption_type in ("gaussian", "gaussian_blur") and std <= 0:
+        return out
+    if corruption_type == "resize" and std >= 1.0:
         return out
     pixels = out["pixels"]
     if history_noise_only:
         H = history_size
-        h_noisy = _add_noise(pixels[:, :H], std, seed)
+        h_noisy = _add_noise(pixels[:, :H], std, seed, corruption_type=corruption_type)
         out["pixels"] = torch.cat([h_noisy, pixels[:, H:]], dim=1)
     else:
-        out["pixels"] = _add_noise(pixels, std, seed)
+        out["pixels"] = _add_noise(pixels, std, seed, corruption_type=corruption_type)
     return out
 
 
@@ -207,6 +219,7 @@ def analyze_model_predictor_noise(
     history_noise_only: bool = True,
     seed: int = 3072,
     device: str = "cuda",
+    corruption_type: str = "gaussian",
 ) -> list[Dict[str, Any]]:
     model = load_model(ckpt, device)
     spaces = get_model_spaces(model)
@@ -226,7 +239,8 @@ def analyze_model_predictor_noise(
 
     for std_idx, std in enumerate(stds):
         noisy_batch = _make_history_noise_batch(
-            batch, history_size, float(std), seed + 1009 * std_idx, history_noise_only
+            batch, history_size, float(std), seed + 1009 * std_idx, history_noise_only,
+            corruption_type=corruption_type,
         )
         noisy_outputs = encode_sequences(model, noisy_batch)
         noisy_emb = get_embedding_space(noisy_outputs, space).detach()
@@ -314,6 +328,7 @@ def run_predictor_sensitivity(
     history_noise_only: bool = True,
     seed: int = 3072,
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
+    corruption_type: str = "gaussian",
 ) -> list[Dict[str, Any]]:
     if not models:
         raise ValueError("models must contain at least one label -> checkpoint path.")
@@ -349,6 +364,7 @@ def run_predictor_sensitivity(
                 history_noise_only=history_noise_only,
                 seed=seed,
                 device=device,
+                corruption_type=corruption_type,
             )
         )
     return rows

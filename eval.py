@@ -14,22 +14,44 @@ from omegaconf import DictConfig, OmegaConf
 from sklearn import preprocessing
 from torchvision.transforms import v2 as transforms
 import stable_worldmodel as swm
-from utils import AddNormalizedGaussianNoise, resolve_h5_dataset_path
+from utils import (
+    AddGaussianBlur,
+    AddNormalizedGaussianNoise,
+    AddResize,
+    resolve_h5_dataset_path,
+)
+
+
+def _corruption_magnitude(cfg) -> float:
+    """Return a non-negative scalar summarising how much corruption the
+    config asks for, so callers can short-circuit no-op cases.
+
+    By type:
+        gaussian      → ``std`` (or max(std) for a list)
+        gaussian_blur → ``sigma``
+        resize        → ``1 - factor`` (factor==1 is a no-op)
+    """
+    if cfg is None:
+        return 0.0
+    ctype = cfg.get("type", "gaussian")
+    if ctype == "gaussian":
+        std = cfg.get("std", 0.0)
+        if not isinstance(std, (str, bytes, int, float)) and hasattr(std, "__len__"):
+            return max(float(v) for v in std)
+        return float(std)
+    if ctype == "gaussian_blur":
+        return max(float(cfg.get("sigma", 0.0)), 0.0)
+    if ctype == "resize":
+        return max(1.0 - float(cfg.get("factor", 1.0)), 0.0)
+    raise ValueError(f"Unsupported eval corruption type: {ctype}")
 
 
 def _should_corrupt_target(cfg, target: str):
     corruption = cfg.eval.get("corruption")
     if corruption is None:
         return False
-
-    std = corruption.get("std", 0.0)
-    if not isinstance(std, (str, bytes, int, float)) and hasattr(std, "__len__"):
-        max_std = max(float(v) for v in std)
-    else:
-        max_std = float(std)
-    if max_std <= 0:
+    if _corruption_magnitude(corruption) <= 0:
         return False
-
     apply_to = corruption.get("apply_to", ["pixels", "goal"])
     if isinstance(apply_to, str):
         apply_to = [apply_to]
@@ -46,11 +68,18 @@ def img_transform(cfg, target: str):
 
     if _should_corrupt_target(cfg, target):
         corruption = cfg.eval.corruption
-        corruption_type = corruption.get("type", "gaussian")
-        if corruption_type != "gaussian":
-            raise ValueError(f"Unsupported eval corruption type: {corruption_type}")
-        std = float(corruption.get("std", 0.0))
-        steps.append(AddNormalizedGaussianNoise(std, std))
+        ctype = corruption.get("type", "gaussian")
+        if ctype == "gaussian":
+            std = float(corruption.get("std", 0.0))
+            steps.append(AddNormalizedGaussianNoise(std, std))
+        elif ctype == "gaussian_blur":
+            sigma = float(corruption.get("sigma", 0.0))
+            steps.append(AddGaussianBlur(sigma, sigma))
+        elif ctype == "resize":
+            factor = float(corruption.get("factor", 1.0))
+            steps.append(AddResize(factor, factor))
+        else:
+            raise ValueError(f"Unsupported eval corruption type: {ctype}")
 
     return transforms.Compose(steps)
 

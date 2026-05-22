@@ -212,6 +212,15 @@ class AddGaussianBlur:
     def max_kernel_size(self) -> int:
         return self.ks_high if self.apply_prob > 0 else 1
 
+    @staticmethod
+    def _auto_sigma(ks: int) -> float:
+        """Standard OpenCV / torchvision auto-sigma rule. Always
+        computed explicitly so the call does not depend on the runtime
+        torchvision version defaulting ``sigma=None`` for us.
+        ``sigma = 0.3 * ((k - 1) * 0.5 - 1) + 0.8``; for k>=3 this is
+        well-defined and positive."""
+        return max(0.3 * ((ks - 1) * 0.5 - 1) + 0.8, 0.1)
+
     def __call__(self, x):
         if not torch.is_tensor(x) or x.ndim < 3:
             return x
@@ -225,7 +234,8 @@ class AddGaussianBlur:
             ks = self.ks_high
             if ks <= 1:
                 return x
-            return _gblur(x, kernel_size=[ks, ks])
+            sigma = self._auto_sigma(ks)
+            return _gblur(x, kernel_size=[ks, ks], sigma=[sigma, sigma])
 
         # Slow path: per-frame stochastic kernel size (training-time).
         leading_shape = x.shape[:-3]
@@ -246,7 +256,10 @@ class AddGaussianBlur:
             ks = ks_choices[int(idx[i].item())]
             if ks <= 1:
                 continue
-            out[i:i + 1] = _gblur(x_flat[i:i + 1], kernel_size=[ks, ks])
+            sigma = self._auto_sigma(ks)
+            out[i:i + 1] = _gblur(
+                x_flat[i:i + 1], kernel_size=[ks, ks], sigma=[sigma, sigma]
+            )
         return out.reshape(*x.shape)
 
 

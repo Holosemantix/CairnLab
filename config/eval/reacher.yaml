@@ -31,6 +31,8 @@ eval:
   dataset_name: reacher
   corruption:
     type: gaussian_noise
+    kernel_size: 1     # gaussian_blur only; 1 = no-op (odd integer; smaller-than-1 becomes no-op)
+    factor: 1.0        # resize only; 1.0 = no-op
     std: 0.0 # 0 disables; pixel-space std converted for ImageNet-normalized tensors
     apply_to:
       - pixels

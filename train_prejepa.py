@@ -24,7 +24,7 @@ Use:
 
     python train_prejepa.py exp_name=pusht_dinowm_noprop
     python train_prejepa.py exp_name=pusht_dinowm_noprop_noise_0to006_p1 \\
-        image_noise.std_max=0.006 image_noise.noise_prob=1.0
+        image_noise.std_max=0.06 image_noise.noise_prob=1.0
     # appendix variant with proprio:
     python train_prejepa.py exp_name=pusht_dinowm_prop \\
         wm.encoding.proprio=10

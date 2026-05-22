@@ -289,9 +289,9 @@ loss:
 > - clean 差异在 perframe 之间仍然保留：PushT LeWM-0to002 90.0 vs SWM-0to005 71.7，drop 都接近 0 但 clean 差 18pt。
 > - **2026-05-08 SWM sweep 补齐后观察**：SWM perframe drop 同样全部 ≤4 abs（4 任务 × 5 新档位 = 20 行），证实 SWM 与 LeWM 一样能通过 perframe noise training 把 noise failure 几乎完全修复——SWM 的 noise robustness 落后于 LeWM 不是结构性的，而是只在 base 与 0to001（noise 强度不足）阶段表现出来。
 
-**Noise sensitivity 对照（std=0.005, goal frame, normalized space；canonical 8 模型/任务）**
+**Noise sensitivity 对照（std=0.05, goal frame, normalized space；canonical 8 模型/任务）**
 
-> 数据来自每个 ckpt 的 `eval_results/diagnostics/noise_sensitivity.csv`（std=0.005, frame_scope=goal, embedding_space=normalized）。`risk` 取自 CSV 同行字段。**所有 LeWM/SWM 8 模型均使用 epoch_10/num_eval=300 ckpt；TwoRoom/PushT SWM-base 使用 20260507 retrain 版，Reacher/Cube SWM-base 保留旧 single-seed 版。**
+> 数据来自每个 ckpt 的 `eval_results/diagnostics/noise_sensitivity.csv`（std=0.05, frame_scope=goal, embedding_space=normalized）。`risk` 取自 CSV 同行字段。**所有 LeWM/SWM 8 模型均使用 epoch_10/num_eval=300 ckpt；TwoRoom/PushT SWM-base 使用 20260507 retrain 版，Reacher/Cube SWM-base 保留旧 single-seed 版。**
 
 TwoRoom：
 
@@ -299,24 +299,24 @@ TwoRoom：
 |---|---:|---:|---:|---|
 | LeWM-base | 0.0449 | 5.51° | 0.1031 | low |
 | LeWM-0to001-p1 | 0.0430 | 1.83° | 0.0119 | low |
-| LeWM-0to002-p1 | 0.0413 | 1.05° | 0.0041 | low |
+| LeWM-0to002-p1 | 0.0413 | 1.05° | 0.041 | low |
 | LeWM-0to005-p1 | 0.0356 | 0.45° | 0.0009 | low |
 | SWM-base † (20260507) | 0.0490 | 8.62° | 0.2308 | low |
-| SWM-0to001-p1 | 0.0566 | 1.58° | 0.0067 | low |
-| SWM-0to002-p1 | 0.0521 | 0.86° | 0.0022 | low |
+| SWM-0to001-p1 | 0.0566 | 1.58° | 0.067 | low |
+| SWM-0to002-p1 | 0.0521 | 0.86° | 0.022 | low |
 | SWM-0to005-p1 | 0.0475 | 0.41° | 0.0005 | low |
 
-> **2026-05-07 retrain 重要修正**：旧 SWM-base 在此条件下 risk=high（angle=20.12°, ratio=1.70），是 52 ckpt 中**唯一** high-risk 标签——这是 §4.5 / §5 一直引用的"主因证据"。3-seed retrain 后 risk 降到 low（angle=8.62°, ratio=0.23）。**"SWM-base TwoRoom 唯一 fragile" 这一判断已不成立**——旧版是 single-seed unlucky outlier，retrain 后 SWM-base 在 std=0.005 处和其它 SWM 一样属 low risk 段。最大 std=0.1 处 noise_angle_slope 仍较高（1852°/std），geometry_flag 仍是 `fragile,high_angle_gain`，但严重程度已从"独特异常"降为"SWM 全任务的共有现象"。
+> **2026-05-07 retrain 重要修正**：旧 SWM-base 在此条件下 risk=high（angle=20.12°, ratio=1.70），是 52 ckpt 中**唯一** high-risk 标签——这是 §4.5 / §5 一直引用的"主因证据"。3-seed retrain 后 risk 降到 low（angle=8.62°, ratio=0.23）。**"SWM-base TwoRoom 唯一 fragile" 这一判断已不成立**——旧版是 single-seed unlucky outlier，retrain 后 SWM-base 在 std=0.05 处和其它 SWM 一样属 low risk 段。最大 std=0.1 处 noise_angle_slope 仍较高（1852°/std），geometry_flag 仍是 `fragile,high_angle_gain`，但严重程度已从"独特异常"降为"SWM 全任务的共有现象"。
 
 PushT：
 
 | 模型 | clean_nn_cos_dist | noise_angle_deg_median | noise_to_nn_cos_ratio | risk |
 |---|---:|---:|---:|---|
-| LeWM-base | 0.2360 | 1.33° | 0.0011 | low |
+| LeWM-base | 0.2360 | 1.33° | 0.011 | low |
 | LeWM-0to001-p1 | 0.2242 | 0.61° | 0.0003 | low |
 | LeWM-0to002-p1 | 0.2477 | 0.36° | 0.0001 | low |
 | LeWM-0to005-p1 | 0.2226 | 0.23° | 0.0000 | low |
-| SWM-base † (20260507) | 0.2711 | 1.56° | 0.0014 | low |
+| SWM-base † (20260507) | 0.2711 | 1.56° | 0.014 | low |
 | SWM-0to001-p1 | 0.2810 | 0.52° | 0.0001 | low |
 | SWM-0to002-p1 | 0.2622 | 0.33° | 0.0001 | low |
 | SWM-0to005-p1 | 0.2134 | 0.09° | 0.0000 | low |
@@ -326,7 +326,7 @@ Reacher：
 | 模型 | clean_nn_cos_dist | noise_angle_deg_median | noise_to_nn_cos_ratio | risk |
 |---|---:|---:|---:|---|
 | LeWM-base | 0.0633 | 3.22° | 0.0249 | low |
-| LeWM-0to001-p1 | 0.0670 | 0.80° | 0.0014 | low |
+| LeWM-0to001-p1 | 0.0670 | 0.80° | 0.014 | low |
 | LeWM-0to002-p1 | 0.0696 | 0.09° | 0.0000 | low |
 | LeWM-0to005-p1 | 0.0584 | 0.08° | 0.0000 | low |
 | SWM-base | 0.0933 | 2.54° | 0.0105 | low |
@@ -338,19 +338,19 @@ Cube：
 
 | 模型 | clean_nn_cos_dist | noise_angle_deg_median | noise_to_nn_cos_ratio | risk |
 |---|---:|---:|---:|---|
-| LeWM-base | 0.1856 | 1.40° | 0.0016 | low |
+| LeWM-base | 0.1856 | 1.40° | 0.016 | low |
 | LeWM-0to001-p1 | 0.1879 | 0.72° | 0.0004 | low |
 | LeWM-0to002-p1 | 0.1334 | 0.12° | 0.0000 | low |
 | LeWM-0to005-p1 | 0.1176 | 0.08° | 0.0000 | low |
-| SWM-base | 0.2596 | 2.85° | 0.0048 | low |
+| SWM-base | 0.2596 | 2.85° | 0.048 | low |
 | SWM-0to001-p1 | 0.2538 | 0.71° | 0.0003 | low |
 | SWM-0to002-p1 | 0.2566 | 0.13° | 0.0000 | low |
 | SWM-0to005-p1 | 0.1680 | 0.07° | 0.0000 | low |
 
 **关键事实（数值锚点）**
 
-- **TwoRoom SWM-base 的 `high` 标签已确认为旧 outlier**：旧 single-seed ckpt 在 std=0.005 跨过 ratio=1（1.6978）、noise_angle 20°，曾对应 goal_0.03 暴跌至 21.3；20260507 retrain 后同条件为 8.62°/0.23/risk=low，goal_0.03=56.33。当前可保留的结论是 SWM-base 的 high-std angular slope 仍偏高，但不再是唯一 high-risk 主因。
-- **per-frame 训练把 noise_angle@0.005 拉到 <1°**：SWM 任意 perframe 配置（0to001/0to002/0to005-p1）的 angle ≤1.6°（TwoRoom 0to001 是个例外，1.58°）；LeWM 同样从 baseline 1–5° 降到 <0.5°（除 TwoRoom LeWM-base=5.51°）。
+- **TwoRoom SWM-base 的 `high` 标签已确认为旧 outlier**：旧 single-seed ckpt 在 std=0.05 跨过 ratio=1（1.6978）、noise_angle 20°，曾对应 goal_0.03 暴跌至 21.3；20260507 retrain 后同条件为 8.62°/0.23/risk=low，goal_0.03=56.33。当前可保留的结论是 SWM-base 的 high-std angular slope 仍偏高，但不再是唯一 high-risk 主因。
+- **per-frame 训练把 noise_angle@0.05 拉到 <1°**：SWM 任意 perframe 配置（0to001/0to002/0to005-p1）的 angle ≤1.6°（TwoRoom 0to001 是个例外，1.58°）；LeWM 同样从 baseline 1–5° 降到 <0.5°（除 TwoRoom LeWM-base=5.51°）。
 - **`clean_nn_cos_dist` 跨任务尺度对比**：SWM normalized space 上 PushT/Cube ≈ 0.21–0.28，TwoRoom/Reacher ≈ 0.04–0.10；LeWM raw 上 PushT≈0.22–0.25，TwoRoom/Reacher≈0.04–0.07。任务自身决定 latent 局部尺度，并非全部由 noise training 决定。
 - **PushT noise sweet spot**：SWM 最优 0to001-p1（clean 83.3, goal_0.08=29.7 → fragile under heavy noise；0to002-p1 在 goal_0.08=67.7 更鲁棒但 clean 81.0 略低）；LeWM 最优 0to002-p1（clean 90.0, goal_0.08=83.0）。**即使在最优强度，SWM 仍明显落后 LeWM**——这是 SWM 在精细操作任务上的结构性劣势。
 - **per-frame 修复 asymmetric（TwoRoom）**：SWM-0to005-p1 的 pix-only / goal-only 都接近 91，baseline 在 24–35% 崩溃。
@@ -369,7 +369,7 @@ Cube：
 | Cube    | LeWM | 20.20 → 0.19 (0to005-p1) | **106×** | 87.9° → 0.7° |
 | Cube    | SWM  | 1.38 → 0.01 (0to005-p1) | **138×** | 87.7° → 0.6° |
 
-> std=0.005 累积口径（T1→T8）确认 LeWM drift 在 T1 即接近 saturation（0.5–0.9 → 平台），SWM 同样 T1 即饱和——说明 single-step predictor error 主导，per-frame 训练把 Lipschitz 常数压到足够低使大噪声输入也不发散。
+> std=0.05 累积口径（T1→T8）确认 LeWM drift 在 T1 即接近 saturation（0.5–0.9 → 平台），SWM 同样 T1 即饱和——说明 single-step predictor error 主导，per-frame 训练把 Lipschitz 常数压到足够低使大噪声输入也不发散。
 >
 > **2026-05-07 LeWM noise sweep 扩展**：把 LeWM 0to006/0to007/0to008-p1 的 max std=0.08 history-scope T8_l2 接进来后，TwoRoom 单调降到 0to008 = 0.66（vs 0to005 = 0.97，**28×**）；PushT 单调降到 0to008 = 1.06（vs 0to005 = 3.56，**18×**）；Reacher 0to005 = 0.21 仍是最低（0to008 = 0.36），Cube 0to005 = 0.19 仍是最低（0to008 = 0.60）。即 LeWM 在 TwoRoom/PushT 的 predictor 平滑性可继续随 noise std 提升，Reacher/Cube 在 0to005 即已饱和。
 
@@ -413,7 +413,7 @@ Cube：
 > 1. **SWM predictor 天生比 LeWM 对 latent perturbation 稳定 8–10×**（cosine/normalized predictor 内建尺度不变性）。
 > 2. **LeWM cost surface 对 goal latent 扰动敏感约 2×**（L2 cost 在 Euclidean 空间斜率大）。
 > 3. **per-frame pixel-noise training 不改善 predictor 端 latent-noise 鲁棒性**（LeWM-perframe 与 LeWM-base 的 latent T8 drift 几乎相同；SWM-perframe 甚至略升）——瓶颈在 **Layer 1 (encoder)**，noise training 收益集中在 pixel→latent 映射平滑化。
-> 4. `robust_radius_z` (history scope, rollout-drift fallback)：TwoRoom 0.005–0.021，PushT 0.018–0.031，Reacher 0.024–0.043，Cube 0.047–0.065；与 eval 相关性 |ρ|≤0.62，不构成强预测信号。
+> 4. `robust_radius_z` (history scope, rollout-drift fallback)：TwoRoom 0.05–0.021，PushT 0.018–0.031，Reacher 0.024–0.043，Cube 0.047–0.065；与 eval 相关性 |ρ|≤0.62，不构成强预测信号。
 
 **Planning signal probe（CEM cost 区分 expert vs random）**
 
@@ -611,7 +611,7 @@ P5 原本单列为一个诊断实验；这里并入 P2，因为它和 cost swap 
 
 **关键发现**
 
-1. **TwoRoom SWM-base 不再是唯一 high-risk outlier**：20260507 retrain 后 `robust_radius=0.0095`、`noise_angle_slope=1852`、std=0.005 risk=low；旧 `0.0029/3975/high` 是 single-seed 训练发散放大的诊断。它仍是 TwoRoom 里 slope 最高的 baseline，对应 §4.3 中 noise drop 32–45，说明 encoder fragility 仍在，但不能再作为"SWM-base 唯一崩溃"的主因证据。
+1. **TwoRoom SWM-base 不再是唯一 high-risk outlier**：20260507 retrain 后 `robust_radius=0.0095`、`noise_angle_slope=1852`、std=0.05 risk=low；旧 `0.029/3975/high` 是 single-seed 训练发散放大的诊断。它仍是 TwoRoom 里 slope 最高的 baseline，对应 §4.3 中 noise drop 32–45，说明 encoder fragility 仍在，但不能再作为"SWM-base 唯一崩溃"的主因证据。
 2. **per-frame 训练把 noise_angle_slope 压到两位数**：TwoRoom LeWM-0to005-p1 从 1085→86.5 (12×)，SWM-base retrain 后从 1852→80.1 (23×)；PushT/Reacher/Cube 同向变化。`robust_radius` 全部从 0.01–0.05 升到 >0.08（censored）。
 3. **Predictor 稳定性意外提升**：per-frame 训练的 rollout drift（T=8 L2）在 max std=0.08 下比 baseline 降低一个数量级。TwoRoom LeWM 18.62→0.97（**19×**）、SWM 1.43→0.11（**13×**）；PushT LeWM 18.65→3.56（**5×**）、SWM 1.41→0.02（**70×**）；Reacher LeWM 15.17→0.21（**73×**）、SWM 1.39→0.01（**139×**）；Cube LeWM 20.20→0.19（**106×**）、SWM 1.38→0.01（**138×**）。说明噪声训练同时改善了动力学预测的平滑性。
 4. **clean_nn_cos_dist 不再是 TwoRoom 的强信号**：per-frame 训练的 LeWM 系列 nn 距离从 0.045→0.036 略降，SWM 系列从 0.036→0.057→0.052→0.048 先升后降；与 eval 的相关性在 n=8 canonical 上由旧 ρ=−0.91（含 fixed-std 异常点）回落到 ρ≈+0.04（详见 §5.3）。
@@ -741,7 +741,7 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM baseline
 
 #### P0.5c n=18 sweep cross-check（2026-05-08，LeWM 9 + SWM 9）
 
-> **动机**：P0.5b 仅在 canonical n=8 上做交叉检查；2026-05-08 SWM noise sweep 0to003–0to008 补齐后，每任务可用 LeWM 9 档 + SWM 9 档 = **18 ckpt**（noise std ∈ {0, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008}，每方法 9 档无重复）做更稳的 within-method × cross-method 联合分析。下方 `ρ_n18` = 联合 Spearman；`p|std_n18` / `p|meth_n18` 分别对 std_max 与 method dummy 做 partial Spearman；`LeWM_n9` / `SWM_n9` = within-method n=9 ρ。**严格门槛**仍是 |ρ_n18| ≥ 0.5 ∧ |p|std_n18| ≥ 0.5 ∧ |p|meth_n18| ≥ 0.5。底层数据见本地生成的 `cross_check_corr_n16_20260508.json`（命名沿用，实际 n=18）。
+> **动机**：P0.5b 仅在 canonical n=8 上做交叉检查；2026-05-08 SWM noise sweep 0to003–0to008 补齐后，每任务可用 LeWM 9 档 + SWM 9 档 = **18 ckpt**（noise std ∈ {0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08}，每方法 9 档无重复）做更稳的 within-method × cross-method 联合分析。下方 `ρ_n18` = 联合 Spearman；`p|std_n18` / `p|meth_n18` 分别对 std_max 与 method dummy 做 partial Spearman；`LeWM_n9` / `SWM_n9` = within-method n=9 ρ。**严格门槛**仍是 |ρ_n18| ≥ 0.5 ∧ |p|std_n18| ≥ 0.5 ∧ |p|meth_n18| ≥ 0.5。底层数据见本地生成的 `cross_check_corr_n16_20260508.json`（命名沿用，实际 n=18）。
 >
 > **前置修复**：跑此分析前需先 `python3 -m tools.repr_analysis.regen_diagnostics_summary <每个 ckpt 的 diagnostics 目录>`——旧版 LeWM-base 与 LeWM/SWM noise sweep ckpt 的 `diagnostics_summary.json` 被后期 action_effect probe 覆盖只剩 5 字段，需用 per-probe JSON 重新合并。
 
@@ -806,7 +806,7 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM baseline
 **实验**：
 
 1. **输入片段定义**：对于每个任务，将输入划分为**空间**组（例如，PushT 的分割掩码通道、分割嵌入）、**时间**组（上下文帧 vs. 目标帧）和**语义**组（例如，目标掩码 vs. 背景）。使用 `patchify` 后的令牌或 `emb_history/goal/ctxt`，以及可选的注意力掩码，作为探针特征。
-2. **每片段噪声注入**：对每个片段独立注入高斯噪声，其它片段保持干净，使用标准噪声敏感框架（范围为 0.005–0.08 的标准差，预测器自举中的余弦/距离指标）。
+2. **每片段噪声注入**：对每个片段独立注入高斯噪声，其它片段保持干净，使用标准噪声敏感框架（范围为 0.05–0.08 的标准差，预测器自举中的余弦/距离指标）。
 3. **片段级预测器目标偏移指标**：将 `predictor_target_to_nn_cos_ratio` 和 `noise_angle` 指标从全局扩展到每个片段：记录每个片段单独受扰动时的错误率（或者受扰动与受保护部分的对比）。
 4. **聚合**：生成按片段排序的敏感度条形图，按模型和任务聚类。目标是确认某些片段（例如，PushT 的目标掩码与机器人本体）是否主导了全局 `noise_angle` 信号。
 
@@ -814,7 +814,7 @@ clean eval 与 noise robustness 在 TwoRoom 不是简单正相关：SWM baseline
 
 | 指标 | 来源/计算公式 |
 |---|---|
-| `fragment_noise_angle_median[segment]` | 片段 `s` 在标准差=0.005 时的余弦噪声角度中位数 |
+| `fragment_noise_angle_median[segment]` | 片段 `s` 在标准差=0.05 时的余弦噪声角度中位数 |
 | `fragment_predictor_target_shift_median[segment]` | 片段 `s` 的目标偏移中位数 |
 | `fragment_robust_radius_std[segment]` | 片段 `s` 的比率=1 交点 |
 | `fragment_sensitivity_ranking` | 按 `fragment_noise_angle` 降序排列 |
@@ -996,7 +996,7 @@ P2 的原始假设是：SWM noise failure 是一种可通过标准方法（噪�
 
 | 指标 | 计算公式 | 口径 |
 |---|---|---|
-| `noise_angle_deg_median` | `arccos(sim(z_noisy, z_clean))·180/π`，取每帧中位数 | goal scope, normalized space, std=0.005 |
+| `noise_angle_deg_median` | `arccos(sim(z_noisy, z_clean))·180/π`，取每帧中位数 | goal scope, normalized space, std=0.05 |
 | `noise_l2_median` | `||z_noisy − z_clean||₂`，取中位数 | 同上 |
 | `noise_to_nn_cos_ratio_median` | `noise_angle_deg / clean_nn_cos_deg`，取中位数 | `clean_nn_cos_deg = arccos(clean_nn_cos_dist)·180/π` |
 | `robust_radius_std` | `noise_angle` 曲线跨过 1 时的 std（crossing） | >0.08 = 极鲁棒 |

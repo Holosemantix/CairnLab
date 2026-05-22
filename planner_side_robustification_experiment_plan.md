@@ -103,7 +103,7 @@ planner:
     # latent belief construction
     belief_mode: input_tta_empirical   # none | latent_iso | latent_diag | input_tta_empirical
     tta_num: 8
-    tta_noise_std: 0.005
+    tta_noise_std: 0.05
     tta_include_identity: true
     latent_samples: 8
     latent_radius: 1.0
@@ -361,7 +361,7 @@ Phase 1 不要扫太多超参。默认：
 ```yaml
 topk: 64
 tta_num: 8
-tta_noise_std: 0.005
+tta_noise_std: 0.05
 latent_samples: 8
 risk: cvar
 cvar_q: 0.8
@@ -520,7 +520,7 @@ python tools/eval_robust_cem.py \
   planner.robust.robust_goal=true \
   planner.robust.belief_mode=input_tta_empirical \
   planner.robust.tta_num=8 \
-  planner.robust.tta_noise_std=0.005 \
+  planner.robust.tta_noise_std=0.05 \
   planner.robust.latent_samples=8 \
   planner.robust.risk=cvar \
   planner.robust.cvar_q=0.8

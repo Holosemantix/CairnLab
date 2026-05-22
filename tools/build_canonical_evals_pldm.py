@@ -119,15 +119,22 @@ def _aggregate_seeds(values: list[float]) -> dict:
 def _std_key_from_subdir(subdir: str) -> str | None:
     """Map a PLDM ckpt subdir name to its training std_max as a string.
 
-    ``..._pldm_baseline`` → ``"0.0"``
-    ``..._pldm_noise_0to003_p1`` → ``"0.003"``
+    The repo convention is ``noise_0toNNN`` ↔ ``std_max = 0.NN`` (verified
+    against the per-ckpt training ``config.yaml`` --- e.g. ``0to001 ↔ 0.01``,
+    ``0to008 ↔ 0.08``).
+
+    ``..._pldm_baseline``          → ``"0.0"``
+    ``..._pldm_noise_0to001_p1``  → ``"0.01"``
+    ``..._pldm_noise_0to008_p1``  → ``"0.08"``
     """
     if subdir.endswith("_pldm_baseline"):
         return "0.0"
     m = re.search(r"_pldm_noise_0to(\d+)_p1$", subdir)
     if not m:
         return None
-    return f"0.{m.group(1).zfill(3)}"
+    # Drop leading zeros, then format as 0.NN
+    n = int(m.group(1))
+    return f"0.{n:02d}"
 
 
 def _collect_one_ckpt(eval_results: Path) -> dict[str, dict] | None:

@@ -51,12 +51,14 @@ DIAG_MAX_STD = 0.1
 
 
 def _std_key_from_subdir(subdir: str) -> str | None:
+    """``noise_0toNNN`` ↔ ``std_max = 0.NN`` (verified against per-ckpt config.yaml)."""
     if subdir.endswith("_pldm_baseline"):
         return "0.0"
     m = re.search(r"_pldm_noise_0to(\d+)_p1$", subdir)
     if not m:
         return None
-    return f"0.{m.group(1).zfill(3)}"
+    n = int(m.group(1))
+    return f"0.{n:02d}"
 
 
 def _read_one(eval_results: Path) -> dict | None:

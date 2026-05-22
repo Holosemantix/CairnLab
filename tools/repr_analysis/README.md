@@ -90,7 +90,7 @@ rows = run_noise_sensitivity(
         "lewm": "/path/to/lewm/model_object.ckpt",
     },
     dataset="tworoom",
-    stds=[0.0, 0.005, 0.01, 0.02, 0.03, 0.05],
+    stds=[0.0, 0.05, 0.01, 0.02, 0.03, 0.05],
     n_sequences=256,
 )
 
@@ -121,7 +121,7 @@ python -m tools.repr_analysis.noise_sensitivity \
   --model swm=/path/to/swm.ckpt \
   --model lewm=/path/to/lewm.ckpt \
   --dataset tworoom \
-  --stds 0 0.005 0.01 0.02 0.03 0.05 \
+  --stds 0 0.05 0.01 0.02 0.03 0.05 \
   --save-dir /tmp/noise_geometry \
   --plot
 ```

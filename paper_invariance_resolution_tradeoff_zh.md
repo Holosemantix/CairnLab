@@ -12,7 +12,7 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 （1）**JEPA + CEM 在视觉 OOD 下的崩溃**：未经噪声训练的 LeWM 在轻微像素噪声（std=0.08）下控制成功率暴跌，PushT 从 86.33% 跌至 4.67%（接近随机），TwoRoom 从 94.00% 跌至 50.00%。latent prediction 本身在此情境下并不提供视觉鲁棒性。
 
-（2）**不存在全局最优噪声**：不同任务对噪声增广的响应截然不同。视觉冗余型任务（TwoRoom）可从重噪声中获益（最优 std=0.008），而接触控制型任务（PushT）在轻噪声（std=0.003）下 clean 性能最优，但 robustness 最优需 std=0.006——clean 与 robustness 的最优剂量分离。
+（2）**不存在全局最优噪声**：不同任务对噪声增广的响应截然不同。视觉冗余型任务（TwoRoom）可从重噪声中获益（最优 std=0.08），而接触控制型任务（PushT）在轻噪声（std=0.03）下 clean 性能最优，但 robustness 最优需 std=0.06——clean 与 robustness 的最优剂量分离。
 
 （3）**五层诊断协议揭示压缩机制**：通过编码器偏移、编码器几何、预测器敏感性、潜空间噪声响应、任务分辨率五层指标，我们将噪声引起的控制失败追溯到一条表征链：表征压缩（effective rank 下降）→ 关键帧分辨率丢失（transition resolution ratio 崩溃）→ 可控性退化（id_probe_r² 下降）。但作为**跨 checkpoint 预测量**使用时，最强的单一诊断量（`predictor_target_to_nn_cos_ratio_at_max_std`）追踪的是 **超出 sweep-level `std_max` 效应之外的残余 ckpt-quality 信号**（PushT n=9 sweep 上 partial Spearman ρ = −0.59 vs clean、−0.41 vs px+g 0.08，条件于 `std_max`，eval 数据为统一 3-seed × 100）；它**不预测训练协议层面的 OOD drop**——unconditional ρ(metric, drop) = −0.77，但条件于 `std_max` 后塌缩到 +0.06。诊断 toolkit 在去除 `std_max` sweep 趋势后有用，但**不能替代实际用 noise 训练**当目标是 OOD 鲁棒性时。
 
@@ -38,11 +38,11 @@ Joint-Embedding Predictive Architectures (JEPA) 被**社区广泛持有的直觉
 
 面对上述脆弱性，一个自然的补救措施是在训练时加入输入端噪声增广（input-side noise augmentation）。这一方法在监督学习和对比学习中已被广泛验证 [7,8]。然而，我们面临一个更深层的问题：**是否存在一个"通用最优"的噪声强度，能同时适用于所有任务？**
 
-我们对四个控制任务进行了 8 档噪声强度（std_max ∈ {0.001, ..., 0.008}）的系统扫参，发现答案是否定的：
+我们对四个控制任务进行了 8 档噪声强度（std_max ∈ {0.01, ..., 0.08}）的系统扫参，发现答案是否定的：
 
-- **TwoRoom**（视觉冗余型导航）：clean 性能随噪声单调上升，在 std=0.008 达到最优（98.33% / 98.67%）
-- **PushT**（接触控制型操作）：clean 最优在 std=0.003（89.67%），但 robustness（px+goal 0.08）最优在 std=0.006（87.00%）——clean 与 robustness 的最优剂量分离
-- **Reacher**（运动规划）：位于 0.002–0.006 的 plateau 上；clean point-best 在 std=0.006（86.00%），px+goal 0.08 point-best 在 std=0.002（85.67%）。极轻噪声（0.001）在统计上与 base 等价（61.67% vs 58.67%，差距 3pt 处于 ~2.5pt 的跨 seed std 范围内），说明该任务需要一个**最小噪声门槛**才开始受益
+- **TwoRoom**（视觉冗余型导航）：clean 性能随噪声单调上升，在 std=0.08 达到最优（98.33% / 98.67%）
+- **PushT**（接触控制型操作）：clean 最优在 std=0.03（89.67%），但 robustness（px+goal 0.08）最优在 std=0.06（87.00%）——clean 与 robustness 的最优剂量分离
+- **Reacher**（运动规划）：位于 0.02–0.06 的 plateau 上；clean point-best 在 std=0.06（86.00%），px+goal 0.08 point-best 在 std=0.02（85.67%）。极轻噪声（0.01）在统计上与 base 等价（61.67% vs 58.67%，差距 3pt 处于 ~2.5pt 的跨 seed std 范围内），说明该任务需要一个**最小噪声门槛**才开始受益
 - **Cube**（结构化 3D 操作）：噪声 sweep 收益是四任务中最弱的，clean 上也无单调趋势。我们把它读作 trade-off 的最弱表现而非例外——结构化动作序列加上可预测的视觉-动作耦合本身已经提供了一定鲁棒性，所以 input-side 噪声增广能买到的额外收益少
 
 这一发现揭示了一个根本性的张力：**全局噪声增广无法区分"应该被不变性丢弃的视觉背景冗余"和"应该被保留分辨率的控制关键特征"**。
@@ -117,7 +117,7 @@ $$
 
 ### 3.2 输入端噪声增广协议
 
-我们在 LeWM 的输入 pipeline 中加入 per-frame Gaussian noise（`AddNormalizedGaussianNoise`）。每帧以概率 $p=1.0$ 决定是否加噪，若加噪则噪声标准差 $\sigma \sim \text{Uniform}(0, \text{std\_max})$。我们扫描 8 档 std_max：{0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008}。
+我们在 LeWM 的输入 pipeline 中加入 per-frame Gaussian noise（`AddNormalizedGaussianNoise`）。每帧以概率 $p=1.0$ 决定是否加噪，若加噪则噪声标准差 $\sigma \sim \text{Uniform}(0, \text{std\_max})$。我们扫描 8 档 std_max：{0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08}。
 
 评估时，我们在 clean 图像和噪声图像上分别测试。噪声评估使用两种配置：
 - **pixels+goal 0.05**：对 pixels 和 goal 图像同时加 std=0.05 的高斯噪声
@@ -174,7 +174,7 @@ $$
 
 为确保诊断指标不是训练噪声的伪相关，我们在同一个 LeWM PushT sweep 上做两类互补分析：
 
-- **LeWM n = 9 sweep + 偏相关**：每个任务全部 9 个 LeWM ckpt（base + std_max ∈ {0.001,…,0.008}）；计算 Spearman ρ 与 **条件于 `std_max` 的 partial Spearman ρ**。偏相关这一步关键：很多诊断量与控制性能的边际相关其实只是因为两者都随 `std_max` 共变。偏相关检验问的是：**去掉 `std_max` 的单调 sweep 趋势后，诊断量是否还保留残余 ckpt-quality 信号。**
+- **LeWM n = 9 sweep + 偏相关**：每个任务全部 9 个 LeWM ckpt（base + std_max ∈ {0.01,…,0.08}）；计算 Spearman ρ 与 **条件于 `std_max` 的 partial Spearman ρ**。偏相关这一步关键：很多诊断量与控制性能的边际相关其实只是因为两者都随 `std_max` 共变。偏相关检验问的是：**去掉 `std_max` 的单调 sweep 趋势后，诊断量是否还保留残余 ckpt-quality 信号。**
 
 正文同时给出 **原始** Spearman 与 **条件于 std_max** 的两类相关。原始 ρ 回答"sweep 全程中哪个 ckpt 整体更好"；偏相关回答"**去掉 `std_max` 的单调趋势后**，诊断量是否还排序残余 ckpt 质量"。这两个问题不同——§4.5 会显示同一个指标在两个口径下结论截然不同。
 
@@ -196,12 +196,12 @@ $$
 
 **硬件**：训练运行在单 GPU（NVIDIA H800，80 GB）上，训练 schedule 沿用 LeWM 基线公开的设置。
 
-**Evaluation 协议**：本文所有成功率——clean 与所有噪声条件，跨全部 36 ckpt（4 任务 × {base, std 0.001..0.008}）——均按统一协议计算：`n = 3` seeds (42/43/44)，每 seed `num_eval = 100` trajectories（每个条件每个 ckpt 共 300 trajectories）。表 1 / 表 2 的每个 cell 是 `n=3` 跨 seed 的 mean ± population std，与 `assets/paper1_data/canonical_evals_20260517.json` 保持一致。每 seed 原始 metrics 位于 `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`；下游 eval 聚合源是 `assets/paper1_data/canonical_evals_20260517.json`。Figure 3 与表 4/4b/5 的 released diagnostic source-of-truth 是 `assets/paper1_data/canonical_diagnostics_20260517.json`。
+**Evaluation 协议**：本文所有成功率——clean 与所有噪声条件，跨全部 36 ckpt（4 任务 × {base, std 0.01..0.08}）——均按统一协议计算：`n = 3` seeds (42/43/44)，每 seed `num_eval = 100` trajectories（每个条件每个 ckpt 共 300 trajectories）。表 1 / 表 2 的每个 cell 是 `n=3` 跨 seed 的 mean ± population std，与 `assets/paper1_data/canonical_evals_20260517.json` 保持一致。每 seed 原始 metrics 位于 `<ckpt>/eval_results/<cond>_seed{42,43,44}_metrics.txt`；下游 eval 聚合源是 `assets/paper1_data/canonical_evals_20260517.json`。Figure 3 与表 4/4b/5 的 released diagnostic source-of-truth 是 `assets/paper1_data/canonical_diagnostics_20260517.json`。
 
 **主要图表清单**（详 §A.6）：
 
 - **图 1（hero）**：4 任务 LeWM-base 的 clean 与 px+goal 0.08 成功率条形图，叠加 noise sweep 后 **px+goal 0.08 point-best** 配置的成功率——视觉化 "JEPA 不变性幻觉 + noise training 大幅修复 + per-task 最优剂量"三件事。数据源：表 1 + 表 2。
-- **图 2**：4 任务 noise sweep 折线图（x: std_max ∈ [0, 0.008], y: clean / px+goal 0.05 / px+goal 0.08 三条线）。展示 clean-robust 最优剂量分离。现有 `assets/diagnostics/noise_angle_curve_goal.png`、`noise_ratio_curve_goal.png` 可作输入材料。
+- **图 2**：4 任务 noise sweep 折线图（x: std_max ∈ [0, 0.08], y: clean / px+goal 0.05 / px+goal 0.08 三条线）。展示 clean-robust 最优剂量分离。现有 `assets/diagnostics/noise_angle_curve_goal.png`、`noise_ratio_curve_goal.png` 可作输入材料。
 - **图 3**：PushT n=9 LeWM sweep 上 `predictor_target_to_nn_cos_ratio_at_max_std` 双面板散点（左 vs clean，右 vs OOD drop），颜色编码 `std_max`，标注 Spearman ρ。底层数据来自 `assets/paper1_data/canonical_diagnostics_20260517.json` + `assets/paper1_data/canonical_evals_20260517.json`。
 - **图 4**：表 3 表征诊断条形/雷达图——4 任务 base vs **representative diagnostic checkpoint** 在 6 个核心指标上的对比，视觉化 "压缩 vs 分辨率"的 task-specific 折衷。
 - **图 5（机制示意）**：pipeline schematic（pixels → encoder → predictor → CEM），定性概括 §4.6 的归因结论。
@@ -220,7 +220,7 @@ $$
 | Reacher | 58.67 ± 1.25 | 27.00 ± 5.10 | 15.00 ± 2.16 | **−43.67** |
 | Cube | 66.67 ± 2.62 | 53.33 ± 3.30 | 46.33 ± 3.68 | **−20.33** |
 
-同方向的失败模式也在 PLDM 上复现：clean-trained PushT PLDM checkpoint 从 **75.33% ± 3.68** clean 降到 **10.00% ± 2.16**（px+goal 0.08，−65.33pt，附录 F），并且 noise-training sweep 的每任务信号——TwoRoom 在高 `std_max` 上单调上升、PushT 在 `std_max ≈ 0.003` 附近大幅 recovery、Cube 响应最弱——都在我们附录 F 给出的完整 PLDM sweep 中复现。在已经有 PLDM baseline 的 PushT 上重做 partial correlation，C4 的 null 结论也跨方法复现：PLDM partial ρ(metric, OOD drop | `std_max`) = −0.14（LeWM 上为 +0.06）。
+同方向的失败模式也在 PLDM 上复现：clean-trained PushT PLDM checkpoint 从 **75.33% ± 3.68** clean 降到 **10.00% ± 2.16**（px+goal 0.08，−65.33pt，附录 F），并且 noise-training sweep 的每任务信号——TwoRoom 在高 `std_max` 上单调上升、PushT 在 `std_max ≈ 0.03` 附近大幅 recovery、Cube 响应最弱——都在我们附录 F 给出的完整 PLDM sweep 中复现。在已经有 PLDM baseline 的 PushT 上重做 partial correlation，C4 的 null 结论也跨方法复现：PLDM partial ρ(metric, OOD drop | `std_max`) = −0.14（LeWM 上为 +0.06）。
 
 ![Fig 1 — Visual OOD cliff in LeWM and recovery by noise training](assets/paper1_figs/fig1_hero.png)
 
@@ -237,28 +237,28 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 | std_max | TwoRoom | PushT | Reacher | Cube |
 |---|---:|---:|---:|---:|
 | 0 (base) | 94.00 ± 3.56 | 86.33 ± 2.36 | 58.67 ± 1.25 | 66.67 ± 2.62 |
-| 0.001 | 93.67 ± 3.30 | 88.00 ± 3.74 | 61.67 ± 2.49 | 69.33 ± 0.47 |
-| 0.002 | 95.00 ± 2.83 | 88.33 ± 2.62 | 85.67 ± 2.49 | 60.00 ± 1.63 |
-| 0.003 | 96.33 ± 3.30 | 89.67 ± 1.70† | 78.67 ± 1.25 | 65.00 ± 1.63 |
-| 0.004 | 96.33 ± 2.05 | 89.33 ± 2.05 | 84.00 ± 2.94 | 69.00 ± 3.74 |
-| 0.005 | 96.00 ± 2.83 | 80.67 ± 4.78 | 70.00 ± 2.16 | 59.33 ± 0.94 |
-| 0.006 | 96.67 ± 2.05 | 89.33 ± 2.05 | 86.00 ± 2.94† | 66.67 ± 2.05 |
-| 0.007 | 96.00 ± 1.63 | 85.67 ± 3.09 | 83.67 ± 3.30 | 67.67 ± 0.94 |
-| 0.008 | 98.33 ± 0.47† | 88.33 ± 2.87 | 84.00 ± 0.82 | 62.33 ± 1.25 |
+| 0.01 | 93.67 ± 3.30 | 88.00 ± 3.74 | 61.67 ± 2.49 | 69.33 ± 0.47 |
+| 0.02 | 95.00 ± 2.83 | 88.33 ± 2.62 | 85.67 ± 2.49 | 60.00 ± 1.63 |
+| 0.03 | 96.33 ± 3.30 | 89.67 ± 1.70† | 78.67 ± 1.25 | 65.00 ± 1.63 |
+| 0.04 | 96.33 ± 2.05 | 89.33 ± 2.05 | 84.00 ± 2.94 | 69.00 ± 3.74 |
+| 0.05 | 96.00 ± 2.83 | 80.67 ± 4.78 | 70.00 ± 2.16 | 59.33 ± 0.94 |
+| 0.06 | 96.67 ± 2.05 | 89.33 ± 2.05 | 86.00 ± 2.94† | 66.67 ± 2.05 |
+| 0.07 | 96.00 ± 1.63 | 85.67 ± 3.09 | 83.67 ± 3.30 | 67.67 ± 0.94 |
+| 0.08 | 98.33 ± 0.47† | 88.33 ± 2.87 | 84.00 ± 0.82 | 62.33 ± 1.25 |
 
 **(b) Pixels+goal std=0.08 成功率（%）**
 
 | std_max | TwoRoom | PushT | Reacher | Cube |
 |---|---:|---:|---:|---:|
 | 0 (base) | 50.00 ± 1.41 |  4.67 ± 2.05 | 15.00 ± 2.16 | 46.33 ± 3.68 |
-| 0.001 | 87.67 ± 1.89 | 43.33 ± 3.09 | 46.00 ± 1.63 | 51.33 ± 5.79 |
-| 0.002 | 93.33 ± 0.94 | 71.33 ± 3.68 | 85.67 ± 1.70‡ | 60.67 ± 0.47 |
-| 0.003 | 94.67 ± 2.87 | 83.00 ± 3.74 | 73.67 ± 0.47 | 67.33 ± 1.89 |
-| 0.004 | 95.00 ± 2.45 | 81.33 ± 2.87 | 80.00 ± 1.41 | 67.00 ± 3.56 |
-| 0.005 | 95.67 ± 2.36 | 75.00 ± 6.48 | 68.00 ± 3.56 | 59.67 ± 2.05 |
-| 0.006 | 96.67 ± 2.49 | 87.00 ± 3.74‡ | 84.67 ± 4.03 | 65.00 ± 2.94 |
-| 0.007 | 96.33 ± 2.05 | 82.33 ± 4.64 | 81.33 ± 1.25 | 68.00 ± 1.41‡ |
-| 0.008 | 98.67 ± 0.94‡ | 85.33 ± 2.62 | 83.00 ± 4.32 | 60.33 ± 0.94 |
+| 0.01 | 87.67 ± 1.89 | 43.33 ± 3.09 | 46.00 ± 1.63 | 51.33 ± 5.79 |
+| 0.02 | 93.33 ± 0.94 | 71.33 ± 3.68 | 85.67 ± 1.70‡ | 60.67 ± 0.47 |
+| 0.03 | 94.67 ± 2.87 | 83.00 ± 3.74 | 73.67 ± 0.47 | 67.33 ± 1.89 |
+| 0.04 | 95.00 ± 2.45 | 81.33 ± 2.87 | 80.00 ± 1.41 | 67.00 ± 3.56 |
+| 0.05 | 95.67 ± 2.36 | 75.00 ± 6.48 | 68.00 ± 3.56 | 59.67 ± 2.05 |
+| 0.06 | 96.67 ± 2.49 | 87.00 ± 3.74‡ | 84.67 ± 4.03 | 65.00 ± 2.94 |
+| 0.07 | 96.33 ± 2.05 | 82.33 ± 4.64 | 81.33 ± 1.25 | 68.00 ± 1.41‡ |
+| 0.08 | 98.67 ± 0.94‡ | 85.33 ± 2.62 | 83.00 ± 4.32 | 60.33 ± 0.94 |
 
 读表提示：
 - `†` 表示该任务列上的 clean point-best。
@@ -275,22 +275,22 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 **三个核心观察：**
 
 **（1）没有单一 std_max 在四任务同时最优，且同一任务上 clean 与 robustness 最优剂量也不同。**
-- TwoRoom 在 std=0.008 达到全局最优 (98.33 / 98.67)，clean 随 noise 单调上升——视觉冗余任务从重 noise 中获益最大。
-- PushT 在 std=0.003 达到峰值 clean 89.67，但 robustness (px+g 0.08) 最优在 std=0.006（87.00 vs 0.002 的 71.33，+15.67pt）——**clean 与 robustness 最优剂量分离**。
-- Reacher 位于 0.002–0.006 的 plateau：clean point-best 在 std=0.006（86.00），px+goal 0.08 point-best 在 std=0.002（85.67）。std=0.001 clean 61.67 vs base 58.67，差距处于跨 seed std (~2.5pt) 范围内，因此数据只支持"低噪声 ≈ base"而**不**支持"低噪声反而损害"。
-- Cube 的 noise sweep 效果最弱：clean 没有单调提升趋势（最优在 0.001 的 69.33），px+g 0.08 也仅在 0.003–0.007 区间有轻微改善（point-best 68.00 vs base 46.33，+21.67pt）——结构化 manipulation 对 input-side global noise 不敏感。
+- TwoRoom 在 std=0.08 达到全局最优 (98.33 / 98.67)，clean 随 noise 单调上升——视觉冗余任务从重 noise 中获益最大。
+- PushT 在 std=0.03 达到峰值 clean 89.67，但 robustness (px+g 0.08) 最优在 std=0.06（87.00 vs 0.02 的 71.33，+15.67pt）——**clean 与 robustness 最优剂量分离**。
+- Reacher 位于 0.02–0.06 的 plateau：clean point-best 在 std=0.06（86.00），px+goal 0.08 point-best 在 std=0.02（85.67）。std=0.01 clean 61.67 vs base 58.67，差距处于跨 seed std (~2.5pt) 范围内，因此数据只支持"低噪声 ≈ base"而**不**支持"低噪声反而损害"。
+- Cube 的 noise sweep 效果最弱：clean 没有单调提升趋势（最优在 0.01 的 69.33），px+g 0.08 也仅在 0.03–0.07 区间有轻微改善（point-best 68.00 vs base 46.33，+21.67pt）——结构化 manipulation 对 input-side global noise 不敏感。
 
-**（2）per-task 调参是必要的，不是可选的。** task 间最优 std_max 差异巨大：TwoRoom clean/OOD point-best 都在 0.008；PushT clean point-best 在 0.003、px+goal 0.08 point-best 在 0.006；Reacher clean point-best 在 0.006、px+goal 0.08 point-best 在 0.002；Cube 的 px+goal 0.08 point-best 在 0.007，而 clean 在 0.001 / 0.004 / 0.007 一带形成浅 plateau。这划清了全局噪声增广的边界：**它是"input-side 全局 noise"的最强形式，但解决 OOD robustness 需要支付一个 per-task tuning cost。**
+**（2）per-task 调参是必要的，不是可选的。** task 间最优 std_max 差异巨大：TwoRoom clean/OOD point-best 都在 0.08；PushT clean point-best 在 0.03、px+goal 0.08 point-best 在 0.06；Reacher clean point-best 在 0.06、px+goal 0.08 point-best 在 0.02；Cube 的 px+goal 0.08 point-best 在 0.07，而 clean 在 0.01 / 0.04 / 0.07 一带形成浅 plateau。这划清了全局噪声增广的边界：**它是"input-side 全局 noise"的最强形式，但解决 OOD robustness 需要支付一个 per-task tuning cost。**
 
-**（3）四任务在两端形成清晰的敏感度排序**：PushT（−81.67pt base drop）最敏感，Cube（−20.33pt）最不敏感，而 TwoRoom（−44.00pt）与 Reacher（−43.67pt）基本并列在约 44pt 的 drop 水平。但 noise training 的修复效果并不与敏感度成正比——TwoRoom 修复最彻底（+48.67pt @ std=0.008），Cube 修复最弱（+21.67pt），说明 input-side global noise 对"视觉冗余型"任务最有效，对"结构化操作型"任务边际收益有限。
+**（3）四任务在两端形成清晰的敏感度排序**：PushT（−81.67pt base drop）最敏感，Cube（−20.33pt）最不敏感，而 TwoRoom（−44.00pt）与 Reacher（−43.67pt）基本并列在约 44pt 的 drop 水平。但 noise training 的修复效果并不与敏感度成正比——TwoRoom 修复最彻底（+48.67pt @ std=0.08），Cube 修复最弱（+21.67pt），说明 input-side global noise 对"视觉冗余型"任务最有效，对"结构化操作型"任务边际收益有限。
 
 ### 4.4 诊断分析：为什么全局噪声不是万能药
 
 表 3 展示了关键诊断指标在 LeWM-base 和各任务 **representative diagnostic checkpoint** 上的对比。
 
-**表 3：表征诊断对比（LeWM-base vs 各任务的 representative noise-trained diagnostic checkpoint）**。各任务的 σ 选择（0.008 / 0.002 / 0.006 / 0.001）是当时跑诊断 suite 的 ckpt。在新的统一 3-seed × 100 协议下 PushT 的 clean point-best 略移至 std = 0.003（与 std = 0.002 相差 ±2pt 以内）；本表诊断仍保留在 std = 0.002 ckpt 上——这里要展示的"压缩 vs. 分辨率"模式在该邻域内稳健。
+**表 3：表征诊断对比（LeWM-base vs 各任务的 representative noise-trained diagnostic checkpoint）**。各任务的 σ 选择（0.08 / 0.02 / 0.06 / 0.01）是当时跑诊断 suite 的 ckpt。在新的统一 3-seed × 100 协议下 PushT 的 clean point-best 略移至 std = 0.03（与 std = 0.02 相差 ±2pt 以内）；本表诊断仍保留在 std = 0.02 ckpt 上——这里要展示的"压缩 vs. 分辨率"模式在该邻域内稳健。
 
-| Metric | TwoRoom base | TwoRoom noise (0.008) | PushT base | PushT noise (0.002) | Reacher base | Reacher noise (0.006) | Cube base | Cube noise (0.001) |
+| Metric | TwoRoom base | TwoRoom noise (0.08) | PushT base | PushT noise (0.02) | Reacher base | Reacher noise (0.06) | Cube base | Cube noise (0.01) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | `clean_nn_cos_dist_median` | 0.0449 | 0.0281 | 0.2360 | 0.1051 | 0.0633 | 0.0676 | 0.1856 | 0.1879 |
 | `clean_effective_rank` | 47.60 | 33.59 | 76.42 | 42.85 | 61.04 | 65.92 | 73.25 | 71.83 |
@@ -305,7 +305,7 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要�
 **机制解释**：
 
 - **TwoRoom**：低维、离散、视觉冗余，压缩表征（effective rank 从 47.6 → 33.6）是可接受甚至有利的。NN distance 降低意味着潜空间更紧凑，规划更容易。
-- **PushT**：需要连续接触与姿态分辨率。即使在 representative diagnostic checkpoint（std = 0.002）上，`transition_resolution_ratio_l2` 已出现轻微压缩趋势。若增至重噪声（如 0.006），该指标将进一步下降，导致接触过渡的关键帧被抹平。
+- **PushT**：需要连续接触与姿态分辨率。即使在 representative diagnostic checkpoint（std = 0.02）上，`transition_resolution_ratio_l2` 已出现轻微压缩趋势。若增至重噪声（如 0.06），该指标将进一步下降，导致接触过渡的关键帧被抹平。
 - **Reacher**：低维连续 reaching 没有出现 task-resolution collapse；effective rank、`transition_resolution_ratio`、`id_probe_r²` 基本持平或略升。主要变化是多步 predictor drift 从 15.17 降到 0.44，这与后文 Reacher 的 residual OOD-drop signal 出现在 rollout metric 上一致。
 - **Cube**：需要中等空间分辨率，但比 PushT 不敏感。representative checkpoint 的 rank、`transition_resolution_ratio`、`id_probe_r²` 和 rollout drift 基本保持，符合 Cube 较小的 visual-OOD cliff 以及 Table 4b 中 multi-step drift 的中等残余信号。
 - **预测器 rollout 的陷阱**：`predictor_rollout_T8_l2` 下降不一定代表好消息。它可能意味着 latent 更容易预测，但不是更适合控制——预测稳定性可以通过牺牲分辨率得到。
@@ -456,10 +456,10 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 本文的 sweep 数据给出一个简单可操作的 recipe：
 
 1. **先把 clean baseline 的 `predictor_target_to_nn_cos_ratio_at_max_std` 当作 screening diagnostic，而不是 OOD oracle。** 很小的值（PushT / Cube 量级）说明 local encoder–predictor shift 相对 clean NN scale 很小，但它本身并不能排序 OOD sensitivity。
-2. **再把 `clean_effective_rank`、`transition_resolution_ratio` 与任务语义一起看。** PushT 同时有高 rank 与高 controllability（`id_probe_r² = 0.7739`），所以 sweep noise 时必须用 clean performance 做 guardrail。TwoRoom 视觉冗余且 transition separability 高（`transition_resolution_ratio_l2 = 0.7216`），因此可以合理扫到 0.008+。
+2. **再把 `clean_effective_rank`、`transition_resolution_ratio` 与任务语义一起看。** PushT 同时有高 rank 与高 controllability（`id_probe_r² = 0.7739`），所以 sweep noise 时必须用 clean performance 做 guardrail。TwoRoom 视觉冗余且 transition separability 高（`transition_resolution_ratio_l2 = 0.7216`），因此可以合理扫到 0.08+。
 3. **noise_prob 与 std_min**：本文固定 `noise_prob=1.0, std_min=0`；如需软化训练分布，可改 `noise_prob ∈ [0.5, 1.0]`（未在本文 sweep，是 future work）。
-4. **eval 上一定要双标**：clean + max-noise 两个 endpoint，单看 clean 会错过 robust 最优剂量，反之亦然（PushT 最显著：clean 最优 0.003，robust 最优 0.006）。
-5. **资源不足时**：先跑 4 档 coarse sweep（{0.001, 0.003, 0.005, 0.007}），再围绕 clean/OOD 候选最优点补局部细化。coarse grid 是 screening step，不保证一次定位 exact point-best `std_max`。
+4. **eval 上一定要双标**：clean + max-noise 两个 endpoint，单看 clean 会错过 robust 最优剂量，反之亦然（PushT 最显著：clean 最优 0.03，robust 最优 0.06）。
+5. **资源不足时**：先跑 4 档 coarse sweep（{0.01, 0.03, 0.05, 0.07}），再围绕 clean/OOD 候选最优点补局部细化。coarse grid 是 screening step，不保证一次定位 exact point-best `std_max`。
 
 ### 5.5 局限与未来方向
 
@@ -633,8 +633,8 @@ class AddNormalizedGaussianNoise:
 | **Encoder Geometry** | `clean_nn_cos_dist_median` | 0.0449 | 0.2360 | 0.0633 | 0.1856 | cosine distance |
 | | `clean_pair_cos_dist_median` | 0.9904 | 1.0228 | 1.0252 | 1.0193 | pair-wise cos distance |
 | | `clean_effective_rank` | 47.60 | 76.42 | 61.04 | 73.25 | effective rank |
-| **Noise Sensitivity** | `noise_angle_deg_median` (@std=0.005) | 5.51° | 1.33° | 3.22° | 1.40° | 中位角向偏移 |
-| | `noise_to_nn_cos_ratio_median` | 0.1031 | 0.0011 | 0.0249 | 0.0016 | noise/NN cos ratio |
+| **Noise Sensitivity** | `noise_angle_deg_median` (@std=0.05) | 5.51° | 1.33° | 3.22° | 1.40° | 中位角向偏移 |
+| | `noise_to_nn_cos_ratio_median` | 0.1031 | 0.011 | 0.0249 | 0.016 | noise/NN cos ratio |
 | | `robust_radius_std` | 0.0142 | 0.0537 | 0.0142 | 0.0356 | 临界噪声 std |
 | | `first_risk_std` | >0.08 | >0.08 | >0.08 | >0.08 | 首个高风险 std |
 | | `noise_angle_slope_deg_per_std` | 1085.8 | 284.8 | 831.7 | 327.0 | °/std，角向增益 |

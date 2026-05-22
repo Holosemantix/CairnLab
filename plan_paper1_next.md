@@ -130,7 +130,7 @@ JEPA 世界模型 + CEM 控制 + pixel noise sweep + 5 层诊断 + partial-corre
 # 1. 复用 LeWM 的 canonical generation script，给 PLDM 单独跑一遍
 python -m tools.repr_analysis.build_canonical_evals \
     --method pldm \
-    --stds 0 0.001 0.002 0.003 0.004 0.005 0.006 0.007 0.008 \
+    --stds 0 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 \
     --out assets/paper1_data/canonical_evals_pldm_<DATE>.json
 
 python -m tools.repr_analysis.build_canonical_diagnostics \

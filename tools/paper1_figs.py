@@ -41,7 +41,7 @@ import numpy as np
 # Canonical diagnostic data mirrored from the paper release artifacts.
 # ============================================================================
 
-SWEEP_STDS = [0, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008]
+SWEEP_STDS = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
 
 # §4.4 Table 3 — 6 diagnostic metrics × {base, representative} × 4 tasks
 # Metric order chosen so "compression" metrics group on one side of the radar.
@@ -264,8 +264,8 @@ def fig2_sweep(out_path: Path):
         ax.axvline(best_std, color="#228833", linestyle="--", alpha=0.7, linewidth=1.0)
         ax.set_title(f"{t}   (px+g 0.08 σ*={best_std:.3f})", fontsize=10.0)
         ax.set_xlabel("std_max")
-        ax.set_xticks([0, 0.002, 0.004, 0.006, 0.008])
-        ax.set_xticklabels(["0", ".002", ".004", ".006", ".008"])
+        ax.set_xticks([0, 0.02, 0.04, 0.06, 0.08])
+        ax.set_xticklabels(["0", ".02", ".04", ".06", ".08"])
         ax.set_ylim(0, 105)
         ax.grid(alpha=0.25, linewidth=0.4)
     axes[0].set_ylabel("Success rate (%)")
@@ -342,7 +342,7 @@ def fig3_scatter(out_path: Path, data_root: Path):
     def _panel(ax_, ys, ylabel, title, anchor_y_top):
         sc = ax_.scatter(xs, ys, marker="o", s=90,
                          c=stds_ax, cmap="Blues", edgecolor="black", linewidth=0.5,
-                         vmin=0, vmax=0.008)
+                         vmin=0, vmax=0.08)
         # log-linear fit
         logxs = np.log10(xs)
         p = np.polyfit(logxs, ys, 1)

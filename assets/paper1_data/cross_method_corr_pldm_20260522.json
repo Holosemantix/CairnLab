@@ -40,7 +40,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 51.333333333333336,
-          "std_max": 0.001
+          "std_max": 0.01
         },
         {
           "clean": 60.0,
@@ -50,7 +50,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 60.666666666666664,
-          "std_max": 0.002
+          "std_max": 0.02
         },
         {
           "clean": 65.0,
@@ -60,7 +60,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 67.33333333333333,
-          "std_max": 0.003
+          "std_max": 0.03
         },
         {
           "clean": 69.0,
@@ -70,7 +70,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 67.0,
-          "std_max": 0.004
+          "std_max": 0.04
         },
         {
           "clean": 59.333333333333336,
@@ -80,7 +80,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 59.666666666666664,
-          "std_max": 0.005
+          "std_max": 0.05
         },
         {
           "clean": 66.66666666666667,
@@ -90,7 +90,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 65.0,
-          "std_max": 0.006
+          "std_max": 0.06
         },
         {
           "clean": 67.66666666666667,
@@ -100,7 +100,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 68.0,
-          "std_max": 0.007
+          "std_max": 0.07
         },
         {
           "clean": 62.333333333333336,
@@ -110,7 +110,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 60.333333333333336,
-          "std_max": 0.008
+          "std_max": 0.08
         }
       ],
       "pldm": [
@@ -122,7 +122,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 53.0,
-          "std_max": 0.001
+          "std_max": 0.01
         },
         {
           "clean": 53.333333333333336,
@@ -132,7 +132,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 52.333333333333336,
-          "std_max": 0.002
+          "std_max": 0.02
         },
         {
           "clean": 52.666666666666664,
@@ -142,7 +142,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 55.666666666666664,
-          "std_max": 0.003
+          "std_max": 0.03
         },
         {
           "clean": 54.0,
@@ -152,7 +152,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 53.0,
-          "std_max": 0.004
+          "std_max": 0.04
         },
         {
           "clean": 54.0,
@@ -162,7 +162,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 53.0,
-          "std_max": 0.005
+          "std_max": 0.05
         },
         {
           "clean": 56.0,
@@ -172,7 +172,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 53.333333333333336,
-          "std_max": 0.006
+          "std_max": 0.06
         },
         {
           "clean": 53.666666666666664,
@@ -182,7 +182,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 52.0,
-          "std_max": 0.007
+          "std_max": 0.07
         },
         {
           "clean": 54.0,
@@ -192,7 +192,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 56.333333333333336,
-          "std_max": 0.008
+          "std_max": 0.08
         }
       ]
     },
@@ -278,7 +278,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 43.333333333333336,
-          "std_max": 0.001
+          "std_max": 0.01
         },
         {
           "clean": 88.33333333333333,
@@ -288,7 +288,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 71.33333333333333,
-          "std_max": 0.002
+          "std_max": 0.02
         },
         {
           "clean": 89.66666666666667,
@@ -298,7 +298,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 83.0,
-          "std_max": 0.003
+          "std_max": 0.03
         },
         {
           "clean": 89.33333333333333,
@@ -308,7 +308,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 81.33333333333333,
-          "std_max": 0.004
+          "std_max": 0.04
         },
         {
           "clean": 80.66666666666667,
@@ -318,7 +318,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 75.0,
-          "std_max": 0.005
+          "std_max": 0.05
         },
         {
           "clean": 89.33333333333333,
@@ -328,7 +328,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 87.0,
-          "std_max": 0.006
+          "std_max": 0.06
         },
         {
           "clean": 85.66666666666667,
@@ -338,7 +338,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 82.33333333333333,
-          "std_max": 0.007
+          "std_max": 0.07
         },
         {
           "clean": 88.33333333333333,
@@ -348,7 +348,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 85.33333333333333,
-          "std_max": 0.008
+          "std_max": 0.08
         }
       ],
       "pldm": [
@@ -370,7 +370,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 16.666666666666668,
-          "std_max": 0.001
+          "std_max": 0.01
         },
         {
           "clean": 71.33333333333333,
@@ -380,7 +380,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 40.0,
-          "std_max": 0.002
+          "std_max": 0.02
         },
         {
           "clean": 76.66666666666667,
@@ -390,7 +390,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 72.0,
-          "std_max": 0.003
+          "std_max": 0.03
         },
         {
           "clean": 68.66666666666667,
@@ -400,7 +400,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 62.333333333333336,
-          "std_max": 0.004
+          "std_max": 0.04
         },
         {
           "clean": 74.33333333333333,
@@ -410,7 +410,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 69.33333333333333,
-          "std_max": 0.005
+          "std_max": 0.05
         },
         {
           "clean": 70.33333333333333,
@@ -420,7 +420,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 69.66666666666667,
-          "std_max": 0.006
+          "std_max": 0.06
         },
         {
           "clean": 66.66666666666667,
@@ -430,7 +430,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 67.0,
-          "std_max": 0.007
+          "std_max": 0.07
         },
         {
           "clean": 68.0,
@@ -440,7 +440,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 66.33333333333333,
-          "std_max": 0.008
+          "std_max": 0.08
         }
       ]
     },
@@ -526,7 +526,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 46.0,
-          "std_max": 0.001
+          "std_max": 0.01
         },
         {
           "clean": 85.66666666666667,
@@ -536,7 +536,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 85.66666666666667,
-          "std_max": 0.002
+          "std_max": 0.02
         },
         {
           "clean": 78.66666666666667,
@@ -546,7 +546,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 73.66666666666667,
-          "std_max": 0.003
+          "std_max": 0.03
         },
         {
           "clean": 84.0,
@@ -556,7 +556,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 80.0,
-          "std_max": 0.004
+          "std_max": 0.04
         },
         {
           "clean": 70.0,
@@ -566,7 +566,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 68.0,
-          "std_max": 0.005
+          "std_max": 0.05
         },
         {
           "clean": 86.0,
@@ -576,7 +576,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 84.66666666666667,
-          "std_max": 0.006
+          "std_max": 0.06
         },
         {
           "clean": 83.66666666666667,
@@ -586,7 +586,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 81.33333333333333,
-          "std_max": 0.007
+          "std_max": 0.07
         },
         {
           "clean": 84.0,
@@ -596,7 +596,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 83.0,
-          "std_max": 0.008
+          "std_max": 0.08
         }
       ],
       "pldm": [
@@ -608,7 +608,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 78.0,
-          "std_max": 0.001
+          "std_max": 0.01
         },
         {
           "clean": 82.33333333333333,
@@ -618,7 +618,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 79.33333333333333,
-          "std_max": 0.002
+          "std_max": 0.02
         },
         {
           "clean": 83.0,
@@ -628,7 +628,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 79.33333333333333,
-          "std_max": 0.003
+          "std_max": 0.03
         },
         {
           "clean": 45.0,
@@ -638,7 +638,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 24.0,
-          "std_max": 0.004
+          "std_max": 0.04
         },
         {
           "clean": 72.0,
@@ -648,7 +648,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 59.666666666666664,
-          "std_max": 0.005
+          "std_max": 0.05
         },
         {
           "clean": 79.0,
@@ -658,7 +658,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 76.0,
-          "std_max": 0.006
+          "std_max": 0.06
         },
         {
           "clean": 80.66666666666667,
@@ -668,7 +668,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 77.66666666666667,
-          "std_max": 0.007
+          "std_max": 0.07
         },
         {
           "clean": 80.33333333333333,
@@ -678,7 +678,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 80.66666666666667,
-          "std_max": 0.008
+          "std_max": 0.08
         }
       ]
     },
@@ -764,7 +764,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 87.66666666666667,
-          "std_max": 0.001
+          "std_max": 0.01
         },
         {
           "clean": 95.0,
@@ -774,7 +774,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 93.33333333333333,
-          "std_max": 0.002
+          "std_max": 0.02
         },
         {
           "clean": 96.33333333333333,
@@ -784,7 +784,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 94.66666666666667,
-          "std_max": 0.003
+          "std_max": 0.03
         },
         {
           "clean": 96.33333333333333,
@@ -794,7 +794,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 95.0,
-          "std_max": 0.004
+          "std_max": 0.04
         },
         {
           "clean": 96.0,
@@ -804,7 +804,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 95.66666666666667,
-          "std_max": 0.005
+          "std_max": 0.05
         },
         {
           "clean": 96.66666666666667,
@@ -814,7 +814,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 96.66666666666667,
-          "std_max": 0.006
+          "std_max": 0.06
         },
         {
           "clean": 96.0,
@@ -824,7 +824,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 96.33333333333333,
-          "std_max": 0.007
+          "std_max": 0.07
         },
         {
           "clean": 98.33333333333333,
@@ -834,7 +834,7 @@
           "method": "LeWM",
           "method_dummy": 0,
           "px08": 98.66666666666667,
-          "std_max": 0.008
+          "std_max": 0.08
         }
       ],
       "pldm": [
@@ -846,7 +846,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 89.33333333333333,
-          "std_max": 0.001
+          "std_max": 0.01
         },
         {
           "clean": 97.33333333333333,
@@ -856,7 +856,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 93.33333333333333,
-          "std_max": 0.002
+          "std_max": 0.02
         },
         {
           "clean": 96.66666666666667,
@@ -866,7 +866,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 94.33333333333333,
-          "std_max": 0.003
+          "std_max": 0.03
         },
         {
           "clean": 97.66666666666667,
@@ -876,7 +876,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 98.0,
-          "std_max": 0.004
+          "std_max": 0.04
         },
         {
           "clean": 97.66666666666667,
@@ -886,7 +886,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 98.33333333333333,
-          "std_max": 0.005
+          "std_max": 0.05
         },
         {
           "clean": 98.0,
@@ -896,7 +896,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 97.33333333333333,
-          "std_max": 0.006
+          "std_max": 0.06
         },
         {
           "clean": 98.0,
@@ -906,7 +906,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 96.66666666666667,
-          "std_max": 0.007
+          "std_max": 0.07
         },
         {
           "clean": 98.33333333333333,
@@ -916,7 +916,7 @@
           "method": "PLDM",
           "method_dummy": 1,
           "px08": 97.0,
-          "std_max": 0.008
+          "std_max": 0.08
         }
       ]
     },

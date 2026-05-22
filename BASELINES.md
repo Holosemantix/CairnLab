@@ -44,9 +44,9 @@ python train_pldm.py exp_name=tworoom_pldm data=tworoom_baseline
 
 # noise sweep (override image_noise at CLI)
 python train_pldm.py exp_name=pusht_pldm_noise_0to006_p1 \
-    image_noise.std_max=0.006 image_noise.noise_prob=1.0
+    image_noise.std_max=0.06 image_noise.noise_prob=1.0
 python train_pldm.py exp_name=pusht_pldm_noise_0to008_p1 \
-    image_noise.std_max=0.008 image_noise.noise_prob=1.0
+    image_noise.std_max=0.08 image_noise.noise_prob=1.0
 ```
 
 ### DINO-WM (no-prop, main)
@@ -62,7 +62,7 @@ python train_prejepa.py exp_name=tworoom_dinowm_noprop \
 # noise sweep
 python train_prejepa.py exp_name=pusht_dinowm_noprop_noise_0to006_p1 \
     dataset_name=pusht_expert_train \
-    image_noise.std_max=0.006 image_noise.noise_prob=1.0
+    image_noise.std_max=0.06 image_noise.noise_prob=1.0
 ```
 
 ### DINO-WM (with-prop, appendix)
@@ -79,10 +79,10 @@ For the visual-OOD comparison in the paper, the cheapest informative run set is:
 
 | Task | Model | Configurations | # ckpts |
 |---|---|---|---|
-| PushT | PLDM | base (no noise) + std_max ∈ {0.002, 0.005, 0.008} | 4 |
-| PushT | DINO-WM no-prop | base + std_max ∈ {0.002, 0.005, 0.008} | 4 |
-| TwoRoom | PLDM | base + std_max ∈ {0.002, 0.005, 0.008} | 4 |
-| TwoRoom | DINO-WM no-prop | base + std_max ∈ {0.002, 0.005, 0.008} | 4 |
+| PushT | PLDM | base (no noise) + std_max ∈ {0.02, 0.05, 0.08} | 4 |
+| PushT | DINO-WM no-prop | base + std_max ∈ {0.02, 0.05, 0.08} | 4 |
+| TwoRoom | PLDM | base + std_max ∈ {0.02, 0.05, 0.08} | 4 |
+| TwoRoom | DINO-WM no-prop | base + std_max ∈ {0.02, 0.05, 0.08} | 4 |
 
 Total: **16 training runs** (1 GPU × ~2–3 h each). Each run uses
 3 seeds × 100 evaluation trajectories for protocol parity with LeWM.

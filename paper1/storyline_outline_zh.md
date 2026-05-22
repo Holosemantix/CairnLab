@@ -7,7 +7,7 @@ LeWM 这类 JEPA + CEM 世界模型在 clean 视觉输入上能规划，但未�
 ## 读者应带走的核心判断
 
 - 这不是一个新算法 paper，而是一个诊断型 empirical paper。
-- 主实验结论严格限定在 LeWM 上：4 tasks × 9 configs，即 base + `std_max=0.001..0.008`。
+- 主实验结论严格限定在 LeWM 上：4 tasks × 9 configs，即 base + `std_max=0.01..0.08`。
 - PLDM 只作为 PushT clean-trained external sanity check：它支持 visual OOD cliff 不只发生在 LeWM，但不支撑跨架构 trade-off 结论。
 - 自适应分辨率 / per-token controller 是后续方法线，不放入 Paper 1 的主线。
 - 最强 label-free 诊断指标不是 OOD oracle；它更多是控制 `std_max` sweep trend 后的 residual checkpoint-quality signal。
@@ -83,10 +83,10 @@ LeWM-base 在 clean 上表现不差，但 visual OOD 下大幅掉点：
 
 Noise training 基本能关闭 high-noise OOD gap，但 optimum strongly task-dependent：
 
-- TwoRoom：heavy noise 有利，clean / OOD point-best 都在 0.008。
-- PushT：clean point-best 是 0.003，px+goal 0.08 point-best 是 0.006。
-- Reacher：clean point-best 是 0.006，px+goal 0.08 point-best 是 0.002，整体是 plateau。
-- Cube：px+goal 0.08 point-best 是 0.007，clean 是 shallow plateau。
+- TwoRoom：heavy noise 有利，clean / OOD point-best 都在 0.08。
+- PushT：clean point-best 是 0.03，px+goal 0.08 point-best 是 0.06。
+- Reacher：clean point-best 是 0.06，px+goal 0.08 point-best 是 0.02，整体是 plateau。
+- Cube：px+goal 0.08 point-best 是 0.07，clean 是 shallow plateau。
 
 这一步引出核心 tension：noise 是有用的，但不是一个可无脑调大的 hyperparameter。
 

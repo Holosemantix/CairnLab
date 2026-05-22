@@ -85,7 +85,7 @@
 Joint-Embedding Predictive Architectures (JEPAs) are commonly \emph{believed} to learn abstract, invariant world representations: by predicting in latent space rather than reconstructing pixels, the encoder is expected to discard visual redundancy and noise. This expectation is a \emph{community heuristic} rather than a published guarantee --- to our knowledge no JEPA work formally claims pixel-noise robustness for control. We test the implicit assumption on \textbf{LeWorldModel (LeWM)}~\cite{maes2026lewm}, a published JEPA world model, across four manipulation and navigation tasks (PushT, TwoRoom, Reacher, Cube) and eight levels of train-time pixel-noise augmentation. We find three things:
 \begin{enumerate}
   \item \textbf{Visual out-of-distribution (OOD) collapse in JEPA + Cross-Entropy Method (CEM) control.} Without noise-aware training, LeWM collapses under mild pixel noise: PushT control success drops from $86.33\%$ (clean) to $4.67\%$ (Gaussian \mbox{std = 0.08}, near-random); TwoRoom drops from $94.00\%$ to $50.00\%$.
-  \item \textbf{No globally optimal noise level exists.} Tasks respond very differently to noise augmentation: visually redundant TwoRoom prefers heavy noise (point-best at \stdmax{} $= 0.008$), while contact-heavy PushT peaks on \emph{clean} at \stdmax{} $= 0.003$ but on \emph{robustness} at \stdmax{} $= 0.006$ --- clean and robust optima dissociate within a single task.
+  \item \textbf{No globally optimal noise level exists.} Tasks respond very differently to noise augmentation: visually redundant TwoRoom prefers heavy noise (point-best at \stdmax{} $= 0.08$), while contact-heavy PushT peaks on \emph{clean} at \stdmax{} $= 0.03$ but on \emph{robustness} at \stdmax{} $= 0.06$ --- clean and robust optima dissociate within a single task.
   \item \textbf{A five-layer diagnostic protocol explains the compression mechanism.} Instrumenting encoder shift, encoder geometry, predictor sensitivity, latent-noise response, and task resolution traces noise-induced control failure to a representational chain: representation compression (drop in effective rank) $\rightarrow$ loss of transition-key resolution $\rightarrow$ loss of controllability (drop in the inverse-dynamics probe $R^2$). When used as a \emph{cross-checkpoint} predictor, the strongest single diagnostic --- which we call the \emph{fragility ratio} (Section~\ref{sec:bg-five-layers}) --- tracks \emph{overall checkpoint quality on clean inputs}, not OOD-specific robustness, on the LeWM PushT sweep ($n = 9$). The same partial-correlation null replicates on PLDM PushT ($n = 9$) and on the joint LeWM+PLDM PushT sample ($n = 18$). The toolkit usefully ranks checkpoints by clean control fidelity but does not substitute for actually training with noise when OOD robustness is the goal.
 \end{enumerate}
 This paper does not propose a new training algorithm. Its contribution is (i) a systematic empirical study of JEPA + CEM visual OOD failure, (ii) a reproducible diagnostic toolkit, and (iii) an explicit delineation of what cross-checkpoint diagnostics can and cannot predict.
@@ -111,11 +111,11 @@ The empirical answer is no. On PushT (2D pushing), the untrained-with-noise LeWM
 
 A natural remedy is input-side noise augmentation during training, a technique long-validated in supervised and contrastive learning~\cite{chen2020simclr,cubuk2020randaugment}. But a deeper question arises: \textbf{does there exist a single, universal noise level that is optimal across tasks?}
 
-A systematic sweep across four tasks at eight levels of \stdmax{} $\in \{0.001, \dots, 0.008\}$ answers no:
+A systematic sweep across four tasks at eight levels of \stdmax{} $\in \{0.01, \dots, 0.08\}$ answers no:
 \begin{itemize}
-  \item \textbf{TwoRoom} (visually redundant navigation): clean success rises monotonically with noise, peaking at \mbox{\stdmax{} = 0.008} ($98.33\%$ / $98.67\%$).
-  \item \textbf{PushT} (contact-heavy manipulation): clean peaks at \mbox{\stdmax{} = 0.003} ($89.67\%$), but robustness at px+goal 0.08 peaks at \mbox{\stdmax{} = 0.006} ($87.00\%$) --- clean and robust optima dissociate.
-  \item \textbf{Reacher} (continuous reaching): lies on a \mbox{$0.002$--$0.006$} plateau; clean point-best is at \mbox{\stdmax{} = 0.006} ($86.00\%$), while px+goal 0.08 point-best is at \mbox{\stdmax{} = 0.002} ($85.67\%$). Very low noise ($0.001$) is statistically indistinguishable from base.
+  \item \textbf{TwoRoom} (visually redundant navigation): clean success rises monotonically with noise, peaking at \mbox{\stdmax{} = 0.08} ($98.33\%$ / $98.67\%$).
+  \item \textbf{PushT} (contact-heavy manipulation): clean peaks at \mbox{\stdmax{} = 0.03} ($89.67\%$), but robustness at px+goal 0.08 peaks at \mbox{\stdmax{} = 0.06} ($87.00\%$) --- clean and robust optima dissociate.
+  \item \textbf{Reacher} (continuous reaching): lies on a \mbox{$0.02$--$0.06$} plateau; clean point-best is at \mbox{\stdmax{} = 0.06} ($86.00\%$), while px+goal 0.08 point-best is at \mbox{\stdmax{} = 0.02} ($85.67\%$). Very low noise ($0.01$) is statistically indistinguishable from base.
   \item \textbf{Cube} (structured 3D manipulation): noise sweep is the weakest of the four, with no monotone trend on clean. We read this as the trade-off's mildest manifestation rather than an absence: a structured action sequence and predictable visual-action coupling supply enough robustness that input-side augmentation buys comparatively little.
 \end{itemize}
 
@@ -168,7 +168,7 @@ where $\mathcal{L}_{\text{pred}}$ is the latent-space mean-squared error (MSE) b
 
 \subsection{Input-side noise augmentation}\label{sec:bg-noise}
 
-We add per-frame Gaussian noise to the LeWM input pipeline via \codebrk{utils.py::AddNormalizedGaussianNoise} (\Cref{sec:appendix-A}). Each frame is independently noised: $\mathrm{Bernoulli}(p)$ decides whether the frame is corrupted, and if so the standard deviation is drawn from $\mathrm{Uniform}(0, \text{std\_max})$. We fix $p = 1.0$ and sweep \stdmax{} $\in \{0.001, \dots, 0.008\}$ (eight levels). Evaluation uses two noised conditions: pixels+goal $0.05$ and pixels+goal $0.08$ (Gaussian noise of the indicated std applied to both pixels and the goal image).
+We add per-frame Gaussian noise to the LeWM input pipeline via \codebrk{utils.py::AddNormalizedGaussianNoise} (\Cref{sec:appendix-A}). Each frame is independently noised: $\mathrm{Bernoulli}(p)$ decides whether the frame is corrupted, and if so the standard deviation is drawn from $\mathrm{Uniform}(0, \text{std\_max})$. We fix $p = 1.0$ and sweep \stdmax{} $\in \{0.01, \dots, 0.08\}$ (eight levels). Evaluation uses two noised conditions: pixels+goal $0.05$ and pixels+goal $0.08$ (Gaussian noise of the indicated std applied to both pixels and the goal image).
 
 \subsection{Five-layer diagnostic framework}\label{sec:bg-five-layers}
 
@@ -201,7 +201,7 @@ where $r_i^{\mathrm{enc}}$ corresponds to \code{noise\_to\_nn\_cos\_ratio}, $r_i
 To rule out spurious correlations we adopt two complementary analyses on the same LeWM PushT sweep:
 
 \begin{description}
-  \item[LeWM $n = 9$ sweep with partial correlation.] All 9 LeWM checkpoints per task (base + \stdmax{} $\in \{0.001, \dots, 0.008\}$). Compute Spearman $\rho$ and \emph{partial} Spearman conditioned on \stdmax{}. The partialling step matters: many diagnostics correlate with control performance only because both quantities co-vary with the training noise level along the sweep. The relevant question is whether a diagnostic retains a residual checkpoint-quality signal after removing the monotone sweep trend associated with \stdmax{}.
+  \item[LeWM $n = 9$ sweep with partial correlation.] All 9 LeWM checkpoints per task (base + \stdmax{} $\in \{0.01, \dots, 0.08\}$). Compute Spearman $\rho$ and \emph{partial} Spearman conditioned on \stdmax{}. The partialling step matters: many diagnostics correlate with control performance only because both quantities co-vary with the training noise level along the sweep. The relevant question is whether a diagnostic retains a residual checkpoint-quality signal after removing the monotone sweep trend associated with \stdmax{}.
 \end{description}
 
 We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw $\rho$ tells you ``which checkpoint over the entire sweep behaves better''; the partial $\rho$ tells you whether a diagnostic retains a residual checkpoint-quality signal after removing the monotone trend associated with \stdmax{}. The two questions are distinct, and we will see in \Cref{sec:diag-cross} that they have markedly different answers for the same metric. A larger cross-architecture protocol (varying the latent geometry of the world model itself) is left to follow-up work with external baselines.
@@ -219,7 +219,7 @@ We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw
 
 \paragraph{Evaluation seeds.} Each checkpoint is evaluated with 3 evaluation seeds (42 / 43 / 44), with 100 trajectories per seed.
 
-\paragraph{Evaluation protocol.} All success rates in this paper --- clean and noised, across all 36 checkpoints (4 tasks $\times$ \{base, \stdmax{} $0.001$--$0.008$\}) --- are computed under a single protocol: $n = 3$ seeds (42/43/44), \code{num\_eval = 100} trajectories per seed ($300$ trajectories per condition per checkpoint). Every cell of Tables~\ref{tab:ood-cliff},~\ref{tab:sweep-clean},~\ref{tab:sweep-px08} is mean $\pm$ across-seed population std over $n = 3$ and is sourced from the released aggregate, \dataset{canonical\_evals\_20260517.json}; raw per-seed files live alongside each checkpoint as \codebrk{<ckpt>/eval\_results/<cond>\_seed\{42,43,44\}\_metrics.txt}. The diagnostic source-of-truth for Figure~\ref{fig:scatter}, Table~\ref{tab:corr-n9}, Table~\ref{tab:partial-corr-4tasks}, and Table~\ref{tab:partial-corr} is \dataset{canonical\_diagnostics\_20260517.json}.
+\paragraph{Evaluation protocol.} All success rates in this paper --- clean and noised, across all 36 checkpoints (4 tasks $\times$ \{base, \stdmax{} $0.01$--$0.08$\}) --- are computed under a single protocol: $n = 3$ seeds (42/43/44), \code{num\_eval = 100} trajectories per seed ($300$ trajectories per condition per checkpoint). Every cell of Tables~\ref{tab:ood-cliff},~\ref{tab:sweep-clean},~\ref{tab:sweep-px08} is mean $\pm$ across-seed population std over $n = 3$ and is sourced from the released aggregate, \dataset{canonical\_evals\_20260517.json}; raw per-seed files live alongside each checkpoint as \codebrk{<ckpt>/eval\_results/<cond>\_seed\{42,43,44\}\_metrics.txt}. The diagnostic source-of-truth for Figure~\ref{fig:scatter}, Table~\ref{tab:corr-n9}, Table~\ref{tab:partial-corr-4tasks}, and Table~\ref{tab:partial-corr} is \dataset{canonical\_diagnostics\_20260517.json}.
 
 \paragraph{Hardware.} Single NVIDIA H800 (80\,GB).
 
@@ -255,7 +255,7 @@ Cube    & $66.67 \pm 2.62$ & $53.33 \pm 3.30$ & $46.33 \pm 3.68$ & $\mathbf{-20.
 
 LeWM-base is strong on clean images (especially TwoRoom and PushT), but visual std $= 0.05$ applied to pixels and goal jointly already produces large drops on all tasks: PushT loses $74+$ pts (down to near-random $4.67\%$ at std $= 0.08$), TwoRoom $30+$ pts, Reacher $30+$ pts, Cube $\sim 13$ pts (at std $= 0.05$). \textbf{This is not a marginal phenomenon}: a JEPA + CEM world model without noise-aware training has essentially no resistance to visual corruption. The drop pattern across tasks is informative: Cube degrades least ($-20.33$\,pt at std $= 0.08$) --- structured manipulation has some natural robustness --- while PushT degrades most catastrophically ($-81.67$\,pt), confirming that contact-heavy continuous control is most sensitive to visual precision.
 
-The same direction of failure replicates on PLDM: a clean-trained PLDM checkpoint on PushT drops from $75.33\% \pm 3.68$ clean to $10.00\% \pm 2.16$ at px+goal 0.08 ($-65.33$\,pt, \Cref{tab:pldm-pusht}), and the per-task signatures of the noise-training sweep --- TwoRoom's monotone rise to high \stdmax{}, PushT's large $\stdmax{}~\approx 0.003$ recovery, Cube's weak response --- carry over to the full PLDM sweep that we report in \Cref{sec:appendix-F}.
+The same direction of failure replicates on PLDM: a clean-trained PLDM checkpoint on PushT drops from $75.33\% \pm 3.68$ clean to $10.00\% \pm 2.16$ at px+goal 0.08 ($-65.33$\,pt, \Cref{tab:pldm-pusht}), and the per-task signatures of the noise-training sweep --- TwoRoom's monotone rise to high \stdmax{}, PushT's large $\stdmax{}~\approx 0.03$ recovery, Cube's weak response --- carry over to the full PLDM sweep that we report in \Cref{sec:appendix-F}.
 
 \subsection{Noise augmentation closes the gap --- at the cost of task-specific tuning}\label{sec:exp-sweep}
 
@@ -271,14 +271,14 @@ The same direction of failure replicates on PLDM: a clean-trained PLDM checkpoin
 \stdmax{} & TwoRoom & PushT & Reacher & Cube \\
 \midrule
 0 (base) & $94.00 \pm 3.56$ & $86.33 \pm 2.36$ & $58.67 \pm 1.25$ & $66.67 \pm 2.62$ \\
-0.001 & $93.67 \pm 3.30$ & $88.00 \pm 3.74$ & $61.67 \pm 2.49$ & $69.33 \pm 0.47$ \\
-0.002 & $95.00 \pm 2.83$ & $88.33 \pm 2.62$ & $85.67 \pm 2.49$ & $60.00 \pm 1.63$ \\
-0.003 & $96.33 \pm 3.30$ & $89.67 \pm 1.70^{\dagger}$ & $78.67 \pm 1.25$ & $65.00 \pm 1.63$ \\
-0.004 & $96.33 \pm 2.05$ & $89.33 \pm 2.05$ & $84.00 \pm 2.94$ & $69.00 \pm 3.74$ \\
-0.005 & $96.00 \pm 2.83$ & $80.67 \pm 4.78$ & $70.00 \pm 2.16$ & $59.33 \pm 0.94$ \\
-0.006 & $96.67 \pm 2.05$ & $89.33 \pm 2.05$ & $86.00 \pm 2.94^{\dagger}$ & $66.67 \pm 2.05$ \\
-0.007 & $96.00 \pm 1.63$ & $85.67 \pm 3.09$ & $83.67 \pm 3.30$ & $67.67 \pm 0.94$ \\
-0.008 & $98.33 \pm 0.47^{\dagger}$ & $88.33 \pm 2.87$ & $84.00 \pm 0.82$ & $62.33 \pm 1.25$ \\
+0.01 & $93.67 \pm 3.30$ & $88.00 \pm 3.74$ & $61.67 \pm 2.49$ & $69.33 \pm 0.47$ \\
+0.02 & $95.00 \pm 2.83$ & $88.33 \pm 2.62$ & $85.67 \pm 2.49$ & $60.00 \pm 1.63$ \\
+0.03 & $96.33 \pm 3.30$ & $89.67 \pm 1.70^{\dagger}$ & $78.67 \pm 1.25$ & $65.00 \pm 1.63$ \\
+0.04 & $96.33 \pm 2.05$ & $89.33 \pm 2.05$ & $84.00 \pm 2.94$ & $69.00 \pm 3.74$ \\
+0.05 & $96.00 \pm 2.83$ & $80.67 \pm 4.78$ & $70.00 \pm 2.16$ & $59.33 \pm 0.94$ \\
+0.06 & $96.67 \pm 2.05$ & $89.33 \pm 2.05$ & $86.00 \pm 2.94^{\dagger}$ & $66.67 \pm 2.05$ \\
+0.07 & $96.00 \pm 1.63$ & $85.67 \pm 3.09$ & $83.67 \pm 3.30$ & $67.67 \pm 0.94$ \\
+0.08 & $98.33 \pm 0.47^{\dagger}$ & $88.33 \pm 2.87$ & $84.00 \pm 0.82$ & $62.33 \pm 1.25$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -293,14 +293,14 @@ The same direction of failure replicates on PLDM: a clean-trained PLDM checkpoin
 \stdmax{} & TwoRoom & PushT & Reacher & Cube \\
 \midrule
 0 (base) & $50.00 \pm 1.41$ & $\phantom{0}4.67 \pm 2.05$ & $15.00 \pm 2.16$ & $46.33 \pm 3.68$ \\
-0.001 & $87.67 \pm 1.89$ & $43.33 \pm 3.09$ & $46.00 \pm 1.63$ & $51.33 \pm 5.79$ \\
-0.002 & $93.33 \pm 0.94$ & $71.33 \pm 3.68$ & $85.67 \pm 1.70^{\ddagger}$ & $60.67 \pm 0.47$ \\
-0.003 & $94.67 \pm 2.87$ & $83.00 \pm 3.74$ & $73.67 \pm 0.47$ & $67.33 \pm 1.89$ \\
-0.004 & $95.00 \pm 2.45$ & $81.33 \pm 2.87$ & $80.00 \pm 1.41$ & $67.00 \pm 3.56$ \\
-0.005 & $95.67 \pm 2.36$ & $75.00 \pm 6.48$ & $68.00 \pm 3.56$ & $59.67 \pm 2.05$ \\
-0.006 & $96.67 \pm 2.49$ & $87.00 \pm 3.74^{\ddagger}$ & $84.67 \pm 4.03$ & $65.00 \pm 2.94$ \\
-0.007 & $96.33 \pm 2.05$ & $82.33 \pm 4.64$ & $81.33 \pm 1.25$ & $68.00 \pm 1.41^{\ddagger}$ \\
-0.008 & $98.67 \pm 0.94^{\ddagger}$ & $85.33 \pm 2.62$ & $83.00 \pm 4.32$ & $60.33 \pm 0.94$ \\
+0.01 & $87.67 \pm 1.89$ & $43.33 \pm 3.09$ & $46.00 \pm 1.63$ & $51.33 \pm 5.79$ \\
+0.02 & $93.33 \pm 0.94$ & $71.33 \pm 3.68$ & $85.67 \pm 1.70^{\ddagger}$ & $60.67 \pm 0.47$ \\
+0.03 & $94.67 \pm 2.87$ & $83.00 \pm 3.74$ & $73.67 \pm 0.47$ & $67.33 \pm 1.89$ \\
+0.04 & $95.00 \pm 2.45$ & $81.33 \pm 2.87$ & $80.00 \pm 1.41$ & $67.00 \pm 3.56$ \\
+0.05 & $95.67 \pm 2.36$ & $75.00 \pm 6.48$ & $68.00 \pm 3.56$ & $59.67 \pm 2.05$ \\
+0.06 & $96.67 \pm 2.49$ & $87.00 \pm 3.74^{\ddagger}$ & $84.67 \pm 4.03$ & $65.00 \pm 2.94$ \\
+0.07 & $96.33 \pm 2.05$ & $82.33 \pm 4.64$ & $81.33 \pm 1.25$ & $68.00 \pm 1.41^{\ddagger}$ \\
+0.08 & $98.67 \pm 0.94^{\ddagger}$ & $85.33 \pm 2.62$ & $83.00 \pm 4.32$ & $60.33 \pm 0.94$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -317,13 +317,13 @@ The same direction of failure replicates on PLDM: a clean-trained PLDM checkpoin
 Three observations follow.
 
 \paragraph{(1) No single \stdmax{} is jointly optimal; clean and robust optima can dissociate within a task.}
-TwoRoom peaks globally at \stdmax{} $= 0.008$ ($98.33$ / $98.67$); clean rises monotonically with noise. PushT peaks on clean at \stdmax{} $= 0.003$ but on robustness at \stdmax{} $= 0.006$ ($87.00$ vs.\ $0.002$'s $71.33$; $+15.67$ pt). Reacher lies on a $0.002$--$0.006$ plateau: clean point-best is at \stdmax{} $= 0.006$ ($86.00$), while px+g 0.08 point-best is at \stdmax{} $= 0.002$ ($85.67$). At \stdmax{} $= 0.001$ clean is $61.67$ vs base $58.67$ --- within across-seed std ($\sim 2.5$ pts), so the data support \emph{``low noise is statistically equivalent to base''}, not ``low noise hurts''. Cube responds least: clean is non-monotonic, and px+g 0.08 improves only in the $0.003$--$0.007$ range.
+TwoRoom peaks globally at \stdmax{} $= 0.08$ ($98.33$ / $98.67$); clean rises monotonically with noise. PushT peaks on clean at \stdmax{} $= 0.03$ but on robustness at \stdmax{} $= 0.06$ ($87.00$ vs.\ $0.02$'s $71.33$; $+15.67$ pt). Reacher lies on a $0.02$--$0.06$ plateau: clean point-best is at \stdmax{} $= 0.06$ ($86.00$), while px+g 0.08 point-best is at \stdmax{} $= 0.02$ ($85.67$). At \stdmax{} $= 0.01$ clean is $61.67$ vs base $58.67$ --- within across-seed std ($\sim 2.5$ pts), so the data support \emph{``low noise is statistically equivalent to base''}, not ``low noise hurts''. Cube responds least: clean is non-monotonic, and px+g 0.08 improves only in the $0.03$--$0.07$ range.
 
 \paragraph{(2) Per-task tuning is necessary, not optional.}
-Optimal \stdmax{} varies substantially: TwoRoom clean/OOD point-best $0.008$, PushT clean point-best $0.003$ / px+g 0.08 point-best $0.006$, Reacher clean point-best $0.006$ / px+g 0.08 point-best $0.002$, Cube px+g 0.08 point-best $0.007$ with a shallow clean plateau around $0.001$ / $0.004$ / $0.007$. Global input-side noise is the strongest ``global'' form of invariance pressure, but closing the OOD gap requires per-task tuning cost.
+Optimal \stdmax{} varies substantially: TwoRoom clean/OOD point-best $0.08$, PushT clean point-best $0.03$ / px+g 0.08 point-best $0.06$, Reacher clean point-best $0.06$ / px+g 0.08 point-best $0.02$, Cube px+g 0.08 point-best $0.07$ with a shallow clean plateau around $0.01$ / $0.04$ / $0.07$. Global input-side noise is the strongest ``global'' form of invariance pressure, but closing the OOD gap requires per-task tuning cost.
 
 \paragraph{(3) Tasks form a clear sensitivity ordering at the extremes.}
-PushT is clearly most sensitive ($-81.67$ base drop), Cube least sensitive ($-20.33$), while TwoRoom ($-44.00$) and Reacher ($-43.67$) are effectively tied around a $44$-pt drop. Recovery does not scale with sensitivity: TwoRoom recovers most fully ($+48.67$ pt at $\stdmax = 0.008$), Cube least ($+21.67$ pt). Input-side global noise is most effective on visually redundant tasks and gives diminishing returns on structured manipulation.
+PushT is clearly most sensitive ($-81.67$ base drop), Cube least sensitive ($-20.33$), while TwoRoom ($-44.00$) and Reacher ($-43.67$) are effectively tied around a $44$-pt drop. Recovery does not scale with sensitivity: TwoRoom recovers most fully ($+48.67$ pt at $\stdmax = 0.08$), Cube least ($+21.67$ pt). Input-side global noise is most effective on visually redundant tasks and gives diminishing returns on structured manipulation.
 
 Plotting the same sweep as a (clean, OOD) trajectory per task (\Cref{fig:pareto}) makes the trade-off visually explicit: each task's sweep curve moves from base far below the $y = x$ diagonal toward the upper-right, with per-task curvature determined by how much OOD gain a task can buy from a given drop in clean.
 
@@ -340,7 +340,7 @@ Plotting the same sweep as a (clean, OOD) trajectory per task (\Cref{fig:pareto}
 
 \begin{table}[H]
 \centering
-\caption{Representation diagnostics: LeWM-base vs.\ a representative noise-trained diagnostic checkpoint per task. The $\sigma$ pick per task (0.008 / 0.002 / 0.006 / 0.001) is the ckpt on which the diagnostic suite was originally executed. Under the unified 3-seed $\times$ 100 eval protocol the PushT clean point-best shifts to \stdmax{} $= 0.003$ (within $\pm 2$\,pt of \stdmax{} $= 0.002$); we keep the diagnostics on the \stdmax{} $= 0.002$ checkpoint because the compression-vs.-resolution pattern this table illustrates is robust within this neighbourhood.}
+\caption{Representation diagnostics: LeWM-base vs.\ a representative noise-trained diagnostic checkpoint per task. The $\sigma$ pick per task (0.08 / 0.02 / 0.06 / 0.01) is the ckpt on which the diagnostic suite was originally executed. Under the unified 3-seed $\times$ 100 eval protocol the PushT clean point-best shifts to \stdmax{} $= 0.03$ (within $\pm 2$\,pt of \stdmax{} $= 0.02$); we keep the diagnostics on the \stdmax{} $= 0.02$ checkpoint because the compression-vs.-resolution pattern this table illustrates is robust within this neighbourhood.}
 \label{tab:diag-base-vs-best}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -348,7 +348,7 @@ Plotting the same sweep as a (clean, OOD) trajectory per task (\Cref{fig:pareto}
 \begin{tabular}{lrrrrrrrr}
 \toprule
 Metric & TwoRoom & TwoRoom & PushT & PushT & Reacher & Reacher & Cube & Cube \\
-       & base & noise (0.008) & base & noise (0.002) & base & noise (0.006) & base & noise (0.001) \\
+       & base & noise (0.08) & base & noise (0.02) & base & noise (0.06) & base & noise (0.01) \\
 \midrule
 \code{clean\_nn\_cos\_dist\_median} & 0.0449 & 0.0281 & 0.2360 & 0.1051 & 0.0633 & 0.0676 & 0.1856 & 0.1879 \\
 \code{clean\_effective\_rank}       & 47.60  & 33.59  & 76.42  & 42.85  & 61.04  & 65.92  & 73.25  & 71.83  \\
@@ -362,7 +362,7 @@ Metric & TwoRoom & TwoRoom & PushT & PushT & Reacher & Reacher & Cube & Cube \\
 }
 \end{table}
 
-\noindent\textbf{Notes.} (i) the TwoRoom transition-resolution values (L2 and cos) are corrected to the values directly stored in the released geometry-summary and task-resolution JSONs; (ii) Reacher and Cube representative diagnostics are taken from the corresponding checkpoint's per-tool JSON outputs under the diagnostics directory (max-std $= 0.1$, history-only noise); (iii) the Reacher representative rollout drift of $0.44$ (a 35$\times$ reduction from base $15.17$) is not a recording error: Reacher's representative checkpoint trains under \stdmax{} $= 0.006$, which is enough to collapse the multi-step predictor drift while keeping single-step task-resolution metrics flat --- precisely the dissociation that motivates the analysis in Section~\ref{sec:diag-cross}. Cube's representative drift ($19.25 \approx$ base $20.20$) is the opposite extreme.
+\noindent\textbf{Notes.} (i) the TwoRoom transition-resolution values (L2 and cos) are corrected to the values directly stored in the released geometry-summary and task-resolution JSONs; (ii) Reacher and Cube representative diagnostics are taken from the corresponding checkpoint's per-tool JSON outputs under the diagnostics directory (max-std $= 0.1$, history-only noise); (iii) the Reacher representative rollout drift of $0.44$ (a 35$\times$ reduction from base $15.17$) is not a recording error: Reacher's representative checkpoint trains under \stdmax{} $= 0.06$, which is enough to collapse the multi-step predictor drift while keeping single-step task-resolution metrics flat --- precisely the dissociation that motivates the analysis in Section~\ref{sec:diag-cross}. Cube's representative drift ($19.25 \approx$ base $20.20$) is the opposite extreme.
 
 \begin{figure}[H]
 \centering
@@ -374,7 +374,7 @@ Metric & TwoRoom & TwoRoom & PushT & PushT & Reacher & Reacher & Cube & Cube \\
 \paragraph{Mechanistic reading.}
 \begin{itemize}
   \item \textbf{TwoRoom.} Low-dimensional, discrete, visually redundant. Compressing the representation (effective rank $47.6 \to 33.6$) is acceptable and even beneficial: a more compact latent space is easier to plan in.
-  \item \textbf{PushT.} Continuous contact requires fine-grained pose resolution. Even at the representative diagnostic checkpoint (\stdmax{} $= 0.002$), the L2 transition-resolution metric already trends slightly downward. At heavier noise (e.g.\ $0.006$) it drops further, erasing contact-transition keyframes.
+  \item \textbf{PushT.} Continuous contact requires fine-grained pose resolution. Even at the representative diagnostic checkpoint (\stdmax{} $= 0.02$), the L2 transition-resolution metric already trends slightly downward. At heavier noise (e.g.\ $0.06$) it drops further, erasing contact-transition keyframes.
   \item \textbf{Reacher.} Low-dimensional continuous reaching does not show a resolution collapse in Table~\ref{tab:diag-base-vs-best}: effective rank, transition resolution, and the controllability probe remain flat or slightly improve. The notable change is the large reduction in multi-step predictor drift ($15.17 \to 0.44$), matching the later finding that Reacher's residual OOD-drop signal lives in the rollout metric rather than in the single-step \fragility{}.
   \item \textbf{Cube.} Cube is moderately resolution-demanding but less fragile than PushT. The representative checkpoint leaves rank, transition resolution, controllability probe, and rollout drift almost unchanged, consistent with Cube's smaller visual-OOD cliff and the moderate residual signal of multi-step drift in Table~\ref{tab:partial-corr-4tasks}.
   \item \textbf{Predictor-rollout caveat.} A drop in multi-step predictor rollout drift is not unambiguously good news. It can also mean the latent has become more \emph{predictable} without being more \emph{controllable}: predictor stability bought by sacrificing resolution.
@@ -570,9 +570,9 @@ The toolkit therefore has a precise scope: it is a \emph{clean-evaluation auxili
 Our sweep suggests a simple operational recipe:
 \begin{enumerate}
   \item Inspect the clean baseline's \fragility{} as a screening diagnostic, not as an OOD oracle. Very small values (PushT / Cube regime) indicate that local encoder--predictor shift is small relative to the clean nearest-neighbour scale, but they do not by themselves rank OOD sensitivity.
-  \item Check \code{clean\_effective\_rank}, \transres{}, and task semantics together. PushT combines high rank and high controllability (\idprobe{} $=0.7739$), so noise should be swept with clean performance as a guardrail. TwoRoom is visually redundant and retains high transition separability (\transres{}\_l2 $=0.7216$), so a wider sweep up to $0.008+$ is reasonable.
-  \item Use \emph{two endpoints} in evaluation (clean and max-noise). Checking only one misses one of the optima: PushT's clean optimum at $0.003$ vs robustness optimum at $0.006$ is the clearest example.
-  \item Under compute budget, start with a coarse 4-level sweep (\{0.001, 0.003, 0.005, 0.007\}), then refine around the best clean/OOD candidates. The coarse grid is a screening step, not a guarantee of locating the exact point-best \stdmax{}.
+  \item Check \code{clean\_effective\_rank}, \transres{}, and task semantics together. PushT combines high rank and high controllability (\idprobe{} $=0.7739$), so noise should be swept with clean performance as a guardrail. TwoRoom is visually redundant and retains high transition separability (\transres{}\_l2 $=0.7216$), so a wider sweep up to $0.08+$ is reasonable.
+  \item Use \emph{two endpoints} in evaluation (clean and max-noise). Checking only one misses one of the optima: PushT's clean optimum at $0.03$ vs robustness optimum at $0.06$ is the clearest example.
+  \item Under compute budget, start with a coarse 4-level sweep (\{0.01, 0.03, 0.05, 0.07\}), then refine around the best clean/OOD candidates. The coarse grid is a screening step, not a guarantee of locating the exact point-best \stdmax{}.
 \end{enumerate}
 
 \subsection{Limitations and future directions}\label{sec:disc-limit}
@@ -683,8 +683,8 @@ Layer / Metric & TwoRoom & PushT & Reacher & Cube & Unit / note \\
 \code{clean\_effective\_rank} & 47.60 & 76.42 & 61.04 & 73.25 & effective rank \\
 \midrule
 \multicolumn{6}{l}{\textit{Noise sensitivity}}\\
-\code{noise\_angle\_deg\_median} (@\,std$=0.005$) & $5.51^{\circ}$ & $1.33^{\circ}$ & $3.22^{\circ}$ & $1.40^{\circ}$ & median angular shift \\
-\code{noise\_to\_nn\_cos\_ratio\_median} & 0.1031 & 0.0011 & 0.0249 & 0.0016 & noise/NN cos ratio \\
+\code{noise\_angle\_deg\_median} (@\,std$=0.05$) & $5.51^{\circ}$ & $1.33^{\circ}$ & $3.22^{\circ}$ & $1.40^{\circ}$ & median angular shift \\
+\code{noise\_to\_nn\_cos\_ratio\_median} & 0.1031 & 0.011 & 0.0249 & 0.016 & noise/NN cos ratio \\
 \code{robust\_radius\_std} & 0.0142 & 0.0537 & 0.0142 & 0.0356 & critical noise std \\
 \code{first\_risk\_std} & $>$0.08 & $>$0.08 & $>$0.08 & $>$0.08 & first high-risk std \\
 \code{noise\_angle\_slope\_deg\_per\_std} & 1085.8 & 284.8 & 831.7 & 327.0 & $^{\circ}$/std angular gain \\
@@ -807,9 +807,9 @@ Swapping cost recovers only $+6$\,pt ($36 \to 42$), still far below the clean re
 %% ===========================================================================
 \section{Cross-method replication: PLDM noise sweep on four tasks}\label{sec:appendix-F}
 
-This appendix records the second method-family on which the noise sweep and the cross-checkpoint correlation analysis replicate. PLDM follows the joint-embedding predictive line from Sobal et al.~\cite{sobal2022jointembeddingpredictivearchitectures}; the concrete latent-dynamics planning baseline is from Sobal et al.~\cite{sobal2025stresstesting}. We use the implementation distributed through the \code{stable-worldmodel} baseline suite~\cite{maes2026stableworldmodel}. Training and evaluation follow the LeWM canonical protocol bit-for-bit: per-frame Gaussian pixel noise via \codebrk{utils.py::AddNormalizedGaussianNoise}, \stdmax{} $\in \{0.001,\dots,0.008\}$, three evaluation seeds (42/43/44), 100 trajectories per seed.
+This appendix records the second method-family on which the noise sweep and the cross-checkpoint correlation analysis replicate. PLDM follows the joint-embedding predictive line from Sobal et al.~\cite{sobal2022jointembeddingpredictivearchitectures}; the concrete latent-dynamics planning baseline is from Sobal et al.~\cite{sobal2025stresstesting}. We use the implementation distributed through the \code{stable-worldmodel} baseline suite~\cite{maes2026stableworldmodel}. Training and evaluation follow the LeWM canonical protocol bit-for-bit: per-frame Gaussian pixel noise via \codebrk{utils.py::AddNormalizedGaussianNoise}, \stdmax{} $\in \{0.01,\dots,0.08\}$, three evaluation seeds (42/43/44), 100 trajectories per seed.
 
-\paragraph{Coverage at the time of this writing.} The PLDM \stdmax{}~$\in \{0.001,\dots,0.008\}$ sweep is complete on all four tasks (32 checkpoints). A clean PLDM baseline (\stdmax{}~$= 0$) is currently available only on PushT (from the earlier sanity-check run); the three remaining baselines are still training and are reported in a forthcoming revision. All PLDM canonical data lives in \dataset{canonical\_evals\_pldm\_20260522.json} and \dataset{canonical\_diagnostics\_pldm\_20260522.json}; we do \emph{not} merge these into the LeWM canonical files used by Tables~\ref{tab:ood-cliff}--\ref{tab:partial-corr}.
+\paragraph{Coverage at the time of this writing.} The PLDM \stdmax{}~$\in \{0.01,\dots,0.08\}$ sweep is complete on all four tasks (32 checkpoints). A clean PLDM baseline (\stdmax{}~$= 0$) is currently available only on PushT (from the earlier sanity-check run); the three remaining baselines are still training and are reported in a forthcoming revision. All PLDM canonical data lives in \dataset{canonical\_evals\_pldm\_20260522.json} and \dataset{canonical\_diagnostics\_pldm\_20260522.json}; we do \emph{not} merge these into the LeWM canonical files used by Tables~\ref{tab:ood-cliff}--\ref{tab:partial-corr}.
 
 \paragraph{OOD cliff on PushT.} The clean-trained PLDM checkpoint replicates the same direction of failure as LeWM under pixel noise on PushT (\Cref{tab:pldm-pusht}). PLDM starts from a lower clean success on PushT than LeWM-base, but still loses $65.33$\,pt under px+goal 0.08. The implication --- that the control-time visual-noise cliff is not a LeWM-specific artefact --- is the same point we made in \Cref{sec:exp-cliff}.
 
@@ -842,14 +842,14 @@ PLDM clean-trained & $75.33 \pm 3.68$ & $43.67 \pm 4.64$ & $10.00 \pm 2.16$ & $-
 \stdmax{} & TwoRoom & PushT & Reacher & Cube \\
 \midrule
 0 (base)  & ---              & $75.33 \pm 3.68$  & ---              & ---              \\
-0.001     & $96.33 \pm 0.94$ & $72.33 \pm 4.19$  & $78.00 \pm 0.82$ & $51.33 \pm 1.25$ \\
-0.002     & $97.33 \pm 0.47$ & $71.33 \pm 3.86$  & $82.33 \pm 2.36$ & $53.33 \pm 1.70$ \\
-0.003     & $96.67 \pm 1.70$ & $76.67 \pm 7.54^{\dagger}$  & $83.00 \pm 3.74^{\dagger}$ & $52.67 \pm 3.30$ \\
-0.004     & $97.67 \pm 0.47$ & $68.67 \pm 5.25$  & $45.00 \pm 5.10$ & $54.00 \pm 2.94$ \\
-0.005     & $97.67 \pm 1.25$ & $74.33 \pm 3.40$  & $72.00 \pm 1.41$ & $54.00 \pm 2.16$ \\
-0.006     & $98.00 \pm 0.82$ & $70.33 \pm 6.18$  & $79.00 \pm 0.82$ & $56.00 \pm 4.97^{\dagger}$ \\
-0.007     & $98.00 \pm 0.82$ & $66.67 \pm 8.38$  & $80.67 \pm 2.62$ & $53.67 \pm 3.68$ \\
-0.008     & $98.33 \pm 0.94^{\dagger}$ & $68.00 \pm 1.41$ & $80.33 \pm 1.25$ & $54.00 \pm 1.63$ \\
+0.01     & $96.33 \pm 0.94$ & $72.33 \pm 4.19$  & $78.00 \pm 0.82$ & $51.33 \pm 1.25$ \\
+0.02     & $97.33 \pm 0.47$ & $71.33 \pm 3.86$  & $82.33 \pm 2.36$ & $53.33 \pm 1.70$ \\
+0.03     & $96.67 \pm 1.70$ & $76.67 \pm 7.54^{\dagger}$  & $83.00 \pm 3.74^{\dagger}$ & $52.67 \pm 3.30$ \\
+0.04     & $97.67 \pm 0.47$ & $68.67 \pm 5.25$  & $45.00 \pm 5.10$ & $54.00 \pm 2.94$ \\
+0.05     & $97.67 \pm 1.25$ & $74.33 \pm 3.40$  & $72.00 \pm 1.41$ & $54.00 \pm 2.16$ \\
+0.06     & $98.00 \pm 0.82$ & $70.33 \pm 6.18$  & $79.00 \pm 0.82$ & $56.00 \pm 4.97^{\dagger}$ \\
+0.07     & $98.00 \pm 0.82$ & $66.67 \pm 8.38$  & $80.67 \pm 2.62$ & $53.67 \pm 3.68$ \\
+0.08     & $98.33 \pm 0.94^{\dagger}$ & $68.00 \pm 1.41$ & $80.33 \pm 1.25$ & $54.00 \pm 1.63$ \\
 \bottomrule
 \end{tabular}%
 }
@@ -867,14 +867,14 @@ PLDM clean-trained & $75.33 \pm 3.68$ & $43.67 \pm 4.64$ & $10.00 \pm 2.16$ & $-
 \stdmax{} & TwoRoom & PushT & Reacher & Cube \\
 \midrule
 0 (base)  & ---              & $\phantom{0}10.00 \pm 2.16$ & ---              & ---              \\
-0.001     & $89.33 \pm 3.30$ & $16.67 \pm 4.03$  & $78.00 \pm 1.63$ & $53.00 \pm 1.63$ \\
-0.002     & $93.33 \pm 0.94$ & $40.00 \pm 0.82$  & $79.33 \pm 2.05$ & $52.33 \pm 3.40$ \\
-0.003     & $94.33 \pm 1.70$ & $72.00 \pm 2.94^{\ddagger}$ & $79.33 \pm 2.36$ & $55.67 \pm 4.11$ \\
-0.004     & $98.00 \pm 0.00$ & $62.33 \pm 7.41$  & $24.00 \pm 5.10$ & $53.00 \pm 3.56$ \\
-0.005     & $98.33 \pm 0.94^{\ddagger}$ & $69.33 \pm 4.92$ & $59.67 \pm 3.30$ & $53.00 \pm 1.63$ \\
-0.006     & $97.33 \pm 1.25$ & $69.67 \pm 5.25$  & $76.00 \pm 1.41$ & $53.33 \pm 3.09$ \\
-0.007     & $96.67 \pm 0.47$ & $67.00 \pm 9.09$  & $77.67 \pm 3.30$ & $52.00 \pm 0.00$ \\
-0.008     & $97.00 \pm 0.82$ & $66.33 \pm 4.78$  & $80.67 \pm 2.36^{\ddagger}$ & $56.33 \pm 1.25^{\ddagger}$ \\
+0.01     & $89.33 \pm 3.30$ & $16.67 \pm 4.03$  & $78.00 \pm 1.63$ & $53.00 \pm 1.63$ \\
+0.02     & $93.33 \pm 0.94$ & $40.00 \pm 0.82$  & $79.33 \pm 2.05$ & $52.33 \pm 3.40$ \\
+0.03     & $94.33 \pm 1.70$ & $72.00 \pm 2.94^{\ddagger}$ & $79.33 \pm 2.36$ & $55.67 \pm 4.11$ \\
+0.04     & $98.00 \pm 0.00$ & $62.33 \pm 7.41$  & $24.00 \pm 5.10$ & $53.00 \pm 3.56$ \\
+0.05     & $98.33 \pm 0.94^{\ddagger}$ & $69.33 \pm 4.92$ & $59.67 \pm 3.30$ & $53.00 \pm 1.63$ \\
+0.06     & $97.33 \pm 1.25$ & $69.67 \pm 5.25$  & $76.00 \pm 1.41$ & $53.33 \pm 3.09$ \\
+0.07     & $96.67 \pm 0.47$ & $67.00 \pm 9.09$  & $77.67 \pm 3.30$ & $52.00 \pm 0.00$ \\
+0.08     & $97.00 \pm 0.82$ & $66.33 \pm 4.78$  & $80.67 \pm 2.36^{\ddagger}$ & $56.33 \pm 1.25^{\ddagger}$ \\
 \bottomrule
 \end{tabular}%
 }
@@ -882,12 +882,12 @@ PLDM clean-trained & $75.33 \pm 3.68$ & $43.67 \pm 4.64$ & $10.00 \pm 2.16$ & $-
 
 \paragraph{Reading.} Three quantitative observations carry over cleanly from LeWM:
 \begin{enumerate}
-  \item \textbf{TwoRoom (visually redundant) prefers heavy noise on both methods.} PLDM clean rises monotonically from $96.33\%$ at \stdmax{}~$= 0.001$ to $98.33\%$ at \stdmax{}~$= 0.008$. The same monotone trend appears in LeWM (\Cref{tab:sweep-clean}). Across-seed std drops to $\le 1.7$\,pt on PLDM TwoRoom, indicating a smooth response surface.
-  \item \textbf{PushT (contact-heavy) exhibits the OOD cliff and large noise-training recovery.} PLDM clean-trained drops by $65.33$\,pt under px+goal 0.08 (\Cref{tab:pldm-pusht}); training with \stdmax{}~$= 0.003$ recovers px+goal 0.08 success to $72.00\%$ ($+62.00$\,pt over the clean-trained baseline). The clean point-best at \stdmax{}~$= 0.003$ coincides with LeWM's clean point-best.
+  \item \textbf{TwoRoom (visually redundant) prefers heavy noise on both methods.} PLDM clean rises monotonically from $96.33\%$ at \stdmax{}~$= 0.01$ to $98.33\%$ at \stdmax{}~$= 0.08$. The same monotone trend appears in LeWM (\Cref{tab:sweep-clean}). Across-seed std drops to $\le 1.7$\,pt on PLDM TwoRoom, indicating a smooth response surface.
+  \item \textbf{PushT (contact-heavy) exhibits the OOD cliff and large noise-training recovery.} PLDM clean-trained drops by $65.33$\,pt under px+goal 0.08 (\Cref{tab:pldm-pusht}); training with \stdmax{}~$= 0.03$ recovers px+goal 0.08 success to $72.00\%$ ($+62.00$\,pt over the clean-trained baseline). The clean point-best at \stdmax{}~$= 0.03$ coincides with LeWM's clean point-best.
   \item \textbf{Cube (structured 3D manipulation) is the least noise-responsive on PLDM as well.} The PLDM Cube clean range across the sweep is $51.33$--$56.00\%$ ($\Delta = 4.67$\,pt), and the px+goal 0.08 range is $52.00$--$56.33\%$ ($\Delta = 4.33$\,pt). Both are well within the across-seed variability we observed on LeWM Cube.
 \end{enumerate}
 
-\paragraph{Two findings are method-specific and we report them as such.} (i) PLDM's PushT clean point-best is lower than LeWM's ($\approx 76\%$ vs $\approx 90\%$); we do not interpret this as evidence either way about the trade-off itself, since PLDM is trained with a different loss family and a different latent dimension. (ii) PLDM's PushT clean/robust optima are co-located at \stdmax{}~$= 0.003$, whereas LeWM's clean and robust optima dissociate (\stdmax{}~$= 0.003$ vs $0.006$). The dissociation phenomenon documented in \Cref{sec:exp-sweep} therefore replicates as a \emph{family signature} (both methods have a non-trivial clean--robust gap) but the exact location is method-dependent.
+\paragraph{Two findings are method-specific and we report them as such.} (i) PLDM's PushT clean point-best is lower than LeWM's ($\approx 76\%$ vs $\approx 90\%$); we do not interpret this as evidence either way about the trade-off itself, since PLDM is trained with a different loss family and a different latent dimension. (ii) PLDM's PushT clean/robust optima are co-located at \stdmax{}~$= 0.03$, whereas LeWM's clean and robust optima dissociate (\stdmax{}~$= 0.03$ vs $0.06$). The dissociation phenomenon documented in \Cref{sec:exp-sweep} therefore replicates as a \emph{family signature} (both methods have a non-trivial clean--robust gap) but the exact location is method-dependent.
 
 \paragraph{Cross-method partial correlation on PushT ($n = 9$ per method).} We repeat the within-method partial correlation of \Cref{tab:partial-corr} on the PLDM PushT $n = 9$ sweep (\Cref{tab:pldm-partial-corr-pusht}). The four headline numbers are: $\rho(\stdmax{}, \text{metric}) = +0.93$; unconditional $\rho(\text{metric}, \text{OOD drop}) = -0.78$; partial $\rho(\text{metric}, \text{OOD drop}) \mid \stdmax{} = -0.14$. The negative result (apparent metric$\to$OOD-drop signal is mediated by \stdmax{}) replicates almost exactly across the two methods.
 

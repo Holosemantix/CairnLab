@@ -64,7 +64,7 @@ Current working conclusion:
 | 1 | Linear + mean cosine | cosine | 1.0 | 1.0 | 1.0 | No | Gradient dead zone |
 | 2 | + detach target | cosine | 1.0 | 1.0 | 1.0 | No | Gradient dead zone |
 | 3 | InfoNCE (τ=0.1) | InfoNCE | 16.24 | 16.24→7.55(E8) | 7.57 | E1 violent break | Destroys temporal structure |
-| 4 | MLP+BN projector | cosine | 1.0 | **0.006** | **1.0** | Train only | Batch masking |
+| 4 | MLP+BN projector | cosine | 1.0 | **0.06** | **1.0** | Train only | Batch masking |
 | 5 | + LayerNorm pre-L2 | cosine | 1.0 | 1.0 | 1.0 | No | Gradient dead zone |
 | 6 | + noise (σ=1e-2) | cosine | 1.0 | 1.0 | 1.0 | No | Gradient dead zone |
 | 7 | variance_loss on emb_raw | variance | 0.996 | 1.0 | 1.0 | No | Gradient dead zone (0/0) |
@@ -124,7 +124,7 @@ No improvement. Collapse is in the encoder, not gradient flow through target.
 | Stage | pred_loss | spread_loss |
 |-------|-----------|-------------|
 | Init | 1.080 | 16.236 (collapse) |
-| E0 fit | 0.001 | 16.236 (still collapsed) |
+| E0 fit | 0.01 | 16.236 (still collapsed) |
 | E1 fit | 0.966 | 9.286 (broke out) |
 | E8 fit | 0.875 | 7.551 (near random) |
 | E8 val | 0.879 | 7.573 |
@@ -140,7 +140,7 @@ Broke collapse at E1 via float noise accumulation, but pred_loss jumped to untra
 | Stage | pred_loss | spread_loss (cosine) |
 |-------|-----------|---------------------|
 | Init | 0.935 | 1.0 |
-| E0 fit | 0.049 | **0.006** |
+| E0 fit | 0.049 | **0.06** |
 | E0 val | 0.017 | **1.0** |
 
 Train/val split: BN decorrelates during training (batch stats) → spread sees no collapse → no corrective gradient. Eval with running stats → collapse exposed.
@@ -165,7 +165,7 @@ LayerNorm is per-sample. Doesn't fix cross-sample similarity.
 | Init | 0.880 | 1.0 |
 | E0 fit | 6.0e-4 | 1.0 |
 
-σ=1e-2 negligible vs embedding magnitude (~10). Angular perturbation ≈ 0.001 rad.
+σ=1e-2 negligible vs embedding magnitude (~10). Angular perturbation ≈ 0.01 rad.
 
 ---
 
@@ -231,8 +231,8 @@ Config: `embed_dim=64`, `spread.weight=0.1`, `n_projections=256`.
 | Stage | pred_loss | spread_loss (sliced) | loss |
 |-------|-----------|----------------------|------|
 | Init val sanity check | 0.9465 | 0.03296 | 0.94979 |
-| E99 fit | 5.31e-6 | 0.03351 | 0.003356 |
-| E99 val | 4.98e-6 | 0.03126 | 0.003131 |
+| E99 fit | 5.31e-6 | 0.03351 | 0.03356 |
+| E99 val | 4.98e-6 | 0.03126 | 0.03131 |
 
 Interpretation:
 - `pred_loss` goes essentially to zero, so the predictor learns the trivial constant-latent solution perfectly.
@@ -266,13 +266,13 @@ Config: `embed_dim=64`, `spread.weight=0.1`, `spread.type=uniformity`, `t=2.0`.
 | Early fit (step 49) | 0.9712 | 2.8337 | 1.2545 |
 | Early val (epoch 1) | 0.1814 | 4.2845 | 0.6098 |
 | Mid fit peak spread (step 299) | 0.0247 | 6.0299 | 0.6277 |
-| Final fit (step 128399) | 0.0060 | 2.4655 | 0.2526 |
-| Final val (epoch 99) | 0.00220 | 2.4712 | 0.2493 |
+| Final fit (step 128399) | 0.060 | 2.4655 | 0.2526 |
+| Final val (epoch 99) | 0.0220 | 2.4712 | 0.2493 |
 
 Interpretation:
 - This is **not** the Exp 4 / Exp 8 failure mode.
 - Validation spread does **not** stay near the collapse baseline (`6.24`); it falls to `2.47`, close to the random-spread reference (`≈2.2`).
-- Validation pred loss also goes very low (`0.181 -> 0.0022`), so the model is not merely decorrelated in training mode.
+- Validation pred loss also goes very low (`0.181 -> 0.022`), so the model is not merely decorrelated in training mode.
 - Therefore BN + uniformity appears to be the first spherical variant that **really escapes collapse on validation**, not just on train.
 
 Training dynamics:
@@ -748,7 +748,7 @@ Run names are preserved as recorded, including typos such as `tworroom` and
 Naming convention:
 
 - `w01` = `loss.temporal_hinge.weight=0.1`
-- `w001` = `loss.temporal_hinge.weight=0.001`
+- `w001` = `loss.temporal_hinge.weight=0.01`
 - `m01` = `loss.temporal_hinge.margin=0.1`
 - `m05` = `loss.temporal_hinge.margin=0.5`
 - `m1` = `loss.temporal_hinge.margin=1.0`
@@ -800,20 +800,20 @@ Notes:
 | Model | weight | margin | TwoRoom | Cube | PushT | Reacher |
 |---|---:|---:|---:|---:|---:|---:|
 | `tworroom_lewm_temporal_hinge_w01_m01` | 0.1 | 0.1 | 32.0 |  |  |  |
-| `tworoom_lewm_temporal_hinge_w001_m01` | 0.001 | 0.1 | 87.2 |  |  |  |
-| `tworoom_lewm_temporal_hinge_w001_m05` | 0.001 | 0.5 | 100.0 |  |  |  |
-| `cube_lewm_temporal_hinge_w001_m01` | 0.001 | 0.1 |  | 69.2 |  |  |
-| `cube_lewm_temporal_hinge_w001_m05` | 0.001 | 0.5 |  | 70.2 |  |  |
+| `tworoom_lewm_temporal_hinge_w001_m01` | 0.01 | 0.1 | 87.2 |  |  |  |
+| `tworoom_lewm_temporal_hinge_w001_m05` | 0.01 | 0.5 | 100.0 |  |  |  |
+| `cube_lewm_temporal_hinge_w001_m01` | 0.01 | 0.1 |  | 69.2 |  |  |
+| `cube_lewm_temporal_hinge_w001_m05` | 0.01 | 0.5 |  | 70.2 |  |  |
 | `pusht_lewm_temporal_hinge_w01_m01` | 0.1 | 0.1 |  |  | 6.2 |  |
-| `pusht_lewm_temporal_hinge_w001_m01` | 0.001 | 0.1 |  |  | 13.4 |  |
-| `pusht_lewm_temporal_hinge_w001_m05` | 0.001 | 0.5 |  |  | 20.0 |  |
+| `pusht_lewm_temporal_hinge_w001_m01` | 0.01 | 0.1 |  |  | 13.4 |  |
+| `pusht_lewm_temporal_hinge_w001_m05` | 0.01 | 0.5 |  |  | 20.0 |  |
 | `reacher_lewm_temporal_hinge_w01_m01` | 0.1 | 0.1 |  |  |  | 43.6 |
-| `reacher_lewm_temporal_hinge_w001_m05` | 0.001 | 0.5 |  |  |  | 54.2 |
+| `reacher_lewm_temporal_hinge_w001_m05` | 0.01 | 0.5 |  |  |  | 54.2 |
 
 Interpretation:
 
 - LeWM + fixed temporal hinge is highly unstable across tasks.
-- TwoRoom can benefit from weak hinge with a loose margin (`w=0.001,m=0.5` gives `100.0`), but strong hinge collapses performance (`w=0.1,m=0.1` gives `32.0`).
+- TwoRoom can benefit from weak hinge with a loose margin (`w=0.01,m=0.5` gives `100.0`), but strong hinge collapses performance (`w=0.1,m=0.1` gives `32.0`).
 - Cube is almost insensitive in the tested range (`69.2` / `70.2`).
 - PushT is severely damaged by all tested LeWM hinge settings (`6.2` to `20.0`).
 - Reacher also degrades relative to both `lewm` (`62.2`) and the latest `reacher_lewm` rerun (`58.8`).
@@ -830,21 +830,21 @@ with fixed temporal hinge added.
 
 | Model | weight | margin | TwoRoom | Cube | PushT | Reacher |
 |---|---:|---:|---:|---:|---:|---:|
-| `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.001 | 0.1 | 86.8 |  |  |  |
-| `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.001 | 0.5 | 88.6 |  |  |  |
-| `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.001 | 1.0 | 75.6 |  |  |  |
+| `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.01 | 0.1 | 86.8 |  |  |  |
+| `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.01 | 0.5 | 88.6 |  |  |  |
+| `tworoom_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.01 | 1.0 | 75.6 |  |  |  |
 | `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w01_m01_dim64` | 0.1 | 0.1 |  | 73.8 |  |  |
-| `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.001 | 0.1 |  | 73.4 |  |  |
-| `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.001 | 0.5 |  | 72.0 |  |  |
-| `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.001 | 1.0 |  | 71.4 |  |  |
+| `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.01 | 0.1 |  | 73.4 |  |  |
+| `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.01 | 0.5 |  | 72.0 |  |  |
+| `cube_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.01 | 1.0 |  | 71.4 |  |  |
 | `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w01_m01_dim64` | 0.1 | 0.1 |  |  | 72.0 |  |
-| `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.001 | 0.1 |  |  | 76.6 |  |
-| `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.001 | 0.5 |  |  | 76.0 |  |
-| `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.001 | 1.0 |  |  | 81.0 |  |
+| `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.01 | 0.1 |  |  | 76.6 |  |
+| `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.01 | 0.5 |  |  | 76.0 |  |
+| `pusht_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.01 | 1.0 |  |  | 81.0 |  |
 | `reache_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w01_m01_dim64` | 0.1 | 0.1 |  |  |  | 58.8 |
-| `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.001 | 0.1 |  |  |  | 58.0 |
-| `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.001 | 0.5 |  |  |  | 57.6 |
-| `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.001 | 1.0 |  |  |  | 60.0 |
+| `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m01_dim64` | 0.01 | 0.1 |  |  |  | 58.0 |
+| `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m05_dim64` | 0.01 | 0.5 |  |  |  | 57.6 |
+| `reacher_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_temporal_hinge_w001_m1_dim64` | 0.01 | 1.0 |  |  |  | 60.0 |
 
 Interpretation:
 

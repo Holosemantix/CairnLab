@@ -1,6 +1,6 @@
 {
   "Cube": {
-    "0.001": {
+    "0.01": {
       "metrics": {
         "clean": {
           "mean": 51.333333333333336,
@@ -106,7 +106,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_pldm_noise_0to001_p1",
       "subdir": "cube_pldm_noise_0to001_p1"
     },
-    "0.002": {
+    "0.02": {
       "metrics": {
         "clean": {
           "mean": 53.333333333333336,
@@ -212,7 +212,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_pldm_noise_0to002_p1",
       "subdir": "cube_pldm_noise_0to002_p1"
     },
-    "0.003": {
+    "0.03": {
       "metrics": {
         "clean": {
           "mean": 52.666666666666664,
@@ -318,7 +318,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_pldm_noise_0to003_p1",
       "subdir": "cube_pldm_noise_0to003_p1"
     },
-    "0.004": {
+    "0.04": {
       "metrics": {
         "clean": {
           "mean": 54.0,
@@ -424,7 +424,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_pldm_noise_0to004_p1",
       "subdir": "cube_pldm_noise_0to004_p1"
     },
-    "0.005": {
+    "0.05": {
       "metrics": {
         "clean": {
           "mean": 54.0,
@@ -530,7 +530,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_pldm_noise_0to005_p1",
       "subdir": "cube_pldm_noise_0to005_p1"
     },
-    "0.006": {
+    "0.06": {
       "metrics": {
         "clean": {
           "mean": 56.0,
@@ -636,7 +636,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_pldm_noise_0to006_p1",
       "subdir": "cube_pldm_noise_0to006_p1"
     },
-    "0.007": {
+    "0.07": {
       "metrics": {
         "clean": {
           "mean": 53.666666666666664,
@@ -742,7 +742,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_pldm_noise_0to007_p1",
       "subdir": "cube_pldm_noise_0to007_p1"
     },
-    "0.008": {
+    "0.08": {
       "metrics": {
         "clean": {
           "mean": 54.0,
@@ -956,7 +956,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_pldm_baseline",
       "subdir": "pusht_pldm_baseline"
     },
-    "0.001": {
+    "0.01": {
       "metrics": {
         "clean": {
           "mean": 72.33333333333333,
@@ -1062,7 +1062,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_pldm_noise_0to001_p1",
       "subdir": "pusht_pldm_noise_0to001_p1"
     },
-    "0.002": {
+    "0.02": {
       "metrics": {
         "clean": {
           "mean": 71.33333333333333,
@@ -1168,7 +1168,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_pldm_noise_0to002_p1",
       "subdir": "pusht_pldm_noise_0to002_p1"
     },
-    "0.003": {
+    "0.03": {
       "metrics": {
         "clean": {
           "mean": 76.66666666666667,
@@ -1274,7 +1274,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_pldm_noise_0to003_p1",
       "subdir": "pusht_pldm_noise_0to003_p1"
     },
-    "0.004": {
+    "0.04": {
       "metrics": {
         "clean": {
           "mean": 68.66666666666667,
@@ -1380,7 +1380,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_pldm_noise_0to004_p1",
       "subdir": "pusht_pldm_noise_0to004_p1"
     },
-    "0.005": {
+    "0.05": {
       "metrics": {
         "clean": {
           "mean": 74.33333333333333,
@@ -1486,7 +1486,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_pldm_noise_0to005_p1",
       "subdir": "pusht_pldm_noise_0to005_p1"
     },
-    "0.006": {
+    "0.06": {
       "metrics": {
         "clean": {
           "mean": 70.33333333333333,
@@ -1592,7 +1592,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_pldm_noise_0to006_p1",
       "subdir": "pusht_pldm_noise_0to006_p1"
     },
-    "0.007": {
+    "0.07": {
       "metrics": {
         "clean": {
           "mean": 66.66666666666667,
@@ -1698,7 +1698,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_pldm_noise_0to007_p1",
       "subdir": "pusht_pldm_noise_0to007_p1"
     },
-    "0.008": {
+    "0.08": {
       "metrics": {
         "clean": {
           "mean": 68.0,
@@ -1806,7 +1806,7 @@
     }
   },
   "Reacher": {
-    "0.001": {
+    "0.01": {
       "metrics": {
         "clean": {
           "mean": 78.0,
@@ -1912,7 +1912,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_pldm_noise_0to001_p1",
       "subdir": "reacher_pldm_noise_0to001_p1"
     },
-    "0.002": {
+    "0.02": {
       "metrics": {
         "clean": {
           "mean": 82.33333333333333,
@@ -2018,7 +2018,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_pldm_noise_0to002_p1",
       "subdir": "reacher_pldm_noise_0to002_p1"
     },
-    "0.003": {
+    "0.03": {
       "metrics": {
         "clean": {
           "mean": 83.0,
@@ -2124,7 +2124,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_pldm_noise_0to003_p1",
       "subdir": "reacher_pldm_noise_0to003_p1"
     },
-    "0.004": {
+    "0.04": {
       "metrics": {
         "clean": {
           "mean": 45.0,
@@ -2230,7 +2230,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_pldm_noise_0to004_p1",
       "subdir": "reacher_pldm_noise_0to004_p1"
     },
-    "0.005": {
+    "0.05": {
       "metrics": {
         "clean": {
           "mean": 72.0,
@@ -2336,7 +2336,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_pldm_noise_0to005_p1",
       "subdir": "reacher_pldm_noise_0to005_p1"
     },
-    "0.006": {
+    "0.06": {
       "metrics": {
         "clean": {
           "mean": 79.0,
@@ -2442,7 +2442,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_pldm_noise_0to006_p1",
       "subdir": "reacher_pldm_noise_0to006_p1"
     },
-    "0.007": {
+    "0.07": {
       "metrics": {
         "clean": {
           "mean": 80.66666666666667,
@@ -2548,7 +2548,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_pldm_noise_0to007_p1",
       "subdir": "reacher_pldm_noise_0to007_p1"
     },
-    "0.008": {
+    "0.08": {
       "metrics": {
         "clean": {
           "mean": 80.33333333333333,
@@ -2656,7 +2656,7 @@
     }
   },
   "TwoRoom": {
-    "0.001": {
+    "0.01": {
       "metrics": {
         "clean": {
           "mean": 96.33333333333333,
@@ -2762,7 +2762,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_pldm_noise_0to001_p1",
       "subdir": "tworoom_pldm_noise_0to001_p1"
     },
-    "0.002": {
+    "0.02": {
       "metrics": {
         "clean": {
           "mean": 97.33333333333333,
@@ -2868,7 +2868,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_pldm_noise_0to002_p1",
       "subdir": "tworoom_pldm_noise_0to002_p1"
     },
-    "0.003": {
+    "0.03": {
       "metrics": {
         "clean": {
           "mean": 96.66666666666667,
@@ -2974,7 +2974,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_pldm_noise_0to003_p1",
       "subdir": "tworoom_pldm_noise_0to003_p1"
     },
-    "0.004": {
+    "0.04": {
       "metrics": {
         "clean": {
           "mean": 97.66666666666667,
@@ -3080,7 +3080,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_pldm_noise_0to004_p1",
       "subdir": "tworoom_pldm_noise_0to004_p1"
     },
-    "0.005": {
+    "0.05": {
       "metrics": {
         "clean": {
           "mean": 97.66666666666667,
@@ -3186,7 +3186,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_pldm_noise_0to005_p1",
       "subdir": "tworoom_pldm_noise_0to005_p1"
     },
-    "0.006": {
+    "0.06": {
       "metrics": {
         "clean": {
           "mean": 98.0,
@@ -3292,7 +3292,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_pldm_noise_0to006_p1",
       "subdir": "tworoom_pldm_noise_0to006_p1"
     },
-    "0.007": {
+    "0.07": {
       "metrics": {
         "clean": {
           "mean": 98.0,
@@ -3398,7 +3398,7 @@
       "path": "/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_pldm_noise_0to007_p1",
       "subdir": "tworoom_pldm_noise_0to007_p1"
     },
-    "0.008": {
+    "0.08": {
       "metrics": {
         "clean": {
           "mean": 98.33333333333333,

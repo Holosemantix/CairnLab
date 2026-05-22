@@ -15,7 +15,7 @@ Use:
 
     python train_pldm.py data=pusht exp_name=pusht_pldm
     python train_pldm.py data=pusht exp_name=pusht_pldm_noise_0to006_p1 \\
-        image_noise.std_max=0.006 image_noise.noise_prob=1.0
+        image_noise.std_max=0.06 image_noise.noise_prob=1.0
 """
 
 from functools import partial

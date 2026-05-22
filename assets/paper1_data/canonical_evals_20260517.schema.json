@@ -55,17 +55,17 @@
       "additionalProperties": false,
       "minProperties": 9,
       "maxProperties": 9,
-      "required": ["0.0", "0.001", "0.002", "0.003", "0.004", "0.005", "0.006", "0.007", "0.008"],
+      "required": ["0.0", "0.01", "0.02", "0.03", "0.04", "0.05", "0.06", "0.07", "0.08"],
       "properties": {
         "0.0": { "$ref": "#/$defs/checkpointEntry" },
-        "0.001": { "$ref": "#/$defs/checkpointEntry" },
-        "0.002": { "$ref": "#/$defs/checkpointEntry" },
-        "0.003": { "$ref": "#/$defs/checkpointEntry" },
-        "0.004": { "$ref": "#/$defs/checkpointEntry" },
-        "0.005": { "$ref": "#/$defs/checkpointEntry" },
-        "0.006": { "$ref": "#/$defs/checkpointEntry" },
-        "0.007": { "$ref": "#/$defs/checkpointEntry" },
-        "0.008": { "$ref": "#/$defs/checkpointEntry" }
+        "0.01": { "$ref": "#/$defs/checkpointEntry" },
+        "0.02": { "$ref": "#/$defs/checkpointEntry" },
+        "0.03": { "$ref": "#/$defs/checkpointEntry" },
+        "0.04": { "$ref": "#/$defs/checkpointEntry" },
+        "0.05": { "$ref": "#/$defs/checkpointEntry" },
+        "0.06": { "$ref": "#/$defs/checkpointEntry" },
+        "0.07": { "$ref": "#/$defs/checkpointEntry" },
+        "0.08": { "$ref": "#/$defs/checkpointEntry" }
       }
     }
   }

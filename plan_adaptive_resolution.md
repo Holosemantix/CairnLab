@@ -6,7 +6,7 @@
 >
 > **Probe-only + Gate logging 更新（2026-05-09/10）**：probe-only 救回 PushT（clean 81.67 ≈ LeWM-base 87.33），probe+gate logging 不破坏 TwoRoom（clean 95.00），三个结构判据全部通过。gate logging（α=0，仅记录不进入 loss）验证成功；下一步进入小权重 consistency，但必须以 PushT clean/resolution guardrail 为硬约束。
 >
-> **Contribution 2 sweep + 因果干预更新（2026-05-13）**: `alpha_cons` 小权重 sweep（consist001/003）+ A_t-only / σ-only ablation + 因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）+ 四任务 `w_t` 完整可视化全部完成。**核心结果**：PushT α=0.01 clean **86.67**（≈ LeWM-base 87.33）+ robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03 clean **98.33**（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。`consist001+noise0.005`（C1+C2 联用最优配置）在 PushT 极端 noise px+goal 0.08 = **85.33** vs C1 单独同 noise 75.75（**+9.58pt**）、vs C2 单独 37.00（**+48.33pt**），证明 C1 与 C2 互补叠加；轻 noise（0.002）下为 75.00（+4.33pt vs C1 0.002-p1）。跨任务同 noise 对比下，C1+C2 对 C1 的极端 OOD 增益分别为：TwoRoom **+2.00pt**、Reacher **+9.67pt**、Cube **+8.00pt**，系统性验证了 **per-token consistency routing** 的增益。**因果干预的最强 claim 是 "per-token routing 在 PushT 上是因果必要项"**：`constant_w`（杀掉 per-token spread）在 PushT px+goal 0.08 跌至 8.33（vs σ+A_t baseline 37.00，**−28.67pt**）；random_gate（无信息 per-token 信号）跌至 10.33；shuffle_A / shuffle_σ 介于其间（18.33 / 30.33）。**σ+A_t multiplicative gate 是我们的 chosen instantiation 而非 the unique principled choice**——specific signal 选择带来约 7–20pt 的额外贡献，但 per-token routing 本身才是主导项。TwoRoom / Cube 上 `constant_w` 与 σ+A_t 在统计误差范围内等价，不引起退化；Reacher 上 clean 显著退化（−6~−9pt）但 robustness 空间压缩——因此 paper claim 应修正为 "per-token routing 在需要精细分辨率的任务（PushT/Reacher）上产生显著增益，在不需要的任务（TwoRoom/Cube）上不引起退化"。四任务 trajectory-level `w_t` 可视化进一步表明 σ+A_t gate 在 PushT 上与关键接触事件显著对齐，TwoRoom/Reacher 上动态范围压缩，Cube 处于中间地带。
+> **Contribution 2 sweep + 因果干预更新（2026-05-13）**: `alpha_cons` 小权重 sweep（consist001/003）+ A_t-only / σ-only ablation + 因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）+ 四任务 `w_t` 完整可视化全部完成。**核心结果**：PushT α=0.01 clean **86.67**（≈ LeWM-base 87.33）+ robustness 全面提升（goal 0.05 38→77，pixels 0.05 17→73）；TwoRoom α=0.03 clean **98.33**（与 Contribution 1 LeWM+noise 0to008-p1 平齐），px+goal 0.05 97.33（C1 98.00）。`consist001+noise0.05`（C1+C2 联用最优配置）在 PushT 极端 noise px+goal 0.08 = **85.33** vs C1 单独同 noise 75.75（**+9.58pt**）、vs C2 单独 37.00（**+48.33pt**），证明 C1 与 C2 互补叠加；轻 noise（0.02）下为 75.00（+4.33pt vs C1 0.02-p1）。跨任务同 noise 对比下，C1+C2 对 C1 的极端 OOD 增益分别为：TwoRoom **+2.00pt**、Reacher **+9.67pt**、Cube **+8.00pt**，系统性验证了 **per-token consistency routing** 的增益。**因果干预的最强 claim 是 "per-token routing 在 PushT 上是因果必要项"**：`constant_w`（杀掉 per-token spread）在 PushT px+goal 0.08 跌至 8.33（vs σ+A_t baseline 37.00，**−28.67pt**）；random_gate（无信息 per-token 信号）跌至 10.33；shuffle_A / shuffle_σ 介于其间（18.33 / 30.33）。**σ+A_t multiplicative gate 是我们的 chosen instantiation 而非 the unique principled choice**——specific signal 选择带来约 7–20pt 的额外贡献，但 per-token routing 本身才是主导项。TwoRoom / Cube 上 `constant_w` 与 σ+A_t 在统计误差范围内等价，不引起退化；Reacher 上 clean 显著退化（−6~−9pt）但 robustness 空间压缩——因此 paper claim 应修正为 "per-token routing 在需要精细分辨率的任务（PushT/Reacher）上产生显著增益，在不需要的任务（TwoRoom/Cube）上不引起退化"。四任务 trajectory-level `w_t` 可视化进一步表明 σ+A_t gate 在 PushT 上与关键接触事件显著对齐，TwoRoom/Reacher 上动态范围压缩，Cube 处于中间地带。
 >
 > **DGC offline ablation（2026-05-14）**：把 `predictor_target_to_nn_l2_ratio` 的 per-token 版 `fragile_t = ||predict(noisy_z, a) - predict(clean_z, a)||₂ / batch_kNN_L2_dist` 与现版 σ+A_t critical 做 ckpt-级 scatter。四任务 Pearson(σ+A_t critical vs fragile) ∈ [0.02, 0.15]，Pearson(σ vs fragile) ∈ [−0.08, +0.10]、Pearson(A_t vs fragile) ∈ [−0.12, +0.09] 全部接近统计零。**结论**：σ+A_t 与 noise-fragility 是 **independent signals**，σ+A_t 学到的不是 input-noise 透过率，而是 dataset-aggregate prediction difficulty + action transmission。这进一步支持把 σ+A_t 视为"per-token routing 的一种 instantiation"而非唯一 principled choice；其它正交信号（如 fragile_t）原则上也可作为 C2 instantiation，待 online 验证。详 §3.8.2。
 >
@@ -20,12 +20,12 @@
 
 外部 SOTA 是 **LeWM**（quentinll 已发表的 JEPA + CEM world-model baseline）。本工作沿"先经验诊断、再机制解法"两步推进：
 
-**经验发现（§3.2，Contribution 1）：张力诊断——不变性与鲁棒性的冲突。** LeWM-base 在视觉 OOD 下脆弱（PushT px+goal 0.08 = 3.67、TwoRoom = 44.33）。我们在 LeWM input 端加 per-frame Gaussian noise training（LeWM+noise），关闭 robustness gap 同时保住 clean（TwoRoom 93 → 98.33、PushT 87.33 → 90.00；高 OOD +50pt 以上）。但完整 noise sweep 揭示 **per-task tuning cost**：TwoRoom 最优 `std_max=0.008`（重 noise），PushT clean 最优 `std_max=0.002`、robustness (px+goal 0.08) 最优 `std_max=0.006`；不存在单一 std_max 在两任务同时最优，且同一任务上 clean 与 robustness 最优剂量也不同。这把"input-side 全局 noise"的边界划出来：解决 robustness gap 必须支付 per-task 调参成本。
+**经验发现（§3.2，Contribution 1）：张力诊断——不变性与鲁棒性的冲突。** LeWM-base 在视觉 OOD 下脆弱（PushT px+goal 0.08 = 3.67、TwoRoom = 44.33）。我们在 LeWM input 端加 per-frame Gaussian noise training（LeWM+noise），关闭 robustness gap 同时保住 clean（TwoRoom 93 → 98.33、PushT 87.33 → 90.00；高 OOD +50pt 以上）。但完整 noise sweep 揭示 **per-task tuning cost**：TwoRoom 最优 `std_max=0.08`（重 noise），PushT clean 最优 `std_max=0.02`、robustness (px+goal 0.08) 最优 `std_max=0.06`；不存在单一 std_max 在两任务同时最优，且同一任务上 clean 与 robustness 最优剂量也不同。这把"input-side 全局 noise"的边界划出来：解决 robustness gap 必须支付 per-task 调参成本。
 
 **机制解法（§3.4–§3.5，Contribution 2）：per-token consistency routing，σ+A_t 作为 chosen instantiation。** 在 predictor 端加 detached scalar σ probe 估计 prediction difficulty，结合 action perturbation 算 local sensitivity A_t；二者通过 multiplicative gate `critical = gA · (0.5 + 0.5·gS)` 生成 per-token consistency weight w_t，让 encoder 在不同 token 上接受不同强度的 input-side invariance pressure。**C2 真正的 method-level claim 不是"σ+A_t multiplicative gate 是原理上唯一正确的 controller"，而是"per-token consistency routing 本身在 contact-heavy 连续控制上不可缺；σ+A_t 是我们 instantiate 该 routing 的一种方式"**（§3.6.2 因果干预数据：`constant_w` 杀掉 per-token spread 在 PushT 上掉 28.67pt；random_gate 掉 26.67pt；shuffle_A/σ 各掉 18.67/6.67pt）。AAAC 也需要 per-task α（PushT α=0.01、TwoRoom α=0.03），与 noise std_max 同等性质；但提供两个 noise sweep 无法给的东西：
 
 - **σ+A_t 的 task-aware 结构**：四任务 full-gate trajectory 分析显示，PushT 上 `w_t` 与动作关键事件显著对齐（5 条 episode 的 mean corr($w_t$, $||a_t||$) = +0.661），TwoRoom/Reacher 上几乎平坦（+0.021 / +0.032），Cube 处于中间地带（−0.225 / corr with latent displacement = −0.284）。这说明 σ+A_t 学到的是 task-dependent difficulty/control structure，而非 naive contact heuristic。**注意这是 σ+A_t 这一 instantiation 的性质，不是任何 per-token signal 必有的性质**；DGC offline 显示 `fragile_t`（input-noise 透过率）与 σ+A_t critical 在四任务上 Pearson < 0.2，是 independent signal——per-token routing 的有效信号并非唯一（§3.8.2）。
-- **与 C1 正交叠加**（§3.7）：C1+C2 联用在全部 4 个任务（PushT / TwoRoom / Reacher / Cube）的极端 OOD 上都严格优于 C1 单独同 noise。PushT 上 sweet spot 为 noise0.005：px+goal 0.08 = 85.33 vs C1 单独 75.75（**+9.58pt**），同时对 C2 单独有巨大增益（37.00 → 85.33，**+48.33pt**）。TwoRoom/Reacher/Cube 上同样呈现系统性正增益（+2.00pt / +9.67pt / +8.00pt），证明 per-token consistency routing 的价值不是特定任务巧合。
+- **与 C1 正交叠加**（§3.7）：C1+C2 联用在全部 4 个任务（PushT / TwoRoom / Reacher / Cube）的极端 OOD 上都严格优于 C1 单独同 noise。PushT 上 sweet spot 为 noise0.05：px+goal 0.08 = 85.33 vs C1 单独 75.75（**+9.58pt**），同时对 C2 单独有巨大增益（37.00 → 85.33，**+48.33pt**）。TwoRoom/Reacher/Cube 上同样呈现系统性正增益（+2.00pt / +9.67pt / +8.00pt），证明 per-token consistency routing 的价值不是特定任务巧合。
 
 **关键负样本（§3.3）：σ 不能进入 loss reweighting。** Heteroscedastic NLL 直接把 σ 用于 loss 加权会 downweight 高误差样本；PushT 高误差对应接触/精细控制的关键状态，downweight 后 clean eval 从 87.33 崩到 13.33。这条负样本论证了 σ 必须作为 detached probe + controller signal，而不是 loss-side reweighter——为 §3.4 的 probe-only 路线提供必要性论证。
 
@@ -277,7 +277,7 @@ SIGReg 始终只作用在 deterministic μ 上，不推广到 (μ, σ) 或 repar
 
 ### 3.2 张力诊断：不变性与鲁棒性的冲突（Contribution 1）
 
-本节用 LeWM input 端 per-frame Gaussian noise training（`loss.image_noise.std_max ∈ {0.001, ..., 0.008}`，`noise_prob=1.0`）的完整 sweep 数据，回答两个问题：(a) LeWM-base 在 OOD 噪声下到底有多脆弱？(b) 简单 input-side 增广能修到什么程度，代价是什么？
+本节用 LeWM input 端 per-frame Gaussian noise training（`loss.image_noise.std_max ∈ {0.01, ..., 0.08}`，`noise_prob=1.0`）的完整 sweep 数据，回答两个问题：(a) LeWM-base 在 OOD 噪声下到底有多脆弱？(b) 简单 input-side 增广能修到什么程度，代价是什么？
 
 #### 3.2.1 LeWM-base 的 OOD 脆弱性
 
@@ -292,31 +292,31 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要 
 
 #### 3.2.2 LeWM+noise 关闭鲁棒性缺口（Contribution 1 验证）
 
-我们在 LeWM 的 input pipeline 加 per-frame Gaussian noise（`utils.py:AddNormalizedGaussianNoise`），每帧独立 Bernoulli(`noise_prob=1.0`) 决定是否加噪，加则 std ~ Uniform(0, `std_max`)；扫 `std_max ∈ {0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008}` 共 8 档。完整 4-task × 8-档 数据见 `research_notebook_swm.md` §4.2 与本文件附录 E；这里取四任务在 clean + px+goal 0.08 上的对照：
+我们在 LeWM 的 input pipeline 加 per-frame Gaussian noise（`utils.py:AddNormalizedGaussianNoise`），每帧独立 Bernoulli(`noise_prob=1.0`) 决定是否加噪，加则 std ~ Uniform(0, `std_max`)；扫 `std_max ∈ {0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08}` 共 8 档。完整 4-task × 8-档 数据见 `research_notebook_swm.md` §4.2 与本文件附录 E；这里取四任务在 clean + px+goal 0.08 上的对照：
 
 | std_max | TwoRoom clean | TwoRoom px+g 0.08 | PushT clean | PushT px+g 0.08 | Reacher clean | Reacher px+g 0.08 | Cube clean | Cube px+g 0.08 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | 0 (base) | 93.00 | 44.33 | 87.33 | 3.67 | 57.67 | 14.67 | 72.33 | 52.33 |
-| 0.001 | 92.00 | 84.67 | 89.67 | 46.33 | 55.67 | 45.33 | 73.00 | 53.33 |
-| 0.002 | 94.33 | 91.00 | **90.00** | 70.67 | 80.33 | 80.67 | 64.67 | 63.00 |
-| 0.003 | 96.33 | 94.67 | 89.67 | 83.00 | 78.67 | 73.67 | 65.00 | 67.33 |
-| 0.004 | 96.33 | 95.00 | 89.33 | 81.33 | 84.00 | 80.00 | 69.00 | 67.00 |
-| 0.005 | 94.00 | 94.00 | 82.00 | 78.00 | 73.33 | 71.33 | 61.33 | 60.67 |
-| **0.006** | 96.67 | 96.67 | 89.33 | **87.00** | **86.00** | **84.67** | 66.67 | 65.00 |
-| 0.007 | 96.00 | 96.33 | 85.67 | 82.33 | 83.67 | 81.33 | 67.67 | 68.00 |
-| **0.008** | **98.33** | **98.67** | 88.33 | 85.33 | 84.00 | 83.00 | 62.33 | 60.33 |
+| 0.01 | 92.00 | 84.67 | 89.67 | 46.33 | 55.67 | 45.33 | 73.00 | 53.33 |
+| 0.02 | 94.33 | 91.00 | **90.00** | 70.67 | 80.33 | 80.67 | 64.67 | 63.00 |
+| 0.03 | 96.33 | 94.67 | 89.67 | 83.00 | 78.67 | 73.67 | 65.00 | 67.33 |
+| 0.04 | 96.33 | 95.00 | 89.33 | 81.33 | 84.00 | 80.00 | 69.00 | 67.00 |
+| 0.05 | 94.00 | 94.00 | 82.00 | 78.00 | 73.33 | 71.33 | 61.33 | 60.67 |
+| **0.06** | 96.67 | 96.67 | 89.33 | **87.00** | **86.00** | **84.67** | 66.67 | 65.00 |
+| 0.07 | 96.00 | 96.33 | 85.67 | 82.33 | 83.67 | 81.33 | 67.67 | 68.00 |
+| **0.08** | **98.33** | **98.67** | 88.33 | 85.33 | 84.00 | 83.00 | 62.33 | 60.33 |
 
 #### 3.2.3 任务相关调参成本的实证
 
 三个观察：
 
 1. **没有单一 std_max 在四任务同时最优，且同一任务上 clean 与 robustness 最优剂量也不同。**
-   - TwoRoom 在 std=0.008 达到全局最优 (98.33 / 98.67)，clean 随 noise 单调上升——视觉冗余任务从重 noise 中获益最大。
-   - PushT 在 std=0.002 达到峰值 clean 90.00，但 robustness (px+g 0.08) 最优在 std=0.006（87.00 vs 0.002 的 70.67，+16.33pt）——**clean 与 robustness 最优剂量分离**。
-   - Reacher 在 std=0.006 达到最优 (86.00 / 84.67)，低 noise（0.001）反而损害性能（clean 55.67），说明该任务需要一定强度的全局 invariance 才能稳定。
-   - Cube 的 noise sweep 效果最弱：clean 没有单调提升趋势（最优在 0.001 的 73.00），px+g 0.08 也仅在 0.003–0.007 区间有轻微改善（67.33 vs base 52.33）——结构化 manipulation 对 input-side global noise 不敏感。
+   - TwoRoom 在 std=0.08 达到全局最优 (98.33 / 98.67)，clean 随 noise 单调上升——视觉冗余任务从重 noise 中获益最大。
+   - PushT 在 std=0.02 达到峰值 clean 90.00，但 robustness (px+g 0.08) 最优在 std=0.06（87.00 vs 0.02 的 70.67，+16.33pt）——**clean 与 robustness 最优剂量分离**。
+   - Reacher 在 std=0.06 达到最优 (86.00 / 84.67)，低 noise（0.01）反而损害性能（clean 55.67），说明该任务需要一定强度的全局 invariance 才能稳定。
+   - Cube 的 noise sweep 效果最弱：clean 没有单调提升趋势（最优在 0.01 的 73.00），px+g 0.08 也仅在 0.03–0.07 区间有轻微改善（67.33 vs base 52.33）——结构化 manipulation 对 input-side global noise 不敏感。
 
-2. **per-task 调参是必要的，不是可选的**。task 间最优 std_max 差异巨大：TwoRoom 0.008（重 noise）、PushT clean 0.002 / robustness 0.006、Reacher 0.006、Cube 几乎无最优（或 0.001）。这把 Contribution 1 的边界划清楚了：**它是"input-side 全局 noise"的最强形式，但解决 OOD robustness 需要支付一个 per-task tuning cost。**
+2. **per-task 调参是必要的，不是可选的**。task 间最优 std_max 差异巨大：TwoRoom 0.08（重 noise）、PushT clean 0.02 / robustness 0.06、Reacher 0.06、Cube 几乎无最优（或 0.01）。这把 Contribution 1 的边界划清楚了：**它是"input-side 全局 noise"的最强形式，但解决 OOD robustness 需要支付一个 per-task tuning cost。**
 
 3. **四任务对 noise 的敏感度形成 clear gradient**：PushT（−83.66pt base drop）> Reacher（−43.00pt）≈ TwoRoom（−48.67pt）> Cube（−20.00pt）。但 noise training 的修复效果并不与敏感度成正比——TwoRoom 修复最彻底（+54.34pt），Cube 修复最弱（+15.67pt），说明 input-side global noise 对"视觉冗余型"任务最有效，对"结构化操作型"任务边际收益有限。
 
@@ -328,7 +328,7 @@ LeWM-base 在 clean 上表现良好（TwoRoom/PushT 尤其突出），但只要 
 
 - **Negative**（§3.3 hetero loss）：如果想让 σ 进入 loss reweighting 来"自动决定哪些 transition 重要"，PushT clean 会从 87.33 砸到 13.33，比手调 std_max 还差——证明 loss-side 路径根本不行。
 - **Positive**（§3.4–§3.5 AAAC）：σ + A_t 作为 detached signal 控制 input-side per-token consistency，可以在不动 μ-path gradient 的前提下做 per-state 调节。
-- **Combination**（§3.7）：AAAC 没有取代 Contribution 1；它和 noise training 占据 pipeline 不同位置（latent-side per-token vs input-side global），可以叠加。`consist001+noise0.002` 在 PushT 极端 OOD 上严格超过 noise-only。
+- **Combination**（§3.7）：AAAC 没有取代 Contribution 1；它和 noise training 占据 pipeline 不同位置（latent-side per-token vs input-side global），可以叠加。`consist001+noise0.02` 在 PushT 极端 OOD 上严格超过 noise-only。
 
 #### 3.2.5 表征分析定位 per-state controller 信号（Bridge to Contribution 2）
 
@@ -402,13 +402,13 @@ C1 给出了 per-task tuning cost 的边界；要走到 per-token controller，�
 | `fit/hetero_s_abs_max` last | 3.236 | 4.000 | PushT 已贴到 clamp 上限 |
 | `fit/hetero_weight_q10` last | 0.495 | 0.369 | 高 σ / hard token 被 downweight |
 | `fit/hetero_weight_q90` last | 11.026 | 47.802 | low-error token 被大幅 upweight |
-| `fit/hetero_weight_q10_q90_ratio` last | **0.045** | **0.008** | PushT 梯度权重极端失衡 |
+| `fit/hetero_weight_q10_q90_ratio` last | **0.045** | **0.08** | PushT 梯度权重极端失衡 |
 | `fit/pred_loss_mse_equiv` tail100 | 0.0438 | 0.0394 | true MSE-equivalent loss 仍下降，但不保证任务 resolution 保留 |
 | `validate/pred_loss_mse_equiv_epoch` last | 0.0274 | 0.0332 | validation MSE 也下降；失败不是简单 underfit |
 
 关键判定：
 - **σ calibration 成功。** 两个任务 `hetero_s_logerr_corr` 后期都很高，说明 σ head 不是常数，也不是噪声。
-- **PushT reweight 过强。** `q10/q90_ratio` 低到 0.008，远低于 0.3 警戒线；这正是 hard-but-important transition downweight 风险。
+- **PushT reweight 过强。** `q10/q90_ratio` 低到 0.08，远低于 0.3 警戒线；这正是 hard-but-important transition downweight 风险。
 - **hetero loss 可以为负。** `pred_loss` 后期略为负是公式 `exp(-s) * err + tau * s` 的结果，不代表 prediction quality "负误差"；真实对照应看 `pred_loss_mse_equiv`。
 
 #### 3.3.2 评估结果
@@ -536,7 +536,7 @@ C1 给出了 per-task tuning cost 的边界；要走到 per-token controller，�
 | consist003 (σ+A_t, α=0.03) | `tworoom_lewm_hetero_probe_default_action_gate_fixbug_consist003` | `xzlrurz6cg2wjsexvbikj` | `pusht_lewm_hetero_probe_default_action_gate_fixbug_consist003` | `d8txwleadjc65hpxfonbv` |
 | A_t-only consist001 (no σ) | `tworoom_lewm_action_gate_consist001` | `njpedt4qhnkwqusmrmcwh` | `pusht_lewm_action_gate_consist001` | `3r7dqveremqonvq59ay4m` |
 | σ-only consist001 (no A_t) | `tworoom_lewm_sigma_only_consist001` | `fch0616cntn26vs2mu3op` | `pusht_lewm_sigma_only_consist001` | `6tdi95u1d39dqwcdtpoy3` |
-| consist001 + noise0.002 | `tworoom_lewm_hetero_probe_action_gate_consist001_noise_0to002_p1` | `pw8g20f8n0a69m6o1f32z` | `pusht_lewm_hetero_probe_action_gate_consist001_noise_0to002_p1` | `2sl811ap1hb8sar1uy4un` |
+| consist001 + noise0.02 | `tworoom_lewm_hetero_probe_action_gate_consist001_noise_0to002_p1` | `pw8g20f8n0a69m6o1f32z` | `pusht_lewm_hetero_probe_action_gate_consist001_noise_0to002_p1` | `2sl811ap1hb8sar1uy4un` |
 
 所有 SwanLab path 为 `qunteam/worldmodels/<run_id>`，URL 模板 `https://swanlab.cn/@qunteam/worldmodels/runs/<run_id>/chart`。probe / gate logging 的 run id（hetero_default / probe / probe+gate）见 §3.3 / §3.4，本文件全部主要 run 至此 SwanLab id 全部钉死，reviewer / 外部协作者可按 id 直接复现。（部分 run 名称的 `_fixbug` 后缀是历史遗留 SwanLab 字符串，记录见附录 A.1，不影响其语义即 canonical 配置。）
 
@@ -551,7 +551,7 @@ C1 给出了 per-task tuning cost 的边界；要走到 per-token controller，�
 | probe+gate (α=0) | 95.00 | 76.00 | 85.33 | 54.00 | 39.00 | 30.33 | — | — | — | — |
 | **consist001 (α=0.01, ours, C2)** | **95.33** | **92.00** | **86.67** | **77.00** | **73.33** | **70.67** | **72.00** | **47.00** | **64.67** | **50.00** |
 | consist003 (α=0.03, ours, C2) | **98.33** | **97.33** | 76.33 | 69.33 | 69.00 | 67.67 | — | — | — | — |
-| **consist001+noise0.002 (C1+C2)** | 95.33 | 94.00 | **88.00** | **86.00** | **87.33** | **85.33** | — | — | — | — |
+| **consist001+noise0.02 (C1+C2)** | 95.33 | 94.00 | **88.00** | **86.00** | **87.33** | **85.33** | — | — | — | — |
 
 > 所有非 "LeWM-base" 行皆为本工作贡献：LeWM+noise 是 Contribution 1（input-side noise training），consist00X 是 Contribution 2（σ+A_t adaptive consistency），最后一行展示二者联用（详见 §3.7）。A_t-only / σ-only / 因果干预（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）的对照实验集中在 §3.6。
 
@@ -564,7 +564,7 @@ C1 给出了 per-task tuning cost 的边界；要走到 per-token controller，�
 | LeWM-base | 0.302 | 0.774 | 87.33 | baseline |
 | probe+gate | 0.288 | 0.774 | 85.33 | ✅ |
 | **consist001** | **0.290** | **0.764** | **86.67** | **✅ 全部通过** |
-| consist001+noise0.002 | 0.292 | 0.779 | 88.00 | ✅ 全部通过 |
+| consist001+noise0.02 | 0.292 | 0.779 | 88.00 | ✅ 全部通过 |
 | consist003 | 0.264 | 0.731 | 76.33 | ⚠️ clean < 84，触发 guardrail |
 
 > Ablation 配置（σ-only / A_t-only）的 guardrail 见 §3.6。
@@ -579,13 +579,13 @@ C1 给出了 per-task tuning cost 的边界；要走到 per-token controller，�
 | PushT | 0.01 | 0.190 | 1.160 | 0.250 | 适度 consistency，clean 维持 |
 | PushT | 0.03 | **0.145** | **1.082** | **0.351** | 过度 consistency，resolution 压缩 |
 | TwoRoom | 0 | — | 4.919 | -0.010 | baseline |
-| TwoRoom | 0.01 | 0.666 | 4.989 | 0.006 | 弱 consistency |
+| TwoRoom | 0.01 | 0.666 | 4.989 | 0.06 | 弱 consistency |
 | TwoRoom | 0.03 | **0.389** | 4.832 | **0.098** | 强 consistency，接近 LeWM+noise |
 
 关键发现（相对外部 LeWM-base）：
 1. **Contribution 2 (consist001) 在 PushT 上相对 LeWM-base 大幅提升 robustness**：clean 86.67 ≈ 87.33（±0.67pt 在统计 noise 内），goal 0.05 38→77（**+39pt**），pixels 0.05 17→73（**+56pt**），px+goal 0.05 15→70.67（**+55pt**），px+goal 0.08 3.67→37.00（**+33pt**）。
 2. **Contribution 2 (consist003) 在 TwoRoom 上同时提升 clean 与 robustness**：clean 93→98.33（**+5.33pt**），px+goal 0.05 62.33→97.33（**+35pt**），并达到 Contribution 1 (LeWM+noise) 的水平。
-3. **两个 Contribution 联用不是替代关系而是叠加关系**：`consist001+noise0.005` 在 PushT clean 85.67 > LeWM-base 87.33（−1.66pt 在 variance 内）；pixels 0.05 85.00 ≈ Contribution 1 87.67；**px+goal 0.08 85.33 > Contribution 1 同 noise 75.75（+9.58pt），> Contribution 2 37.00（+48.33pt）**。证明 input-side global noise（C1）与 controller-side per-token consistency（C2）是叠加而非替代——C1 提供全局 invariance baseline，C2 在此基础上做 per-state 精细化分配。
+3. **两个 Contribution 联用不是替代关系而是叠加关系**：`consist001+noise0.05` 在 PushT clean 85.67 > LeWM-base 87.33（−1.66pt 在 variance 内）；pixels 0.05 85.00 ≈ Contribution 1 87.67；**px+goal 0.08 85.33 > Contribution 1 同 noise 75.75（+9.58pt），> Contribution 2 37.00（+48.33pt）**。证明 input-side global noise（C1）与 controller-side per-token consistency（C2）是叠加而非替代——C1 提供全局 invariance baseline，C2 在此基础上做 per-state 精细化分配。
 4. **任务特异性是机制特征不是缺陷**：PushT 对 α 敏感（α=0.03 trip guardrail），TwoRoom 受益于更高 α；不存在"一个 α 通吃"——这正是自适应 resolution 的核心主张，对应"per-task α"或"per-token w_t"叙事。
 5. **Gate 分布在 consistency 训练中稳定**：`weight_mean` / `weight_q10` / `weight_q90` 在 probe+gate / consist001 / consist003 之间几乎不变，说明 detach 设计有效，encoder 未学会操纵 gate。
 
@@ -610,7 +610,7 @@ C1 给出了 per-task tuning cost 的边界；要走到 per-token controller，�
 |---|---:|---:|---:|---:|---:|---|
 | PushT | **+0.504** | **−0.535** | 0.666 | 0.837 | **+0.171** | 与 action sensitivity / transition difficulty 强对齐 |
 | TwoRoom | **−0.073** | **−0.452** | 0.748 | 0.737 | **−0.011** | 动态范围压缩，接近全局 consistency |
-| Reacher | **−0.001** | **−0.065** | 0.724 | 0.718 | **−0.006** | 几乎平坦，低维连续控制的 token-wise spread 很弱 |
+| Reacher | **−0.01** | **−0.065** | 0.724 | 0.718 | **−0.06** | 几乎平坦，低维连续控制的 token-wise spread 很弱 |
 | Cube | **−0.096** | **−0.287** | 0.745 | 0.714 | **−0.031** | 能识别 manipulation transition，但强度远弱于 PushT |
 
 这些 aggregate 结果与 trajectory-level 结论方向一致：PushT 的 token-wise spread 最明显，TwoRoom / Reacher 最平，Cube 介于两者之间。它们不是 trajectory 分析的替代品，但构成了重要的全局统计补充。
@@ -769,7 +769,7 @@ done
 | **σ+A_t consist001（full）** | **86.67** | **77.00** | **70.67** | **37.00** | 0.574 | 0.250 |
 | A_t-only consist001（σ off） | 77.33 | 68.00 | 50.00 | 6.67 | 0.723 | 0.000 |
 | σ-only consist001（A_t off） | 87.00 | 76.33 | 65.67 | 20.00 | — | — |
-| shuffle_σ | 86.67 | 79.67 | 64.00 | 30.33 | 0.589 | **−0.003** ✓ |
+| shuffle_σ | 86.67 | 79.67 | 64.00 | 30.33 | 0.589 | **−0.03** ✓ |
 | shuffle_A | 78.33 | 69.33 | 51.00 | 18.33 | 0.583 | **0.000** ✓ |
 | random_gate | 85.00 | 72.00 | 54.33 | 10.33 | 0.282 | 0.251 (`crit_mean=0.50` ✓) |
 | global consistency (`constant_w`) | 85.67 | 70.33 | 45.67 | 8.33 | **0.779 = q90** ✓ | 0.263 |
@@ -840,7 +840,7 @@ done
 
 #### 3.6.2 因果干预：实测结果
 
-四个 intervention 在 sanity diagnostic 上全部按设计行为：`shuffle_σ` / `shuffle_A` 训练侧 `corr_σA` 跌到 ≈0（PushT −0.003 / 0.000；TwoRoom 0.001 / 0.001）；`random_gate` 训练侧 `critical_mean=0.50` 且 `q10/q90 spread` 保留；`global consistency` (`constant_w`) 训练侧 `q10 == q90`（PushT 0.7788、TwoRoom 0.7316），confirms gate 信号确实被替换。SwanLab run id 见 §3.6.3。
+四个 intervention 在 sanity diagnostic 上全部按设计行为：`shuffle_σ` / `shuffle_A` 训练侧 `corr_σA` 跌到 ≈0（PushT −0.03 / 0.000；TwoRoom 0.01 / 0.01）；`random_gate` 训练侧 `critical_mean=0.50` 且 `q10/q90 spread` 保留；`global consistency` (`constant_w`) 训练侧 `q10 == q90`（PushT 0.7788、TwoRoom 0.7316），confirms gate 信号确实被替换。SwanLab run id 见 §3.6.3。
 
 **PushT 上 per-token routing 本身是因果必要项；σ+A_t instantiation 在 routing 之上提供约 7–20pt 的次要贡献。** 四个 intervention 在 PushT 上的 eval degradation 模式按效应量从大到小分解为两层：
 
@@ -942,7 +942,7 @@ Cube 是四任务中最"规整"的：block grasping/carrying/placing 的动作�
 
 #### 3.7.1 实验设计
 
-`consist001+noise0.002/005`：把 C2 的 α=0.01 配置与 C1 的 light/medium noise（`std_max=0.002` 或 `0.005`）联用。轻 noise（0.002）下 C2 提供主要 invariance pressure；中等 noise（0.005）下 C1+C2 达到 sweet spot（px+goal 0.08 = 85.33）。SwanLab run id：TwoRoom `pw8g20f8n0a69m6o1f32z`、PushT `2sl811ap1hb8sar1uy4un`。
+`consist001+noise0.02/005`：把 C2 的 α=0.01 配置与 C1 的 light/medium noise（`std_max=0.02` 或 `0.05`）联用。轻 noise（0.02）下 C2 提供主要 invariance pressure；中等 noise（0.05）下 C1+C2 达到 sweet spot（px+goal 0.08 = 85.33）。SwanLab run id：TwoRoom `pw8g20f8n0a69m6o1f32z`、PushT `2sl811ap1hb8sar1uy4un`。
 
 #### 3.7.2 PushT：C1+C2 在极端 OOD 上优于 C1 单独使用
 
@@ -956,20 +956,20 @@ PushT 是接触主导、连续控制任务，C1 的 per-task 调参成本和 C2 
 | C1 单独 (LeWM+noise 0to003-p1) | 89.67 | 89.33 | 89.67 | 87.00 | 86.67 | 89.33 | 83.00 |
 | C1 单独 (LeWM+noise 0to005-p1) | 81.00 | 80.08 | 78.67 | 81.75 | 77.67 | 77.75 | 75.75 |
 | C2 单独 (AAAC consist001) | 86.67 | 77.00 | 73.33 | 70.67 | 63.00 | 44.67 | 37.00 |
-| **C1+C2 联用 (consist001+noise0.002)** | 88.00 | 86.00 | 87.33 | 85.33 | 85.00 | 75.33 | 75.00 |
-| C1+C2 联用 (consist001+noise0.003) | 82.00 | 81.33 | 79.67 | 77.33 | 69.00 | 60.67 | 55.33 |
-| **C1+C2 联用 (consist001+noise0.005)** | **85.67** | **86.00** | **85.00** | **86.00** | **83.67** | **85.00** | **85.33** |
+| **C1+C2 联用 (consist001+noise0.02)** | 88.00 | 86.00 | 87.33 | 85.33 | 85.00 | 75.33 | 75.00 |
+| C1+C2 联用 (consist001+noise0.03) | 82.00 | 81.33 | 79.67 | 77.33 | 69.00 | 60.67 | 55.33 |
+| **C1+C2 联用 (consist001+noise0.05)** | **85.67** | **86.00** | **85.00** | **86.00** | **83.67** | **85.00** | **85.33** |
 
 关键观察：
 
 1. **C2 单独是被 C1 dominate 的**（PushT px+goal 0.08：C2 alone 37.00 vs C1 alone 70.67–87.00）。所以"AAAC 单独打败 noise training"的 claim **不成立**——这是把这个结论说清楚最重要的一行。
-2. **C1+C2 联用存在明显的 noise 剂量效应**：noise0.003 下 px+goal 0.08 仅 55.33（低于 C1 单独同 noise 的估计水平），但 **noise0.005 达到 sweet spot**：px+goal 0.08 = **85.33**。
-3. **noise0.005 是 C1+C2 联用的最优配置**：
-   - **vs C1 单独同 noise (0.005-p1)**：px+goal 0.08 85.33 vs 75.75 = **+9.58pt**，clean 85.67 vs 81.00 = **+4.67pt**。在相同 noise 水平下，C1+C2 严格优于 C1 单独。
-   - **vs C1 单独 light noise (0.002-p1)**：px+goal 0.08 85.33 vs 70.67 = **+14.66pt**。C1+C2 用中等 noise 即可超过 C1 单独轻 noise 的极端 OOD 表现。
-   - **vs C1 单独 best (0.006-p1)**：px+goal 0.08 85.33 vs 87.00 = −1.67pt，clean 85.67 vs 89.33 = −3.66pt。C1+C2 尚未超越 C1 单独 best，但差距很小（< 2pt），且 C1+C2 同时利用了 σ+A_t 的 per-token 机制优势。
+2. **C1+C2 联用存在明显的 noise 剂量效应**：noise0.03 下 px+goal 0.08 仅 55.33（低于 C1 单独同 noise 的估计水平），但 **noise0.05 达到 sweet spot**：px+goal 0.08 = **85.33**。
+3. **noise0.05 是 C1+C2 联用的最优配置**：
+   - **vs C1 单独同 noise (0.05-p1)**：px+goal 0.08 85.33 vs 75.75 = **+9.58pt**，clean 85.67 vs 81.00 = **+4.67pt**。在相同 noise 水平下，C1+C2 严格优于 C1 单独。
+   - **vs C1 单独 light noise (0.02-p1)**：px+goal 0.08 85.33 vs 70.67 = **+14.66pt**。C1+C2 用中等 noise 即可超过 C1 单独轻 noise 的极端 OOD 表现。
+   - **vs C1 单独 best (0.06-p1)**：px+goal 0.08 85.33 vs 87.00 = −1.67pt，clean 85.67 vs 89.33 = −3.66pt。C1+C2 尚未超越 C1 单独 best，但差距很小（< 2pt），且 C1+C2 同时利用了 σ+A_t 的 per-token 机制优势。
    - **vs C2 单独**：px+goal 0.08 85.33 vs 37.00 = **+48.33pt**，clean 85.67 vs 86.67 = −1.00pt。C1 的全局 invariance 为 C2 的 per-token 调节提供了必要基础。
-4. **clean 保持在 guardrail 之上**：noise0.005 的 clean 85.67 ≥ 84，resolution_ratio_l2 = 0.281 ≥ 0.24，id_probe_r2 = 0.753 ≥ 0.65，全部通过。
+4. **clean 保持在 guardrail 之上**：noise0.05 的 clean 85.67 ≥ 84，resolution_ratio_l2 = 0.281 ≥ 0.24，id_probe_r2 = 0.753 ≥ 0.65，全部通过。
 
 #### 3.7.3 TwoRoom：视觉冗余任务上的剂量敏感与结论反转
 
@@ -984,14 +984,14 @@ TwoRoom 是视觉冗余、低维离散动作任务，C1 全局 noise 已能覆�
 | C1 单独 (0to005-p1) | 94.00 | 94.00 | — |
 | C2 单独 (consist001) | 95.33 | 92.00 | 74.00 |
 | C2 单独 (consist003) | 98.33 | 97.33 | — |
-| C1+C2 联用 (consist001+noise0.002) | 95.33 | 94.00 | 94.00 |
-| **C1+C2 联用 (consist001+noise0.003)** | **97.67** | — | **96.67** |
+| C1+C2 联用 (consist001+noise0.02) | 95.33 | 94.00 | 94.00 |
+| **C1+C2 联用 (consist001+noise0.03)** | **97.67** | — | **96.67** |
 
 关键观察：
 
 1. **C2 单独（consist001）在 TwoRoom 上被 C1 显著 dominate**（px+g 0.05：C2 alone 92.00 vs C1 best 98.00）。即使切换到 consist003（α=0.03），C2 单独也仅与 C1 best 平齐（98.33 / 97.33 vs 98.33 / 98.00），无法超越——说明 TwoRoom 上 per-token 精细化分配的天花板受任务结构限制。
-2. **同 noise（0.003）对比下结论反转**。此前用 C1 best（0.008-p1）对比时，C1+C2 联用呈负收益；但同 noise 对比下，C1+C2 clean 97.67 > C1 96.33（+1.34pt），pg08 96.67 > C1 94.67（+2.00pt）。这说明 TwoRoom 上 C2 并非"价值有限"，而是**需要与 C1 同强度对比才能体现 per-token 增益**。
-3. **最优剂量偏轻**。TwoRoom 上 sweet spot 为 noise0.003（而非 PushT 的 0.005），与其视觉冗余、动作简单的任务特性一致：轻 noise 即可提供足够的全局 invariance baseline，C2 在此基础上做精细化分配。
+2. **同 noise（0.03）对比下结论反转**。此前用 C1 best（0.08-p1）对比时，C1+C2 联用呈负收益；但同 noise 对比下，C1+C2 clean 97.67 > C1 96.33（+1.34pt），pg08 96.67 > C1 94.67（+2.00pt）。这说明 TwoRoom 上 C2 并非"价值有限"，而是**需要与 C1 同强度对比才能体现 per-token 增益**。
+3. **最优剂量偏轻**。TwoRoom 上 sweet spot 为 noise0.03（而非 PushT 的 0.05），与其视觉冗余、动作简单的任务特性一致：轻 noise 即可提供足够的全局 invariance baseline，C2 在此基础上做精细化分配。
 
 #### 3.7.4 Reacher：低维连续控制的互补性验证
 
@@ -1002,13 +1002,13 @@ Reacher 是低维连续控制（2-DOF 机械臂），可控性差异小于 PushT
 | C1 单独 (0to003-p1, 反推) | 78.67 | 73.67 |
 | C1 单独 (0to005-p1) | 73.33 | 71.33 |
 | C2 单独 (consist001) | 72.00 | 47.00 |
-| C1+C2 联用 (consist001+noise0.003) | 83.33 | 81.00 |
-| **C1+C2 联用 (consist001+noise0.005)** | **85.00** | **81.00** |
+| C1+C2 联用 (consist001+noise0.03) | 83.33 | 81.00 |
+| **C1+C2 联用 (consist001+noise0.05)** | **85.00** | **81.00** |
 
 关键观察：
 
 1. **C2 单独在 Reacher 上远低于 C1 单独**（pg08：47.00 vs 71.33），与 PushT 模式一致——C2 单独无法替代 C1 的全局 invariance。
-2. **C1+C2 0.005 为最优配置**，pg08 81.00 > C1 同 noise 71.33（**+9.67pt**），clean 85.00 > C1 73.33（+11.67pt）。增益幅度接近 PushT（+9.58pt），显著高于 TwoRoom（+2.00pt），说明 Reacher 作为连续控制任务具有与 PushT 相似的 C1+C2 互补结构。
+2. **C1+C2 0.05 为最优配置**，pg08 81.00 > C1 同 noise 71.33（**+9.67pt**），clean 85.00 > C1 73.33（+11.67pt）。增益幅度接近 PushT（+9.58pt），显著高于 TwoRoom（+2.00pt），说明 Reacher 作为连续控制任务具有与 PushT 相似的 C1+C2 互补结构。
 3. **但 Reacher 的 per-token gate dynamic range 被任务结构压缩**。§3.5.5 的 aggregate 分析显示 Reacher corr(w_t, action_norm) ≈ 0，且 §3.6.2 因果干预中 Reacher 的 robustness 退化幅度小于 PushT。这说明 Reacher 上的增益主要来自 "mean consistency pressure 的合理分配"，而非 "fine-grained token-wise allocation"。
 
 #### 3.7.5 Cube：结构化操作任务的剂量跃迁
@@ -1020,14 +1020,14 @@ Cube 是结构化操作任务（grasping/carrying/placing），动作序列高�
 | C1 单独 (0to003-p1, 反推) | 65.00 | 67.33 |
 | C1 单独 (0to005-p1) | 61.33 | 60.67 |
 | C2 单独 (consist001) | 64.67 | 50.00 |
-| C1+C2 联用 (consist001+noise0.003) | 65.33 | 62.33 |
-| **C1+C2 联用 (consist001+noise0.005)** | **70.33** | **68.67** |
+| C1+C2 联用 (consist001+noise0.03) | 65.33 | 62.33 |
+| **C1+C2 联用 (consist001+noise0.05)** | **70.33** | **68.67** |
 
 关键观察：
 
-1. **Cube 呈现显著的剂量敏感性**。noise0.003 下 C1+C2 pg08 62.33 < C1 同 noise 67.33（**−5.00pt**），说明低 noise 下 C2 的 per-token 压力不足以克服 C1 全局 invariance 的 baseline；但 **noise0.005 下跃升至 +8.00pt**（68.67 vs 60.67），clean 也提升 +9.00pt（70.33 vs 61.33）。
+1. **Cube 呈现显著的剂量敏感性**。noise0.03 下 C1+C2 pg08 62.33 < C1 同 noise 67.33（**−5.00pt**），说明低 noise 下 C2 的 per-token 压力不足以克服 C1 全局 invariance 的 baseline；但 **noise0.05 下跃升至 +8.00pt**（68.67 vs 60.67），clean 也提升 +9.00pt（70.33 vs 61.33）。
 2. **C2 单独在 Cube 上略高于 C1 单独（clean 64.67 vs 61.33），但 robustness 更低**（pg08 50.00 vs 60.67）。这说明 Cube 上 C2 的 per-token 机制对 clean 有微弱正贡献，但对极端 OOD 不足——需要 C1 的全局 noise 提供 invariance baseline。
-3. **Cube 的最优剂量与 PushT/Reacher 相同（0.005），但效应机制不同**。PushT 上 0.005 的增益来自 contact-heavy 区域的 resolution 保护；Cube 上则来自 grasping/placing transition 的可预测性——gate 能识别这些事件，但不需要剧烈下调 consistency pressure（§3.5.5 Cube Q4−Q1 = −0.031，远小于 PushT 的 +0.171）。
+3. **Cube 的最优剂量与 PushT/Reacher 相同（0.05），但效应机制不同**。PushT 上 0.05 的增益来自 contact-heavy 区域的 resolution 保护；Cube 上则来自 grasping/placing transition 的可预测性——gate 能识别这些事件，但不需要剧烈下调 consistency pressure（§3.5.5 Cube Q4−Q1 = −0.031，远小于 PushT 的 +0.171）。
 
 #### 3.7.6 正交性机制分析
 
@@ -1044,38 +1044,38 @@ C1 和 C2 在 pipeline 中占据不同位置：
 
 | 任务 | noise | C1+C2 clean | C1+C2 pg08 | C1 同 noise clean | C1 同 noise pg08 | C2 单独 clean | C2 单独 pg08 | vs C1 pg08 | vs C2 pg08 | 备注 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| **PushT** | 0.002 | 88.00 | 75.00 | 90.00 | 70.67 | 86.67 | 37.00 | +4.33 | +38.00 | 轻 noise，C2 主导 |
-| PushT | 0.003 | 82.00 | 55.33 | 89.67 | 83.00 | 86.67 | 37.00 | −27.67 | +18.33 | 剂量不足，低于 C1 同 noise |
-| **PushT** | **0.005** | **85.67** | **85.33** | **81.00** | **75.75** | **86.67** | **37.00** | **+9.58** | **+48.33** | **最优配置** |
-| TwoRoom | 0.002 | 95.33 | 94.00 | 94.33 | 91.00 | 95.33 | 74.00 | +3.00 | +20.00 | 轻 noise，增益温和 |
-| **TwoRoom** | **0.003** | **97.67** | **96.67** | **96.33** | **94.67** | **95.33** | **74.00** | **+2.00** | **+22.67** | **最优配置** |
-| TwoRoom | 0.005 | — | — | 94.00 | 94.00 | 95.33 | 74.00 | — | — | 未跑 |
-| Reacher | 0.003 | 83.33 | 81.00 | 78.67 | 73.67 | 72.00 | 47.00 | +7.33 | +34.00 | 中等增益 |
-| **Reacher** | **0.005** | **85.00** | **81.00** | **73.33** | **71.33** | **72.00** | **47.00** | **+9.67** | **+34.00** | **最优配置** |
-| Cube | 0.003 | 65.33 | 62.33 | 65.00 | 67.33 | 64.67 | 50.00 | −5.00 | +12.33 | 剂量不足，略低于 C1 |
-| **Cube** | **0.005** | **70.33** | **68.67** | **61.33** | **60.67** | **64.67** | **50.00** | **+8.00** | **+18.67** | **最优配置** |
+| **PushT** | 0.02 | 88.00 | 75.00 | 90.00 | 70.67 | 86.67 | 37.00 | +4.33 | +38.00 | 轻 noise，C2 主导 |
+| PushT | 0.03 | 82.00 | 55.33 | 89.67 | 83.00 | 86.67 | 37.00 | −27.67 | +18.33 | 剂量不足，低于 C1 同 noise |
+| **PushT** | **0.05** | **85.67** | **85.33** | **81.00** | **75.75** | **86.67** | **37.00** | **+9.58** | **+48.33** | **最优配置** |
+| TwoRoom | 0.02 | 95.33 | 94.00 | 94.33 | 91.00 | 95.33 | 74.00 | +3.00 | +20.00 | 轻 noise，增益温和 |
+| **TwoRoom** | **0.03** | **97.67** | **96.67** | **96.33** | **94.67** | **95.33** | **74.00** | **+2.00** | **+22.67** | **最优配置** |
+| TwoRoom | 0.05 | — | — | 94.00 | 94.00 | 95.33 | 74.00 | — | — | 未跑 |
+| Reacher | 0.03 | 83.33 | 81.00 | 78.67 | 73.67 | 72.00 | 47.00 | +7.33 | +34.00 | 中等增益 |
+| **Reacher** | **0.05** | **85.00** | **81.00** | **73.33** | **71.33** | **72.00** | **47.00** | **+9.67** | **+34.00** | **最优配置** |
+| Cube | 0.03 | 65.33 | 62.33 | 65.00 | 67.33 | 64.67 | 50.00 | −5.00 | +12.33 | 剂量不足，略低于 C1 |
+| **Cube** | **0.05** | **70.33** | **68.67** | **61.33** | **60.67** | **64.67** | **50.00** | **+8.00** | **+18.67** | **最优配置** |
 
-> **C1 同 noise sample size**：PushT 0.002/0.003/0.005-p1 皆为 n=3–4；TwoRoom 0.002/0.003-p1 n=3；Reacher/Cube C1 0.005-p1 为 single-seed × 300 ep（summary.txt），与 C1+C2 的 3-seed × 100 ep 协议不同但总样本量相同（300）。Reacher/Cube C1 noise0.003 值由 3-seed 增益反推（Reacher clean +4.66 / pg08 +7.33；Cube clean +0.33 / pg08 −5.00）。
+> **C1 同 noise sample size**：PushT 0.02/0.03/0.05-p1 皆为 n=3–4；TwoRoom 0.02/0.03-p1 n=3；Reacher/Cube C1 0.05-p1 为 single-seed × 300 ep（summary.txt），与 C1+C2 的 3-seed × 100 ep 协议不同但总样本量相同（300）。Reacher/Cube C1 noise0.03 值由 3-seed 增益反推（Reacher clean +4.66 / pg08 +7.33；Cube clean +0.33 / pg08 −5.00）。
 
 **跨任务模式解读**：
 
 1. **同 noise 对比下，C1+C2 在所有 4 个任务的极端 OOD 上都严格优于 C1 单独**。PushT +9.58pt、TwoRoom +2.00pt、Reacher +9.67pt、Cube +8.00pt——这一模式与任务类型无关，证明 per-token 精细化分配的增益是**系统性的**，不是特定任务的巧合。
 
-2. **TwoRoom 结论反转**。此前用 C1 单独 best（0.008-p1）对比时，C1+C2 联用呈负收益；但同 noise（0.003）对比下，TwoRoom C1+C2 clean 97.67 > C1 96.33（+1.34pt），pg08 96.67 > C1 94.67（+2.00pt）。这说明 TwoRoom 上 C2 并非"价值有限"，而是**需要与 C1 同强度对比才能体现 per-token 增益**。
+2. **TwoRoom 结论反转**。此前用 C1 单独 best（0.08-p1）对比时，C1+C2 联用呈负收益；但同 noise（0.03）对比下，TwoRoom C1+C2 clean 97.67 > C1 96.33（+1.34pt），pg08 96.67 > C1 94.67（+2.00pt）。这说明 TwoRoom 上 C2 并非"价值有限"，而是**需要与 C1 同强度对比才能体现 per-token 增益**。
 
 3. **Reacher 支持连续控制上的互补性，但效应量弱于 PushT。** 同 noise 对比下 Reacher 提升为 pg08 +9.67pt，明显高于 TwoRoom 的 +2.00pt。说明 Reacher 与 PushT 同属连续控制大类，但其 per-token gate dynamic range 被任务结构压缩，互补性存在而不呈现 PushT 式强峰值。
 
-4. **Cube 呈现剂量敏感性**。Cube noise0.003 下 3-seed 对比呈负收益（pg08 −5.00），但 noise0.005 下跃升至 +8.00pt。说明 Cube 上 C1+C2 的 sweet spot 在更高 noise 区间，低 noise 下 C2 的 per-token 压力不足以克服 C1 全局 invariance 的 baseline。
+4. **Cube 呈现剂量敏感性**。Cube noise0.03 下 3-seed 对比呈负收益（pg08 −5.00），但 noise0.05 下跃升至 +8.00pt。说明 Cube 上 C1+C2 的 sweet spot 在更高 noise 区间，低 noise 下 C2 的 per-token 压力不足以克服 C1 全局 invariance 的 baseline。
 
-5. **任务特异性体现在最优 noise 剂量而非有无增益**。PushT 0.005、TwoRoom 0.003、Reacher 0.005、Cube 0.005 的最优剂量不同，但**所有任务在最优剂量下的 px+goal 0.08 都严格超过 C1 同 noise**。这是"per-token w_t 需要 per-task 联合调参"的最直接证据——不是每个任务需要不同的方法，而是每个任务需要不同的 C1+C2 剂量组合。
+5. **任务特异性体现在最优 noise 剂量而非有无增益**。PushT 0.05、TwoRoom 0.03、Reacher 0.05、Cube 0.05 的最优剂量不同，但**所有任务在最优剂量下的 px+goal 0.08 都严格超过 C1 同 noise**。这是"per-token w_t 需要 per-task 联合调参"的最直接证据——不是每个任务需要不同的方法，而是每个任务需要不同的 C1+C2 剂量组合。
 
 #### 3.7.8 论文 Takeaway
 
 **C1+C2 不是替代关系而是叠加关系**——这是本节的核心 claim。在**同 noise 强度**对比下，全部 4 个任务的 C1+C2 联用都在极端 OOD 上严格优于 C1 单独：PushT +9.58pt、TwoRoom +2.00pt、Reacher +9.67pt、Cube +8.00pt。这一增益模式跨越 contact-heavy 与 visual-redundant 任务边界，证明 per-token 精细化分配的价值是**系统性的**，不是特定任务的巧合。
 
-此前用"C1 单独 best（不同 noise 剂量）"对比时，TwoRoom/Reacher/Cube 上出现负收益，造成"C1+C2 不是 universally dominate"的误判。根本原因：C1 单独 best 的 noise 剂量（PushT 0.006、TwoRoom 0.008、Reacher 0.006、Cube 0.007）与 C1+C2 联用的 light noise（0.002）不匹配——**用 C1 的 heavy noise best 去要求 C2 的 light noise 配置是不公平的**。同 noise 对比控制了剂量变量后，所有任务的正增益一致显现。
+此前用"C1 单独 best（不同 noise 剂量）"对比时，TwoRoom/Reacher/Cube 上出现负收益，造成"C1+C2 不是 universally dominate"的误判。根本原因：C1 单独 best 的 noise 剂量（PushT 0.06、TwoRoom 0.08、Reacher 0.06、Cube 0.07）与 C1+C2 联用的 light noise（0.02）不匹配——**用 C1 的 heavy noise best 去要求 C2 的 light noise 配置是不公平的**。同 noise 对比控制了剂量变量后，所有任务的正增益一致显现。
 
-§3.6.2 的因果干预结果进一步证明 **per-token routing 本身**（而非任何 specific signal 公式）是 PushT 上的因果必要项（Tier 1 ≈ 28.67pt），把 C2 的方法学分量钉死；σ+A_t multiplicative gate 是我们的 chosen instantiation，在 routing 之上提供 Tier 2 ≈ 7–20pt 额外贡献。跨任务扩展验证 C1+C2 联用机制在 Reacher/Cube 上同样有效，但**最优 noise 剂量因任务而异**（PushT 0.005、TwoRoom 0.003、Reacher 0.005、Cube 0.005）——这正是"per-token w_t 需要 per-task 联合调参"的核心证据。
+§3.6.2 的因果干预结果进一步证明 **per-token routing 本身**（而非任何 specific signal 公式）是 PushT 上的因果必要项（Tier 1 ≈ 28.67pt），把 C2 的方法学分量钉死；σ+A_t multiplicative gate 是我们的 chosen instantiation，在 routing 之上提供 Tier 2 ≈ 7–20pt 额外贡献。跨任务扩展验证 C1+C2 联用机制在 Reacher/Cube 上同样有效，但**最优 noise 剂量因任务而异**（PushT 0.05、TwoRoom 0.03、Reacher 0.05、Cube 0.05）——这正是"per-token w_t 需要 per-task 联合调参"的核心证据。
 
 论文叙事意义：
 
@@ -1084,7 +1084,7 @@ C1 和 C2 在 pipeline 中占据不同位置：
 - 单独说"σ+A_t multiplicative gate 是 principled controller"是错的——§3.8.2 offline 显示它与最强 ckpt-level fragility 诊断量正交，只是 latent fragility 的一个 facet。
 - 真正能立的是 "**AAAC 作为与 noise training 正交的 per-token controller，在相同 noise 投入下通过 σ+A_t multiplicative gate 实现精细化分配，使全部 4 个任务的极端 OOD 都严格超过 C1 单独；且经因果 intervention 证明 σ+A_t multiplicative gate 在 PushT 上不可替代。任务特异性体现在最优 C1+C2 剂量组合，而非有无增益**".
 
-当前唯一明确未跑的主表级扩展是 5-seeds 统一升级。需要同时说明的是：Reacher/Cube 的 same-noise `C1` baseline 在 `noise=0.005` 上仍采用 `single-seed × 300` 汇总，而对应的 `C1+C2` 为 `3 seeds × 100`；两者总样本量相同，但协议并非完全一致。因此，除 5-seeds 外，剩余的不是“缺实验”，而是“是否需要把 Reacher/Cube same-noise baseline 也统一到 3-seed 协议”的统计严谨性问题。
+当前唯一明确未跑的主表级扩展是 5-seeds 统一升级。需要同时说明的是：Reacher/Cube 的 same-noise `C1` baseline 在 `noise=0.05` 上仍采用 `single-seed × 300` 汇总，而对应的 `C1+C2` 为 `3 seeds × 100`；两者总样本量相同，但协议并非完全一致。因此，除 5-seeds 外，剩余的不是“缺实验”，而是“是否需要把 Reacher/Cube same-noise baseline 也统一到 3-seed 协议”的统计严谨性问题。
 
 ### 3.8 结论与顶会主表路线图
 
@@ -1125,7 +1125,7 @@ C1 和 C2 在 pipeline 中占据不同位置：
 7. ✅ **DGC offline 证明 σ+A_t 与最强 ckpt-level fragility 诊断量正交**（Pearson 0.02–0.15，§3.8.2）：σ+A_t 学到的不是 input-noise fragility，而是 dataset-aggregate prediction difficulty + action transmission——这把"σ+A_t 是 unique principled choice"的潜在 over-claim 直接否定，反过来支持"σ+A_t 是 chosen instantiation 之一"的 framing。
 
 **Contribution 1 + Contribution 2 联用（已完成验证）**：
-机制上 C1（input-side global noise）与 C2（output-side per-token consistency routing，σ+A_t instantiation）处于不同位置：noise 提供 isotropic invariance baseline，σ+A_t 在此基础上做 per-state 精细化分配，二者互补。PushT 上 `consist001+noise0.005` 为最优配置：clean 85.67（> C2 单独 86.67 略低但 guardrail 通过）、**px+goal 0.08 85.33 > C1 同 noise (0.005-p1) 75.75（+9.58pt）、> C2 单独 37.00（+48.33pt）**；轻 noise（0.002）下 px+goal 0.08 75.00（+4.33pt vs C1 0.002-p1）。TwoRoom 同 noise 对比下 C1+C2 0.003 clean 97.67 > C1 96.33（+1.34pt）、pg08 96.67 > C1 94.67（+2.00pt），此前用 C1 best（0.008-p1）对比的负收益是剂量不匹配造成的假象。跨任务扩展（TwoRoom +2.00pt、Reacher +9.67pt、Cube +8.00pt vs C1 同 noise）验证同 noise 对比下全部 4 个任务都有系统性增益，任务特异性体现在最优剂量而非有无增益。
+机制上 C1（input-side global noise）与 C2（output-side per-token consistency routing，σ+A_t instantiation）处于不同位置：noise 提供 isotropic invariance baseline，σ+A_t 在此基础上做 per-state 精细化分配，二者互补。PushT 上 `consist001+noise0.05` 为最优配置：clean 85.67（> C2 单独 86.67 略低但 guardrail 通过）、**px+goal 0.08 85.33 > C1 同 noise (0.05-p1) 75.75（+9.58pt）、> C2 单独 37.00（+48.33pt）**；轻 noise（0.02）下 px+goal 0.08 75.00（+4.33pt vs C1 0.02-p1）。TwoRoom 同 noise 对比下 C1+C2 0.03 clean 97.67 > C1 96.33（+1.34pt）、pg08 96.67 > C1 94.67（+2.00pt），此前用 C1 best（0.08-p1）对比的负收益是剂量不匹配造成的假象。跨任务扩展（TwoRoom +2.00pt、Reacher +9.67pt、Cube +8.00pt vs C1 同 noise）验证同 noise 对比下全部 4 个任务都有系统性增益，任务特异性体现在最优剂量而非有无增益。
 
 **Reviewer-ready 收口（可直接复用到 abstract / intro / rebuttal）**：
 
@@ -1149,7 +1149,7 @@ C1 和 C2 在 pipeline 中占据不同位置：
 
 - **因果干预四件套（shuffle_σ / shuffle_A / random_gate / global consistency=`constant_w`）**（2026-05-12，§3.6.0–§3.6.4）：PushT 上四项干预全部 degrade。**Tier 1 finding**：`constant_w` 在 PushT 上 px+goal 0.08 = 8.33（vs σ+A_t baseline 37.00，−28.67pt），证明 **per-token routing 本身**（而非任何 specific signal）是 PushT 上的因果必要项。**Tier 2 finding**：shuffle_σ / shuffle_A / random_gate 在保留 spread 下逐步移除 specific signal，shuffle_A clean 跌 8.34pt 印证 A_t 是 σ+A_t 这一 instantiation 的主门控（specificity 价值 ≈ 7–20pt）。TwoRoom/Cube 上 global consistency 与 σ+A_t 在统计误差范围内等价、不引起退化。paper claim 修正为"per-token routing 在合适任务上必要，σ+A_t 是 chosen instantiation；在不合适任务上 routing 保持无害"。实验设计与启动命令见 §3.6.0。
 - **四任务 w_t 完整可视化（aggregate + trajectory）**（2026-05-13，§3.5.5–§3.5.6）：PushT/TwoRoom/Reacher/Cube 的 aggregate hexbin/histogram + per-episode 时间序列 + 关键帧全部生成并插入文档，为**σ+A_t 这一 instantiation**学到的 task-specific 结构提供证据链（注：这是 σ+A_t 的性质，不是任何 per-token routing 的固有性质）。
-- **跨任务 C1+C2 联用 sweep（PushT/TwoRoom/Reacher/Cube，noise0.002/003/005）**（2026-05-13，§3.7.7）：全部 4 任务在三个 noise 剂量下的完整对比表已建立，最优剂量下极端 OOD 严格优于 C1 单独，增益是系统性的。
+- **跨任务 C1+C2 联用 sweep（PushT/TwoRoom/Reacher/Cube，noise0.02/003/005）**（2026-05-13，§3.7.7）：全部 4 任务在三个 noise 剂量下的完整对比表已建立，最优剂量下极端 OOD 严格优于 C1 单独，增益是系统性的。
 - **四任务 aggregate w_t 统一工具链（PushT/TwoRoom 重跑 + Reacher/Cube 复用）**（2026-05-14，§3.5.5）：全部 4 任务的 aggregate hexbin/histogram 由同一套 `visualize_wt.py` 生成，消除早期脚本差异，跨任务统计口径一致。
 - **DGC offline ablation（独立信号验证）**（2026-05-14，§3.8.2）：把 `predictor_target_to_nn_l2_ratio` 翻成 per-token `fragile_t`，与现版 σ+A_t critical 在 4 ckpt 上做 scatter。Pearson 0.02–0.15、σ/A_t 单独与 fragile 也都正交。结论：σ+A_t 和 fragile_t 是 latent fragility 的两个独立 facet。该 finding 反向支持 paper "σ+A_t 是 chosen instantiation 而非 unique principled choice" 的 framing。
 
@@ -1157,7 +1157,7 @@ C1 和 C2 在 pipeline 中占据不同位置：
 
 | ID | 任务 | 状态 | 备注 |
 |---|---|---|---|
-| 跨任务覆盖 ≥ 4 | Reacher + Cube C1+C2 联用（consist001+noise0.002/003/005）；σ+A_t consist001 + A_t-only + σ-only 三连 | **✅ 已完成** | Reacher/Cube C1+C2 noise0.002/003/005 全部完成（§3.7.7）。四任务同 noise 对比下 C1+C2 > C1 单独在极端 OOD 上严格成立。Reacher/Cube 未跑 A_t-only / σ-only ablation（非第一层必需，因因果干预四件套已足够验证机制必要性） |
+| 跨任务覆盖 ≥ 4 | Reacher + Cube C1+C2 联用（consist001+noise0.02/003/005）；σ+A_t consist001 + A_t-only + σ-only 三连 | **✅ 已完成** | Reacher/Cube C1+C2 noise0.02/003/005 全部完成（§3.7.7）。四任务同 noise 对比下 C1+C2 > C1 单独在极端 OOD 上严格成立。Reacher/Cube 未跑 A_t-only / σ-only ablation（非第一层必需，因因果干预四件套已足够验证机制必要性） |
 
 ##### 第二层 — protocol & baseline 不到位 reviewer 主表就不认
 
@@ -1190,7 +1190,7 @@ C1 和 C2 在 pipeline 中占据不同位置：
 ##### 后续工作（截至 2026-05-14）
 
 1. ~~起因果干预四件套全套 sweep~~ ✅ 已完成（2026-05-12，§3.6.2，4 任务）。
-2. ~~补 Reacher/Cube C1+C2 noise0.003/005~~ ✅ 已完成（2026-05-13，§3.7.7）。
+2. ~~补 Reacher/Cube C1+C2 noise0.03/005~~ ✅ 已完成（2026-05-13，§3.7.7）。
 3. ~~w_t qualitative figure（per-trajectory 时间序列 + 关键帧）~~ ✅ 已完成（2026-05-13，§3.5.6，4 任务）。
 4. ~~四任务 aggregate w_t 统一工具链~~ ✅ 已完成（2026-05-14，§3.5.5，PushT/TwoRoom 重跑统一 visualize_wt.py）。
 5. ~~AAAC method overview figure~~ ✅ 已完成（2026-05-13，§1/§3.8）。
@@ -1292,7 +1292,7 @@ python -m tools.repr_analysis.dgc_offline \
 **核心 finding**：四任务 Pearson 全部 < 0.2（PushT 仅 +0.02）。**σ 和 A_t 单独**与 fragile 的 Pearson 也都在 [−0.12, +0.10] 区间内（n_tokens=768 时 |r|≈0.07 才显著），即 fragile_t 不在 span(σ, A_t) 内。三对相关都接近统计零意味着 fragile 是 σ+A_t 之外的**独立 facet**，不是后者的"noisy 近似"。
 
 **fragile_t 的两个特征值得记录**：
-- **Dynamic range 远超 σ+A_t**：q90/q10 ≈ 9.4–11.5×（4 任务一致），而 §3.5.4 logged σ+A_t w_t 的 q10/q90 比仅 ~1.7×。若 fragile 直接套现版 `w_t = w_max - (...) * critical` map，per-token spread 会激增 ~5×——online α 起步应比 AAAC 小一档（α ∈ {0.005, 0.01} 而非 {0.01, 0.03}）。
+- **Dynamic range 远超 σ+A_t**：q90/q10 ≈ 9.4–11.5×（4 任务一致），而 §3.5.4 logged σ+A_t w_t 的 q10/q90 比仅 ~1.7×。若 fragile 直接套现版 `w_t = w_max - (...) * critical` map，per-token spread 会激增 ~5×——online α 起步应比 AAAC 小一档（α ∈ {0.05, 0.01} 而非 {0.01, 0.03}）。
 - **Task scale 差 ~6×**：TwoRoom fragile_median 0.069 vs 其它 0.012–0.018。z-score 会吃掉，但 α 仍需 per-task。
 
 **Caveat（写入文档以防误读）**：4 个 ckpt 中 3 个是 `shuffle_action` 干预版、1 个是 `constant_w` 干预版（非 canonical consist001）。在这些 ckpt 中 encoder/predictor 是在被破坏的 gate 路由下训练的，**predictor 的 input-noise 灵敏度分布可能整体更平**。Pearson < 0.2 这条结论作为"σ+A 与 fragile 正交"在 intervention-trained predictor 上稳健成立；要写进 paper 需补 canonical consist001 ckpt 的同口径 offline（4 个命令，~30 分钟，列在 §3.8.1 第二层 todo 中）。但即便 caveat 解除，结论的**方向**（正交）不会反转——补离线只是把 effect size 钉得更稳，不会把 0.15 变成 0.5。
@@ -1302,18 +1302,18 @@ python -m tools.repr_analysis.dgc_offline \
 - DGC online 跑出来无论好坏，都是"另一种 instantiation 也 work / 不 work"的 ablation，不是论文主线证据；
 - offline 已经提供了 "σ+A_t 与 fragile_t 是不同 facet" 这条独立 finding，足够支撑 §3.6.4 的 instantiation framing。
 
-DGC online 现在的优先级：**P3 可选追加**。若做（推荐 2 个 PushT runs：α=0.005 protect direction 和 α=0.005 rescue direction，回答 sign 问题），可写进附录"alternative per-token instantiation"段。
+DGC online 现在的优先级：**P3 可选追加**。若做（推荐 2 个 PushT runs：α=0.05 protect direction 和 α=0.05 rescue direction，回答 sign 问题），可写进附录"alternative per-token instantiation"段。
 
 **在线训练命令**（待执行，可选）：
 
 ```bash
-# PushT α=0.005 protect（高 fragile → 低 w_t；与 σ+A_t direction 同号）
+# PushT α=0.05 protect（高 fragile → 低 w_t；与 σ+A_t direction 同号）
 python train.py data=pusht \
   loss.hetero.enabled=true loss.hetero.mode=probe \
   loss.action_gate.enabled=true \
   loss.action_gate.mode=dgc \
   loss.adaptive_consistency.enabled=true \
-  loss.adaptive_consistency.weight=0.005 \
+  loss.adaptive_consistency.weight=0.05 \
   loss.adaptive_consistency.noise_std_max=0.04 \
   experiment.name=pusht_lewm_dgc_consist0005_protect_seed42 seed=42
 
@@ -1344,7 +1344,7 @@ python train.py data=pusht \
 7. **A_t-only / σ-only 在我们的 σ+A_t instantiation 上 PushT 缺一不可，trajectory-level 可视化验证该 instantiation 与 task structure 有结构性对应。** PushT A_t-only clean 77.33 比 σ+A_t（86.67）低 9.34pt，px+goal 0.08 跌至 6.67；σ-only px+goal 0.08 崩溃至 20.00。跨任务 full `σ+A_t` 可视化显示：PushT mean corr($w_t$, action norm)=+0.661，TwoRoom/Reacher 近零，Cube 在 latent displacement 上中等负相关（−0.284）。**这是 σ+A_t 这一 instantiation 学到的结构，不是 per-token routing 的固有性质**——其它 instantiation（如 fragile_t）应有不同的 trajectory pattern。
 8. **σ-only ablation 在 PushT 上精确验证 Noisy TV / confounder trap。** σ-only clean 87.00 与 σ+A_t 86.67 几乎相同，guardrail 全部通过——分辨率未受损；但 px+goal 0.08 崩溃至 20.00（vs σ+A_t 37.00）。在我们的 σ+A_t multiplicative gate 内 A_t 的作用是过滤掉不可控视觉噪声；这是 instantiation-内部的设计选择，不主张其它 instantiation 必须采用同款 confounder filter。
 9. **DGC offline 揭示 σ+A_t 与最强 ckpt-level fragility 诊断量正交**（§3.8.2，Pearson 0.02–0.15）。σ+A_t 学到的是 dataset-aggregate prediction difficulty + action transmission，**不是** input-noise fragility。这把"σ+A_t 是 unique principled controller"的潜在 over-claim empirically 否定，反向加固"σ+A_t 是 chosen instantiation"的 framing。
-10. **C1+C2 联用不是替代关系而是叠加关系。** `consist001+noise0.005` 在 PushT clean 85.67、px+goal 0.08 **85.33 > C1 同 noise 75.75（+9.58pt），> C2 单独 37.00（+48.33pt）**；轻 noise（0.002）下为 75.00（+4.33pt vs C1 0.002-p1）。C1 提供 input-side global invariance baseline，C2（无论哪种 routing instantiation）在此基础上做 per-state 精细化分配；跨任务扩展（TwoRoom +2.00pt vs C1 同 noise、Reacher +9.67pt、Cube +8.00pt）验证同 noise 对比下全部 4 个任务的极端 OOD 都严格优于 C1 单独，增益是系统性的。
+10. **C1+C2 联用不是替代关系而是叠加关系。** `consist001+noise0.05` 在 PushT clean 85.67、px+goal 0.08 **85.33 > C1 同 noise 75.75（+9.58pt），> C2 单独 37.00（+48.33pt）**；轻 noise（0.02）下为 75.00（+4.33pt vs C1 0.02-p1）。C1 提供 input-side global invariance baseline，C2（无论哪种 routing instantiation）在此基础上做 per-state 精细化分配；跨任务扩展（TwoRoom +2.00pt vs C1 同 noise、Reacher +9.67pt、Cube +8.00pt）验证同 noise 对比下全部 4 个任务的极端 OOD 都严格优于 C1 单独，增益是系统性的。
 
 ### 4.2 风险与对策
 
@@ -1360,7 +1360,7 @@ python train.py data=pusht \
 | **encoder σ 不可辨识** | encoder σ 无天然监督，和 predictor σ 同时学会互相逃逸 | 早期实验不加 encoder σ；只在 predictor σ 成立后再加 |
 | **Multi-step σ propagation 公式不准** | 本最简版**不主张**手写 σ 累积公式；让 predictor σ̂ 自学 multi-step uncertainty | 用 multi-step rollout NLL 做训练监督 |
 | **Logging-only diagnostic 的 stateful side-effect 风险**（train-mode BN / Dropout 等） | 任意需要 train-mode forward 的诊断（如 gate 内 K 次 perturb forward）都可能通过 BN running stats 等 stateful buffer 间接影响主训练。 | gate 内 K 次 perturb forward 在 freeze-BN 下执行；adaptive consistency 保持该语义。实例与诊断细节见附录 A.1。 |
-| **σ+A_t (C2) 单独使用不显著超过 LeWM+noise (C1)** | 同一作者的两条 contribution，C2 单独时在主流指标上与 C1 相当；这本身不是问题，但需要清晰的卖点划分 | (a) C2 卖点是 "per-token routing 本身在 PushT 上因果必要（§3.6.2 Tier 1 = 28.67pt），σ+A_t 是 chosen instantiation"；(b) C1+C2 联用在 PushT 最优配置（noise0.005）上 vs C2 单独 +48.33pt、vs C1 同 noise +9.58pt，证明二者互补叠加；(c) 跨任务数据（TwoRoom +2.00pt、Reacher +9.67pt、Cube +8.00pt vs C1 同 noise）证明全部 4 个任务都有系统性增益；(d) reviewer 若仍要求"C2 单独超过 C1"，回退到把 C1+C2 联用作为论文主线 |
+| **σ+A_t (C2) 单独使用不显著超过 LeWM+noise (C1)** | 同一作者的两条 contribution，C2 单独时在主流指标上与 C1 相当；这本身不是问题，但需要清晰的卖点划分 | (a) C2 卖点是 "per-token routing 本身在 PushT 上因果必要（§3.6.2 Tier 1 = 28.67pt），σ+A_t 是 chosen instantiation"；(b) C1+C2 联用在 PushT 最优配置（noise0.05）上 vs C2 单独 +48.33pt、vs C1 同 noise +9.58pt，证明二者互补叠加；(c) 跨任务数据（TwoRoom +2.00pt、Reacher +9.67pt、Cube +8.00pt vs C1 同 noise）证明全部 4 个任务都有系统性增益；(d) reviewer 若仍要求"C2 单独超过 C1"，回退到把 C1+C2 联用作为论文主线 |
 | **σ+A_t multiplicative gate 看起来 ad-hoc（8 超参 + magic 0.5+0.5）** | 我们承认这是 instantiation cost；formula 本身没有强理论支持 | 不再 sell 公式 principled；论文 framing 收口为 "我们 instantiate per-token routing with σ+A_t multiplicative gate；§3.6.2 Tier 1 证明 routing 必要，Tier 2 量化该 instantiation 的额外贡献。其它 instantiation（fragile_t, dropout-var）作为 ablation"。8 超参在 instantiation 层 fair；reviewer 攻击面缩到 Tier 2 effect size 而非 method principledness |
 | **DGC 是否会被 reviewer 认为是 cleaner replacement 而我们没采用** | offline 已经证明 σ+A_t 与 fragile_t 正交，非"逼近最强诊断量" | §3.8.2 已写入 logic gap 段：cross-ckpt validity ≠ per-token gate validity。DGC 是 alternative instantiation 候选而非 cleaner replacement；offline orthogonality 反向支持 chosen-instantiation framing |
 
@@ -1441,7 +1441,7 @@ L_{\text{pred}}
 - **不主张**：σ+A_t multiplicative gate 是 mathematically principled 或 unique optimal controller。Formula 中 8+ 超参与 `0.5+0.5` 常数是 instantiation-level 选择，不是理论推导。
 - **任务特异性 α 与 LeWM-base 的关系**：clean 维持 (PushT) 或大幅提升 (TwoRoom +5.33pt)；robustness 全面提升 (PushT +33 ~ +56pt, TwoRoom +27 ~ +54pt)；无需 per-task noise schedule 调参。
 
-**联用主张：** C1+C2 不是替代关系而是叠加关系。`consist001+noise0.005` 在 PushT 极端 noise (px+goal 0.08) 上 85.33 > C1 同 noise 75.75（+9.58pt）、> C2 单独 37.00（+48.33pt），证明 input-side global noise 与 controller-side per-token 调节正交；轻 noise（0.002）下为 75.00（+4.33pt vs C1 0.002-p1）。跨任务扩展（TwoRoom +2.00pt vs C1 同 noise、Reacher +9.67pt、Cube +8.00pt）验证同 noise 对比下全部 4 个任务的极端 OOD 都严格优于 C1 单独，增益是系统性的。
+**联用主张：** C1+C2 不是替代关系而是叠加关系。`consist001+noise0.05` 在 PushT 极端 noise (px+goal 0.08) 上 85.33 > C1 同 noise 75.75（+9.58pt）、> C2 单独 37.00（+48.33pt），证明 input-side global noise 与 controller-side per-token 调节正交；轻 noise（0.02）下为 75.00（+4.33pt vs C1 0.02-p1）。跨任务扩展（TwoRoom +2.00pt vs C1 同 noise、Reacher +9.67pt、Cube +8.00pt）验证同 noise 对比下全部 4 个任务的极端 OOD 都严格优于 C1 单独，增益是系统性的。
 
 **前提条件：**
 - Probe-only calibration（§2.2.2）证明 σ head 学到非平凡、任务相关的 prediction difficulty（√ §3.4）。
@@ -1531,7 +1531,7 @@ Buggy 版的 SwanLab run id（供历史追溯，**不要用于 reproducibility**
 | `loss.action_gate.ema_momentum` | 0.99 | [0.95, 0.999] | B |
 | `loss.adaptive_consistency.w_min` | 0.2 | [0.0, 0.5] | C |
 | `loss.adaptive_consistency.w_max` | 1.0 | [0.5, 1.5] | C |
-| `loss.adaptive_consistency.alpha_cons` | 0.01 | [0.001, 0.1] | C |
+| `loss.adaptive_consistency.alpha_cons` | 0.01 | [0.01, 0.1] | C |
 
 ### B.2 PushT Resolution Guardrails（相对 PushT LeWM-base）
 
@@ -1604,8 +1604,8 @@ Buggy 版的 SwanLab run id（供历史追溯，**不要用于 reproducibility**
 | LeWM-0to008-p1 † | 88.33 | 89.33 | 91.33 | 89.00 | 89.33 | 87.67 | 85.33 | 89.00 | 87.33 | 89.00 |
 
 **Dose-effect 总结：**
-- **TwoRoom**：clean 单调升至 0to008-p1 = 98.33（vs LeWM-base 93.00，+5.33pt）；robustness 在 std_max ≥ 0.003 时全部条件 ≥ 94，0to008-p1 在 pixels_goal 0.08 = 98.67（vs LeWM-base 44.33，+54pt）。**TwoRoom 最优 std_max = 0.008**。
-- **PushT**：clean 在 0to002-p1 达到峰值 90.00（vs LeWM-base 87.33，+2.67pt），但扩展 sweep 至 0to008 后发现 **0to006-p1_20260507 在 px+goal 0.08 达到 87.00**（vs 0to002-p1 70.67，+16.33pt），为当前 C1 单独 robustness best。更高 noise（0to007/008）clean 降至 85–88 区间。Robustness 提升显著：pixels_goal 0.08 从 LeWM-base 3.67 → 0to006-p1 87.00（+83pt）。**PushT 最优 std_max 取决于指标**：clean 最优 0.002，robustness (px+goal 0.08) 最优 0.006。
+- **TwoRoom**：clean 单调升至 0to008-p1 = 98.33（vs LeWM-base 93.00，+5.33pt）；robustness 在 std_max ≥ 0.03 时全部条件 ≥ 94，0to008-p1 在 pixels_goal 0.08 = 98.67（vs LeWM-base 44.33，+54pt）。**TwoRoom 最优 std_max = 0.08**。
+- **PushT**：clean 在 0to002-p1 达到峰值 90.00（vs LeWM-base 87.33，+2.67pt），但扩展 sweep 至 0to008 后发现 **0to006-p1_20260507 在 px+goal 0.08 达到 87.00**（vs 0to002-p1 70.67，+16.33pt），为当前 C1 单独 robustness best。更高 noise（0to007/008）clean 降至 85–88 区间。Robustness 提升显著：pixels_goal 0.08 从 LeWM-base 3.67 → 0to006-p1 87.00（+83pt）。**PushT 最优 std_max 取决于指标**：clean 最优 0.02，robustness (px+goal 0.08) 最优 0.06。
 - **任务特异性**：TwoRoom 需要重 noise（视觉冗余多），PushT 需要轻 noise（接触约束需要精细控制）。这是 Contribution 1 的核心 finding，也是 Contribution 2 试图通过 per-token w_t 自动化的问题。
 
 **ckpt 路径（`lewm-tworooms` / `lewm-pusht` 下）：**
@@ -1625,7 +1625,7 @@ Buggy 版的 SwanLab run id（供历史追溯，**不要用于 reproducibility**
 > 完整路径模板：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/<task>/ckpt/<subdir>/`。每个 ckpt 目录下含 `eval_results/eval_summary.csv`（3-seed 聚合）或 `summary.txt` / `clean_metrics_300.txt`（single-seed × 300）。
 
 **实验配置：**
-- Trainer config: `config/train/lewm.yaml`，`image_noise.std_min=0.0`、`image_noise.std_max={0.001,...,0.008}`、`image_noise.noise_prob=1.0`。
+- Trainer config: `config/train/lewm.yaml`，`image_noise.std_min=0.0`、`image_noise.std_max={0.01,...,0.08}`、`image_noise.noise_prob=1.0`。
 - Eval protocol: single-seed × num_eval=300（clean_300） 或 3-seed × num_eval=100（† 行）。Reacher / Cube 数据 + SWM 对照表见 `research_notebook_swm.md` §4.2、`research_notebook_swm.md` 附录 B.2（ckpt 溯源）。
 
 ---
@@ -1634,8 +1634,8 @@ Buggy 版的 SwanLab run id（供历史追溯，**不要用于 reproducibility**
 
 - 本文件供查阅与设计迭代；**不**作为 research_notebook_swm 的替换。
 - 每次新讨论后追加新条目到 §4.2 风险表 或 附录 A 回退记录。
-- **Stage A→B→C 主线已跑完核心 sweep**（probe→gate logging→consistency consist001/003 + A_t-only ablation + σ-only ablation + `w_t` trajectory-level 可视化 + C1+C2 联用 noise0.002/003/005 剂量 sweep + Reacher/Cube 跨任务扩展 + DGC offline 独立信号 ablation）。**PushT 上 σ+A_t 这一 chosen instantiation 的核心 claim 已完整验证**：A_t-only clean 跌 9.34pt，σ-only px+goal 0.08 崩溃至 20.00，只有 σ+A_t 同时维持 clean 和 robustness；TwoRoom 上 σ 的边际收益更小，但高 noise 下仍可见。
-- 论文叙事核心（**2026-05-14 修订**）：本工作在 LeWM 上提出 C1 (LeWM+noise) 与 C2 (per-token consistency routing；σ+A_t multiplicative gate 作为 chosen instantiation) 两个互补 contribution。**C2 的 method-level 因果钉子在 "per-token routing 本身"**（§3.6.2 `constant_w` PushT −28.67pt = Tier 1）；σ+A_t specific signal 提供 Tier 2 ≈ 7–20pt 的额外贡献。论文**不**主张 σ+A_t formula 是 mathematically principled。C1+C2 联用在 PushT 最优配置（noise0.005）上 px+goal 0.08 85.33 vs C1 同 noise 75.75（+9.58pt）且对 C2 单独有巨大增益（+48.33pt）。跨任务扩展（TwoRoom +2.00pt vs C1 同 noise、Reacher +9.67pt、Cube +8.00pt）验证同 noise 对比下全部 4 个任务的极端 OOD 都严格优于 C1 单独，增益是系统性的。不存在单一 α 同时打满两任务，这正是 per-token `w_t` 的存在理由。
+- **Stage A→B→C 主线已跑完核心 sweep**（probe→gate logging→consistency consist001/003 + A_t-only ablation + σ-only ablation + `w_t` trajectory-level 可视化 + C1+C2 联用 noise0.02/003/005 剂量 sweep + Reacher/Cube 跨任务扩展 + DGC offline 独立信号 ablation）。**PushT 上 σ+A_t 这一 chosen instantiation 的核心 claim 已完整验证**：A_t-only clean 跌 9.34pt，σ-only px+goal 0.08 崩溃至 20.00，只有 σ+A_t 同时维持 clean 和 robustness；TwoRoom 上 σ 的边际收益更小，但高 noise 下仍可见。
+- 论文叙事核心（**2026-05-14 修订**）：本工作在 LeWM 上提出 C1 (LeWM+noise) 与 C2 (per-token consistency routing；σ+A_t multiplicative gate 作为 chosen instantiation) 两个互补 contribution。**C2 的 method-level 因果钉子在 "per-token routing 本身"**（§3.6.2 `constant_w` PushT −28.67pt = Tier 1）；σ+A_t specific signal 提供 Tier 2 ≈ 7–20pt 的额外贡献。论文**不**主张 σ+A_t formula 是 mathematically principled。C1+C2 联用在 PushT 最优配置（noise0.05）上 px+goal 0.08 85.33 vs C1 同 noise 75.75（+9.58pt）且对 C2 单独有巨大增益（+48.33pt）。跨任务扩展（TwoRoom +2.00pt vs C1 同 noise、Reacher +9.67pt、Cube +8.00pt）验证同 noise 对比下全部 4 个任务的极端 OOD 都严格优于 C1 单独，增益是系统性的。不存在单一 α 同时打满两任务，这正是 per-token `w_t` 的存在理由。
 - **DGC offline finding**（§3.8.2）：`fragile_t` 与 σ+A_t critical 在 4 ckpt 上 Pearson 0.02–0.15，证明 σ+A_t 学到的不是 input-noise fragility；这反向加固"σ+A_t 是 chosen instantiation 之一"的 framing，把"σ+A_t 是 unique principled choice"的 over-claim 在 reviewer 之前 empirically 否定。
 - 后续重点不再是补 TwoRoom σ-only，而是补跨任务泛化与更强因果 ablation；若这些通过，把 §2–§4 与 §3.8 合并进 research_notebook_swm §6 P4。
 - **下一次想加新机制前**: 先回看附录 A，问自己"它会增加几个超参数？经验收益的证据是什么？"。如果两个问题答不清楚，不加。

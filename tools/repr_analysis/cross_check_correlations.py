@@ -41,9 +41,9 @@ CANONICAL_EVALS = "assets/paper1_data/canonical_evals_20260517.json"
 
 CANON = [
     ("LeWM-base",        "{tk}_lewm_20260430",                                                                "LeWM", 0.000),
-    ("LeWM-0to001-p1",   "{tk}_lewm_noise_0to001_p1",                                                          "LeWM", 0.001),
-    ("LeWM-0to002-p1",   "{tk}_lewm_noise_0to002_p1",                                                          "LeWM", 0.002),
-    ("LeWM-0to005-p1",   "{tk}_lewm_noise_0to005_p1",                                                          "LeWM", 0.005),
+    ("LeWM-0to001-p1",   "{tk}_lewm_noise_0to001_p1",                                                          "LeWM", 0.01),
+    ("LeWM-0to002-p1",   "{tk}_lewm_noise_0to002_p1",                                                          "LeWM", 0.02),
+    ("LeWM-0to005-p1",   "{tk}_lewm_noise_0to005_p1",                                                          "LeWM", 0.05),
     ("SWM-base",         "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_dim64",                             "SWM",  0.000),
     ("SWM-0to001-p1",    "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to001_p1_dim64",             "SWM",  0.001),
     ("SWM-0to002-p1",    "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to002_p1_dim64",             "SWM",  0.002),
@@ -70,11 +70,11 @@ LEWM_PER_TASK_OVERRIDES = {
 # extraction (see §4.3 data-source note in research_notebook_swm.md). Update if SWM
 # sweep is added later.
 LEWM_SWEEP_EXTRA = [
-    ("LeWM-0to003-p1", "{tk}_lewm_noise_0to003_p1", "LeWM", 0.003),
-    ("LeWM-0to004-p1", "{tk}_lewm_noise_0to004_p1", "LeWM", 0.004),
-    ("LeWM-0to006-p1", "{tk}_lewm_noise_0to006_p1", "LeWM", 0.006),
-    ("LeWM-0to007-p1", "{tk}_lewm_noise_0to007_p1", "LeWM", 0.007),
-    ("LeWM-0to008-p1", "{tk}_lewm_noise_0to008_p1", "LeWM", 0.008),
+    ("LeWM-0to003-p1", "{tk}_lewm_noise_0to003_p1", "LeWM", 0.03),
+    ("LeWM-0to004-p1", "{tk}_lewm_noise_0to004_p1", "LeWM", 0.04),
+    ("LeWM-0to006-p1", "{tk}_lewm_noise_0to006_p1", "LeWM", 0.06),
+    ("LeWM-0to007-p1", "{tk}_lewm_noise_0to007_p1", "LeWM", 0.07),
+    ("LeWM-0to008-p1", "{tk}_lewm_noise_0to008_p1", "LeWM", 0.08),
 ]
 LEWM_SWEEP_EVALS = {
     "TwoRoom": {"LeWM-0to003-p1": 96.33, "LeWM-0to004-p1": 96.33, "LeWM-0to006-p1": 96.67, "LeWM-0to007-p1": 96.00, "LeWM-0to008-p1": 98.33},
@@ -90,11 +90,11 @@ LEWM_SWEEP_EVALS = {
 # (aggregated section; reacher series uses per-seed raw means since aggregated
 # is empty there).
 SWM_SWEEP_EXTRA = [
-    ("SWM-0to003-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to003_p1_dim64", "SWM", 0.003),
-    ("SWM-0to004-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to004_p1_dim64", "SWM", 0.004),
-    ("SWM-0to006-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to006_p1_dim64", "SWM", 0.006),
-    ("SWM-0to007-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to007_p1_dim64", "SWM", 0.007),
-    ("SWM-0to008-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to008_p1_dim64", "SWM", 0.008),
+    ("SWM-0to003-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to003_p1_dim64", "SWM", 0.03),
+    ("SWM-0to004-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to004_p1_dim64", "SWM", 0.04),
+    ("SWM-0to006-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to006_p1_dim64", "SWM", 0.06),
+    ("SWM-0to007-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to007_p1_dim64", "SWM", 0.07),
+    ("SWM-0to008-p1", "{tk}_swm_mlp_bn_uniform_w02_t2_temporal_masked_2_noise_0to008_p1_dim64", "SWM", 0.08),
 ]
 SWM_SWEEP_EVALS = {
     "TwoRoom": {"SWM-0to003-p1": 89.67, "SWM-0to004-p1": 89.00, "SWM-0to006-p1": 90.00, "SWM-0to007-p1": 91.00, "SWM-0to008-p1": 87.33},

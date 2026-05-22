@@ -61,8 +61,9 @@ SWEEP_VARS=(
     wm_embed_dim wm_inference_rollout_state_space wm_inference_cost_space wm_inference_cost_type
     image_noise_std_min image_noise_std_max image_noise_noise_prob image_noise_apply_to_val
     # eval / 诊断
-    frameskip eval_gpus eval_epoch post_train_eval_mode eval_corruption_stds eval_corruption_apply_to
-    eval_seeds eval_base_seed
+    frameskip eval_gpus eval_epoch post_train_eval_mode eval_corruption_type eval_corruption_stds eval_corruption_apply_to
+    eval_blur_kernel_sizes eval_resize_factors eval_seeds eval_base_seed
+    diagnostic_corruption_type
     noise_table_stds diagnostic_rollout_steps diagnostic_dataset_name
     skip_eval_sweep skip_noise_table skip_diagnostics
     diagnostic_skip_predictor diagnostic_skip_resolution

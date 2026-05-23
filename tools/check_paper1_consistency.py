@@ -25,6 +25,8 @@ RELEASE_FILES = [
     ROOT / "DATA_MANIFEST.md",
     ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json",
     ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json",
+    ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
+    ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.json",
 ]
 
 REQUIRED_ARTIFACTS = [
@@ -38,6 +40,10 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "canonical_evals_pldm_20260522.json",
     ROOT / "assets" / "paper1_data" / "canonical_diagnostics_pldm_20260522.json",
     ROOT / "assets" / "paper1_data" / "cross_method_corr_pldm_20260522.json",
+    ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.json",
+    ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.schema.json",
+    ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
+    ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.schema.json",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -73,6 +79,22 @@ EXPECTED_CONFIGS = {
 }
 REQUIRED_METRICS = {"clean", "pixels_goal_std0.05", "pixels_goal_std0.08"}
 REQUIRED_DIAG_TASKS = EXPECTED_TASKS
+EXPECTED_METHODS = {"LeWM", "PLDM"}
+EXPECTED_BLUR_CONDITIONS = {
+    f"{scope}_blur_ks{kernel}"
+    for scope in ("pixels", "goal", "pixels_goal")
+    for kernel in (3, 7, 11, 15)
+}
+EXPECTED_PLDM_FULL_DIAG_METRICS = {
+    "clean_effective_rank",
+    "clean_nn_cos_dist_median",
+    "transition_resolution_ratio_l2",
+    "transition_resolution_ratio_cos",
+    "id_probe_r2",
+    "action_mean_pred_shift_norm",
+    "predictor_target_to_nn_cos_ratio_at_max_std",
+    "predictor_rollout_T8_l2",
+}
 TOL = 1e-9
 
 
@@ -351,6 +373,102 @@ def check_pldm_diagnostics_json() -> None:
                     fail(f"PLDM diagnostics {task}/{std_key}/{key} is not finite")
 
 
+def check_pldm_full_diagnostics_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    by_task = data.get("diagnostics_by_task")
+    if not isinstance(by_task, dict) or set(by_task) != EXPECTED_TASKS:
+        fail(
+            "PLDM full diagnostics task mismatch: "
+            f"expected {sorted(EXPECTED_TASKS)}, got {sorted(by_task or {})}"
+        )
+
+    for task, configs in by_task.items():
+        if set(configs) != EXPECTED_CONFIGS:
+            fail(
+                f"PLDM full diagnostics {task} config mismatch: "
+                f"expected {sorted(EXPECTED_CONFIGS)}, got {sorted(configs)}"
+            )
+        for std_key, entry in configs.items():
+            for key in ("path", "subdir", "diagnostics_summary"):
+                if key not in entry:
+                    fail(f"PLDM full diagnostics {task}/{std_key} missing key {key!r}")
+            summary = entry["diagnostics_summary"]
+            missing = EXPECTED_PLDM_FULL_DIAG_METRICS - set(summary)
+            if missing:
+                fail(f"PLDM full diagnostics {task}/{std_key} missing metrics: {sorted(missing)}")
+            for metric in EXPECTED_PLDM_FULL_DIAG_METRICS:
+                value = summary[metric]
+                if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                    fail(f"PLDM full diagnostics {task}/{std_key}/{metric} is not finite")
+
+    rep_std = data.get("representative_std_by_task", {})
+    if set(rep_std) != EXPECTED_TASKS:
+        fail("PLDM full diagnostics representative std map is incomplete")
+    reps = data.get("representative_diagnostics", {}).get("values", {})
+    if set(reps) != EXPECTED_TASKS:
+        fail("PLDM full diagnostics representative values are incomplete")
+    for task, entry in reps.items():
+        if rep_std[task] != entry.get("representative_std"):
+            fail(f"PLDM full diagnostics representative std mismatch for {task}")
+        for side in ("base", "representative"):
+            values = entry.get(side)
+            if not isinstance(values, dict):
+                fail(f"PLDM full diagnostics representative {task}/{side} missing")
+            missing = EXPECTED_PLDM_FULL_DIAG_METRICS - set(values)
+            if missing:
+                fail(
+                    f"PLDM full diagnostics representative {task}/{side} missing metrics: "
+                    f"{sorted(missing)}"
+                )
+
+
+def check_blur_baselines_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    baselines = data.get("baselines")
+    if not isinstance(baselines, dict) or set(baselines) != EXPECTED_METHODS:
+        fail(
+            "blur baseline methods mismatch: "
+            f"expected {sorted(EXPECTED_METHODS)}, got {sorted(baselines or {})}"
+        )
+
+    for method, by_task in baselines.items():
+        if set(by_task) != EXPECTED_TASKS:
+            fail(f"blur baseline {method} tasks mismatch: {sorted(by_task)}")
+        for task, entry in by_task.items():
+            for key in ("path", "subdir", "clean", "blur", "worst_pixels_goal_blur"):
+                if key not in entry:
+                    fail(f"blur baseline {method}/{task} missing key {key!r}")
+            check_metric_summary(f"blur/{method}/{task}", "clean", "clean", entry["clean"])
+            blur = entry["blur"]
+            if set(blur) != EXPECTED_BLUR_CONDITIONS:
+                fail(
+                    f"blur baseline {method}/{task} condition mismatch: "
+                    f"expected {sorted(EXPECTED_BLUR_CONDITIONS)}, got {sorted(blur)}"
+                )
+            for condition, summary in blur.items():
+                check_metric_summary(f"blur/{method}/{task}", condition, condition, summary)
+            worst = entry["worst_pixels_goal_blur"]
+            condition = worst.get("condition")
+            if condition not in blur or not condition.startswith("pixels_goal_blur_ks"):
+                fail(f"blur baseline {method}/{task} has invalid worst condition {condition!r}")
+            expected_worst = min(
+                (blur[f"pixels_goal_blur_ks{k}"]["mean"], f"pixels_goal_blur_ks{k}")
+                for k in (3, 7, 11, 15)
+            )[1]
+            if condition != expected_worst:
+                fail(
+                    f"blur baseline {method}/{task} worst mismatch: "
+                    f"got {condition}, want {expected_worst}"
+                )
+            drop = entry["clean"]["mean"] - blur[condition]["mean"]
+            if not approx_equal(drop, entry["clean_to_worst_pixels_goal_blur_drop"]):
+                fail(f"blur baseline {method}/{task} drop mismatch: {drop}")
+
+
 def check_external_baselines_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -507,6 +625,8 @@ def main() -> int:
         ("pldm canonical json", check_pldm_canonical_json),
         ("canonical diagnostics json", check_canonical_diagnostics_json),
         ("pldm diagnostics json", check_pldm_diagnostics_json),
+        ("pldm full diagnostics json", check_pldm_full_diagnostics_json),
+        ("blur baselines json", check_blur_baselines_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),
         ("published correlations", check_published_correlations),

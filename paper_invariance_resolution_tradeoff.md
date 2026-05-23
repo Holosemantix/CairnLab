@@ -448,9 +448,9 @@ Our sweep data suggest a simple operational recipe:
 
 ### 5.5 Limitations and future directions
 
-**Limitation 1 — Two backbone families validated; broader JEPA variants remain open.** The toolkit and the trade-off concept are introduced on LeWM; the PLDM sweep in Appendix F replicates the task-level signatures and the partial-correlation null on PushT, but the full diagnostic apparatus (effective rank trajectory, transition resolution, etc.) is reported only on LeWM in the main text. EMA-target JEPA variants (I-JEPA / V-JEPA lineage) and variational JEPA may exhibit different noise responses; we did not run them.
+**Limitation 1 — Two backbone families validated; broader JEPA variants remain open.** The toolkit and the trade-off concept are introduced on LeWM; the PLDM sweep in Appendix F replicates the task-level signatures and the partial-correlation null on PushT. Appendix F also reports the PLDM full-diagnostic check, which exposes an important mechanism boundary: PLDM recovery checkpoints largely preserve rank, transition-resolution, and inverse-dynamics-probe statistics while reducing multi-step predictor drift. We therefore keep the main compression-chain interpretation LeWM-centred rather than claiming it as a universal mechanism. EMA-target JEPA variants (I-JEPA / V-JEPA lineage) and variational JEPA may exhibit different noise responses; we did not run them.
 
-**Limitation 2 — Gaussian pixel noise only.** Real-world visual corruption includes motion blur, contrast variation, occlusion, and lighting change; whether the trade-off transfers to these regimes is open.
+**Limitation 2 — Gaussian pixel noise is the controlled training axis.** The main sweep uses Gaussian pixel noise because it gives a scalar `std_max` axis for clean/OOD trade-off analysis. Appendix G adds a clean-checkpoint blur stress test and shows that severe blur can also break visual world-model control, especially on TwoRoom; however, the task ordering differs from Gaussian noise, so blur-specific training and recovery remain follow-up work.
 
 **Limitation 3 — Diagnostic framework is empirical, not theoretical.** Our metrics are selected by cross-ckpt correlation. Establishing a formal causal chain "effective rank ↓ → resolution ratio ↓ → control failure" is future work. Reacher and TwoRoom fail the partial-correlation criterion for *all* metrics — directly exposing where the empirical framework breaks down.
 
@@ -458,7 +458,7 @@ Our sweep data suggest a simple operational recipe:
 
 **Future direction 1 — Per-token adaptive consistency.** Our strongest diagnostic, `predictor_target_to_nn_cos_ratio_at_max_std`, is a ckpt-level scalar. Whether its per-token variant can serve as a per-token consistency controller is a separate methodological question (an investigation we have ongoing).
 
-**Future direction 2 — Cross-architecture replication.** Running the sweep and diagnostic protocol on external world-model baselines would reveal whether the trade-off is JEPA-specific or shared by broader latent world-model families.
+**Future direction 2 — Broader cross-architecture replication.** PLDM gives one second-family replication. Frozen/pretrained visual-feature models and EMA-target JEPA variants remain the next useful external checks.
 
 **Future direction 3 — Theoretical grounding.** Reformulating the trade-off in an information-bottleneck / rate-distortion language is an attractive direction; we did not pursue it because the empirical phenomenology may not yet be stable enough for formal modelling.
 
@@ -706,7 +706,7 @@ Swapping cost recovers only +6 pt (36 → 42), far below the clean reference (69
 
 This appendix records the complete PLDM sweep. PLDM follows the joint-embedding predictive line from Sobal et al. [21]; the concrete latent-dynamics planning baseline is from Sobal et al. [22]. Our run uses the implementation distributed through the `stable-worldmodel` baseline suite [23]. The release covers 4 tasks × 9 configurations (clean baseline plus `std_max ∈ {0.01,...,0.08}`), evaluated with the same 3 evaluation seeds (42/43/44) × 100 trajectories protocol as LeWM.
 
-Source of truth: `assets/paper1_data/canonical_evals_pldm_20260522.json`, `assets/paper1_data/canonical_diagnostics_pldm_20260522.json`, and `assets/paper1_data/cross_method_corr_pldm_20260522.json`.
+Source of truth: `assets/paper1_data/canonical_evals_pldm_20260522.json`, `assets/paper1_data/canonical_diagnostics_pldm_20260522.json`, `assets/paper1_data/canonical_full_diagnostics_pldm_20260523.json`, and `assets/paper1_data/cross_method_corr_pldm_20260522.json`.
 
 **Clean-trained PLDM cliff.**
 
@@ -757,6 +757,36 @@ Source of truth: `assets/paper1_data/canonical_evals_pldm_20260522.json`, `asset
 | Cube | 9 | -0.36 | -0.05 | -0.41 | -0.13 |
 
 The PushT null result is the cross-method C4 check: after removing `std_max` and the method offset, the fragility ratio does not isolate OOD-specific robustness. TwoRoom/Reacher/Cube residuals remain task-specific and are reported as scope boundaries, not as a universal OOD oracle.
+
+**PLDM full-diagnostic mechanism check.** The same five diagnostic layers were run on the PLDM sweep and released in `canonical_full_diagnostics_pldm_20260523.json`. The compact base → representative view below shows a different mechanism profile from the LeWM compression chain: PLDM recovery checkpoints largely preserve rank, transition resolution, and inverse-dynamics probe while reducing multi-step predictor drift.
+
+| Task | representative `std_max` | effective rank | transition ratio L2 | ID-probe R² | rollout T8 L2 |
+|---|---:|---:|---:|---:|---:|
+| TwoRoom | 0.05 | 74.78 → 72.80 | 0.8188 → 0.8270 | 0.3233 → 0.3273 | 20.36 → 1.19 |
+| PushT | 0.03 | 130.13 → 131.90 | 0.4710 → 0.4778 | 0.7570 → 0.7479 | 20.25 → 2.82 |
+| Reacher | 0.04 | 117.52 → 114.99 | 0.5053 → 0.5104 | 0.2150 → 0.1960 | 1.45 → 1.23 |
+| Cube | 0.08 | 134.80 → 124.79 | 0.6395 → 0.6401 | 0.5428 → 0.5531 | 18.98 → 0.62 |
+
+This strengthens the paper by separating two claims: the task-level fragility/recovery signature replicates across method families, while the exact diagnostic mechanism is architecture-dependent.
+
+---
+
+## Appendix G — Cross-corruption sanity check: clean-trained blur evaluation
+
+This appendix evaluates the clean-trained LeWM and PLDM baselines under Gaussian blur with kernel sizes 3/7/11/15, applied to pixels, goal images, or both. It is an eval-only stress test, not a blur-training sweep. Source of truth: `assets/paper1_data/canonical_blur_baselines_20260523.json`.
+
+| Method | Task | clean | px+goal blur k=3 | worst px+goal blur | clean → worst drop |
+|---|---|---:|---:|---:|---:|
+| LeWM | TwoRoom | 94.00 ± 3.56 | 39.33 ± 2.05 | 30.33 ± 2.87 (k=11) | −63.67 |
+| LeWM | PushT | 86.33 ± 2.36 | 81.67 ± 4.50 | 58.67 ± 6.65 (k=15) | −27.67 |
+| LeWM | Reacher | 58.67 ± 1.25 | 57.00 ± 6.38 | 20.33 ± 2.49 (k=15) | −38.33 |
+| LeWM | Cube | 66.67 ± 2.62 | 65.00 ± 1.63 | 54.00 ± 2.16 (k=15) | −12.67 |
+| PLDM | TwoRoom | 96.67 ± 1.70 | 38.33 ± 0.47 | 28.33 ± 1.25 (k=11) | −68.33 |
+| PLDM | PushT | 75.33 ± 3.68 | 74.00 ± 2.94 | 62.33 ± 2.05 (k=15) | −13.00 |
+| PLDM | Reacher | 82.67 ± 1.70 | 86.00 ± 2.16 | 68.00 ± 4.08 (k=15) | −14.67 |
+| PLDM | Cube | 52.67 ± 3.30 | 53.00 ± 5.35 | 50.67 ± 3.68 (k=11) | −2.00 |
+
+Severe blur can also break clean-trained visual world-model control, especially on TwoRoom for both methods and on LeWM Reacher. This weakens a Gaussian-only objection. However, blur is not the same failure mode as Gaussian pixel noise: PushT is catastrophic under Gaussian px+goal 0.08 but much less damaged by blur, especially on PLDM. We therefore keep Gaussian noise as the controlled training axis and leave blur-specific training/recovery to future work.
 
 ---
 

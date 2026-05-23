@@ -463,9 +463,9 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 ### 5.5 局限与未来方向
 
-**局限 1：两个 backbone family 已验证；更广 JEPA 变体待补。** Toolkit 与 trade-off 概念在 LeWM 上建立；附录 F 的 PLDM sweep 复现了 task-level 信号与 PushT 上的 partial-correlation null，但完整诊断（effective rank trajectory、transition resolution 等）目前仅在 LeWM 上给出。EMA-target JEPA（I-JEPA / V-JEPA 流派）与 variational JEPA 仍可能有不同的噪声响应，我们没有跑这些变体。
+**局限 1：两个 backbone family 已验证；更广 JEPA 变体待补。** Toolkit 与 trade-off 概念在 LeWM 上建立；附录 F 的 PLDM sweep 复现了 task-level 信号与 PushT 上的 partial-correlation null。附录 F 也报告了 PLDM full-diagnostic check，并暴露一个重要机制边界：PLDM 的 recovery ckpt 大体保留 rank、transition-resolution、inverse-dynamics probe，但显著降低 multi-step predictor drift。因此本文把主机制链条保持为 LeWM-centered，不把它夸大为 universal mechanism。EMA-target JEPA（I-JEPA / V-JEPA 流派）与 variational JEPA 仍可能有不同的噪声响应，我们没有跑这些变体。
 
-**局限 2：仅测试了高斯像素噪声。** 真实世界 visual corruption 还包括运动模糊、对比度变化、遮挡、光照变化等；本文的 trade-off 在这些场景的迁移性是 open question。
+**局限 2：高斯像素噪声是本文的受控训练轴。** 主 sweep 使用 Gaussian pixel noise，是因为它提供了单一 `std_max` 标量轴，便于 clean/OOD trade-off 分析。附录 G 额外给出 clean ckpt 的 blur stress test，说明 severe blur 同样会破坏 visual world-model control，尤其是 TwoRoom；但 blur 下的任务排序和 Gaussian noise 不同，因此 blur-specific training / recovery 留作后续工作。
 
 **局限 3：诊断框架是经验工具，不是理论模型。** 当前指标基于跨 ckpt 相关性挑出；建立 "effective rank 下降 → resolution ratio 崩溃 → control failure" 的形式化因果链是未来方向。Reacher 和 TwoRoom 在我们的偏相关判据下没有任何指标通过——这正暴露了 empirical 框架的边界。
 
@@ -473,7 +473,7 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 **未来方向 1：per-token 自适应一致性。** §4.5 / §4.6 识别的最强信号 `predictor_target_to_nn_cos_ratio` 是 ckpt-level scalar；它的 per-token 化能否作为 per-token consistency 的 controller signal，是一个独立的方法学问题（**作为本工作的方法学延伸正在研究中**，结果待后续工作）。
 
-**未来方向 2：跨架构验证。** 在外部 world-model baselines 上重复本文的 sweep 与诊断协议，将揭示这一 trade-off 是 JEPA 特有的，还是更广义 latent world-model family 的共同属性。
+**未来方向 2：更广跨架构验证。** PLDM 已提供一个 second-family replication。下一步更有价值的是 frozen/pretrained visual-feature models 与 EMA-target JEPA variants。
 
 **未来方向 3：理论侧。** Information bottleneck / rate-distortion 视角下重新形式化该 trade-off 是值得尝试的；本文未走这条路因为我们尚未确认 empirical phenomenology 已经稳定到值得建立形式化模型的程度。
 
@@ -722,7 +722,7 @@ Hetero loss 在两个任务上都压缩表征。TwoRoom 低维、离散、视觉
 
 本附录记录完整 PLDM sweep。PLDM 沿用 Sobal et al. [21] 的 joint-embedding predictive 路线；具体 latent-dynamics planning baseline 来自 Sobal et al. [22]。本文实验使用 `stable-worldmodel` baseline suite [23] 中分发的实现。该 release 覆盖 4 任务 × 9 配置（clean baseline + `std_max ∈ {0.01,...,0.08}`），并使用与 LeWM canonical tables 相同的 3 evaluation seeds（42/43/44）× 每 seed 100 trajectories 协议。
 
-Source of truth: `assets/paper1_data/canonical_evals_pldm_20260522.json`, `assets/paper1_data/canonical_diagnostics_pldm_20260522.json`, `assets/paper1_data/cross_method_corr_pldm_20260522.json`。
+Source of truth: `assets/paper1_data/canonical_evals_pldm_20260522.json`, `assets/paper1_data/canonical_diagnostics_pldm_20260522.json`, `assets/paper1_data/canonical_full_diagnostics_pldm_20260523.json`, `assets/paper1_data/cross_method_corr_pldm_20260522.json`。
 
 **Clean-trained PLDM cliff.**
 
@@ -773,6 +773,36 @@ Source of truth: `assets/paper1_data/canonical_evals_pldm_20260522.json`, `asset
 | Cube | 9 | -0.36 | -0.05 | -0.41 | -0.13 |
 
 PushT null 是跨方法 C4 检查：移除 `std_max` 与 method offset 后，fragility ratio 不能隔离 OOD-specific robustness。TwoRoom/Reacher/Cube 的 residual correlation 保留为 scope boundary，不解释成 universal OOD oracle。
+
+**PLDM full-diagnostic mechanism check.** 我们也在 PLDM sweep 上跑了相同的五层诊断，并把 per-checkpoint summary release 到 `canonical_full_diagnostics_pldm_20260523.json`。下表给出 clean baseline → representative noise-trained ckpt 的紧凑视图。它显示 PLDM 与 LeWM 的 compression chain 不完全同构：PLDM recovery ckpt 大体保留 rank、transition resolution、inverse-dynamics probe，最一致的变化是 multi-step predictor drift 明显下降。
+
+| Task | representative `std_max` | effective rank | transition ratio L2 | ID-probe R² | rollout T8 L2 |
+|---|---:|---:|---:|---:|---:|
+| TwoRoom | 0.05 | 74.78 → 72.80 | 0.8188 → 0.8270 | 0.3233 → 0.3273 | 20.36 → 1.19 |
+| PushT | 0.03 | 130.13 → 131.90 | 0.4710 → 0.4778 | 0.7570 → 0.7479 | 20.25 → 2.82 |
+| Reacher | 0.04 | 117.52 → 114.99 | 0.5053 → 0.5104 | 0.2150 → 0.1960 | 1.45 → 1.23 |
+| Cube | 0.08 | 134.80 → 124.79 | 0.6395 → 0.6401 | 0.5428 → 0.5531 | 18.98 → 0.62 |
+
+因此 PLDM 加强的是两个层次的区分：task-level fragility/recovery signature 可以跨 method family 复现，但具体 diagnostic mechanism 是 architecture-dependent。
+
+---
+
+## 附录 G — Cross-corruption sanity check：clean-trained blur evaluation
+
+本附录评测 clean-trained LeWM / PLDM baseline 在 Gaussian blur 下的表现；kernel size 为 3/7/11/15，分别作用于 pixels、goal image 或 pixels+goal。它是 eval-only stress test，不是 blur-training sweep。Source of truth: `assets/paper1_data/canonical_blur_baselines_20260523.json`。
+
+| Method | Task | clean | px+goal blur k=3 | worst px+goal blur | clean → worst drop |
+|---|---|---:|---:|---:|---:|
+| LeWM | TwoRoom | 94.00 ± 3.56 | 39.33 ± 2.05 | 30.33 ± 2.87 (k=11) | −63.67 |
+| LeWM | PushT | 86.33 ± 2.36 | 81.67 ± 4.50 | 58.67 ± 6.65 (k=15) | −27.67 |
+| LeWM | Reacher | 58.67 ± 1.25 | 57.00 ± 6.38 | 20.33 ± 2.49 (k=15) | −38.33 |
+| LeWM | Cube | 66.67 ± 2.62 | 65.00 ± 1.63 | 54.00 ± 2.16 (k=15) | −12.67 |
+| PLDM | TwoRoom | 96.67 ± 1.70 | 38.33 ± 0.47 | 28.33 ± 1.25 (k=11) | −68.33 |
+| PLDM | PushT | 75.33 ± 3.68 | 74.00 ± 2.94 | 62.33 ± 2.05 (k=15) | −13.00 |
+| PLDM | Reacher | 82.67 ± 1.70 | 86.00 ± 2.16 | 68.00 ± 4.08 (k=15) | −14.67 |
+| PLDM | Cube | 52.67 ± 3.30 | 53.00 ± 5.35 | 50.67 ± 3.68 (k=11) | −2.00 |
+
+Severe blur 同样能破坏 clean-trained visual world-model control：TwoRoom 在两个方法上都明显崩，LeWM Reacher 也有 38.33pt drop。这削弱了 "Gaussian-only artifact" 的质疑。但 blur 不是 Gaussian pixel noise 的同一个 failure mode：PushT 在 Gaussian px+goal 0.08 下接近崩溃，而在 blur 下损伤明显小，尤其是 PLDM。因此主文仍以 Gaussian noise 作为受控训练轴，blur-specific training/recovery 留作后续工作。
 
 ---
 

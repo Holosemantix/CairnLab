@@ -10,7 +10,11 @@ This manifest documents the released evaluation aggregate for Paper 1:
 - External baseline schema: `assets/paper1_data/canonical_external_baselines_20260520.schema.json`
 - **PLDM cross-method replication aggregate**: `assets/paper1_data/canonical_evals_pldm_20260522.json` (36 ckpts: 4 tasks × 9 configs)
 - **PLDM cross-method replication diagnostics**: `assets/paper1_data/canonical_diagnostics_pldm_20260522.json`
+- **PLDM full diagnostics**: `assets/paper1_data/canonical_full_diagnostics_pldm_20260523.json` (full diagnostics-summary rows for the same 36 PLDM ckpts)
+- **PLDM full diagnostics schema**: `assets/paper1_data/canonical_full_diagnostics_pldm_20260523.schema.json`
 - **Cross-method correlations**: `assets/paper1_data/cross_method_corr_pldm_20260522.json` (within-LeWM / within-PLDM / joint partial Spearman; consumed by Appendix F)
+- **Clean-baseline blur sanity check**: `assets/paper1_data/canonical_blur_baselines_20260523.json` (LeWM + PLDM clean-trained baselines, 4 tasks, blur eval only)
+- **Clean-baseline blur schema**: `assets/paper1_data/canonical_blur_baselines_20260523.schema.json`
 - Scope: 36 LeWM checkpoints = 4 tasks × 9 configs (`base` + `std_max` 0.01..0.08); 36 PLDM checkpoints on the same grid
 - Evaluation protocol: **3 evaluation seeds** (`42`, `43`, `44`) × **100 trajectories per seed**
 - Important clarification: these are **evaluation seeds**, not 3 independently trained models per configuration
@@ -106,6 +110,8 @@ where `<cond>` is one of:
   - published Table 4 / Table 4b / Table 5 correlation numbers
 - The historical external baseline release stores one PushT clean-trained PLDM run (`pusht_pldm_baseline`) for backward compatibility. The primary PLDM release is now the full 36-checkpoint aggregate in `canonical_evals_pldm_20260522.json`.
 - The PLDM aggregate uses the same condition names, success-rate units, 3 evaluation seeds, and population-std convention as the LeWM aggregate. It is used only for Appendix F cross-method replication, not for the main LeWM-only Tables 1--5.
+- `canonical_full_diagnostics_pldm_20260523.json` stores the full `diagnostics_summary.json` row for every PLDM checkpoint and a compact base-vs-representative table used by Appendix F. It is interpreted as a mechanism-boundary check: PLDM replicates the task-level fragility/recovery signature but does not reuse LeWM's exact compression-chain profile.
+- `canonical_blur_baselines_20260523.json` stores clean-trained LeWM/PLDM blur evals for kernel sizes 3/7/11/15 on `pixels`, `goal`, and `pixels_goal`. This is an eval-only cross-corruption sanity check for Appendix G; it is not a blur-training sweep and is not mixed into the Gaussian-noise canonical tables.
 - `tools/check_paper1_consistency.py` verifies:
   - the JSON exists
   - the released structure is 4 tasks × 9 configs
@@ -113,3 +119,5 @@ where `<cond>` is one of:
   - the stored `mean`/`std` agree with the 3 released seed values
   - the historical external PLDM sanity-check aggregate is clean-trained and recomputes its reported means/stds/drop
   - the full PLDM aggregate is 4 tasks × 9 configs, contains required eval metrics, and recomputes means/stds from the three released seed values
+  - the PLDM full-diagnostics aggregate is 4 tasks × 9 configs and contains the required five-layer diagnostic fields
+  - the blur sanity-check aggregate covers 2 methods × 4 tasks × 12 blur conditions and recomputes means/stds/worst-blur drops from the three seed values

@@ -2,7 +2,7 @@
 
 > 配套 `paper_invariance_resolution_tradeoff.md` / `paper_invariance_resolution_tradeoff_zh.md` / `paper1/main.tex`。
 > 本文档汇总：故事强度评估、查重/新颖性结论、reviewer 视角写作整改清单、PLDM 数据补齐后的状态与下一步实验。
-> 最后更新：2026-05-22 — PLDM 36-ckpt sweep（4 tasks × 9 configs）已整合进 Appendix F；clean 模型 blur eval 正在运行中。
+> 最后更新：2026-05-23 — PLDM full diagnostics 与 clean 模型 blur eval 已整合；blur training 暂不作为 arXiv v0 blocker。
 
 ---
 
@@ -20,7 +20,7 @@
 | # | 薄弱点 | 当前 mitigation | 行动建议 |
 |---|---|---|---|
 | W1 | trade-off 只在 LeWM 上验证 | Appendix F 已补完整 PLDM 36-ckpt sweep；Limitation 1 改为 broader JEPA variants remain open | 当前已缓解；不要再把结论写成 PLDM 全指标机制归因 |
-| W2 | 仅 Gaussian pixel noise | §5.5 Limitation 2 已写明 | clean 模型 blur eval 正在跑，完成后作为 appendix sanity check |
+| W2 | 仅 Gaussian pixel noise | Appendix G 已补 clean-trained LeWM/PLDM blur eval，说明 severe blur 也会破坏控制但 failure ordering 不同 | 当前已缓解；不要把 blur eval 写成 blur-training recovery 证据 |
 | W3 | Reacher / TwoRoom partial-corr 失效 | §5.3 Scope 2 已明确划界 | 当前 framing OK；可再补充"这是 scope 而非 bug" |
 | W4 | 无形式化理论（IB / rate–distortion） | §5.5 Limitation 3 已写明 | 不致命；可在 §2.4 加一个 IB-style 段落预埋未来工作 |
 | W5 | 四任务体量偏小 | 已经为代表性 | 取决于场地（ICLR/NeurIPS OK；CoRL/RSS 可能想加一两个 manipulation） |
@@ -86,7 +86,8 @@ JEPA 世界模型 + CEM 控制 + pixel noise sweep + 5 层诊断 + partial-corre
 ✅ Step A — 数据聚合
 - `assets/paper1_data/canonical_evals_pldm_20260522.json` — 36 ckpts（4 tasks × 9 configs）
 - `assets/paper1_data/canonical_diagnostics_pldm_20260522.json` — 同 grid，两项 full-coverage predictor metrics
-- 聚合脚本：`tools/build_canonical_evals_pldm.py` + `tools/build_canonical_diagnostics_pldm.py`
+- `assets/paper1_data/canonical_full_diagnostics_pldm_20260523.json` — 同 grid，完整 five-layer diagnostics summary + base-vs-representative table
+- 聚合脚本：`tools/build_canonical_evals_pldm.py` + `tools/build_canonical_diagnostics_pldm.py` + `tools/build_canonical_full_diagnostics_pldm.py`
 
 ✅ Step B — 跨方法相关性分析
 - `assets/paper1_data/cross_method_corr_pldm_20260522.json` — within-LeWM / within-PLDM / joint (LeWM+PLDM) partial Spearman
@@ -98,6 +99,7 @@ JEPA 世界模型 + CEM 控制 + pixel noise sweep + 5 层诊断 + partial-corre
 - §4.2 OOD cliff 段：加 PLDM PushT / TwoRoom cliff，同时明确 Reacher/Cube clean-trained PLDM gap 较小
 - §5.5 Limitation 1：从"Single backbone family"软化为"Two backbone families validated; broader JEPA variants remain open"
 - Appendix F：完整 4-task PLDM sweep，含 clean baseline table、clean/px+goal 0.08 sweep table、PLDM all-task partial-corr table
+- Appendix F 追加 PLDM full-diagnostic mechanism check：PLDM 复现 task-level fragility/recovery，但不是 LeWM compression chain 的同构机制；主要共同变化是 rollout drift 降低
 - Abstract/C4：只说 PushT null 跨方法复现；TwoRoom/Reacher/Cube residual correlations 作为 scope boundary 公开报告
 - 摘要 + Contributions 措辞保持保守：什么 replicate 了 / 什么是 method-specific 都明示
 
@@ -107,11 +109,33 @@ JEPA 世界模型 + CEM 控制 + pixel noise sweep + 5 层诊断 + partial-corre
 - Reacher 是 low-cliff external baseline：clean-trained PLDM 已有 79.33 px+goal 0.08，不应写成 universal noise-training gain。
 - C4 strengthened only on PushT：PLDM PushT OOD-drop partial 为 -0.14，joint LeWM+PLDM PushT 为 +0.11。TwoRoom/Reacher/Cube 的 residual correlations 保留为 scope boundary。
 
-### 4.2 仍然是限制项
+### 4.2 PLDM mechanism 读法
+
+- PLDM full diagnostics 值得纳入，但不能写成"PLDM 证明同一 compression mechanism 普适"。
+- PLDM representative recovery ckpt 大体保留 rank / transition ratio / ID probe；最一致变化是 `predictor_rollout_T8_l2` 明显下降。
+- 正确 stance：task-level failure/recovery pattern 跨 method family 复现；内部 diagnostic route 是 method-specific。
+- 这比强行套 LeWM 机制更有说服力，因为 reviewer 更难攻击 overclaim。
+
+### 4.3 Blur eval 状态与训练建议
+
+✅ Clean-trained blur eval 已整合：
+- `assets/paper1_data/canonical_blur_baselines_20260523.json`
+- `tools/build_canonical_blur_baselines.py`
+- Appendix G：LeWM + PLDM clean baselines，4 tasks，kernel sizes 3/7/11/15，pixels/goal/pixels+goal
+
+当前结论：
+- Severe blur 也能破坏 clean-trained visual world-model control：TwoRoom 对 LeWM/PLDM 都严重下降；LeWM Reacher 也明显下降。
+- Blur 与 Gaussian pixel noise 不是同一 failure ordering：PushT 在 Gaussian px+goal 0.08 下崩得更厉害，但 blur 下损伤温和很多，尤其 PLDM。
+- 因此 blur eval 足够缓解 "Gaussian-only artifact" 质疑，但不支撑"Gaussian noise training optimum 可迁移到 blur"。
+
+建议：
+- arXiv v0 不需要启动 blur training。理由是它会打开一个新轴：blur augmentation 是否 recover、Gaussian-noise training 是否 transfer 到 blur、不同 kernel size 的 clean/OOD trade-off 是否一致。
+- 如果目标是 v1 / 第二阶段 robustification，可以再做最小 blur-training sweep，而不是现在阻塞 Paper 1。
+
+### 4.4 仍然是限制项
 
 - broader JEPA variants（I-JEPA / V-JEPA lineage; variational JEPA）仍未跑。
-- Gaussian pixel noise 是主实验 corruption；clean 模型 blur eval 已在跑，完成后可以作为 Appendix G / sanity check。
-- PLDM 目前只承担 cross-method eval/sweep replication；完整 five-layer mechanism 主体仍以 LeWM 为 source of truth。
+- Gaussian pixel noise 是主实验 training corruption；blur 目前只作为 clean-checkpoint eval-only sanity check。
 
 ---
 
@@ -119,8 +143,8 @@ JEPA 世界模型 + CEM 控制 + pixel noise sweep + 5 层诊断 + partial-corre
 
 | 状态 | 目标场地 |
 |---|---|
-| **当前**（LeWM + PLDM 36-ckpt 完整 sweep） | ICLR / NeurIPS 正会叙事最低门槛达成；仍需控制措辞，避免把 PLDM 解释成完整机制归因 |
-| **再补一个 blur / contrast 单档** | 对 Gaussian-only reviewer 攻击有直接缓解 |
+| **当前**（LeWM + PLDM 36-ckpt 完整 sweep + PLDM full diagnostics + clean blur eval） | ICLR / NeurIPS 正会叙事最低门槛达成；关键是保持"task-level replication / method-specific mechanism"的精确措辞 |
+| **再补 blur training** | v1 可选，不应阻塞 arXiv v0；只有在想回答 blur-specific recovery 时才值得做 |
 | **后续 DINO-WM / V-JEPA lineage** | 第二篇或 v1 扩展，不应阻塞 arXiv v0 |
 
 ---
@@ -143,5 +167,5 @@ JEPA 世界模型 + CEM 控制 + pixel noise sweep + 5 层诊断 + partial-corre
 
 - LaTeX 编译目标：0 Overfull（当前满足），0 errors（当前满足），少量 Underfull 是 `\emergencystretch` 的预期 trade-off
 - TeX Live 路径：`/home/ag/texlive/2026/bin/x86_64-linux`（已写入 `~/.zshrc` 和 `~/.bashrc`）
-- 数据 source-of-truth：LeWM 使用 `assets/paper1_data/canonical_evals_20260517.json` + `assets/paper1_data/canonical_diagnostics_20260517.json`；PLDM 使用 `assets/paper1_data/canonical_evals_pldm_20260522.json` + `assets/paper1_data/canonical_diagnostics_pldm_20260522.json` + `assets/paper1_data/cross_method_corr_pldm_20260522.json`
+- 数据 source-of-truth：LeWM 使用 `assets/paper1_data/canonical_evals_20260517.json` + `assets/paper1_data/canonical_diagnostics_20260517.json`；PLDM 使用 `assets/paper1_data/canonical_evals_pldm_20260522.json` + `assets/paper1_data/canonical_diagnostics_pldm_20260522.json` + `assets/paper1_data/canonical_full_diagnostics_pldm_20260523.json` + `assets/paper1_data/cross_method_corr_pldm_20260522.json`；blur eval 使用 `assets/paper1_data/canonical_blur_baselines_20260523.json`
 - 一致性检查：`python tools/check_paper1_consistency.py`

@@ -1,179 +1,95 @@
-# Paper 1 — 故事线 + 计划
+# Paper 1 — 故事线与提交计划
 
-> Source of truth: `paper1/main.tex`. 数据 source-of-truth 见 §7.
-> Last updated: 2026-05-23（submit-readiness review 后）。
+> Source of truth: `paper1/main.tex`. 数值、表格、图和 artifact 以论文正文与 `assets/paper1_data/` 为准。
+> Last updated: 2026-05-23。
 
 ---
 
-## 1. 一句话定位
+## 1. 一句话故事
 
-LeWM 这类 JEPA + CEM 世界模型在 clean 视觉输入上能规划，但未经噪声训练时会在 control-time pixel/goal noise 下严重崩溃。全局 input-side noise augmentation 可大幅恢复 OOD 成功率，但没有全局最优剂量——它同时带来有益 invariance 和有害 task-resolution compression。本文用 4 task × 2 method × 36+36 ckpt × 3 eval seed × 100 traj 的统一协议，加上五层表征诊断，把这个现象命名为 **invariance–resolution trade-off**。
+JEPA world model 的 latent prediction 常被理解为会自然学到更抽象、更 invariant 的表征；但在 control 里，invariance 不是免费午餐。我们发现 LeWM/PLDM 这类 latent predictive world model 在 clean input 上能规划，却会在 control-time visual corruption 下显著崩溃；input-side noise training 能恢复鲁棒性，但会按任务不同程度压缩 task-relevant resolution。Paper 1 的核心是把这个现象系统化地命名、量化、诊断，并划清“诊断指标能预测什么、不能预测什么”的边界。
 
-**这不是新算法 paper，是诊断 + empirical paper。** Contribution 是 (i) systematic study of JEPA+CEM visual OOD failure, (ii) 可复现 diagnostic toolkit, (iii) cross-checkpoint 诊断可预测什么、不可预测什么的明确范围。
+这不是新算法 paper，而是 empirical + diagnostic paper。
 
-## 2. 故事线（5 step + 4 contribution）
+## 2. 读者应该记住的逻辑链
 
-### Storyline
+1. **动机：latent prediction 不等于 visual robustness。**
+   JEPA 避免 pixel reconstruction，不代表 controller 面对 pixel/goal corruption 时自动鲁棒。这个假设需要在 closed-loop control 里被实证检验。
 
-- **Step 1（§4.2）— cliff 真实存在.** LeWM-base PushT clean 86.33 → px+goal 0.08 4.67 (−81.67pt)；TwoRoom 94 → 50；Reacher 58.67 → 15；Cube 66.67 → 46.33.
-- **Step 2（§4.3）— noise training 能恢复，但 optimum task-dependent.** TwoRoom 在 0.08 plateau；PushT clean 0.03 vs OOD 0.06 解耦；Reacher 0.02–0.06 plateau；Cube 0.07. **不存在 universal σ\***.
-- **Step 3（§4.4）— 5 层诊断解释 task-specific response.** TwoRoom rank compression 有益（47.6→33.6）；PushT base 本来就 high-rank high-controllability（rank 76.42, ID-probe R²=0.77），噪声训练 rank 砍 44% 也连带砍 transition resolution & controllability，因此不能再无脑压。
-- **Step 4（§4.5）— partial Spearman 划清"能预测什么".** fragility ratio 是 checkpoint-quality 信号（partial ρ = −0.59 on clean, −0.41 on px+goal 0.08）；但不是 OOD oracle（partial ρ = +0.06 on clean-to-OOD drop）. PLDM PushT 复现同样的 null（−0.14 partial），joint n=18 也是 +0.11 partial.
-- **Step 5（§4.6 + §F + §G）— mechanism 主张窄但稳.** pixels → encoder → predictor → CEM 失败. PLDM 复现 task-level recovery signature，但 internal route 不同（rollout drift dominated, rank/resolution 几乎不动）. Blur 也能破坏控制（TwoRoom 最敏感, −64/−68 pt vs Gaussian noise 的 −44/−45）, task ordering 与 Gaussian noise 不同。
+2. **现象：clean performance 和 visual OOD performance 可以严重脱钩。**
+   Clean 上能规划的模型，在 pixel/goal noise 或 blur 下可能突然失效；这说明仅报告 clean success 会高估 world model controller 的可部署性。
 
-### Contributions
+3. **干预：noise training 有用，但不存在 universal noise dose。**
+   视觉冗余强的任务更容易从 heavy noise training 受益；接触/精细控制任务则更容易受到 representation compression 的副作用影响。关键不是“加噪声一定好”，而是“noise dose 在 invariance 和 resolution 之间重新分配容量”。
 
-- **C1** — Systematic OOD fragility 量化：n = 72 ckpts under unified 3-seed × 100 protocol.
-- **C2** — invariance–resolution trade-off 概念 + 5 层诊断协议（17 metrics, partial-correlation validation）.
-- **C3** — Mechanism 解释：LeWM compression chain；PLDM via predictor-drift reduction 不同路由（mechanism 是 method-specific，不是 universal）.
-- **C4** — Cross-checkpoint diagnostic 范围：model-selection tool, **不是** OOD oracle. PushT partial-ρ null 在 LeWM / PLDM / joint 三处复现。
+4. **机制：LeWM 的主要路径是 compression chain。**
+   在 LeWM 上，noise training 的收益/代价可以通过五层诊断读出来：encoder shift、geometry compression、predictor response、latent-noise response、task resolution。主线机制是表征压缩影响 transition-key resolution，再影响 controllability。
 
-## 3. 当前状态（2026-05-23）
+5. **边界：PLDM 复现 task-level signature，但 mechanism route 不同。**
+   PLDM 支持“visual OOD fragility + noise recovery 不是 LeWM 单点偶然”，但它的内部变化更偏 predictor-drift route，而不是完全复刻 LeWM 的 compression chain。因此 paper 的强结论是跨方法的现象，机制结论则保持 architecture-aware。
 
-### 数据完整性 ✅
+6. **诊断指标的正确用法：model-selection signal，不是 OOD oracle。**
+   Cross-checkpoint diagnostic 能帮助判断 checkpoint quality，但不能替代真实 OOD evaluation。特别是 partial correlation after conditioning on `std_max` 后，fragility ratio 对 clean/OOD performance 有 checkpoint-quality 信息，却不能稳定解释 clean-to-OOD gap。
 
-| Asset | LeWM | PLDM |
-|---|---|---|
-| Eval sweep canonical JSON | 36 ckpt (4×9) | 36 ckpt (4×9) |
-| Predictor diagnostic summary | 36 ckpt | 36 ckpt |
-| Full 5-layer diagnostics | ✓ | ✓ |
-| Cross-method partial-corr | joint n=18 PushT released | same |
-| Blur stress test | clean-trained 4 task × 4 kernel | clean-trained 4 task × 4 kernel |
+## 3. 贡献写法
 
-### Paper 状态 ✅
+- **C1：系统化暴露问题。** 统一协议下比较多任务、多 noise level、多模型家族，展示 latent predictive control 的 visual OOD cliff。
+- **C2：提出 invariance--resolution trade-off 作为解释框架。** Noise augmentation 同时带来有益 invariance 和潜在 resolution loss，任务结构决定二者平衡。
+- **C3：给出五层诊断 toolkit。** 不是只看 success rate，而是把 failure 拆到 encoder、geometry、predictor、latent perturbation、task resolution。
+- **C4：明确诊断边界。** Diagnostic 可以作为 checkpoint-quality probe，但不能被夸大成 OOD robustness predictor。
 
-- LaTeX: 31 页, 0 Overfull, 0 errors.
-- `tools/check_paper1_consistency.py`: 全绿.
-- TinyTeX / TeX Live 2026 at `~/.TinyTeX/bin/x86_64-linux`; `paper1/build.sh` 会在系统 `latexmk`/`pdflatex` 不在 `PATH` 时自动加入该路径.
+## 4. 文章立场
 
-### 写作完成度（commit `fd7242d` 后）
+应该坚持的强说法：
 
-- Abstract / §1.3 / §6 mechanism chain 加 "on LeWM" 限定 + PLDM 不同路由声明 ✅
-- §5.5 Lim 2 blur task-ordering 数字化反 Gaussian-only 质疑 ✅
-- §F Table 16 TwoRoom +0.87 / Reacher −0.86 saturation 解释 ✅
-- §5.5 Lim 4 → "Additional ablation" (hetero-loss 是 ablation 不是 limitation) ✅
-- §3.3 ε 定义 / §4.6.1 cost-swap n=300 注 / §F 77→76.67 精确化 ✅
-- §4.4 Notes 过时项删除；§5.5 Lim 3 扩成 3 句；§1.1 "blog posts" 描述修正 ✅
-- 命名空间统一：`gaussian_noise` / `gaussian_blur`（代码 + 配置 + paper 三处对齐）✅
+- Latent prediction alone does not guarantee visual robustness for control.
+- Visual OOD failure is a real closed-loop control issue, not just representation-space curiosity.
+- Noise training creates a task-dependent invariance--resolution trade-off.
+- LeWM 的 mechanism evidence 支持 compression-chain reading。
+- PLDM 支持现象跨方法，但机制路径不完全相同。
 
-## 4. Reviewer 视角薄弱点与 mitigation
+需要避免的过强说法：
 
-| # | 薄弱点 | 已 mitigation | 提交前是否再加固 |
-|---|---|---|---|
-| W1 | trade-off 是否跨方法 | App F PLDM 完整 sweep + §5.5 Lim 1 LeWM-centred 措辞 | 已缓解 |
-| W2 | 仅 Gaussian noise 训练轴 | App G clean-trained blur eval + §5.5 Lim 2 数字化 | 已缓解 |
-| W3 | Reacher/TwoRoom partial-corr 失效 | §5.3 Scope 2 + §5.5 Lim 3 三句扩展 | 已缓解 |
-| W4 | n=9 partial-corr 统计稳健性 | n=18 joint + bootstrap 95% CI 已加；headline null 的 CI 均含 0 | 已缓解 |
-| W5 | 无形式化理论（IB/rate-distortion） | §5.5 future direction 3 已声明 | 不致命 |
-| W6 | 无 method 贡献 | Framing 明示 "empirical + toolkit + delineation" + hetero-loss negative ablation | 不致命 |
-| W7 | 部分 2026 arXiv ID 未人工核对 | — | **核对 9 条**（见 §5.A.1） |
+- 不要说所有 JEPA 都会同样崩溃。
+- 不要说某个 diagnostic universally predicts robustness。
+- 不要说 cost surface 已被排除为所有任务的主因。
+- 不要把 blur eval-only 写成 blur training conclusion。
+- 不要把 PLDM mechanism 写成 LeWM mechanism 的简单复制。
 
-## 5. 待办与优先级
+## 5. 当前 submit-readiness
 
-### 5.A 提交前必做
+当前版本已经具备 arXiv / submission draft 的主体条件：
 
-**5.A.1 arXiv 引用核对**（~1 hr 手工 — 待办）
+- 主文 story 已闭环：failure → recovery → trade-off → mechanism → boundary。
+- LeWM 是主 microscope，PLDM 是 second-family replication。
+- Blur 是 cross-corruption sanity check，不阻塞主线。
+- 95% bootstrap CI 已加入，用来约束 partial-correlation 结论强度。
+- `tools/check_paper1_consistency.py` 已覆盖核心 artifact 和关键数值一致性。
+- `paper1/main.pdf` 可 clean build。
 
-下面 9 条逐条 open URL，对照 (a) 作者+标题 (b) 我引用的 claim 是否在原文 abstract 能查到。任何对不上 → 找替代引用或删该 claim。
+仍需要人工完成的一项：
 
-```
-[3]  V-JEPA 2          https://arxiv.org/abs/2506.09985
-[11] seq-JEPA          https://arxiv.org/abs/2505.03176
-[15] VJEPA (Huang)     https://arxiv.org/abs/2601.14354    ← 最高风险（"R² > 0.84 under Noisy-TV"）
-[22] LeWM              https://arxiv.org/abs/2603.19312
-[23] ViGMO             OpenReview ICLR 2026 submission
-[24] N-JEPA            https://arxiv.org/abs/2507.15216
-[25] US-JEPA           https://arxiv.org/abs/2602.19322
-[31] Next-Latent       https://arxiv.org/abs/2511.05963
-[32] Bisim-JEPA        https://arxiv.org/abs/2602.18639
-```
+- **References source audit。** 逐条核对 2025/2026 arXiv、OpenReview、LeWM/PLDM 相关引用的作者、标题、年份、claim 是否与正文描述一致。若某条引用无法确认，就删弱相关 claim 或换更稳来源。
 
-如果 [15] 不存在，§2.2 "VJEPA tests Noisy-TV..." 和 §5.1 "stands in contrast to VJEPA..." 都要重写。
+## 6. 合作者讨论时的核心问题
 
-**5.A.2 Bootstrap 95% CI on partial correlations** — **DONE** ✅
+- 题目是否应该更强调 “latent prediction is not visual robustness”，还是更强调 “invariance--resolution trade-off”？
+- PLDM 放在主文还是 appendix 的分量是否合适？
+- Blur eval-only 是否足够作为 sanity check，还是需要后续 blur training v1？
+- 五层诊断公式是否已足够清楚，还是需要把更多 metric definition 移到主文？
+- 当前 paper 是投 empirical diagnostics 方向，还是后续补 algorithm 后转 method paper？
 
-- 脚本：`tools/build_partial_corr_bootstrap.py`
-- 输出：`assets/paper1_data/partial_corr_bootstrap_20260523.json`（已加入 `REQUIRED_ARTIFACTS`）
-- 方法：B = 1000 with-replacement resamples per cell, seed = 42, percentile [2.5, 97.5]. Point estimate code path 与 `tools.pldm_correlation_analysis` 共用，确保与 Table 6/7/16 已发布数字字节对齐。
-- 整合：Table 7 加 `95% bootstrap CI` 列；§1.3 C4 / §3.4 / §4.5 / §F partial-corr 段落补 CI 数字。
+## 7. 下一步
 
-**关键结果**（headline null 全部稳健）:
-
-| 区域 | partial ρ | 95% CI | 验证 |
-|---|---|---|---|
-| PushT LeWM `ρ(metric, OOD drop) | std_max` | +0.06 | [−0.00, +0.25] | CI 含 0 ✓ null 稳健 |
-| PushT PLDM `ρ(metric, OOD drop) | std_max` | −0.14 | [−1.00, +0.87] | CI 含 0 ✓ null 稳健 |
-| PushT joint `ρ(metric, OOD drop) | std_max, method` | +0.11 | [−0.54, +0.71] | CI 含 0 ✓ null 稳健 |
-| PushT LeWM `ρ(metric, clean) | std_max` | **−0.59** | [−0.97, −0.10] | CI 不含 0 ✓ residual signal 稳健 |
-| PushT LeWM `ρ(metric, px+g 0.08) | std_max` | **−0.41** | [−0.77, +0.00] | CI 边缘触 0（borderline） |
-| Reacher LeWM `ρ(rollout T8, drop) | std_max` | +0.79 | [+0.00, +1.00] | CI 边缘触 0（"only non-trivial residual" 边缘统计显著） |
-
-执行方式:
+提交前：
 
 ```bash
-python -m tools.build_partial_corr_bootstrap \
-    --out assets/paper1_data/partial_corr_bootstrap_20260523.json \
-    --n-bootstrap 1000 --seed 42
-```
-
-### 5.B v1 / 第二阶段（不阻塞 arXiv v0）
-
-- **Blur training sweep**（~1 周）：blur augmentation 是否 recover、Gaussian noise training 是否 transfer 到 blur。
-- **Plan-side robustness CEM**（~1–2 周）：robust CEM solver 已剥出 `config/eval/solver/robust_cem.yaml`。
-- **Broader JEPA variants**（~2–4 周）：I-JEPA / V-JEPA lineage / variational JEPA.
-- **TD-MPC2 / DreamerV3 cross-arch**（~1 周）：reconstruction-based world model 对比.
-- **DMC-Suite task 扩展**（~1 周）：1 个 DMC task 削弱"4 task cherry-picked"质疑.
-- **IB / rate–distortion 理论 framing**（开放期）.
-
-## 6. 投稿路线图
-
-| 状态 | 成色 |
-|---|---|
-| **当前 v0**（LeWM+PLDM 36+36 ckpt + full diagnostics + clean blur eval + reviewer 整改） | arXiv preprint readiness 已达成；ICLR / NeurIPS 正会叙事最低门槛满足 |
-| **+ arXiv 引用人工核对** | submission-ready |
-| **+ blur training（v1）** | 加深 robustness 结论可控范围 |
-| **+ 跨架构 baseline** | 第二篇或 v1 扩展 |
-
-## 7. 数据 source-of-truth 与工具
-
-| 用途 | 文件 |
-|---|---|
-| LeWM eval sweep | `assets/paper1_data/canonical_evals_20260517.json` |
-| LeWM predictor diagnostics | `assets/paper1_data/canonical_diagnostics_20260517.json` |
-| PLDM eval sweep | `assets/paper1_data/canonical_evals_pldm_20260522.json` |
-| PLDM predictor diagnostics | `assets/paper1_data/canonical_diagnostics_pldm_20260522.json` |
-| PLDM full 5-layer diagnostics | `assets/paper1_data/canonical_full_diagnostics_pldm_20260523.json` |
-| LeWM+PLDM cross-method partial-corr | `assets/paper1_data/cross_method_corr_pldm_20260522.json` |
-| Partial-corr bootstrap CIs | `assets/paper1_data/partial_corr_bootstrap_20260523.json` |
-| Clean-trained blur baselines | `assets/paper1_data/canonical_blur_baselines_20260523.json` |
-| External baselines | `assets/paper1_data/canonical_external_baselines_20260520.json` |
-
-```bash
-# 主图重生成
-python -m tools.paper1_figs --out-dir assets/paper1_figs
-
-# 一致性检查
-python tools/check_paper1_consistency.py
-
-# partial-corr 95% CI 重生成
-python -m tools.build_partial_corr_bootstrap \
-    --out assets/paper1_data/partial_corr_bootstrap_20260523.json \
-    --n-bootstrap 1000 --seed 42
-
-# PDF 构建
+python -m tools.check_paper1_consistency
 cd paper1 && bash build.sh --clean
 ```
 
-## 8. 近邻文献 novelty 表
+提交后 / v1：
 
-| 论文 | 关系 | 差异化定位 | 位置 |
-|---|---|---|---|
-| seq-JEPA [Ghaemi 2025] | JEPA + invariance-**equivariance** 张力 | 不同 trade-off 维度；他们做架构 disentanglement | §2.4 |
-| Bisim-JEPA [Toso 2026] | JEPA + planning + 视觉鲁棒性 | 不同 corruption family（slow-feature vs pixel noise）+ 不同 remedy | §2.2 |
-| RankMe [Garrido 2023] | label-free effective-rank ↔ SSL 下游 | 我们 ask the analogous question for control | §2.5 |
-| DrQ / DrQ-v2 | input-side aug for pixel RL | model-free + reward-driven，不是 JEPA+CEM | §2.3 |
-| SODA / DMC-GB | DMC 视觉泛化 benchmark | 不同 corruption family（distractor 背景） | §2.3 |
-| Wang & Isola 2020 | SSL alignment-uniformity | 概念先例，我们扩展到 control | §2.4 |
-| ViGMO | model-based RL 视觉鲁棒性 | 不同架构 + 我们多了 mechanistic decomposition | §2.3 |
-
-**没有任何一个工作同时做了** JEPA 世界模型 + CEM 控制 + pixel noise sweep + 5 层诊断 + partial-correlation cross-checkpoint 验证。**Novelty 安全。**
+- 如需增强 robustness 轴，优先做 blur training sweep。
+- 如需增强跨架构说服力，再扩 DreamerV3 / TD-MPC2 / V-JEPA-like baseline。
+- 如需转 method paper，再引入 adaptive resolution 或 planner-side robustification；不要让这些阻塞 Paper 1 v0。

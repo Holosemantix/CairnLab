@@ -1,7 +1,7 @@
 # Paper 1 — 故事线与提交计划
 
 > Source of truth: `paper1/main.tex`. 数值、表格、图和 artifact 以论文正文与 `assets/paper1_data/` 为准。
-> Last updated: 2026-05-23。
+> Last updated: 2026-05-24。
 
 ---
 
@@ -29,7 +29,7 @@ JEPA world model 的 latent prediction 常被理解为会自然学到更抽象�
    PLDM 支持“visual OOD fragility + noise recovery 不是 LeWM 单点偶然”，但它的内部变化更偏 predictor-drift route，而不是完全复刻 LeWM 的 compression chain。因此 paper 的强结论是跨方法的现象，机制结论则保持 architecture-aware。
 
 6. **诊断指标的正确用法：model-selection signal，不是 OOD oracle。**
-   Cross-checkpoint diagnostic 能帮助判断 checkpoint quality，但不能替代真实 OOD evaluation。特别是 partial correlation after conditioning on `std_max` 后，fragility ratio 对 clean/OOD performance 有 checkpoint-quality 信息，却不能稳定解释 clean-to-OOD gap。
+   Cross-checkpoint diagnostic 能帮助判断 checkpoint quality，但不能替代真实 OOD evaluation。特别是 partial correlation after conditioning on `std_max` 后，fragility ratio 对 clean/OOD performance 有 checkpoint-quality 信息，却不能稳定解释 clean-to-OOD gap。95% bootstrap CI 包含 0 时，应解读为当前小样本 sweep 下没有稳定非零 residual association 的证据，而不是“相关性严格等于 0”。
 
 ## 3. 贡献写法
 
@@ -54,6 +54,7 @@ JEPA world model 的 latent prediction 常被理解为会自然学到更抽象�
 - 不要说某个 diagnostic universally predicts robustness。
 - 不要说 cost surface 已被排除为所有任务的主因。
 - 不要把 blur eval-only 写成 blur training conclusion。
+- 不要说 Gaussian-noise sweep 的 per-task signature 整体泛化到 blur；更稳的说法是 visual fragility 能跨 Gaussian-noise axis 出现，但 task ordering 和 recovery profile 是 corruption-specific。
 - 不要把 PLDM mechanism 写成 LeWM mechanism 的简单复制。
 
 ## 5. 当前 submit-readiness
@@ -63,13 +64,14 @@ JEPA world model 的 latent prediction 常被理解为会自然学到更抽象�
 - 主文 story 已闭环：failure → recovery → trade-off → mechanism → boundary。
 - LeWM 是主 microscope，PLDM 是 second-family replication。
 - Blur 是 cross-corruption sanity check，不阻塞主线。
-- 95% bootstrap CI 已加入，用来约束 partial-correlation 结论强度。
+- 95% checkpoint-row bootstrap CI 已加入，用来约束 partial-correlation 结论强度；CI 宽且包含 0 的地方不声明稳定非零 residual association。
+- Success-rate tables 的 uncertainty 是 3 evaluation seeds 的 population std；correlation intervals 是 checkpoint-level bootstrap CI，二者口径已在正文区分。
 - `tools/check_paper1_consistency.py` 已覆盖核心 artifact 和关键数值一致性。
 - `paper1/main.pdf` 可 clean build。
 
 仍需要人工完成的一项：
 
-- **References source audit。** 逐条核对 2025/2026 arXiv、OpenReview、LeWM/PLDM 相关引用的作者、标题、年份、claim 是否与正文描述一致。若某条引用无法确认，就删弱相关 claim 或换更稳来源。
+- **References final manual source audit。** 机器辅助核对已完成并修正了 metadata / naming 问题；提交前仍建议人工逐条打开 2025/2026 arXiv、OpenReview、LeWM/PLDM 相关页面，确认作者、标题、年份、claim 与正文描述一致。若某条引用无法确认，就删弱相关 claim 或换更稳来源。
 
 ## 6. 合作者讨论时的核心问题
 

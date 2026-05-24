@@ -43,6 +43,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.schema.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.schema.json",
+    ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -50,7 +51,6 @@ FORBIDDEN_SNIPPETS = [
     "either 1 seed × 300",
     "single-seed",
     "mixed convention",
-    "n=18",
     "canonical_evals_20260508",
     "summary.txt",
     "clean_300",
@@ -94,6 +94,8 @@ EXPECTED_PLDM_FULL_DIAG_METRICS = {
     "predictor_target_to_nn_cos_ratio_at_max_std",
     "predictor_rollout_T8_l2",
 }
+EXPECTED_BOOTSTRAP_SCOPES = {"within_lewm", "within_pldm", "joint"}
+EXPECTED_BOOTSTRAP_METRICS = {"frag", "drift"}
 TOL = 1e-9
 
 
@@ -541,6 +543,97 @@ def check_pldm_correlations_json() -> None:
             fail(f"PLDM PushT correlation mismatch for {section}/{key}: got {got}, want {want}")
 
 
+def _check_bootstrap_cell(
+    data: dict,
+    task: str,
+    scope: str,
+    metric: str,
+    key: str,
+    point: float,
+    ci: tuple[float, float],
+) -> None:
+    cell = data["by_task"][task][scope][metric][key]
+    got_point = round2(cell.get("point"))
+    if got_point != point:
+        fail(
+            f"bootstrap point mismatch for {task}/{scope}/{metric}/{key}: "
+            f"got {got_point}, want {point}"
+        )
+    got_ci = cell.get("ci")
+    if not isinstance(got_ci, list) or len(got_ci) != 2:
+        fail(f"bootstrap CI missing for {task}/{scope}/{metric}/{key}")
+    if round2(got_ci[0]) != ci[0] or round2(got_ci[1]) != ci[1]:
+        fail(
+            f"bootstrap CI mismatch for {task}/{scope}/{metric}/{key}: "
+            f"got {[round2(got_ci[0]), round2(got_ci[1])]}, want {list(ci)}"
+        )
+
+
+def check_partial_corr_bootstrap_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    meta = data.get("metadata", {})
+    if meta.get("n_bootstrap") != 1000 or meta.get("seed") != 42:
+        fail(f"unexpected bootstrap metadata: {meta}")
+    if meta.get("ci_low_pct") != 2.5 or meta.get("ci_high_pct") != 97.5:
+        fail(f"unexpected bootstrap CI percentiles: {meta}")
+
+    by_task = data.get("by_task")
+    if not isinstance(by_task, dict) or set(by_task) != EXPECTED_TASKS:
+        fail(
+            "bootstrap tasks mismatch: "
+            f"expected {sorted(EXPECTED_TASKS)}, got {sorted(by_task or {})}"
+        )
+    for task, block in by_task.items():
+        if set(block) != EXPECTED_BOOTSTRAP_SCOPES:
+            fail(f"bootstrap {task} scopes mismatch: {sorted(block)}")
+        for scope, scope_block in block.items():
+            expected_n = 18 if scope == "joint" else 9
+            if scope_block.get("n") != expected_n:
+                fail(f"bootstrap {task}/{scope} n mismatch: {scope_block.get('n')}")
+            if not EXPECTED_BOOTSTRAP_METRICS.issubset(scope_block):
+                fail(f"bootstrap {task}/{scope} missing metrics")
+            for metric in EXPECTED_BOOTSTRAP_METRICS:
+                cells = scope_block[metric]
+                if not isinstance(cells, dict):
+                    fail(f"bootstrap {task}/{scope}/{metric} is not a dict")
+                for cell_name, cell in cells.items():
+                    if "point" not in cell or "n_valid" not in cell or "ci" not in cell:
+                        fail(f"bootstrap {task}/{scope}/{metric}/{cell_name} malformed")
+                    if cell["point"] is not None and not math.isfinite(float(cell["point"])):
+                        fail(f"bootstrap {task}/{scope}/{metric}/{cell_name} point not finite")
+                    if not isinstance(cell["n_valid"], int) or cell["n_valid"] < 0:
+                        fail(f"bootstrap {task}/{scope}/{metric}/{cell_name} invalid n_valid")
+
+    # Values quoted in main.tex C4 / Table 7 / Appendix F. These are rounded
+    # checks, not a substitute for rerunning the bootstrap.
+    _check_bootstrap_cell(
+        data, "PushT", "within_lewm", "frag", "partial_metric_clean_on_std",
+        -0.59, (-0.97, -0.10),
+    )
+    _check_bootstrap_cell(
+        data, "PushT", "within_lewm", "frag", "partial_metric_px08_on_std",
+        -0.41, (-0.77, 0.00),
+    )
+    _check_bootstrap_cell(
+        data, "PushT", "within_lewm", "frag", "partial_metric_drop_on_std",
+        0.06, (-0.00, 0.25),
+    )
+    _check_bootstrap_cell(
+        data, "PushT", "within_pldm", "frag", "partial_metric_drop_on_std",
+        -0.14, (-1.00, 0.87),
+    )
+    _check_bootstrap_cell(
+        data, "PushT", "joint", "frag", "partial_metric_drop_on_std_method",
+        0.11, (-0.54, 0.71),
+    )
+    _check_bootstrap_cell(
+        data, "Reacher", "within_lewm", "drift", "partial_metric_drop_on_std",
+        0.79, (0.00, 1.00),
+    )
+
+
 def check_published_correlations() -> None:
     evals = json.loads((ROOT / "assets" / "paper1_data" / "canonical_evals_20260517.json").read_text(encoding="utf-8"))
     diag = json.loads((ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json").read_text(encoding="utf-8"))
@@ -628,6 +721,7 @@ def main() -> int:
         ("blur baselines json", check_blur_baselines_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),
+        ("partial-corr bootstrap json", check_partial_corr_bootstrap_json),
         ("published correlations", check_published_correlations),
     ]
     for name, fn in checks:

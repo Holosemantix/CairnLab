@@ -1,8 +1,8 @@
 # paper1 — LaTeX source
 
-Self-contained LaTeX source for the arXiv preprint
+Self-contained LaTeX source for the arXiv preprint.
 
-> *Understanding the Invariance–Resolution Trade-off in Latent Predictive World Models: A Diagnostic Study of JEPA-Based Control*
+> *Latent Prediction Is Not Visual Robustness: Diagnosing the Invariance--Resolution Trade-off in JEPA World Models for Control*
 
 Companion plan / storyline doc: `PLAN.md` (next to this README).
 
@@ -10,11 +10,11 @@ Companion plan / storyline doc: `PLAN.md` (next to this README).
 
 ```
 paper1/
-├── main.tex          # the paper (article class, ~744 lines)
-├── references.bib    # 20 entries, all citation keys verified
+├── main.tex          # the paper (article class, ~970 lines)
+├── references.bib    # 35 entries; final source audit is tracked in PLAN.md
 ├── figures/          # symlink → ../assets/paper1_figs/
 ├── build.sh          # `bash build.sh` (uses latexmk if available, else pdflatex + bibtex)
-├── .gitignore        # ignores .aux/.bbl/.log/main.pdf
+├── .gitignore        # ignores LaTeX intermediates; main.pdf is tracked intentionally
 └── README.md         # this file
 ```
 
@@ -32,6 +32,8 @@ To regenerate the 6 figures before building:
 ```bash
 cd .. && python -m tools.paper1_figs --out-dir assets/paper1_figs
 ```
+
+Paper-specific tool usage is documented in `../tools/README_paper1.md`.
 
 ## Submitting to arXiv
 

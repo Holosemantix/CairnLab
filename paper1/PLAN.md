@@ -1,7 +1,7 @@
 # Paper 1 — 故事线 + 计划
 
 > Source of truth: `paper1/main.tex`. 数据 source-of-truth 见 §7.
-> Last updated: 2026-05-23（reviewer 视角整改 commit `fd7242d` 后）。
+> Last updated: 2026-05-23（submit-readiness review 后）。
 
 ---
 
@@ -42,9 +42,9 @@ LeWM 这类 JEPA + CEM 世界模型在 clean 视觉输入上能规划，但未�
 
 ### Paper 状态 ✅
 
-- LaTeX: 32 页, 0 Overfull, 0 errors.
+- LaTeX: 31 页, 0 Overfull, 0 errors.
 - `tools/check_paper1_consistency.py`: 全绿.
-- TeX Live 2026 at `/home/ag/texlive/2026/bin/x86_64-linux` (已写入 `~/.zshrc`).
+- TinyTeX / TeX Live 2026 at `~/.TinyTeX/bin/x86_64-linux`; `paper1/build.sh` 会在系统 `latexmk`/`pdflatex` 不在 `PATH` 时自动加入该路径.
 
 ### 写作完成度（commit `fd7242d` 后）
 
@@ -63,7 +63,7 @@ LeWM 这类 JEPA + CEM 世界模型在 clean 视觉输入上能规划，但未�
 | W1 | trade-off 是否跨方法 | App F PLDM 完整 sweep + §5.5 Lim 1 LeWM-centred 措辞 | 已缓解 |
 | W2 | 仅 Gaussian noise 训练轴 | App G clean-trained blur eval + §5.5 Lim 2 数字化 | 已缓解 |
 | W3 | Reacher/TwoRoom partial-corr 失效 | §5.3 Scope 2 + §5.5 Lim 3 三句扩展 | 已缓解 |
-| W4 | n=9 partial-corr 统计稳健性 | n=18 joint 已加；尚无 CI | **加 bootstrap 95% CI**（见 §5.A.2） |
+| W4 | n=9 partial-corr 统计稳健性 | n=18 joint + bootstrap 95% CI 已加；headline null 的 CI 均含 0 | 已缓解 |
 | W5 | 无形式化理论（IB/rate-distortion） | §5.5 future direction 3 已声明 | 不致命 |
 | W6 | 无 method 贡献 | Framing 明示 "empirical + toolkit + delineation" + hetero-loss negative ablation | 不致命 |
 | W7 | 部分 2026 arXiv ID 未人工核对 | — | **核对 9 条**（见 §5.A.1） |
@@ -130,7 +130,7 @@ python -m tools.build_partial_corr_bootstrap \
 | 状态 | 成色 |
 |---|---|
 | **当前 v0**（LeWM+PLDM 36+36 ckpt + full diagnostics + clean blur eval + reviewer 整改） | arXiv preprint readiness 已达成；ICLR / NeurIPS 正会叙事最低门槛满足 |
-| **+ arXiv 核对 + bootstrap CI** | submission-ready |
+| **+ arXiv 引用人工核对** | submission-ready |
 | **+ blur training（v1）** | 加深 robustness 结论可控范围 |
 | **+ 跨架构 baseline** | 第二篇或 v1 扩展 |
 
@@ -144,6 +144,7 @@ python -m tools.build_partial_corr_bootstrap \
 | PLDM predictor diagnostics | `assets/paper1_data/canonical_diagnostics_pldm_20260522.json` |
 | PLDM full 5-layer diagnostics | `assets/paper1_data/canonical_full_diagnostics_pldm_20260523.json` |
 | LeWM+PLDM cross-method partial-corr | `assets/paper1_data/cross_method_corr_pldm_20260522.json` |
+| Partial-corr bootstrap CIs | `assets/paper1_data/partial_corr_bootstrap_20260523.json` |
 | Clean-trained blur baselines | `assets/paper1_data/canonical_blur_baselines_20260523.json` |
 | External baselines | `assets/paper1_data/canonical_external_baselines_20260520.json` |
 
@@ -154,8 +155,12 @@ python -m tools.paper1_figs --out-dir assets/paper1_figs
 # 一致性检查
 python tools/check_paper1_consistency.py
 
+# partial-corr 95% CI 重生成
+python -m tools.build_partial_corr_bootstrap \
+    --out assets/paper1_data/partial_corr_bootstrap_20260523.json \
+    --n-bootstrap 1000 --seed 42
+
 # PDF 构建
-export PATH=/home/ag/texlive/2026/bin/x86_64-linux:$PATH
 cd paper1 && bash build.sh --clean
 ```
 

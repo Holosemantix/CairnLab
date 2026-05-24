@@ -25,6 +25,7 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
     ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.json",
+    ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
 ]
 
 REQUIRED_ARTIFACTS = [

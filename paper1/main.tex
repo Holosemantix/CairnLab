@@ -129,7 +129,7 @@ This exposes a fundamental tension: \textbf{global noise augmentation cannot dis
 
 \paragraph{C3.} A mechanistic account of why global noise augmentation has limited returns, on the LeWM sweep. On TwoRoom (visually redundant) the gains coincide with desirable representation compression --- effective rank drops by roughly $30\%$ ($47.60 \to 33.59$) and the more compact latent is easier to plan in. On PushT (contact-heavy), the base representation already has higher rank and higher controllability (effective rank $76.42$; inverse-dynamics probe $R^2 \approx 0.77$); even the light representative noise-trained checkpoint compresses rank by about $44\%$ ($76.42 \to 42.85$) with concomitant downward movement in transition-resolution metrics and the controllability probe (both drop by a few points; see Table~\ref{tab:diag-base-vs-best}), so further compression cannot be assumed safe for contact-heavy tasks. The PLDM cross-method check in Section~\ref{sec:appendix-F} reproduces the task-level recovery signature but via a different internal route (predictor-drift dominated, with rank and resolution largely preserved), so this LeWM compression chain is a method-specific mechanism rather than a universal claim.
 
-\paragraph{C4.} An explicit delineation of cross-checkpoint diagnostics. The strongest cross-checkpoint diagnostic (the \fragility{}) carries a residual checkpoint-quality signal beyond the sweep-level \stdmax{} effect (partial Spearman $\rho = -0.59$ on clean and $-0.41$ on px+goal 0.08 after conditioning on \stdmax{}, on the $n = 9$ LeWM PushT sweep with unified 3-seed $\times$ 100 eval). However, the apparent $\rho(\text{metric}, \text{OOD drop}) = -0.77$ is mediated by \stdmax{}: after partialling out \stdmax{}, that correlation collapses to $+0.06$. The same null result reappears on PLDM PushT ($\rho = -0.78$ unconditional, $-0.14$ partial on \stdmax{}, $n = 9$) and in the joint LeWM+PLDM $n = 18$ sample ($+0.11$ partial on \stdmax{} and method), so the negative finding is method-robust. The metric is a model-selection tool after controlling for the sweep-level \stdmax{} trend, not an OOD oracle (\Cref{sec:diag-cross,sec:disc-boundary,sec:appendix-F}).
+\paragraph{C4.} An explicit delineation of cross-checkpoint diagnostics. The strongest cross-checkpoint diagnostic (the \fragility{}) carries a residual checkpoint-quality signal beyond the sweep-level \stdmax{} effect (partial Spearman $\rho = -0.59$ on clean and $-0.41$ on px+goal 0.08 after conditioning on \stdmax{}, on the $n = 9$ LeWM PushT sweep with unified 3-seed $\times$ 100 eval; $95\%$ bootstrap CIs $[-0.97, -0.10]$ and $[-0.77, +0.00]$ respectively). However, the apparent $\rho(\text{metric}, \text{OOD drop}) = -0.77$ is mediated by \stdmax{}: after partialling out \stdmax{}, that correlation collapses to $+0.06$ ($95\%$ CI $[-0.00, +0.25]$, including $0$). The same null result reappears on PLDM PushT ($\rho = -0.78$ unconditional, $-0.14$ partial on \stdmax{}, $n = 9$; CI $[-1.00, +0.87]$) and in the joint LeWM+PLDM $n = 18$ sample ($+0.11$ partial on \stdmax{} and method; CI $[-0.54, +0.71]$), so the negative finding is method-robust. The metric is a model-selection tool after controlling for the sweep-level \stdmax{} trend, not an OOD oracle (\Cref{sec:diag-cross,sec:disc-boundary,sec:appendix-F}).
 
 \subsection{Organisation}
 \Cref{sec:related} reviews related work; \Cref{sec:bg} defines the LeWM background, noise protocol, and diagnostic framework; \Cref{sec:exp} reports the experimental findings; \Cref{sec:disc} discusses mechanism and implications; \Cref{sec:conc} concludes.
@@ -204,7 +204,7 @@ To rule out spurious correlations we adopt two complementary analyses on the sam
   \item[LeWM $n = 9$ sweep with partial correlation.] All 9 LeWM checkpoints per task (base + \stdmax{} $\in \{0.01, \dots, 0.08\}$). Compute Spearman $\rho$ and \emph{partial} Spearman conditioned on \stdmax{}. The partialling step matters: many diagnostics correlate with control performance only because both quantities co-vary with the training noise level along the sweep. The relevant question is whether a diagnostic retains a residual checkpoint-quality signal after removing the monotone sweep trend associated with \stdmax{}.
 \end{description}
 
-We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw $\rho$ tells you ``which checkpoint over the entire sweep behaves better''; the partial $\rho$ tells you whether a diagnostic retains a residual checkpoint-quality signal after removing the monotone trend associated with \stdmax{}. The two questions are distinct, and we will see in \Cref{sec:diag-cross} that they have markedly different answers for the same metric. PLDM provides a first second-family replication in \Cref{sec:appendix-F}; broader cross-architecture variants such as frozen/pretrained visual features remain follow-up work.
+We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw $\rho$ tells you ``which checkpoint over the entire sweep behaves better''; the partial $\rho$ tells you whether a diagnostic retains a residual checkpoint-quality signal after removing the monotone trend associated with \stdmax{}. The two questions are distinct, and we will see in \Cref{sec:diag-cross} that they have markedly different answers for the same metric. Each reported partial Spearman value is paired with a $95\%$ percentile bootstrap confidence interval ($B = 1000$ with-replacement resamples of the checkpoint rows within scope; seed $= 42$). The bootstrap output is released as \codebrk{assets/paper1\_data/partial\_corr\_bootstrap\_20260523.json}, and the regeneration script is \codebrk{tools/build\_partial\_corr\_bootstrap.py}. PLDM provides a first second-family replication in \Cref{sec:appendix-F}; broader cross-architecture variants such as frozen/pretrained visual features remain follow-up work.
 
 %% ===========================================================================
 \section{Experiments}\label{sec:exp}
@@ -430,24 +430,24 @@ The TwoRoom partial estimates are undefined because saturating success rates pro
 
 \begin{table}[H]
 \centering
-\caption{Spearman $\rho$ (unconditional) and partial Spearman $\rho$ conditioned on \stdmax{}, for the \fragility{} on the PushT $n = 9$ LeWM sweep under the unified 3-seed $\times$ 100 eval.}
+\caption{Spearman $\rho$ (unconditional) and partial Spearman $\rho$ conditioned on \stdmax{}, for the \fragility{} on the PushT $n = 9$ LeWM sweep under the unified 3-seed $\times$ 100 eval. CIs are the percentile $95\%$ interval over $B = 1000$ bootstrap resamples (with replacement, seed $= 42$; see \Cref{sec:bg-cross-ckpt}). The \stdmax{}-only top four rows are univariate sweep diagnostics with no metric/outcome pairing, so no CI is reported.}
 \label{tab:partial-corr}
 \small
-\begin{tabular}{lr}
+\begin{tabular}{lrr}
 \toprule
-Quantity & Spearman $\rho$ \\
+Quantity & Spearman $\rho$ & $95\%$ bootstrap CI \\
 \midrule
-$\rho(\stdmax{}, \text{metric})$ & $+0.83$ \\
-$\rho(\stdmax{}, \text{clean})$ & $0.00$ \\
-$\rho(\stdmax{}, \text{px+goal } 0.08)$ & $+0.82$ \\
-$\rho(\stdmax{}, \text{OOD drop})$ & $-0.93$ \\
+$\rho(\stdmax{}, \text{metric})$ & $+0.83$ & --- \\
+$\rho(\stdmax{}, \text{clean})$ & $0.00$ & --- \\
+$\rho(\stdmax{}, \text{px+goal } 0.08)$ & $+0.82$ & --- \\
+$\rho(\stdmax{}, \text{OOD drop})$ & $-0.93$ & --- \\
 \midrule
-$\rho(\text{metric}, \text{clean})$ unconditional & $-0.33$ \\
-$\rho(\text{metric}, \text{clean}) \mid \stdmax{}$ partial & $\mathbf{-0.59}$ \\
-$\rho(\text{metric}, \text{px+g } 0.08)$ unconditional & $+0.55$ \\
-$\rho(\text{metric}, \text{px+g } 0.08) \mid \stdmax{}$ partial & $\mathbf{-0.41}$ \\
-$\rho(\text{metric}, \text{OOD drop})$ unconditional & $-0.77$ \\
-$\rho(\text{metric}, \text{OOD drop}) \mid \stdmax{}$ partial & $+0.06$ \\
+$\rho(\text{metric}, \text{clean})$ unconditional & $-0.33$ & $[-0.95, +0.62]$ \\
+$\rho(\text{metric}, \text{clean}) \mid \stdmax{}$ partial & $\mathbf{-0.59}$ & $[-0.97, -0.10]$ \\
+$\rho(\text{metric}, \text{px+g } 0.08)$ unconditional & $+0.55$ & $[-0.28, +0.86]$ \\
+$\rho(\text{metric}, \text{px+g } 0.08) \mid \stdmax{}$ partial & $\mathbf{-0.41}$ & $[-0.77, +0.00]$ \\
+$\rho(\text{metric}, \text{OOD drop})$ unconditional & $-0.77$ & $[-0.95, -0.12]$ \\
+$\rho(\text{metric}, \text{OOD drop}) \mid \stdmax{}$ partial & $+0.06$ & $[-0.00, +0.25]$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -455,7 +455,7 @@ $\rho(\text{metric}, \text{OOD drop}) \mid \stdmax{}$ partial & $+0.06$ \\
 Interpretation:
 \begin{enumerate}
   \item \textbf{After removing the monotone trend associated with \stdmax{}, the metric still carries a meaningful residual checkpoint-quality signal.} Partial $\rho$ on clean is $-0.59$ and on px+goal 0.08 is $-0.41$ --- both negative, both meaningful at this sample size. On the $n = 9$ PushT sweep, lower \fragility{} aligns with better clean \emph{and} better noisy success beyond what the sweep-level \stdmax{} trend already explains.
-  \item \textbf{The metric does NOT predict the clean--OOD gap.} The unconditional $\rho(\text{metric}, \text{drop}) = -0.77$ looks impressive, but partialling out \stdmax{} collapses it to $+0.06$ (sign-flipped, near zero). The drop's strong correlation with the metric is a mediated effect: \stdmax{} drives both the metric ($\rho = +0.83$) and the drop ($\rho = -0.93$). After the \stdmax{} trend is removed, the metric tells you nothing new about how much the \emph{gap} between clean and noisy performance will be.
+  \item \textbf{The metric does NOT predict the clean--OOD gap.} The unconditional $\rho(\text{metric}, \text{drop}) = -0.77$ looks impressive, but partialling out \stdmax{} collapses it to $+0.06$ (sign-flipped, near zero; $95\%$ bootstrap CI $[-0.00, +0.25]$, including $0$). The drop's strong correlation with the metric is a mediated effect: \stdmax{} drives both the metric ($\rho = +0.83$) and the drop ($\rho = -0.93$). After the \stdmax{} trend is removed, the metric tells you nothing new about how much the \emph{gap} between clean and noisy performance will be.
   \item \textbf{Note the unconditional-vs-partial sign reversal on clean.} $\rho(\text{metric}, \text{clean})$ is only $-0.33$ unconditionally --- clean success rate is roughly flat across the PushT sweep under the 3-seed protocol (range $80.67$--$89.67$), so \stdmax{} barely moves clean. The partial correlation \emph{strengthens} to $-0.59$ once the sweep-level \stdmax{} trend is removed, exactly because the residual signal is what the metric tracks.
   \item \textbf{Practical reading.} The toolkit is a model-selection tool that ranks checkpoints after controlling for the sweep-level \stdmax{} effect. It is \emph{not} a substitute for actually training with noise when the OOD gap is the quantity of interest.
 \end{enumerate}
@@ -892,7 +892,7 @@ Cube & $52.67 \pm 3.30$ & $51.33 \pm 2.49$ & $48.33 \pm 2.87$ & $-4.33$ \\
 
 \paragraph{Method-specific details.} PLDM's PushT clean point-best ($76.67\%$ at \stdmax{}~$= 0.03$) is lower than LeWM's ($89.67\%$ at \stdmax{}~$= 0.03$), so the external baseline is not a performance leaderboard. It is a robustness check: the cliff-and-recovery shape is reproduced, while the exact clean/robust optimum location is method-dependent. In particular, the LeWM PushT optimum dissociation should be read as a LeWM-family signature, not a cross-method law.
 
-\paragraph{Cross-method partial correlations.} We repeat the \fragility{} partial-correlation analysis for PLDM on all four tasks. The headline PushT null replicates: PLDM has unconditional $\rho(\text{metric}, \text{OOD drop}) = -0.78$ but partial $\rho(\text{metric}, \text{OOD drop}) \mid \stdmax{} = -0.14$, and the joint LeWM+PLDM PushT partial after conditioning on \stdmax{} and method is $+0.11$. Other tasks show task-specific residuals, so we use the full table as a scope boundary rather than as a universal diagnostic claim.
+\paragraph{Cross-method partial correlations.} We repeat the \fragility{} partial-correlation analysis for PLDM on all four tasks. The headline PushT null replicates: PLDM has unconditional $\rho(\text{metric}, \text{OOD drop}) = -0.78$ but partial $\rho(\text{metric}, \text{OOD drop}) \mid \stdmax{} = -0.14$ ($95\%$ bootstrap CI $[-1.00, +0.87]$), and the joint LeWM+PLDM PushT partial after conditioning on \stdmax{} and method is $+0.11$ ($95\%$ CI $[-0.54, +0.71]$) --- both CIs comfortably include $0$. Other tasks show task-specific residuals, so we use the full table as a scope boundary rather than as a universal diagnostic claim.
 
 \begin{table}[H]
 \centering

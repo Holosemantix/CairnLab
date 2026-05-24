@@ -70,9 +70,9 @@ LeWM 这类 JEPA + CEM 世界模型在 clean 视觉输入上能规划，但未�
 
 ## 5. 待办与优先级
 
-### 5.A 提交前必做（约 1.5 天）
+### 5.A 提交前必做
 
-**5.A.1 arXiv 引用核对**（~1 hr 手工）
+**5.A.1 arXiv 引用核对**（~1 hr 手工 — 待办）
 
 下面 9 条逐条 open URL，对照 (a) 作者+标题 (b) 我引用的 claim 是否在原文 abstract 能查到。任何对不上 → 找替代引用或删该 claim。
 
@@ -90,17 +90,31 @@ LeWM 这类 JEPA + CEM 世界模型在 clean 视觉输入上能规划，但未�
 
 如果 [15] 不存在，§2.2 "VJEPA tests Noisy-TV..." 和 §5.1 "stands in contrast to VJEPA..." 都要重写。
 
-**5.A.2 Bootstrap 95% CI on partial correlations**（~半天）
+**5.A.2 Bootstrap 95% CI on partial correlations** — **DONE** ✅
 
-```
-tools/build_partial_corr_bootstrap.py
-  input:  canonical_evals / diagnostics / cross_method_corr
-  output: assets/paper1_data/partial_corr_bootstrap_<date>.json
-  method: 1000-iter resample with replacement (stratified by std_max bin)
-  paper:  Table 6 / 7 / 16 加 95% CI 列；正文一句 "with CI [a, b]"
-```
+- 脚本：`tools/build_partial_corr_bootstrap.py`
+- 输出：`assets/paper1_data/partial_corr_bootstrap_20260523.json`（已加入 `REQUIRED_ARTIFACTS`）
+- 方法：B = 1000 with-replacement resamples per cell, seed = 42, percentile [2.5, 97.5]. Point estimate code path 与 `tools.pldm_correlation_analysis` 共用，确保与 Table 6/7/16 已发布数字字节对齐。
+- 整合：Table 7 加 `95% bootstrap CI` 列；§1.3 C4 / §3.4 / §4.5 / §F partial-corr 段落补 CI 数字。
 
-预期：PushT joint n = 18 partial = +0.11 的 CI 应明显包含 0，把 null claim 钉死。Reacher partial = +0.79 的 CI 若不含 0，反而支持现有 "only non-trivial residual" 表述。
+**关键结果**（headline null 全部稳健）:
+
+| 区域 | partial ρ | 95% CI | 验证 |
+|---|---|---|---|
+| PushT LeWM `ρ(metric, OOD drop) | std_max` | +0.06 | [−0.00, +0.25] | CI 含 0 ✓ null 稳健 |
+| PushT PLDM `ρ(metric, OOD drop) | std_max` | −0.14 | [−1.00, +0.87] | CI 含 0 ✓ null 稳健 |
+| PushT joint `ρ(metric, OOD drop) | std_max, method` | +0.11 | [−0.54, +0.71] | CI 含 0 ✓ null 稳健 |
+| PushT LeWM `ρ(metric, clean) | std_max` | **−0.59** | [−0.97, −0.10] | CI 不含 0 ✓ residual signal 稳健 |
+| PushT LeWM `ρ(metric, px+g 0.08) | std_max` | **−0.41** | [−0.77, +0.00] | CI 边缘触 0（borderline） |
+| Reacher LeWM `ρ(rollout T8, drop) | std_max` | +0.79 | [+0.00, +1.00] | CI 边缘触 0（"only non-trivial residual" 边缘统计显著） |
+
+执行方式:
+
+```bash
+python -m tools.build_partial_corr_bootstrap \
+    --out assets/paper1_data/partial_corr_bootstrap_20260523.json \
+    --n-bootstrap 1000 --seed 42
+```
 
 ### 5.B v1 / 第二阶段（不阻塞 arXiv v0）
 

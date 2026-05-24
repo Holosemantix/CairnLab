@@ -8,7 +8,7 @@
 
 A common motivation for Joint-Embedding Predictive Architectures (JEPAs) is that latent prediction may *encourage* abstract, invariant representations: by predicting in latent space rather than reconstructing pixels, the encoder is expected to discard visual redundancy and noise that no useful predictor would rely on. This is an informal motivation rather than a published guarantee — to our knowledge no JEPA work formally claims pixel-noise robustness for control. We test the implicit assumption on **LeWorldModel (LeWM)**, a published JEPA world model, across four manipulation and navigation tasks (PushT, TwoRoom, Reacher, Cube) and eight levels of train-time pixel-noise augmentation. We find three things:
 
-1. **Visual out-of-distribution (OOD) collapse in JEPA + Cross-Entropy Method (CEM) control.** Without noise-aware training, LeWM collapses under mild pixel noise: PushT control success drops from 86.33% (clean) to 4.67% (Gaussian std = 0.08, near-random); TwoRoom drops from 94.00% to 50.00%.
+1. **Visual out-of-distribution (OOD) collapse in JEPA + Cross-Entropy Method (CEM) control.** Without noise-aware training, LeWM collapses under mild pixel noise: PushT control success drops from 86.33% (clean) to 4.67% (Gaussian noise, std = 0.08, near-random); TwoRoom drops from 94.00% to 50.00%.
 
 2. **No globally optimal noise level exists.** Tasks respond very differently to noise augmentation. Visually redundant navigation (TwoRoom) benefits from heavy noise (point-best at std = 0.08), whereas contact-heavy control (PushT) reaches peak *clean* at std = 0.03 but peak *robustness* at std = 0.06 — clean and robust optima dissociate within a single task.
 
@@ -450,7 +450,7 @@ Our sweep data suggest a simple operational recipe:
 
 **Limitation 1 — Two backbone families validated; broader JEPA variants remain open.** The toolkit and the trade-off concept are introduced on LeWM; the PLDM sweep in Appendix F replicates the task-level signatures and the partial-correlation null on PushT. Appendix F also reports the PLDM full-diagnostic check, which exposes an important mechanism boundary: PLDM recovery checkpoints largely preserve rank, transition-resolution, and inverse-dynamics-probe statistics while reducing multi-step predictor drift. We therefore keep the main compression-chain interpretation LeWM-centred rather than claiming it as a universal mechanism. EMA-target JEPA variants (I-JEPA / V-JEPA lineage) and variational JEPA may exhibit different noise responses; we did not run them.
 
-**Limitation 2 — Gaussian pixel noise is the controlled training axis.** The main sweep uses Gaussian pixel noise because it gives a scalar `std_max` axis for clean/OOD trade-off analysis. Appendix G adds a clean-checkpoint blur stress test and shows that severe blur can also break visual world-model control, especially on TwoRoom; however, the task ordering differs from Gaussian noise, so blur-specific training and recovery remain follow-up work.
+**Limitation 2 — Gaussian pixel noise is the controlled training axis.** The main sweep uses Gaussian pixel noise because it gives a scalar `std_max` axis for clean/OOD trade-off analysis. Appendix G adds a clean-checkpoint blur stress test and shows that severe blur can also break visual world-model control: under pixels+goal blur, TwoRoom becomes the most-fragile task on both LeWM and PLDM (−63.67 pt and −68.33 pt at k=11), while it sits mid-tier under Gaussian noise (−44.00 pt and −45.00 pt). This task-order shift indicates that the visual-OOD signature is corruption-specific rather than a Gaussian-noise artefact, so the per-task signatures observed here generalise beyond the Gaussian axis even though blur-specific training and recovery remain follow-up work.
 
 **Limitation 3 — Diagnostic framework is empirical, not theoretical.** Our metrics are selected by cross-ckpt correlation. Establishing a formal causal chain "effective rank ↓ → resolution ratio ↓ → control failure" is future work. Reacher and TwoRoom fail the partial-correlation criterion for *all* metrics — directly exposing where the empirical framework breaks down.
 
@@ -786,7 +786,7 @@ This appendix evaluates the clean-trained LeWM and PLDM baselines under Gaussian
 | PLDM | Reacher | 82.67 ± 1.70 | 86.00 ± 2.16 | 68.00 ± 4.08 (k=15) | −14.67 |
 | PLDM | Cube | 52.67 ± 3.30 | 53.00 ± 5.35 | 50.67 ± 3.68 (k=11) | −2.00 |
 
-Severe blur can also break clean-trained visual world-model control, especially on TwoRoom for both methods and on LeWM Reacher. This weakens a Gaussian-only objection. However, blur is not the same failure mode as Gaussian pixel noise: PushT is catastrophic under Gaussian px+goal 0.08 but much less damaged by blur, especially on PLDM. We therefore keep Gaussian noise as the controlled training axis and leave blur-specific training/recovery to future work.
+Severe blur can also break clean-trained visual world-model control, especially on TwoRoom for both methods and on LeWM Reacher. This weakens a Gaussian-noise-only objection. However, blur is not the same failure mode as Gaussian pixel noise: PushT is catastrophic under Gaussian-noise px+goal 0.08 but much less damaged by blur, especially on PLDM. We therefore keep Gaussian noise as the controlled training axis and leave blur-specific training/recovery to future work.
 
 ---
 

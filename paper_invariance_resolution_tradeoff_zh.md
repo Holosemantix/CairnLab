@@ -465,7 +465,7 @@ TwoRoom 的偏相关因为成功率饱和（n=9 上 rank 平局）使残差化�
 
 **局限 1：两个 backbone family 已验证；更广 JEPA 变体待补。** Toolkit 与 trade-off 概念在 LeWM 上建立；附录 F 的 PLDM sweep 复现了 task-level 信号与 PushT 上的 partial-correlation null。附录 F 也报告了 PLDM full-diagnostic check，并暴露一个重要机制边界：PLDM 的 recovery ckpt 大体保留 rank、transition-resolution、inverse-dynamics probe，但显著降低 multi-step predictor drift。因此本文把主机制链条保持为 LeWM-centered，不把它夸大为 universal mechanism。EMA-target JEPA（I-JEPA / V-JEPA 流派）与 variational JEPA 仍可能有不同的噪声响应，我们没有跑这些变体。
 
-**局限 2：高斯像素噪声是本文的受控训练轴。** 主 sweep 使用 Gaussian pixel noise，是因为它提供了单一 `std_max` 标量轴，便于 clean/OOD trade-off 分析。附录 G 额外给出 clean ckpt 的 blur stress test，说明 severe blur 同样会破坏 visual world-model control，尤其是 TwoRoom；但 blur 下的任务排序和 Gaussian noise 不同，因此 blur-specific training / recovery 留作后续工作。
+**局限 2：高斯像素噪声是本文的受控训练轴。** 主 sweep 使用 Gaussian pixel noise，是因为它提供了单一 `std_max` 标量轴，便于 clean/OOD trade-off 分析。附录 G 给出 clean ckpt 的 blur stress test，结果表明 severe blur 同样会破坏 visual world-model control：在 pixels+goal blur 下 TwoRoom 在 LeWM 和 PLDM 上都成为最脆弱的 task（k=11 时分别 −63.67 pt 和 −68.33 pt），而在 Gaussian noise 下 TwoRoom 只是中等位置（−44.00 pt 和 −45.00 pt）。这种 task-order 翻转说明 visual-OOD signature 是 corruption-specific 的，而不是 Gaussian-noise artefact；本文观察到的 per-task signatures 因此可以推广到 Gaussian 轴之外，blur-specific training / recovery 留作后续工作。
 
 **局限 3：诊断框架是经验工具，不是理论模型。** 当前指标基于跨 ckpt 相关性挑出；建立 "effective rank 下降 → resolution ratio 崩溃 → control failure" 的形式化因果链是未来方向。Reacher 和 TwoRoom 在我们的偏相关判据下没有任何指标通过——这正暴露了 empirical 框架的边界。
 
@@ -802,7 +802,7 @@ PushT null 是跨方法 C4 检查：移除 `std_max` 与 method offset 后，fra
 | PLDM | Reacher | 82.67 ± 1.70 | 86.00 ± 2.16 | 68.00 ± 4.08 (k=15) | −14.67 |
 | PLDM | Cube | 52.67 ± 3.30 | 53.00 ± 5.35 | 50.67 ± 3.68 (k=11) | −2.00 |
 
-Severe blur 同样能破坏 clean-trained visual world-model control：TwoRoom 在两个方法上都明显崩，LeWM Reacher 也有 38.33pt drop。这削弱了 "Gaussian-only artifact" 的质疑。但 blur 不是 Gaussian pixel noise 的同一个 failure mode：PushT 在 Gaussian px+goal 0.08 下接近崩溃，而在 blur 下损伤明显小，尤其是 PLDM。因此主文仍以 Gaussian noise 作为受控训练轴，blur-specific training/recovery 留作后续工作。
+Severe blur 同样能破坏 clean-trained visual world-model control：TwoRoom 在两个方法上都明显崩，LeWM Reacher 也有 38.33pt drop。这削弱了 "Gaussian-noise-only artifact" 的质疑。但 blur 不是 Gaussian pixel noise 的同一个 failure mode：PushT 在 Gaussian-noise px+goal 0.08 下接近崩溃，而在 blur 下损伤明显小，尤其是 PLDM。因此主文仍以 Gaussian noise 作为受控训练轴，blur-specific training/recovery 留作后续工作。
 
 ---
 

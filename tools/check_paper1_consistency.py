@@ -17,8 +17,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 RELEASE_FILES = [
-    ROOT / "paper_invariance_resolution_tradeoff.md",
-    ROOT / "paper_invariance_resolution_tradeoff_zh.md",
     ROOT / "paper1" / "main.tex",
     ROOT / "tools" / "paper1_figs.py",
     ROOT / "paper1" / "references.bib",

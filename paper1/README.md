@@ -4,10 +4,7 @@ Self-contained LaTeX source for the arXiv preprint
 
 > *Understanding the Invariance–Resolution Trade-off in Latent Predictive World Models: A Diagnostic Study of JEPA-Based Control*
 
-Markdown originals live one level up:
-
-- `../paper_invariance_resolution_tradeoff.md` — English version (parallel to this LaTeX)
-- `../paper_invariance_resolution_tradeoff_zh.md` — Chinese version
+Companion plan / storyline doc: `PLAN.md` (next to this README).
 
 ## Layout
 

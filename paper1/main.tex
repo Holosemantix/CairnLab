@@ -669,7 +669,7 @@ Training runs on a single NVIDIA H800 (80\,GB) and follows the LeWM training sch
 The six main figures are produced by \code{tools/paper1\_figs.py}; run \codebrk{python -m tools.paper1\_figs --out-dir assets/paper1\_figs}. The script reads \dataset{canonical\_evals\_20260517.json} together with \dataset{canonical\_diagnostics\_20260517.json}; no checkpoint or model loading is required.
 
 \subsection{Corruption visualizations}\label{sec:appendix-A-corruption-viz}
-\Cref{fig:corruption-viz} shows representative renderings of the three corruption families supported by our evaluation pipeline (\code{utils.py}: \code{AddNormalizedGaussianNoise}, \code{AddGaussianBlur}, \code{AddResize}), applied to a sample observation from each of the four tasks. The Gaussian-noise severities ($\sigma \in \{0.03, 0.05, 0.08\}$) and Gaussian-blur kernel sizes ($k \in \{3, 7, 11, 15\}$) match those evaluated in \Cref{sec:exp-cliff,sec:exp-sweep} (main sweep) and \Cref{sec:appendix-G} (blur stress test) respectively. Bilinear down-then-up resize is shown for reference as the third supported family; it is not evaluated in this paper. Each panel is a single $224 \times 224$ RGB frame from the corresponding task's evaluation rollout, after corruption and before encoder normalisation.
+\Cref{fig:corruption-viz} shows representative renderings of the two evaluated corruption families, applied to a sample observation from each of the four tasks. The Gaussian-noise severities ($\sigma \in \{0.03, 0.05, 0.08\}$) match the px+goal evaluation grid used in \Cref{sec:exp-cliff,sec:exp-sweep} (main sweep); the Gaussian-blur kernel sizes ($k \in \{3, 7, 11, 15\}$) match the stress test in \Cref{sec:appendix-G}. Each panel is a single $224 \times 224$ RGB frame from the corresponding task's evaluation rollout, after corruption and before encoder normalisation.
 
 \begin{figure}[H]
 \centering
@@ -697,7 +697,7 @@ The six main figures are produced by \code{tools/paper1\_figs.py}; run \codebrk{
   \caption{Cube}
 \end{subfigure}
 
-\caption{Corruption visualizations on the four tasks. Each task panel is a $3 \times 4$ grid: \textbf{Row 1} additive Gaussian pixel noise (the \emph{Clean} reference and $\sigma \in \{0.03, 0.05, 0.08\}$); \textbf{Row 2} Gaussian blur at kernel sizes $k \in \{3, 7, 11, 15\}$ (sigma derived via the OpenCV / torchvision auto rule); \textbf{Row 3} bilinear down-then-up resize at factor $\in \{0.75, 0.50, 0.25, 0.125\}$. PushT at $\sigma = 0.08$ is visually close to pure noise, consistent with the near-collapse control success rate of $4.67\%$ reported in \Cref{tab:ood-cliff}.}
+\caption{Corruption visualizations on the four tasks. Each task panel is a $2 \times 4$ grid: \textbf{Row 1} additive Gaussian pixel noise (the \emph{Clean} reference and $\sigma \in \{0.03, 0.05, 0.08\}$); \textbf{Row 2} Gaussian blur at kernel sizes $k \in \{3, 7, 11, 15\}$ (sigma derived via the OpenCV / torchvision auto rule). PushT at $\sigma = 0.08$ is visually close to pure noise, consistent with the near-collapse control success rate of $4.67\%$ reported in \Cref{tab:ood-cliff}.}
 \label{fig:corruption-viz}
 \end{figure}
 

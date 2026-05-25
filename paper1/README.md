@@ -2,7 +2,7 @@
 
 Self-contained LaTeX source for the arXiv preprint.
 
-> *Latent Prediction Is Not Visual Robustness: Diagnosing the Invariance--Resolution Trade-off in JEPA World Models for Control*
+> *Diagnosing the Invariance--Resolution Trade-off in JEPA World Models for Control*
 
 Companion plan / storyline doc: `PLAN.md` (next to this README).
 

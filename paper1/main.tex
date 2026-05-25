@@ -247,10 +247,10 @@ We report both the raw Spearman and the partial-on-\stdmax{} quantities. The raw
 \toprule
 Task & unperturbed & px+goal 0.05 & px+goal 0.08 & unperturbed $\to$ 0.08 drop \\
 \midrule
-TwoRoom & $94.00 \pm 3.56$ & $61.33 \pm 5.31$ & $50.00 \pm 1.41$ & $\mathbf{-44.00}$ \\
-PushT   & $86.33 \pm 2.36$ & $12.00 \pm 4.55$ & $\phantom{0}4.67 \pm 2.05$ & $\mathbf{-81.67}$ \\
-Reacher & $58.67 \pm 1.25$ & $27.00 \pm 5.10$ & $15.00 \pm 2.16$ & $\mathbf{-43.67}$ \\
-Cube    & $66.67 \pm 2.62$ & $53.33 \pm 3.30$ & $46.33 \pm 3.68$ & $\mathbf{-20.33}$ \\
+TwoRoom & $94.00 \pm 3.56$ & $61.33 \pm 5.31$ & $50.00 \pm 1.41$ & $-44.00$ \\
+PushT   & $86.33 \pm 2.36$ & $12.00 \pm 4.55$ & $\phantom{0}4.67 \pm 2.05$ & $-81.67$ \\
+Reacher & $58.67 \pm 1.25$ & $27.00 \pm 5.10$ & $15.00 \pm 2.16$ & $-43.67$ \\
+Cube    & $66.67 \pm 2.62$ & $53.33 \pm 3.30$ & $46.33 \pm 3.68$ & $-20.33$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -272,7 +272,7 @@ The same direction of failure is visible on PLDM but with task-dependent strengt
 
 \begin{table}[H]
 \centering
-\caption{LeWM+noise sweep, unperturbed (\textbf{clean} condition-name) success rate (\%).}
+\caption{LeWM+noise sweep, unperturbed (clean condition-name) success rate (\%).}
 \label{tab:sweep-unperturbed}
 \small
 \begin{tabular}{lrrrr}
@@ -294,7 +294,7 @@ The same direction of failure is visible on PLDM but with task-dependent strengt
 
 \begin{table}[H]
 \centering
-\caption{LeWM+noise sweep, \textbf{px+goal 0.08} success rate (\%).}
+\caption{LeWM+noise sweep, px+goal 0.08 success rate (\%).}
 \label{tab:sweep-px08}
 \small
 \begin{tabular}{lrrrr}
@@ -406,8 +406,8 @@ We analyse two single-value-per-checkpoint diagnostic metrics that have full cov
 \toprule
 Metric & TwoRoom ($r$/$\rho$) & PushT ($r$/$\rho$) & Reacher ($r$/$\rho$) & Cube ($r$/$\rho$) \\
 \midrule
-\fragmetric{}                                & $+0.96$/$+0.72$ & $\mathbf{-0.54}$/$\mathbf{-0.77}$ & $+0.97$/$+0.35$ & $+0.36$/$+0.21$ \\
-\code{predictor\_rollout\_T8\_l2\_at\_max\_std} & $+0.89$/$+1.00$ & $\mathbf{+0.99}$/$\mathbf{+0.88}$ & $\mathbf{+0.99}$/$\mathbf{+0.87}$ & $+0.92$/$+0.54$ \\
+\fragmetric{}                                & $+0.96$/$+0.72$ & $-0.54$/$-0.77$ & $+0.97$/$+0.35$ & $+0.36$/$+0.21$ \\
+\code{predictor\_rollout\_T8\_l2\_at\_max\_std} & $+0.89$/$+1.00$ & $+0.99$/$+0.88$ & $+0.99$/$+0.87$ & $+0.92$/$+0.54$ \\
 \bottomrule
 \end{tabular}%
 }
@@ -421,16 +421,14 @@ Metric & TwoRoom ($r$/$\rho$) & PushT ($r$/$\rho$) & Reacher ($r$/$\rho$) & Cube
 \label{tab:partial-corr-4tasks}
 \small
 \setlength{\tabcolsep}{4pt}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrr}
 \toprule
 Metric & TwoRoom & PushT & Reacher & Cube \\
 \midrule
 \fragmetric{}                                & --- (rank ties) & $+0.06$ & $-0.12$ & $+0.14$ \\
-\code{predictor\_rollout\_T8\_l2\_at\_max\_std} & --- (rank ties) & $-0.03$ & $\mathbf{+0.79}$ & $+0.50$ \\
+\code{predictor\_rollout\_T8\_l2\_at\_max\_std} & --- (rank ties) & $-0.03$ & $+0.79$ & $+0.50$ \\
 \bottomrule
-\end{tabular}%
-}
+\end{tabular}
 \end{table}
 
 The TwoRoom partial estimates are undefined because saturating success rates produce rank ties that make residualisation singular at $n = 9$. PushT, Reacher and Cube give clear readings: after removing the monotone sweep trend associated with \stdmax{}, the \textbf{fragility metric carries essentially no information about the size of the corruption drop} on any task; the \textbf{multi-step predictor drift} still carries signal on Reacher ($+0.79$) and weak signal on Cube ($+0.50$). The Reacher partial $\rho$ is the only non-trivial residual correlation in the entire matrix.
@@ -452,9 +450,9 @@ $\rho(\stdmax{}, \text{px+goal } 0.08)$ & $+0.82$ & --- \\
 $\rho(\stdmax{}, \text{corruption drop})$ & $-0.93$ & --- \\
 \midrule
 $\rho(\text{metric}, \text{unperturbed})$ unconditional & $-0.33$ & $[-0.95, +0.62]$ \\
-$\rho(\text{metric}, \text{unperturbed}) \mid \stdmax{}$ partial & $\mathbf{-0.59}$ & $[-0.97, -0.10]$ \\
+$\rho(\text{metric}, \text{unperturbed}) \mid \stdmax{}$ partial & $-0.59$ & $[-0.97, -0.10]$ \\
 $\rho(\text{metric}, \text{px+g } 0.08)$ unconditional & $+0.55$ & $[-0.28, +0.86]$ \\
-$\rho(\text{metric}, \text{px+g } 0.08) \mid \stdmax{}$ partial & $\mathbf{-0.41}$ & $[-0.77, +0.00]$ \\
+$\rho(\text{metric}, \text{px+g } 0.08) \mid \stdmax{}$ partial & $-0.41$ & $[-0.77, +0.00]$ \\
 $\rho(\text{metric}, \text{corruption drop})$ unconditional & $-0.77$ & $[-0.95, -0.12]$ \\
 $\rho(\text{metric}, \text{corruption drop}) \mid \stdmax{}$ partial & $+0.06$ & $[-0.00, +0.25]$ \\
 \bottomrule
@@ -802,10 +800,10 @@ Task / model & Unperturbed & goal 0.05 & pixels 0.05 & px+goal 0.05 & goal 0.08 
 \midrule
 TwoRoom LeWM-base       & 94.00 & 73.33 & 72.33 & 61.33 & 58.67 & 50.00 \\
 TwoRoom LeWM+noise point-best & 98.33 & 98.00 & 98.33 & 98.00 & 98.67 & 98.67 \\
-TwoRoom hetero          & \textbf{99.67} & 85.33 & 96.67 & 84.67 & 73.33 & 55.33 \\
+TwoRoom hetero          & 99.67 & 85.33 & 96.67 & 84.67 & 73.33 & 55.33 \\
 PushT LeWM-base         & 86.33 & 38.00 & 17.00 & 12.00 & 11.33 &  4.67 \\
-PushT LeWM+noise point-best   & \textbf{89.33} & 87.67 & 88.00 & 88.33 & 89.67 & 87.00 \\
-\textbf{PushT hetero}   & \textbf{13.33} &  7.67 &  7.67 &  7.67 &  9.67 &  6.00 \\
+PushT LeWM+noise point-best   & 89.33 & 87.67 & 88.00 & 88.33 & 89.67 & 87.00 \\
+PushT hetero   & 13.33 &  7.67 &  7.67 &  7.67 &  9.67 &  6.00 \\
 \bottomrule
 \end{tabular}%
 }
@@ -819,7 +817,6 @@ TwoRoom hetero reaches $99.67\%$ on unperturbed evaluation --- consistent with t
 \label{tab:hetero-diag}
 \small
 \setlength{\tabcolsep}{4pt}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrr}
 \toprule
 Metric & TwoRoom base & TwoRoom hetero & PushT base & PushT hetero \\
@@ -827,13 +824,12 @@ Metric & TwoRoom base & TwoRoom hetero & PushT base & PushT hetero \\
 \code{clean\_nn\_cos\_dist\_median} & 0.0449 & 0.0281 & 0.2360 & 0.1051 \\
 \code{clean\_effective\_rank}       & 47.60  & 33.59  & 76.42  & 42.85  \\
 \transreskey{}\_cos & 0.5538 & 0.3780 & 0.0868 & 0.0101 \\
-\transreskey{}\_l2 & 0.7216 & 0.6055 & 0.3015 & \textbf{0.1023} \\
-\code{id\_probe\_r2}            & 0.2889 & $-0.0573$ & 0.7739 & \textbf{0.2678} \\
+\transreskey{}\_l2 & 0.7216 & 0.6055 & 0.3015 & 0.1023 \\
+\code{id\_probe\_r2}            & 0.2889 & $-0.0573$ & 0.7739 & 0.2678 \\
 \code{action\_mean\_pred\_shift\_norm} & 0.5329 & 0.4482 & 0.1283 & 0.0841 \\
 \code{predictor\_rollout\_T8\_l2}      & 18.62  & 17.90  & 18.65  & 14.01  \\
 \bottomrule
-\end{tabular}%
-}
+\end{tabular}
 \end{table}
 
 Hetero-loss compresses the representation in both tasks. For TwoRoom (low-dimensional, discrete, redundant), compression is acceptable. For PushT, the L2 \transres{} collapses from $0.3015$ to $0.1023$ and \idprobe{} from $0.7739$ to $0.2678$ --- task-relevant state information is erased. The drop in multi-step rollout drift is not good news either: the latent has become more \emph{predictable} without being more \emph{controllable}.
@@ -895,11 +891,10 @@ Cube & $52.67 \pm 3.30$ & $51.33 \pm 2.49$ & $48.33 \pm 2.87$ & $-4.33$ \\
 
 \begin{table}[H]
 \centering
-\caption{PLDM+noise sweep, unperturbed (\textbf{clean} condition-name) success rate (\%). $\dagger$ marks the per-task unperturbed point-best.}
+\caption{PLDM+noise sweep, unperturbed (clean condition-name) success rate (\%). $\dagger$ marks the per-task unperturbed point-best.}
 \label{tab:pldm-sweep-unperturbed}
 \small
 \setlength{\tabcolsep}{4pt}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrr}
 \toprule
 \stdmax{} & TwoRoom & PushT & Reacher & Cube \\
@@ -914,17 +909,15 @@ Cube & $52.67 \pm 3.30$ & $51.33 \pm 2.49$ & $48.33 \pm 2.87$ & $-4.33$ \\
 0.07     & $98.00 \pm 0.82$ & $66.67 \pm 8.38$  & $80.67 \pm 2.62$ & $53.67 \pm 3.68$ \\
 0.08     & $98.33 \pm 0.94^{\dagger}$ & $68.00 \pm 1.41$ & $80.33 \pm 1.25$ & $54.00 \pm 1.63$ \\
 \bottomrule
-\end{tabular}%
-}
+\end{tabular}
 \end{table}
 
 \begin{table}[H]
 \centering
-\caption{PLDM+noise sweep, \textbf{px+goal 0.08} success rate (\%). $\ddagger$ marks the per-task px+goal 0.08 point-best.}
+\caption{PLDM+noise sweep, px+goal 0.08 success rate (\%). $\ddagger$ marks the per-task px+goal 0.08 point-best.}
 \label{tab:pldm-sweep-px08}
 \small
 \setlength{\tabcolsep}{4pt}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrr}
 \toprule
 \stdmax{} & TwoRoom & PushT & Reacher & Cube \\
@@ -939,8 +932,7 @@ Cube & $52.67 \pm 3.30$ & $51.33 \pm 2.49$ & $48.33 \pm 2.87$ & $-4.33$ \\
 0.07     & $96.67 \pm 0.47$ & $67.00 \pm 9.09$  & $77.67 \pm 3.30$ & $52.00 \pm 0.00$ \\
 0.08     & $97.00 \pm 0.82$ & $66.33 \pm 4.78$  & $80.67 \pm 2.36$ & $56.33 \pm 1.25^{\ddagger}$ \\
 \bottomrule
-\end{tabular}%
-}
+\end{tabular}
 \end{table}
 
 \paragraph{Reading.} Four quantitative observations are useful for interpreting PLDM as a second method family:
@@ -970,7 +962,7 @@ PushT & 9 & $-0.22$ & $+0.04$ & $-0.14$ & $+0.11$ \\
 Reacher & 9 & $-0.68$ & $-0.86$ & $+0.14$ & $+0.34$ \\
 Cube & 9 & $-0.36$ & $-0.05$ & $-0.41$ & $-0.13$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
 }
 \end{table}
 
@@ -991,7 +983,7 @@ PushT   & 0.03 & $130.13 \to 131.90$ & $0.4710 \to 0.4778$ & $0.7570 \to 0.7479$
 Reacher & 0.04 & $117.52 \to 114.99$ & $0.5053 \to 0.5104$ & $0.2150 \to 0.1960$ & $1.45 \to 1.23$ \\
 Cube    & 0.08 & $134.80 \to 124.79$ & $0.6395 \to 0.6401$ & $0.5428 \to 0.5531$ & $18.98 \to 0.62$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
 }
 \end{table}
 
@@ -1023,7 +1015,7 @@ PLDM & PushT   & $75.33 \pm 3.68$ & $74.00 \pm 2.94$ & $72.00 \pm 3.56$ & $67.67
 PLDM & Reacher & $82.67 \pm 1.70$ & $86.00 \pm 2.16$ & $80.00 \pm 3.56$ & $72.00 \pm 2.16$ & $68.00 \pm 4.08$ & $-14.67$ \\
 PLDM & Cube    & $52.67 \pm 3.30$ & $53.00 \pm 5.35$ & $53.00 \pm 2.83$ & $50.67 \pm 3.68$ & $52.33 \pm 5.44$ & $-2.00$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
 }
 \end{table}
 

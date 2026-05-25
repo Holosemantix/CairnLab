@@ -586,7 +586,7 @@ Our sweep suggests a simple operational recipe:
 
 \paragraph{Limitation 1 --- Two backbone families validated; broader JEPA variants remain open.} The toolkit and the trade-off concept are introduced on LeWM; the PLDM sweep in \Cref{sec:appendix-F} replicates the task-level signatures and the partial-correlation null on PushT. \Cref{sec:appendix-F} also reports the PLDM full-diagnostic check, which exposes an important mechanism boundary: PLDM recovery checkpoints largely preserve rank, transition-resolution, and inverse-dynamics-probe statistics while reducing multi-step predictor drift. We therefore keep the main compression-chain interpretation LeWM-centred rather than claiming it as a universal mechanism. EMA-target JEPA variants (I-JEPA / V-JEPA lineage) and variational JEPA may exhibit different noise responses; we did not run them.
 
-\paragraph{Limitation 2 --- Gaussian pixel noise is the controlled training axis.} The main sweep uses Gaussian pixel noise because it gives a scalar \stdmax{} axis for unperturbed/corrupted trade-off analysis. \Cref{sec:appendix-G} adds a no-noise-checkpoint blur stress test and shows that severe blur can also break visual world-model control: under pixels+goal blur, TwoRoom becomes the most-fragile task on both LeWM and PLDM ($-63.67$\,pt and $-68.33$\,pt at $k = 11$), while it sits mid-tier under Gaussian noise ($-44.00$\,pt and $-45.00$\,pt). Visual fragility therefore generalises beyond the Gaussian-noise axis, but the task ordering and recovery profile are corruption-specific; blur-specific training and recovery remain follow-up work.
+\paragraph{Limitation 2 --- Gaussian pixel noise is the controlled training axis.} The main sweep uses Gaussian pixel noise because it gives a scalar \stdmax{} axis for unperturbed/corrupted trade-off analysis. \Cref{sec:appendix-G} adds a no-noise-checkpoint blur stress test and shows a corruption-specific profile: pixels+goal blur primarily collapses TwoRoom on both LeWM and PLDM ($-63.67$\,pt and $-68.33$\,pt), while PushT, Cube, and PLDM-Reacher are comparatively stable and LeWM-Reacher degrades mainly at the strongest blur endpoint. Visual fragility therefore generalises beyond the Gaussian-noise axis, but the task ordering and recovery profile are corruption-specific; blur-specific training and recovery remain follow-up work.
 
 \paragraph{Limitation 3 --- Diagnostic framework is empirical, not theoretical.} Reacher and TwoRoom fail the partial-correlation criterion for \emph{all} metrics, exposing where the empirical framework breaks down. We do not have a closed-form theory that predicts which tasks support a cross-checkpoint diagnostic and which do not; the current framework is a label-free \emph{screen} with the empirical scope conditions in \Cref{sec:disc-boundary}. Whether the residual checkpoint-quality signal we observe on PushT extrapolates to longer-horizon or out-of-grid \stdmax{} regions remains an open question.
 
@@ -952,27 +952,27 @@ This appendix addresses the narrow concern that the observed visual fragility is
 
 \begin{table}[H]
 \centering
-\caption{Blur stress test on baselines trained without input-noise augmentation. Success rate mean $\pm$ population std over 3 evaluation seeds $\times$ 100 trajectories. The ``worst blur'' column is the lowest pixels+goal blur result over kernel sizes 3/7/11/15.}
+\caption{Pixels+goal blur stress test on baselines trained without input-noise augmentation. Success rate mean $\pm$ population std over 3 evaluation seeds $\times$ 100 trajectories. Kernel sizes 11 and 15 are severe low-pass endpoints on 224$\times$224 inputs, so they should not be read as mild corruptions.}
 \label{tab:blur-baselines}
 \small
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{llrrrr}
+\begin{tabular}{llrrrrrr}
 \toprule
-Method & Task & unperturbed & px+goal blur k=3 & worst px+goal blur & unperturbed $\to$ worst drop \\
+Method & Task & unperturbed & $k=3$ & $k=7$ & $k=11$ & $k=15$ & worst drop \\
 \midrule
-LeWM & TwoRoom & $94.00 \pm 3.56$ & $39.33 \pm 2.05$ & $30.33 \pm 2.87$ (k=11) & $-63.67$ \\
-LeWM & PushT   & $86.33 \pm 2.36$ & $81.67 \pm 4.50$ & $58.67 \pm 6.65$ (k=15) & $-27.67$ \\
-LeWM & Reacher & $58.67 \pm 1.25$ & $57.00 \pm 6.38$ & $20.33 \pm 2.49$ (k=15) & $-38.33$ \\
-LeWM & Cube    & $66.67 \pm 2.62$ & $65.00 \pm 1.63$ & $54.00 \pm 2.16$ (k=15) & $-12.67$ \\
-PLDM & TwoRoom & $96.67 \pm 1.70$ & $38.33 \pm 0.47$ & $28.33 \pm 1.25$ (k=11) & $-68.33$ \\
-PLDM & PushT   & $75.33 \pm 3.68$ & $74.00 \pm 2.94$ & $62.33 \pm 2.05$ (k=15) & $-13.00$ \\
-PLDM & Reacher & $82.67 \pm 1.70$ & $86.00 \pm 2.16$ & $68.00 \pm 4.08$ (k=15) & $-14.67$ \\
-PLDM & Cube    & $52.67 \pm 3.30$ & $53.00 \pm 5.35$ & $50.67 \pm 3.68$ (k=11) & $-2.00$ \\
+LeWM & TwoRoom & $94.00 \pm 3.56$ & $39.33 \pm 2.05$ & $32.67 \pm 3.09$ & $30.33 \pm 2.87$ & $30.67 \pm 0.47$ & $-63.67$ \\
+LeWM & PushT   & $86.33 \pm 2.36$ & $81.67 \pm 4.50$ & $74.00 \pm 1.41$ & $65.33 \pm 2.49$ & $58.67 \pm 6.65$ & $-27.67$ \\
+LeWM & Reacher & $58.67 \pm 1.25$ & $57.00 \pm 6.38$ & $45.67 \pm 2.05$ & $36.00 \pm 4.90$ & $20.33 \pm 2.49$ & $-38.33$ \\
+LeWM & Cube    & $66.67 \pm 2.62$ & $65.00 \pm 1.63$ & $62.33 \pm 2.62$ & $57.33 \pm 2.87$ & $54.00 \pm 2.16$ & $-12.67$ \\
+PLDM & TwoRoom & $96.67 \pm 1.70$ & $38.33 \pm 0.47$ & $30.33 \pm 2.87$ & $28.33 \pm 1.25$ & $28.33 \pm 1.70$ & $-68.33$ \\
+PLDM & PushT   & $75.33 \pm 3.68$ & $74.00 \pm 2.94$ & $72.00 \pm 3.56$ & $67.67 \pm 4.03$ & $62.33 \pm 2.05$ & $-13.00$ \\
+PLDM & Reacher & $82.67 \pm 1.70$ & $86.00 \pm 2.16$ & $80.00 \pm 3.56$ & $72.00 \pm 2.16$ & $68.00 \pm 4.08$ & $-14.67$ \\
+PLDM & Cube    & $52.67 \pm 3.30$ & $53.00 \pm 5.35$ & $53.00 \pm 2.83$ & $50.67 \pm 3.68$ & $52.33 \pm 5.44$ & $-2.00$ \\
 \bottomrule
 \end{tabular}
 }
 \end{table}
 
-\paragraph{Reading.} Severe blur can also break visual world-model control trained without input-noise augmentation: TwoRoom collapses under pixels+goal blur for both LeWM and PLDM, and LeWM Reacher also loses $38.33$\,pt at the strongest blur. This weakens a Gaussian-noise-only objection. However, blur is not the same failure mode as Gaussian pixel noise: PushT is catastrophic under Gaussian-noise px+goal 0.08 but much less damaged by blur, especially on PLDM. We therefore keep Gaussian noise as the controlled training axis and leave blur-specific training/recovery to future work rather than adding a new axis to the main paper.
+\paragraph{Reading.} Blur is a different failure mode from Gaussian pixel noise. The clear collapse is TwoRoom: it falls below $40\%$ already at $k=3$ on both LeWM and PLDM and then saturates around $28$--$33\%$ for $k=7$--$15$. This reverses the Gaussian-noise ordering, where PushT is the most fragile task. The other tasks are more stable under blur: PLDM PushT, PLDM Reacher, and both Cube baselines lose at most about $15$\,pt at the strongest endpoint, while LeWM PushT degrades gradually and LeWM Reacher drops sharply only at $k=15$. We therefore use blur only as an eval-only cross-corruption sanity check: visual fragility is not unique to Gaussian noise, but the task ordering and recovery profile are corruption-specific.
 
 \end{document}

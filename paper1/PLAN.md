@@ -70,7 +70,7 @@ JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素
 - 不要说某个 diagnostic universally predicts robustness.
 - 不要说 cost surface 已被排除为所有任务的主因.
 - 不要把 blur eval-only 写成 blur training conclusion.
-- 不要说 Gaussian-noise sweep 的 per-task signature 整体泛化到 blur；更稳的说法是 visual fragility 能跨 Gaussian-noise axis 出现，但 task ordering 和 recovery profile 是 corruption-specific.
+- 不要说 Gaussian-noise sweep 的 per-task signature 整体泛化到 blur；更稳的说法是 blur collapse 主要集中在 TwoRoom，其他任务整体更稳定，说明 visual fragility 能跨 Gaussian-noise axis 出现，但 task ordering 和 recovery profile 是 corruption-specific.
 - 不要把 PLDM mechanism 写成 LeWM mechanism 的简单复制.
 
 ## 5. 当前 submit-readiness

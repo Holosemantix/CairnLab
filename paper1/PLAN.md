@@ -21,9 +21,9 @@ JEPA 这类世界模型在 latent 空间预测而不是重建像素，因此一�
 
 每一步独立可读；前一步推出下一步的必要性。
 
-### Step 1 — 一个需要在 closed-loop control 中检验的直觉
+### Step 1 — 表征 invariance 与控制 invariance 的张力
 
-JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素"换成"在 latent 空间预测未来表征"。更稳的表述是：latent prediction 可能降低保留 observation-level 细节的压力，鼓励模型保留对预测未来 target representation 有用的结构。已有工作研究了 augmentation、JEPA robustness、slow-feature distractors 等相邻问题；我们的缺口是 **JEPA-style latent world model + CEM closed-loop control + success-rate evaluation + cross-checkpoint diagnostics**。
+JEPA 把训练目标从"重建像素"换成"在 latent 空间预测未来表征"，因此 latent prediction 可能降低保留 observation-level 像素细节的压力，倾向于忽略与预测目标无关的视觉变化。**但"控制需要的不变性"和"latent prediction 学到的不变性"不一定是同一种**：闭环 CEM 规划要求 latent 在压制视觉冗余的同时，保留会改变动作选择的 action-relevant 细粒度差异（recognition / linear probe 不需要这一点，control 需要）。Paper 真正的研究问题因此是：**latent predictive world model 学到的不变性，是否同时保留了 control 所需的 action-relevant resolution，使其在 visual corruption 下能可靠闭环控制？** 我们在 JEPA-style world model + CEM planning + 任务成功率 + 跨 checkpoint 诊断的设定下系统刻画这个张力——这个长限定组合是 study setting，**不是 motivation 本身**。
 
 ### Step 2 — 实证：unperturbed performance 不蕴含 visual-corruption robustness
 

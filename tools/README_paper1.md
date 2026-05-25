@@ -54,10 +54,10 @@ python -m tools.build_partial_corr_bootstrap \
 
 | 脚本 | 作用 | 输出 |
 |---|---|---|
-| `tools/build_canonical_evals_pldm.py` | 从 PLDM 4 tasks x 9 checkpoints 的 `eval_results` 聚合 clean / goal / pixels / pixels+goal eval，3 evaluation seeds x 100 trajectories，population std | `assets/paper1_data/canonical_evals_pldm_20260522.json` |
+| `tools/build_canonical_evals_pldm.py` | 从 PLDM 4 tasks x 9 checkpoints 的 `eval_results` 聚合 unperturbed（artifact key: `clean`）/ goal / pixels / pixels+goal eval，3 evaluation seeds x 100 trajectories，population std | `assets/paper1_data/canonical_evals_pldm_20260522.json` |
 | `tools/build_canonical_diagnostics_pldm.py` | 聚合 PLDM full-coverage predictor metrics：fragility ratio 和 T8 drift | `assets/paper1_data/canonical_diagnostics_pldm_20260522.json` |
 | `tools/build_canonical_full_diagnostics_pldm.py` | 聚合 PLDM five-layer diagnostics summary rows，并生成 schema | `assets/paper1_data/canonical_full_diagnostics_pldm_20260523.json` |
-| `tools/build_canonical_blur_baselines.py` | 聚合 clean-trained LeWM/PLDM baseline 的 blur eval-only 结果 | `assets/paper1_data/canonical_blur_baselines_20260523.json` |
+| `tools/build_canonical_blur_baselines.py` | 聚合 LeWM/PLDM no-noise baseline 的 blur eval-only 结果 | `assets/paper1_data/canonical_blur_baselines_20260523.json` |
 
 示例：
 

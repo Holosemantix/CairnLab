@@ -6,12 +6,12 @@ Run:
 The PNG filenames match the figure numbers in the rendered PDF
 (``fig{N}_*.png`` is the N-th figure in the document order):
 
-    fig1_hero.png       — 4-task OOD cliff + per-task px+g 0.08 point-best recovery
-    fig2_sweep.png      — 4 panels of clean / px+g 0.08 vs std_max
-    fig3_pareto.png     — per-task Pareto trajectory in (clean, px+g 0.08)
+    fig1_hero.png       — 4-task corruption cliff + per-task px+g 0.08 point-best recovery
+    fig2_sweep.png      — 4 panels of unperturbed / px+g 0.08 vs std_max
+    fig3_pareto.png     — per-task Pareto trajectory in (unperturbed, px+g 0.08)
     fig4_radar.png      — 4-task diagnostic radar (base vs representative ckpt)
     fig5_scatter.png    — PushT n=9 LeWM scatter: predictor_target_to_nn_cos_ratio
-                          (max-std) vs clean / eval-drop
+                          (max-std) vs unperturbed / corruption-drop
     fig6_mechanism.png  — mechanism schematic: pixels -> encoder -> predictor -> CEM
 
 Figures are produced without an in-PNG ``Fig. N. ...'' suptitle so that the
@@ -102,7 +102,7 @@ def _canonical_eval_tables() -> Dict[str, Dict]:
     sweep: Dict[str, Dict[str, List[float]]] = {}
     base: Dict[str, Dict[str, float]] = {}
     clean_point_best: Dict[str, Dict[str, float]] = {}
-    ood_point_best: Dict[str, Dict[str, float]] = {}
+    corrupted_point_best: Dict[str, Dict[str, float]] = {}
 
     for task in tasks:
         rows = {float(k): v for k, v in canon[task].items()}
@@ -131,7 +131,7 @@ def _canonical_eval_tables() -> Dict[str, Dict]:
             "clean": clean_vals[clean_idx],
             "px08": px08_vals[clean_idx],
         }
-        ood_point_best[task] = {
+        corrupted_point_best[task] = {
             "std": SWEEP_STDS[px08_idx],
             "clean": clean_vals[px08_idx],
             "px08": px08_vals[px08_idx],
@@ -142,7 +142,7 @@ def _canonical_eval_tables() -> Dict[str, Dict]:
         "sweep": sweep,
         "base": base,
         "clean_point_best": clean_point_best,
-        "ood_point_best": ood_point_best,
+        "corrupted_point_best": corrupted_point_best,
     })
     return _CANONICAL_TABLES_CACHE
 
@@ -190,7 +190,7 @@ def _canonical_diag_tables() -> Dict[str, Dict]:
 
 
 # ============================================================================
-# Figure 1 — Hero: OOD cliff vs noise-training recovery (4-task grouped bar)
+# Figure 1 — Hero: corruption cliff vs noise-training recovery (4-task grouped bar)
 # ============================================================================
 
 def fig1_hero(out_path: Path):
@@ -198,14 +198,14 @@ def fig1_hero(out_path: Path):
     tasks = tables["tasks"]
     base_clean = [tables["base"][t]["clean"] for t in tasks]
     base_px08 = [tables["base"][t]["px08"] for t in tasks]
-    best_px08 = [tables["ood_point_best"][t]["px08"] for t in tasks]
-    best_stds = [tables["ood_point_best"][t]["std"] for t in tasks]
+    best_px08 = [tables["corrupted_point_best"][t]["px08"] for t in tasks]
+    best_stds = [tables["corrupted_point_best"][t]["std"] for t in tasks]
 
     x = np.arange(len(tasks))
     w = 0.26
 
     fig, ax = plt.subplots(figsize=(7.8, 4.2))
-    ax.bar(x - w, base_clean, w, label="LeWM-base, clean",
+    ax.bar(x - w, base_clean, w, label="LeWM-base, unperturbed",
            color="#4477AA", edgecolor="black", linewidth=0.5)
     ax.bar(x,     base_px08,  w, label="LeWM-base, px+g 0.08",
            color="#EE6677", edgecolor="black", linewidth=0.5)
@@ -221,11 +221,11 @@ def fig1_hero(out_path: Path):
         ax.text(x[i], base_px08[i] / 2.0,
                 f"−{drop:.0f}", ha="center", va="center",
                 color="white", fontsize=9, fontweight="bold")
-        # recover label above the green OOD point-best bar
+        # recover label above the green corrupted-eval point-best bar
         ax.text(x[i] + w, best_px08[i] + 3.0,
                 f"+{recover:.0f}", ha="center", va="bottom",
                 color="#228833", fontsize=9, fontweight="bold")
-        # OOD point-best sigma under the x-tick label
+        # corrupted-eval point-best sigma under the x-tick label
         ax.text(x[i] + w, -7,
                 f"σ*={best_stds[i]:.3f}", ha="center", va="top",
                 color="#228833", fontsize=8.5)
@@ -245,7 +245,7 @@ def fig1_hero(out_path: Path):
 
 
 # ============================================================================
-# Figure 2 — Sweep curves: clean and OOD vs std_max, per task
+# Figure 2 — Sweep curves: unperturbed and corrupted eval vs std_max, per task
 # ============================================================================
 
 def fig2_sweep(out_path: Path):
@@ -255,12 +255,12 @@ def fig2_sweep(out_path: Path):
     fig, axes = plt.subplots(1, 4, figsize=(12, 3.4), sharey=True)
     for ax, t in zip(axes, tasks):
         ax.errorbar(SWEEP_STDS, sweep[t]["clean"], yerr=sweep[t]["clean_std"],
-                    fmt="o-", color="#4477AA", label="clean",
+                    fmt="o-", color="#4477AA", label="unperturbed",
                     linewidth=1.6, markersize=4, capsize=2, elinewidth=0.8)
         ax.errorbar(SWEEP_STDS, sweep[t]["px08"], yerr=sweep[t]["px08_std"],
                     fmt="s-", color="#EE6677", label="px+g 0.08",
                     linewidth=1.6, markersize=4, capsize=2, elinewidth=0.8)
-        best_std = tables["ood_point_best"][t]["std"]
+        best_std = tables["corrupted_point_best"][t]["std"]
         ax.axvline(best_std, color="#228833", linestyle="--", alpha=0.7, linewidth=1.0)
         ax.set_title(f"{t}   (px+g 0.08 σ*={best_std:.3f})", fontsize=10.0)
         ax.set_xlabel("std_max")
@@ -330,7 +330,7 @@ def fig3_scatter(out_path: Path, data_root: Path):
         print(f"  WARN: only {len(rows)} canonical PushT LeWM ckpts; skipping fig3")
         return
 
-    # Two side-by-side panels: vs clean | vs OOD drop.
+    # Two side-by-side panels: vs unperturbed | vs corruption drop.
     fig, (ax_clean, ax_drop) = plt.subplots(1, 2, figsize=(10.5, 4.3))
 
     xs = np.array([r[1] for r in rows])
@@ -364,11 +364,11 @@ def fig3_scatter(out_path: Path, data_root: Path):
         ax_.grid(alpha=0.25, linewidth=0.4)
         return rho
 
-    rho_clean = _panel(ax_clean, cleans, "PushT clean success rate (%)",
-                       "(a)  vs clean success — residual ckpt-quality signal",
+    rho_clean = _panel(ax_clean, cleans, "PushT unperturbed success rate (%)",
+                       "(a)  vs unperturbed success — residual ckpt-quality signal",
                        anchor_y_top=0.18)
-    rho_drop = _panel(ax_drop, drops, "PushT eval drop  (clean − px+g 0.08, pts)",
-                      "(b)  vs OOD drop — mediated by std_max",
+    rho_drop = _panel(ax_drop, drops, "PushT eval drop  (unperturbed − px+g 0.08, pts)",
+                      "(b)  vs corruption drop — mediated by std_max",
                       anchor_y_top=0.96)
 
     # colourbar for std_max
@@ -379,7 +379,7 @@ def fig3_scatter(out_path: Path, data_root: Path):
     fig.savefig(out_path)
     plt.close(fig)
     print(f"  wrote {out_path} (n={len(rows)} LeWM ckpts;  "
-          f"ρ_clean={rho_clean:+.2f}, ρ_drop={rho_drop:+.2f})")
+          f"ρ_unperturbed={rho_clean:+.2f}, ρ_drop={rho_drop:+.2f})")
 
 
 # ============================================================================
@@ -505,7 +505,7 @@ def fig5_mechanism(out_path: Path):
     ax.text(
         0.50, 0.86,
         "Auxiliary cost-swap sanity check (not part of the canonical 36-ckpt table):\n"
-        "TwoRoom one-off ablation, px+goal 0.03  36.0 → 42.0 after cosine→mse swap; clean ref = 69.7",
+        "TwoRoom one-off ablation, px+goal 0.03  36.0 → 42.0 after cosine→mse swap; unperturbed ref = 69.7",
         ha="center", va="center", fontsize=8.5, color="#7A4B00",
         bbox=dict(boxstyle="round,pad=0.4", facecolor="#FFF6E5",
                   edgecolor="#B57F2A", linewidth=0.7)
@@ -536,7 +536,7 @@ def fig5_mechanism(out_path: Path):
 
 
 # ============================================================================
-# Figure 6 — Pareto frontier: (clean, px+g 0.08) per (task, std_max)
+# Figure 6 — Pareto frontier: (unperturbed, px+g 0.08) per (task, std_max)
 # Each task gets a connected curve; markers coloured by std_max.
 # ============================================================================
 
@@ -563,14 +563,14 @@ def fig6_pareto(out_path: Path):
                        color=colors[task], alpha=0.55 + 0.05 * SWEEP_STDS[1:].index(s),
                        edgecolor="black", linewidth=0.3, zorder=3)
         # mark px+g 0.08 point-best
-        best_std = tables["ood_point_best"][task]["std"]
+        best_std = tables["corrupted_point_best"][task]["std"]
         if best_std in SWEEP_STDS:
             i = SWEEP_STDS.index(best_std)
             ax.scatter(xs[i], ys[i], s=180, marker=markers[task],
                        facecolor="none", edgecolor=colors[task],
                        linewidth=2.0, zorder=5)
 
-    # Diagonal y=x — ckpts on or above this diagonal are "robust ≥ clean"
+    # Diagonal y=x — ckpts on or above this diagonal are "corrupted ≥ unperturbed"
     lo, hi = 0, 100
     ax.plot([lo, hi], [lo, hi], "--", color="gray", linewidth=0.8, alpha=0.5)
     ax.text(95, 97, "y = x", color="gray", fontsize=8, alpha=0.7,
@@ -578,8 +578,8 @@ def fig6_pareto(out_path: Path):
 
     ax.set_xlim(0, 105)
     ax.set_ylim(0, 105)
-    ax.set_xlabel("Clean success rate (%)")
-    ax.set_ylabel("OOD success rate (%)  —  px+g 0.08")
+    ax.set_xlabel("Unperturbed success rate (%)")
+    ax.set_ylabel("Corrupted success rate (%)  —  px+g 0.08")
     ax.grid(alpha=0.25, linewidth=0.4)
     ax.legend(loc="lower right", frameon=False, fontsize=8.5, ncol=2)
     fig.tight_layout()

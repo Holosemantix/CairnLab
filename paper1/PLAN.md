@@ -1,17 +1,17 @@
 # Paper 1 — 故事线与研究路线图
 
 > Source of truth: `paper1/main.tex`. 数值、表格、图和 artifact 以论文正文与 `assets/paper1_data/` 为准。
-> Last updated: 2026-05-24.
+> Last updated: 2026-05-25.
 
 ---
 
 ## 1. 一分钟版本（讨论入口）
 
-JEPA 这类世界模型常被认为，因为它在 latent 空间预测而不是重建像素，会自然学到对视觉扰动更鲁棒的表征。这个 informal 直觉在 closed-loop control 上从来没有被实证检验过。
+JEPA 这类世界模型在 latent 空间预测而不是重建像素，因此一种常见 informal 直觉是：latent prediction 会降低保留 observation-level 细节的压力，从而更偏向保留对未来 target representation 有用的结构。Paper 1 不把这句话写成“JEPA 天然鲁棒性神话”，而是系统刻画它在 closed-loop control 下的 visual-corruption robustness boundary。
 
-我们在 4 个机器人控制任务（PushT、TwoRoom、Reacher、Cube）上系统地测了一下：clean image 上 86% 成功的 PushT，在像素加轻微 Gaussian 噪声（std=0.08）后跌到 5%；TwoRoom 从 94% 跌到 50%。给训练数据加同分布噪声能基本恢复——但不存在一个"通用最优噪声量"：任务结构决定最佳剂量，clean 最优和 robustness 最优甚至在同一任务上还会错开。
+我们在 4 个机器人控制任务（PushT、TwoRoom、Reacher、Cube）上系统地测了一下：unperturbed evaluation images 上 86% 成功的 PushT，在 observation+goal image 加 Gaussian pixel noise（std=0.08）后跌到 5%；TwoRoom 从 94% 跌到 50%。给训练数据加同类噪声能基本恢复——但不存在一个"通用最优噪声量"：任务结构决定最佳剂量，unperturbed 最优和 robustness 最优甚至在同一任务上还会错开。
 
-我们把这个现象命名为 **invariance-resolution trade-off**——加噪声同时压平无关像素变化（好）和任务相关细节（坏）。一个 5 层诊断协议把机制拆开来读，第二个方法家族 PLDM 复现了 task-level signature 但内部走了一条不同的路径。我们也专门测了"label-free 诊断指标能否预测 OOD 性能"，结论是 partial-correlation null 在 LeWM、PLDM、joint n=18 三处稳定复现：诊断工具能用来选 checkpoint，但不能替代真实 OOD evaluation。
+我们把这个现象命名为 **invariance-resolution trade-off**——加噪声同时压平无关像素变化（有益 invariance）和任务相关细节（有害 resolution loss）。一个 5 层诊断协议把机制拆开来读，第二个方法家族 PLDM 复现了 task-level signature 但内部走了一条不同的路径。我们也专门测了"label-free 诊断指标能否直接预测 corruption robustness"，结论是 partial-correlation null 在 LeWM、PLDM、joint n=18 三处稳定复现：诊断工具能做 mechanism localization 和 checkpoint selection，但不能替代真实 corruption evaluation。
 
 本文是 **diagnostic paper 不是 method paper**。它的价值在于把这个 trade-off 命名、量化，并划清诊断工具的边界，为后续 method paper（plan-side robust CEM、adaptive resolution、spherical world model — §7.3）建立 baseline 与诊断框架。
 
@@ -21,17 +21,17 @@ JEPA 这类世界模型常被认为，因为它在 latent 空间预测而不是�
 
 每一步独立可读；前一步推出下一步的必要性。
 
-### Step 1 — 一个未被检验的直觉
+### Step 1 — 一个需要在 closed-loop control 中检验的直觉
 
-JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素"换成"在 latent 空间预测未来表征"。社区里一种常见的 informal 直觉是：既然不重建像素，encoder 就会自然忽略与未来无关的像素细节，对像素噪声因此更鲁棒。**但这个直觉在 control 任务上、特别是 JEPA + CEM 闭环规划这种 evaluation 模态下，从未被实证过。**
+JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素"换成"在 latent 空间预测未来表征"。更稳的表述是：latent prediction 可能降低保留 observation-level 细节的压力，鼓励模型保留对预测未来 target representation 有用的结构。已有工作研究了 augmentation、JEPA robustness、slow-feature distractors 等相邻问题；我们的缺口是 **JEPA-style latent world model + CEM closed-loop control + success-rate evaluation + cross-checkpoint diagnostics**。
 
-### Step 2 — 实证：clean 性能不蕴含 visual robustness
+### Step 2 — 实证：unperturbed performance 不蕴含 visual-corruption robustness
 
-我们用统一的 4 task × 36 LeWM checkpoint × 3 evaluation seeds × 100 trajectories 协议测了一遍。**clean 上 86% 的 PushT，在像素+goal 加 Gaussian std=0.08 噪声后跌到 5%；TwoRoom 94% → 50%；Reacher、Cube 也有 20–44pt 的 drop。** 这不是表征空间的小毛病，是部署级失效。**Clean success 和 visual robustness 是两条曲线，clean 看好的模型不意味着 robust**。
+我们用统一的 4 task × 36 LeWM checkpoint × 3 evaluation seeds × 100 trajectories 协议测了一遍。**unperturbed 上 86% 的 PushT，在像素+goal 加 Gaussian noise std=0.08 后跌到 5%；TwoRoom 94% → 50%；Reacher、Cube 也有 20–44pt 的 drop。** 这不是表征空间的小毛病，是部署级失效。**Unperturbed success 和 visual-corruption robustness 是两条曲线，unperturbed 看好的模型不意味着 robust**。文中保留 `clean` 只是 artifact/condition name，正文定义为 unperturbed/original evaluation images。
 
 ### Step 3 — 直觉性解药"加噪声训练"碰到边界
 
-把同分布噪声加进训练能基本关闭这个 gap。但完整的 8-level noise sweep 揭示：**不存在通用最优噪声量**。视觉冗余强的 TwoRoom 越加越好（最优 std=0.08）；接触/精细控制的 PushT 的 **clean 最优在 std=0.03，robustness 最优在 std=0.06，两者错开**。"加噪声就行了"这种简单解答被这组数据关掉。
+把同类 Gaussian noise 加进训练能基本关闭这个 gap。但完整的 8-level noise sweep 揭示：**不存在通用最优噪声量**。视觉冗余强的 TwoRoom 越加越好（最优 std=0.08）；接触/精细控制的 PushT 的 **unperturbed 最优在 std=0.03，robustness 最优在 std=0.06，两者错开**。"加噪声就行了"这种简单解答被这组数据关掉。
 
 ### Step 4 — 命名并解释这个边界：invariance-resolution trade-off
 
@@ -39,27 +39,27 @@ JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素
 
 ### Step 5 — 机制：5 层诊断 + 跨方法验证
 
-我们设计了一个 5 层诊断协议（encoder shift → encoder geometry → predictor sensitivity → latent-noise response → task resolution），把 control pipeline 拆成 5 个独立可测的阶段。**LeWM 上故障主路径是：表征 effective rank 压缩 → 状态间分辨率丢失 → 可控性（inverse-dynamics R²）下降。** 但当我们把同一套实验在 PLDM（第二个方法家族）上重跑，task-level signature 完全复现，**内部却走了另一条路**（主要是 multi-step predictor drift 下降，rank/resolution 几乎不动）。**现象跨方法稳定，机制路径 architecture-specific**——这意味着不能把 LeWM 的机制 chain 当 universal claim。
+我们设计了一个 5 层诊断协议（encoder shift → encoder geometry → predictor sensitivity → latent-noise response → task resolution），把 control pipeline 拆成 5 个独立可测的阶段。**LeWM 上的证据支持 compression-chain reading：表征 effective rank 压缩 → 状态间分辨率丢失 → 可控性（inverse-dynamics R²）下降。** PLDM（第二个方法家族）复现 task-level signature，但 full diagnostic 显示它更像 predictor-drift route，rank/resolution 大体保留。因为我们没有对 PLDM 做 causal intervention，所以这里写成 **mechanism boundary / architecture-specific route**，不写成“PLDM 因果证明动力学预测出问题”。
 
-### Step 6 — 诊断工具的边界：能选 checkpoint，不能预测 OOD
+### Step 6 — 诊断工具的边界：能定位机制和选 checkpoint，不能替代 corruption evaluation
 
-最后我们专门测了 model selection 实践中的实用问题："label-free 诊断指标能否直接预测 OOD 性能"。在 LeWM PushT n=9 sweep 上，最强单一指标（**fragility ratio**）对 OOD drop 的 unconditional 相关性看似很强（ρ=−0.77）。但 partial correlation 控制掉 std_max 后，**相关性塌到 +0.06（95% bootstrap CI [−0.00, +0.25]，含 0）**。这个 null 在 PLDM PushT 上复现（partial=−0.14，CI [−1.00, +0.87]），在 joint LeWM+PLDM n=18 上也复现（partial=+0.11，CI [−0.54, +0.71]）。**诊断工具是 checkpoint-quality signal，不是 OOD oracle**。这条边界对后续 method paper 同样适用——不要拿 label-free 指标替代真实 OOD eval。
+最后我们专门测了 model selection 实践中的实用问题："label-free 诊断指标能否直接预测 corruption robustness"。在 LeWM PushT n=9 sweep 上，最强单一指标（**fragility ratio**）对 corruption drop 的 unconditional 相关性看似很强（ρ=−0.77）。但 partial correlation 控制掉 std_max 后，**相关性塌到 +0.06（95% bootstrap CI [−0.00, +0.25]，含 0）**。这个 null 在 PLDM PushT 上复现（partial=−0.14，CI [−1.00, +0.87]），在 joint LeWM+PLDM n=18 上也复现（partial=+0.11，CI [−0.54, +0.71]）。**诊断工具的关键作用不是当 oracle，而是定位机制、筛 checkpoint、告诉后续方法该修哪一层**。这反而增强了后续 method paper 的落点。
 
 ---
 
 ## 3. 贡献写法 C1–C4
 
-- **C1：系统化暴露问题。** 4 task × 8 noise level × 2 method × 3 eval seeds × 100 traj 的统一协议下，量化 latent predictive control 的 visual OOD cliff，确认现象不是单一 ckpt / 单一架构的偶然。
+- **C1：系统化暴露问题。** 4 task × 8 noise level × 2 method × 3 eval seeds × 100 traj 的统一协议下，量化 latent predictive control 的 visual-corruption cliff，确认现象不是单一 ckpt / 单一架构的偶然。
 - **C2：提出 invariance-resolution trade-off + 5 层诊断 toolkit。** 不只看 success rate，把 failure 拆到 encoder geometry / predictor sensitivity / latent-noise response / task resolution，并给出 partial-correlation 验证方案。
 - **C3：机制解释 LeWM-centred + PLDM mechanism boundary 显式。** Noise augmentation gain 在 LeWM 上对应 "compression chain"；PLDM 复现 task-level signature 但走 predictor-drift route，机制层面 architecture-aware。
-- **C4：诊断指标的范围明确。** 最强 cross-checkpoint diagnostic 是 checkpoint quality probe；partial-correlation 控制 std_max 后对 OOD drop 的 residual association null 在 LeWM/PLDM/joint 三处复现，95% bootstrap CI 全部含 0。
+- **C4：诊断指标的范围明确。** 最强 cross-checkpoint diagnostic 是 checkpoint quality probe；partial-correlation 控制 std_max 后对 corruption drop 的 residual association null 在 LeWM/PLDM/joint 三处复现，95% bootstrap CI 全部含 0。
 
 ## 4. 写作立场
 
 **应该坚持的强说法**：
 
-- Latent prediction alone does not guarantee visual robustness for control.
-- Visual OOD failure is a real closed-loop control issue, not a representation-space curiosity.
+- Latent prediction alone does not guarantee visual-corruption robustness for control.
+- Visual-corruption failure is a real closed-loop control issue, not a representation-space curiosity.
 - Noise training creates a task-dependent invariance-resolution trade-off.
 - LeWM 的 mechanism evidence 支持 compression-chain reading.
 - PLDM 支持现象跨方法，但机制路径不完全相同.
@@ -84,7 +84,7 @@ JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素
 
 **仍需要人工完成的一项**：
 
-- **References final manual source audit**（~1 hr 手工）。机器辅助核对已经过；提交前仍建议人工逐条打开 2025/2026 arXiv / OpenReview 页面，确认作者、标题、年份、claim 与正文描述一致。最高风险条目：`[15]` Huang VJEPA (arXiv 2601.14354) 的 "R² > 0.84 under Noisy-TV" 引用；若该条不存在，§2.2 + §5.1 需要重写或换替代来源。
+- **References final manual source audit**。机器辅助核对已更新：VJEPA 的 Noisy-TV / R² 表述、Alain-Bengio OpenReview/arXiv 口径、DrQ/DrQ-v2 conference year、seq-JEPA NeurIPS 2025 poster、DrQ author order 均已校正。提交前仍建议人工逐条打开最终 bibliography 页面做最后确认。
 
 ## 6. 讨论时常见问题
 
@@ -119,7 +119,7 @@ JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素
 
 #### 7.3.a Plan-side robust CEM
 
-- **核心问题**：world model 已经 noise-fragile，CEM 又只在 single point estimate 上优化——能否只改 inference 阶段（不重训）就显著恢复 OOD 控制？
+- **核心问题**：world model 已经 noise-fragile，CEM 又只在 single point estimate 上优化——能否只改 inference 阶段（不重训）就显著恢复 visual-corruption control？
 - **由 Paper 1 哪里 motivating**：§4.6 mechanism attribution 表明 encoder 是主因但 cost surface 也有贡献；§4.6.1 cost-swap 只是单点 sanity check，证据强度不够。"训练侧 mitigation 已用 noise training 试过；推理侧 CEM 还没动过" 是 Paper 1 自然引出的对偶问题。
 - **当前状态**：`config/eval/solver/robust_cem.yaml` 实装完成（top-K reranking、TTA-empirical belief、CVaR risk）；详细 plan 在 `planner_side_robustification_experiment_plan.md`；**系统 eval 未开始**。
 - **相对 Paper 1 的 delta**：不重训、零 model 改动，只换 solver；把 Paper 1 mechanism 里 cost surface 的角色单独抽出来 quantify。
@@ -128,7 +128,7 @@ JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素
 
 - **核心问题**：能否在 controller 端通过 per-token consistency routing，突破 input-side noise training 的 per-task tuning 边界？
 - **由 Paper 1 哪里 motivating**：§5.5 "Additional ablation" 已验证 σ-head 学到了 prediction difficulty，但作为 loss reweighter 在 PushT 上 collapse（86% → 13%）；§5.5 Future direction 1 明示该方向。Paper 1 trade-off 是 input-side full picture，Paper 2b 要回答 controller-side 是否能进一步榨出增益。
-- **当前状态**：完整 4 任务 sweep + 4 件套因果干预（constant_w、random_gate、shuffle_σ、shuffle_A）已完成。**关键数据**：PushT 极端 OOD（px+goal 0.08）C1+C2 联用 = 85.33 vs C1 单独 75.75（**+9.58pt**）；causal claim "per-token routing 本身是主导项"（constant_w −28.67pt）经 ablation 证实。详细 plan 在 `plan_adaptive_resolution.md`；**paper 写作未开始**。
+- **当前状态**：完整 4 任务 sweep + 4 件套因果干预（constant_w、random_gate、shuffle_σ、shuffle_A）已完成。**关键数据**：PushT 强视觉扰动（px+goal 0.08）C1+C2 联用 = 85.33 vs C1 单独 75.75（**+9.58pt**）；causal claim "per-token routing 本身是主导项"（constant_w −28.67pt）经 ablation 证实。详细 plan 在 `plan_adaptive_resolution.md`；**paper 写作未开始**。
 - **相对 Paper 1 的 delta**：Paper 1 诊断现象 + input-side fix 的边界；Paper 2b 提供 controller-side instantiation，与 input-side noise 正交可叠加。
 
 #### 7.3.c Spherical world model / Field-JEPA
@@ -141,7 +141,7 @@ JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素
 ### 7.4 长程方向
 
 - **IB / rate-distortion 理论 framing**：把 invariance-resolution trade-off 形式化为 information bottleneck 或 rate-distortion 优化问题。Paper 1 §5.5 future direction 3 明示但当前认为现象未 stable 到值得形式化。
-- **Sim-to-real corruption**：把 Gaussian noise / blur 替换成真相机噪声、光照变化、运动模糊等更接近 deployment 的 OOD 源。
+- **Sim-to-real corruption**：把 Gaussian noise / blur 替换成真相机噪声、光照变化、运动模糊等更接近 deployment 的 visual shifts。
 - **Cross-architecture extension**：把 5 层诊断协议测在 reconstruction-based world model（DreamerV3）和 decoder-free latent MPC（TD-MPC2）上，看现象与机制是否跨更大架构空间复现。
 
 ---

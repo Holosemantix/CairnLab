@@ -202,6 +202,8 @@ Here $r_i^{\mathrm{enc}}$ is the encoder-shift ratio, $r_i^{\mathrm{pred}}$ is t
 
 \paragraph{Layer 5 --- Task resolution.} The control-relevant information retained in the latent. Metrics: the L2/cosine \transres{} $R_d$ in \Cref{eq:transition-resolution} and the inverse-dynamics linear-probe $R^{2}$, a controllability proxy in the spirit of linear-probe analysis~\cite{alain2017linearprobes}.
 
+\paragraph{Reading guidance.} Layers 1, 2, 4, and 5 supply descriptive evidence used throughout this paper (the per-task radar in \Cref{fig:radar} and the full base profile in \Cref{tab:full-diag}). Layer 3 is the only layer whose two full-coverage metrics --- the \fragility{} and the multi-step rollout drift --- are used as cross-checkpoint predictors in the partial-correlation analysis of \Cref{sec:diag-cross}; the other layers are kept descriptive because either their probe definition is not single-valued per checkpoint (Layers 1, 4) or their metric is saturated in some tasks (Layers 2, 5).
+
 \subsection{Cross-checkpoint validation protocol}\label{sec:bg-cross-ckpt}
 
 To rule out spurious correlations we adopt two complementary analyses on the same LeWM PushT sweep:
@@ -497,8 +499,8 @@ Directly injecting noise into the latent $z$ (skipping the encoder) decouples en
 
 \begin{itemize}
   \item \textbf{PushT.} Multi-step input-space rollout drift has unconditional $\rho = +0.88$ vs OOD drop (\Cref{tab:corr-n9}), driven primarily by \stdmax{}; after removing the monotone \stdmax{} trend, the partial $\rho$ collapses to $-0.03$. The single-step \fragility{} (unconditional $\rho = -0.77$; partial $+0.06$ after removing the same trend) tells the same story. Both encoder--predictor signals are mediated by training noise; once that sweep-level effect is accounted for, neither isolates the OOD drop on PushT.
-  \item \textbf{Reacher.} Multi-step rollout drift has unconditional $\rho = +0.87$ \emph{and} partial $\rho = \mathbf{+0.79}$ vs OOD drop --- the only non-trivial residual correlation in the matrix. On Reacher, multi-step predictor drift carries genuine OOD-drop information beyond \stdmax{}.
-  \item \textbf{Cube.} Multi-step rollout drift has unconditional $\rho = +0.54$ and partial $\rho = +0.50$ --- a moderate residual signal. Encoder--predictor drift partially explains Cube's small but non-zero OOD sensitivity.
+  \item \textbf{Reacher.} Multi-step rollout drift has unconditional $\rho = +0.87$ \emph{and} partial $\rho = \mathbf{+0.79}$ vs OOD drop ($95\%$ bootstrap CI $[+0.00, +1.00]$, borderline-significant at the $95\%$ level) --- the only non-trivial residual correlation in the matrix. On Reacher, multi-step predictor drift carries genuine OOD-drop information beyond \stdmax{}.
+  \item \textbf{Cube.} Multi-step rollout drift has unconditional $\rho = +0.54$ and partial $\rho = +0.50$ ($95\%$ CI $[-0.30, +1.00]$, marginal) --- a moderate residual signal. Encoder--predictor drift partially explains Cube's small but non-zero OOD sensitivity.
   \item \textbf{TwoRoom.} Partial correlations are undefined because clean / drop are saturated across the sweep (rank ties). Unconditional $\rho$ still indicates strong encoder--predictor sensitivity to \stdmax{}.
 \end{itemize}
 

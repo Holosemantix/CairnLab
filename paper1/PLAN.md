@@ -9,9 +9,9 @@
 
 JEPA 这类世界模型在 latent 空间预测而不是重建像素，因此一种常见 informal 直觉是：latent prediction 会降低保留 observation-level 细节的压力，从而更偏向保留对未来 target representation 有用的结构。Paper 1 不把这句话写成“JEPA 天然鲁棒性神话”，而是系统刻画它在 closed-loop control 下的 visual-corruption robustness boundary。
 
-我们在 4 个机器人控制任务（PushT、TwoRoom、Reacher、Cube）上系统地测了一下：unperturbed evaluation images 上 86% 成功的 PushT，在 observation+goal image 加 Gaussian pixel noise（std=0.08）后跌到 5%；TwoRoom 从 94% 跌到 50%。给训练数据加同类噪声能基本恢复——但不存在一个"通用最优噪声量"：任务结构决定最佳剂量，unperturbed 最优和 robustness 最优甚至在同一任务上还会错开。
+我们在 4 个机器人控制任务（PushT、TwoRoom、Reacher、Cube）上系统地测了一下：unperturbed evaluation images 上 86% 成功的 PushT，在 observation+goal image 加 Gaussian pixel noise（std=0.08）后跌到 5%；TwoRoom 从 94% 跌到 50%。给训练数据加同类噪声能基本恢复——但在当前 sweep grid 上没有观察到一个跨任务共同最优的噪声量：任务结构决定最佳剂量，unperturbed 最优和 robustness 最优甚至在同一任务上还会错开。
 
-我们把这个现象命名为 **invariance-resolution trade-off**——加噪声同时压平无关像素变化（有益 invariance）和任务相关细节（有害 resolution loss）。一个 5 层诊断协议把机制拆开来读，第二个方法家族 PLDM 复现了 task-level signature 但内部走了一条不同的路径。我们也专门测了"label-free 诊断指标能否直接预测 corruption robustness"，结论是 partial-correlation null 在 LeWM、PLDM、joint n=18 三处稳定复现：诊断工具能做 mechanism localization 和 checkpoint selection，但不能替代真实 corruption evaluation。
+我们把这个现象命名为 **invariance-resolution trade-off**——加噪声同时压平无关像素变化（有益 invariance）和任务相关细节（有害 resolution loss）。一个 5 层诊断协议把机制拆开来读；第二个方法家族 PLDM 复现了 task-level signature，但 full diagnostic profile 与 LeWM compression chain 不同。我们也专门测了"label-free 诊断指标能否直接预测 corruption robustness"，结论是 partial-correlation null 在 LeWM、PLDM、joint n=18 三处稳定复现：诊断工具能做 mechanism localization 和 checkpoint selection，但不能替代真实 corruption evaluation。
 
 本文是 **diagnostic paper 不是 method paper**。它的价值在于把这个 trade-off 命名、量化，并划清诊断工具的边界，为后续 method paper（plan-side robust CEM、adaptive resolution、spherical world model — §7.3）建立 baseline 与诊断框架。
 
@@ -31,7 +31,7 @@ JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素
 
 ### Step 3 — 直觉性解药"加噪声训练"碰到边界
 
-把同类 Gaussian noise 加进训练能基本关闭这个 gap。但完整的 8-level noise sweep 揭示：**不存在通用最优噪声量**。视觉冗余强的 TwoRoom 越加越好（最优 std=0.08）；接触/精细控制的 PushT 的 **unperturbed 最优在 std=0.03，robustness 最优在 std=0.06，两者错开**。"加噪声就行了"这种简单解答被这组数据关掉。
+把同类 Gaussian noise 加进训练能基本关闭这个 gap。但完整的 8-level noise sweep 揭示：**在当前 sweep grid 上没有单一 `std_max` 跨任务共同最优**。视觉冗余强的 TwoRoom 越加越好（最优 std=0.08）；接触/精细控制的 PushT 的 **unperturbed 最优在 std=0.03，robustness 最优在 std=0.06，两者错开**。"加噪声就行了"这种简单解答被这组数据关掉。
 
 ### Step 4 — 命名并解释这个边界：invariance-resolution trade-off
 
@@ -39,7 +39,7 @@ JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素
 
 ### Step 5 — 机制：5 层诊断 + 跨方法验证
 
-我们设计了一个 5 层诊断协议（encoder shift → encoder geometry → predictor sensitivity → latent-noise response → task resolution），把 control pipeline 拆成 5 个独立可测的阶段。**LeWM 上的证据支持 compression-chain reading：表征 effective rank 压缩 → 状态间分辨率丢失 → 可控性（inverse-dynamics R²）下降。** PLDM（第二个方法家族）复现 task-level signature，但 full diagnostic 显示它更像 predictor-drift route，rank/resolution 大体保留。因为我们没有对 PLDM 做 causal intervention，所以这里写成 **mechanism boundary / architecture-specific route**，不写成“PLDM 因果证明动力学预测出问题”。
+我们设计了一个 5 层诊断协议（encoder shift → encoder geometry → predictor sensitivity → latent-noise response → task resolution），把 control pipeline 拆成 5 个独立可测的阶段。**LeWM 上的证据支持 compression-chain reading：表征 effective rank 压缩 → 状态间分辨率丢失 → 可控性（inverse-dynamics R²）下降。** PLDM（第二个方法家族）复现 task-level signature，但 full diagnostic 显示它的 diagnostic profile 更一致地伴随 multi-step predictor drift 下降，rank/resolution 大体保留。因为我们没有对 PLDM 做 causal intervention，所以这里写成 **mechanism boundary / architecture-specific profile**，不写成“PLDM 因果证明动力学预测出问题”。
 
 ### Step 6 — 诊断工具的边界：能定位机制和选 checkpoint，不能替代 corruption evaluation
 
@@ -51,7 +51,7 @@ JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素
 
 - **C1：系统化暴露问题。** 4 task × 8 noise level × 2 method × 3 eval seeds × 100 traj 的统一协议下，量化 latent predictive control 的 visual-corruption cliff，确认现象不是单一 ckpt / 单一架构的偶然。
 - **C2：提出 invariance-resolution trade-off + 5 层诊断 toolkit。** 不只看 success rate，把 failure 拆到 encoder geometry / predictor sensitivity / latent-noise response / task resolution，并给出 partial-correlation 验证方案。
-- **C3：机制解释 LeWM-centred + PLDM mechanism boundary 显式。** Noise augmentation gain 在 LeWM 上对应 "compression chain"；PLDM 复现 task-level signature 但走 predictor-drift route，机制层面 architecture-aware。
+- **C3：机制解释 LeWM-centred + PLDM mechanism boundary 显式。** Noise augmentation gain 在 LeWM 上对应 "compression chain"；PLDM 复现 task-level signature，但 diagnostic profile 更一致地伴随 predictor drift 下降，机制层面 architecture-aware。
 - **C4：诊断指标的范围明确。** 最强 cross-checkpoint diagnostic 是 checkpoint quality probe；partial-correlation 控制 std_max 后对 corruption drop 的 residual association null 在 LeWM/PLDM/joint 三处复现，95% bootstrap CI 全部含 0。
 
 ## 4. 写作立场
@@ -62,7 +62,7 @@ JEPA（Joint-Embedding Predictive Architecture）把训练目标从"重建像素
 - Visual-corruption failure is a real closed-loop control issue, not a representation-space curiosity.
 - Noise training creates a task-dependent invariance-resolution trade-off.
 - LeWM 的 mechanism evidence 支持 compression-chain reading.
-- PLDM 支持现象跨方法，但机制路径不完全相同.
+- PLDM 支持现象跨方法，但 diagnostic profile 不等同于 LeWM compression chain.
 
 **需要避免的过强说法**：
 

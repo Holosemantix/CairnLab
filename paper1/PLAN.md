@@ -35,7 +35,7 @@ JEPA 把训练目标从"重建像素"换成"在 latent 空间预测未来表征"
 
 ### Step 4 — 命名并解释这个边界：invariance-resolution trade-off
 
-为什么没有 universal 最优？因为噪声训练同时产生两种压缩：把无关像素变化压平（有益的 **invariance**），同时把任务相关的细节也压平（有害的 **resolution 损失**）。任务结构决定二者权重——视觉冗余强的任务能吸收更多压缩，接触/精细控制任务不行。我们把这个张力命名为 **invariance-resolution trade-off**，作为后续机制分析的概念锚点。
+为什么没有 universal 最优？因为噪声训练同时产生两种压缩：把无关像素变化压平（有益的 **invariance**），同时把任务相关的细节也压平（有害的 **resolution 损失**）。任务结构决定二者权重——视觉冗余强的任务能吸收更多压缩，接触/精细控制任务不行。我们把这个张力命名为 **invariance-resolution trade-off**，作为后续机制分析的概念锚点。Paper §3.3 给出 operational 定义（invariance 由 Layer 1/2 metric 度量、resolution 由 Layer 5 metric 度量），§4.3 Pareto Figure 是行为投影、§4.4 Table 4 是表征投影、§5.2 Table 12 把 4 task 放到 trade-off plane 上作为统一总结——trade-off 是文章的中心组织概念，不只是 discussion 的解释词。
 
 ### Step 5 — 机制：5 层诊断 + 跨方法验证
 

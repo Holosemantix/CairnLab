@@ -258,7 +258,7 @@ def fig2_sweep(out_path: Path):
     for ax, t in zip(axes, tasks):
         ax.errorbar(SWEEP_STDS, sweep[t]["clean"], yerr=sweep[t]["clean_std"],
                     fmt="o-", color="#4477AA",
-                    label="Eval: clean images",
+                    label="Eval: unperturbed images",
                     linewidth=1.7, markersize=4.5, capsize=2.2, elinewidth=0.85)
         ax.errorbar(SWEEP_STDS, sweep[t]["px08"], yerr=sweep[t]["px08_std"],
                     fmt="s-", color="#EE6677",

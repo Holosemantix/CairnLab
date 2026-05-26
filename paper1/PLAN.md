@@ -25,9 +25,9 @@ JEPA 这类世界模型在 latent 空间预测而不是重建像素，因此一�
 
 JEPA 把训练目标从"重建像素"换成"在 latent 空间预测未来表征"，因此 latent prediction 可能降低保留 observation-level 像素细节的压力，倾向于忽略与预测目标无关的视觉变化。**但"控制需要的不变性"和"latent prediction 学到的不变性"不一定是同一种**：闭环 CEM 规划要求 latent 在压制视觉冗余的同时，保留会改变动作选择的 action-relevant 细粒度差异（recognition / linear probe 不需要这一点，control 需要）。Paper 真正的研究问题因此是：**latent predictive world model 学到的不变性，是否同时保留了 control 所需的 action-relevant resolution，使其在 visual corruption 下能可靠闭环控制？** 我们在 JEPA-style world model + CEM planning + 任务成功率 + 跨 checkpoint 诊断的设定下系统刻画这个张力——这个长限定组合是 study setting，**不是 motivation 本身**。
 
-### Step 2 — 实证：unperturbed performance 不蕴含 visual-corruption robustness
+### Step 2 — 现象锚点：把抽象 invariance 直觉落到可量化失效
 
-我们用统一的 4 task × 36 LeWM checkpoint × 3 evaluation seeds × 100 trajectories 协议测了一遍。**unperturbed 上 86% 的 PushT，在像素+goal 加 Gaussian noise std=0.08 后跌到 5%；TwoRoom 94% → 50%；Reacher、Cube 也有 20–44pt 的 drop。** 这不是表征空间的小毛病，是部署级失效。**Unperturbed success 和 visual-corruption robustness 是两条曲线，unperturbed 看好的模型不意味着 robust**。文中保留 `clean` 只是 artifact/condition name，正文定义为 unperturbed/original evaluation images。
+Visual-corruption fragility 本身在 pixel-based RL（DrQ、DrQ-v2）、visual MBRL（ViGMO）和 visual generalization 基准里早已被广泛记录，**不是本文的新发现**。Step 2 的贡献不是"加噪声会让模型坏"，而是**把这个一般规律具体落到 JEPA latent world model + CEM closed-loop control 的 success-rate 评测上**：在统一的 4 task × 36 LeWM checkpoint × 3 evaluation seeds × 100 trajectories 协议下，**unperturbed 上 86% 的 PushT，在像素+goal 加 Gaussian noise std=0.08 后跌到 5%；TwoRoom 94% → 50%；Reacher、Cube 也有 20–44pt 的 drop。** 这给 Step 1 那个 invariance 直觉一个可量化反例锚点——latent prediction 本身不自动给 closed-loop control 带来 visual-corruption robustness。Cliff 还呈现 **task-specific signature**（PushT 最敏感、Cube 最不敏感、PLDM 跨方法复现 PushT/TwoRoom 大 cliff 但 Reacher/Cube 弱）而不是单点 failure，为 Step 3 的 recovery sweep 和 Step 4 的 trade-off 命名提供起点。文中保留 `clean` 只是 artifact/condition name，正文定义为 unperturbed/original evaluation images。
 
 ### Step 3 — 直觉性解药"加噪声训练"碰到边界
 
@@ -35,7 +35,7 @@ JEPA 把训练目标从"重建像素"换成"在 latent 空间预测未来表征"
 
 ### Step 4 — 命名并解释这个边界：invariance-resolution trade-off
 
-为什么没有 universal 最优？因为噪声训练同时产生两种压缩：把无关像素变化压平（有益的 **invariance**），同时把任务相关的细节也压平（有害的 **resolution 损失**）。任务结构决定二者权重——视觉冗余强的任务能吸收更多压缩，接触/精细控制任务不行。我们把这个张力命名为 **invariance-resolution trade-off**，作为后续机制分析的概念锚点。Paper §3.3 给出 operational 定义（invariance 由 Layer 1/2 metric 度量、resolution 由 Layer 5 metric 度量），§4.3 Pareto Figure 是行为投影、§4.4 Table 4 是表征投影、§5.2 Table 12 把 4 task 放到 trade-off plane 上作为统一总结——trade-off 是文章的中心组织概念，不只是 discussion 的解释词。
+为什么没有 universal 最优？因为噪声训练同时产生两种压缩：把无关像素变化压平（有益的 **invariance**），同时把任务相关的细节也压平（有害的 **resolution 损失**）。任务结构决定二者权重——视觉冗余强的任务能吸收更多压缩，接触/精细控制任务不行。我们把这个张力命名为 **invariance-resolution trade-off**，作为后续机制分析的概念锚点。Paper §3.3 给出 operational 定义（invariance 由 Layer 1/2 metric 度量、resolution 由 Layer 5 metric 度量），§4.3 Pareto Figure 是行为投影、§4.4 Table 4 是表征投影、§5.2 Table 9 把 4 task 放到 trade-off plane 上作为统一总结——trade-off 是文章的中心组织概念，不只是 discussion 的解释词。
 
 ### Step 5 — 机制：5 层诊断 + 跨方法验证
 
@@ -80,7 +80,7 @@ JEPA 把训练目标从"重建像素"换成"在 latent 空间预测未来表征"
 - 95% checkpoint-row bootstrap CI 已加入 Table 7 / Appendix F / 正文，用来约束 partial-correlation 结论强度.
 - Success-rate tables 的 uncertainty 是 3 evaluation seeds 的 population std；correlation intervals 是 checkpoint-level bootstrap CI，二者口径已在正文区分.
 - `tools/check_paper1_consistency.py` 已覆盖核心 artifact 与关键数值一致性.
-- `paper1/main.pdf` 可 clean build（32 pages, 0 Overfull, 0 errors）.
+- `paper1/main.pdf` 可 clean build（33 pages, 0 Overfull, 0 errors）.
 
 **仍需要人工完成的一项**：
 

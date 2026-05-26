@@ -1,4 +1,4 @@
-"""Render the 6 main paper figures for the Invariance-Resolution paper.
+"""Render the Paper 1 figures for the Invariance-Resolution paper.
 
 Run:
     python -m tools.paper1_figs --out-dir assets/paper1_figs
@@ -6,12 +6,13 @@ Run:
 The PNG filenames match the figure numbers in the rendered PDF
 (``fig{N}_*.png`` is the N-th figure in the document order):
 
+    fig1_concept.png    — conceptual invariance-resolution trade-off schematic
     fig2_sweep.png      — TwoRoom + PushT unperturbed / px+g 0.08 vs std_max
     fig4_radar.png      — 4-task diagnostic radar (base vs representative ckpt)
 
-    (fig1_hero and fig3_pareto were pruned from the paper after the
-    figure-density audit; their generator functions are kept below for
-    reference but are no longer in the default render set.)
+    (fig3_pareto was pruned from the paper after the figure-density audit;
+    its generator function is kept below for reference but is no longer in
+    the default render set.)
     fig5_scatter.png    — PushT n=9 LeWM scatter: predictor_target_to_nn_cos_ratio
                           (max-std) vs unperturbed / corruption-drop
     fig6_mechanism.png  — mechanism schematic: pixels -> encoder -> predictor -> CEM
@@ -36,6 +37,8 @@ from typing import Dict, List, Tuple
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, Polygon, Rectangle
+from matplotlib.transforms import Affine2D
 import numpy as np
 
 
@@ -192,55 +195,178 @@ def _canonical_diag_tables() -> Dict[str, Dict]:
 
 
 # ============================================================================
-# Figure 1 — Hero: corruption cliff vs noise-training recovery (4-task grouped bar)
+# Figure 1 — Conceptual schematic: invariance-resolution trade-off
 # ============================================================================
 
-def fig1_hero(out_path: Path):
-    tables = _canonical_eval_tables()
-    tasks = tables["tasks"]
-    base_clean = [tables["base"][t]["clean"] for t in tasks]
-    base_px08 = [tables["base"][t]["px08"] for t in tasks]
-    best_px08 = [tables["corrupted_point_best"][t]["px08"] for t in tasks]
-    best_stds = [tables["corrupted_point_best"][t]["std"] for t in tasks]
+def _box(ax, xy, w, h, fc, ec="#333333", lw=1.0, radius=0.018):
+    patch = FancyBboxPatch(
+        xy, w, h,
+        boxstyle=f"round,pad=0.012,rounding_size={radius}",
+        linewidth=lw, edgecolor=ec, facecolor=fc,
+    )
+    ax.add_patch(patch)
+    return patch
 
-    x = np.arange(len(tasks))
-    w = 0.26
 
-    fig, ax = plt.subplots(figsize=(7.8, 4.2))
-    ax.bar(x - w, base_clean, w, label="LeWM-base, unperturbed",
-           color="#4477AA", edgecolor="black", linewidth=0.5)
-    ax.bar(x,     base_px08,  w, label="LeWM-base, px+g 0.08",
-           color="#EE6677", edgecolor="black", linewidth=0.5)
-    ax.bar(x + w, best_px08,  w, label="LeWM+noise, px+g 0.08 point-best",
-           color="#228833", edgecolor="black", linewidth=0.5)
+def _arrow(ax, start, end, color="#555555", lw=1.6, style="-|>"):
+    ax.add_patch(FancyArrowPatch(
+        start, end, arrowstyle=style, mutation_scale=13,
+        linewidth=lw, color=color, shrinkA=0, shrinkB=0,
+    ))
 
-    for i, t in enumerate(tasks):
-        drop = base_clean[i] - base_px08[i]
-        recover = best_px08[i] - base_px08[i]
-        # drop label inside the lower portion of the red bar (anchored just
-        # above the bar's top so it does not collide with the recovery label
-        # on the adjacent green bar).
-        ax.text(x[i], base_px08[i] / 2.0,
-                f"−{drop:.0f}", ha="center", va="center",
-                color="white", fontsize=9, fontweight="bold")
-        # recover label above the green corrupted-eval point-best bar
-        ax.text(x[i] + w, best_px08[i] + 3.0,
-                f"+{recover:.0f}", ha="center", va="bottom",
-                color="#228833", fontsize=9, fontweight="bold")
-        # corrupted-eval point-best sigma under the x-tick label
-        ax.text(x[i] + w, -7,
-                f"σ*={best_stds[i]:.3f}", ha="center", va="top",
-                color="#228833", fontsize=8.5)
 
-    ax.set_xticks(x)
-    ax.set_xticklabels(tasks, fontsize=10)
-    ax.set_ylabel("Success rate (%)")
-    ax.set_ylim(-14, 118)
-    ax.set_yticks(range(0, 101, 20))
-    ax.legend(loc="upper right", frameon=False, ncol=1, fontsize=9)
-    ax.grid(axis="y", alpha=0.3, linewidth=0.4)
+def _draw_tworoom_card(ax, x, y, w, h, mode, label):
+    _box(ax, (x, y), w, h, "#FFFFFF", "#9AA5B1", 0.9, radius=0.012)
+    if mode == "noise":
+        rng = np.random.default_rng(7)
+        pts_x = x + rng.uniform(0.02 * w, 0.98 * w, 420)
+        pts_y = y + rng.uniform(0.10 * h, 0.90 * h, 420)
+        cols = rng.choice(["#6AAED6", "#E56B6F", "#7FB069", "#AAAAAA"], 420)
+        ax.scatter(pts_x, pts_y, s=1.0, c=cols, alpha=0.35, linewidths=0)
+    elif mode == "lighting":
+        ax.add_patch(Rectangle((x, y), w, h, facecolor="#E9F2FF", edgecolor="none", alpha=0.8))
+        ax.add_patch(Rectangle((x, y), w, 0.45 * h, facecolor="#D7E7F7", edgecolor="none", alpha=0.8))
+    else:
+        ax.add_patch(Rectangle((x, y), w, h, facecolor="#F7F7F4", edgecolor="none", alpha=0.9))
+    # Room walls and doorway.
+    ax.plot([x + 0.08*w, x + 0.92*w], [y + 0.82*h, y + 0.82*h], color="#111111", lw=1.2)
+    ax.plot([x + 0.08*w, x + 0.92*w], [y + 0.18*h, y + 0.18*h], color="#111111", lw=1.2)
+    ax.plot([x + 0.08*w, x + 0.08*w], [y + 0.18*h, y + 0.82*h], color="#111111", lw=1.2)
+    ax.plot([x + 0.92*w, x + 0.92*w], [y + 0.18*h, y + 0.82*h], color="#111111", lw=1.2)
+    ax.plot([x + 0.50*w, x + 0.50*w], [y + 0.18*h, y + 0.43*h], color="#111111", lw=1.5)
+    ax.plot([x + 0.50*w, x + 0.50*w], [y + 0.57*h, y + 0.82*h], color="#111111", lw=1.5)
+    ax.add_patch(Circle((x + 0.35*w, y + 0.50*h), 0.055*h, fc="#D62828", ec="#8B0000", lw=0.8))
+    ax.add_patch(Circle((x + 0.78*w, y + 0.50*h), 0.040*h, fc="#2A9D8F", ec="#106B5F", lw=0.8))
+    ax.text(x + 0.5*w, y + h + 0.012, label, ha="center", va="bottom", fontsize=8.2, color="#204B84")
 
-    fig.tight_layout()
+
+def _draw_pusht_card(ax, x, y, w, h, angle, contact_dx, label, color):
+    _box(ax, (x, y), w, h, "#FFFFFF", "#9AA5B1", 0.9, radius=0.012)
+    ax.add_patch(Rectangle((x + 0.08*w, y + 0.10*h), 0.84*w, 0.80*h,
+                           facecolor="#F7FAFC", edgecolor="#DEE2E6", lw=0.5))
+    # Goal slot.
+    goal = Rectangle((x + 0.55*w, y + 0.53*h), 0.26*w, 0.12*h,
+                     facecolor="#B7E4A8", edgecolor="#5E9D55", lw=0.6)
+    goal.set_transform(Affine2D().rotate_deg_around(x + 0.68*w, y + 0.59*h, angle) + ax.transData)
+    ax.add_patch(goal)
+    # T-block: stem + bar.
+    cx, cy = x + 0.48*w, y + 0.45*h
+    stem = Rectangle((cx - 0.035*w, cy - 0.16*h), 0.07*w, 0.26*h,
+                     facecolor="#9FB3C8", edgecolor="#4A5568", lw=0.7)
+    bar = Rectangle((cx - 0.15*w, cy + 0.08*h), 0.30*w, 0.075*h,
+                    facecolor="#CBD5E0", edgecolor="#4A5568", lw=0.7)
+    tr = Affine2D().rotate_deg_around(cx, cy, angle) + ax.transData
+    stem.set_transform(tr)
+    bar.set_transform(tr)
+    ax.add_patch(stem)
+    ax.add_patch(bar)
+    ax.add_patch(Circle((x + (0.50 + contact_dx)*w, y + 0.30*h), 0.055*h,
+                        fc=color, ec="#2B2B2B", lw=0.6))
+    ax.text(x + 0.5*w, y + h - 0.006, label, ha="center", va="top", fontsize=7.8, color=color)
+
+
+def _draw_latent_axes(ax, origin, size, label_color="#4A5568"):
+    ox, oy = origin
+    sx, sy = size
+    ax.plot([ox, ox + sx], [oy, oy], color="#111111", lw=1.1)
+    ax.plot([ox, ox], [oy, oy + sy], color="#111111", lw=1.1)
+    _arrow(ax, (ox + sx, oy), (ox + sx + 0.02, oy), "#111111", 1.0)
+    _arrow(ax, (ox, oy + sy), (ox, oy + sy + 0.02), "#111111", 1.0)
+    ax.text(ox + sx + 0.030, oy - 0.006, r"$z_1$", fontsize=10, color=label_color)
+    ax.text(ox - 0.010, oy + sy + 0.030, r"$z_2$", fontsize=10, color=label_color)
+
+
+def fig1_concept(out_path: Path):
+    """Conceptual schematic for the invariance-resolution trade-off."""
+    fig, ax = plt.subplots(figsize=(13.2, 7.0))
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+
+    ax.text(0.5, 0.965, "Invariance--Resolution Trade-off in JEPA Control",
+            ha="center", va="top", fontsize=19, fontweight="bold", color="#1A202C")
+    ax.text(
+        0.5, 0.925,
+        "Contract nuisance variants of the same task-relevant state; preserve distinctions that change transition, cost, or action.",
+        ha="center", va="top", fontsize=11.2, color="#4A5568"
+    )
+
+    # Panel A.
+    _box(ax, (0.035, 0.365), 0.45, 0.50, "#F8FBFF", "#2B6CB0", 1.2, radius=0.025)
+    ax.text(0.060, 0.825, "A. Desired invariance",
+            fontsize=13.5, fontweight="bold", color="#1E4E8C")
+    ax.text(0.060, 0.794, "Invariant to nuisance variation of the same task-relevant state",
+            fontsize=9.7, color="#1E4E8C")
+    card_x, card_w, card_h = 0.070, 0.135, 0.090
+    _draw_tworoom_card(ax, card_x, 0.675, card_w, card_h, "original", "original")
+    _draw_tworoom_card(ax, card_x, 0.545, card_w, card_h, "noise", "Gaussian pixel noise")
+    _draw_tworoom_card(ax, card_x, 0.415, card_w, card_h, "lighting", "lighting / texture shift")
+    _draw_latent_axes(ax, (0.305, 0.470), (0.115, 0.170), "#1E4E8C")
+    cluster = [(0.352, 0.565), (0.365, 0.595), (0.377, 0.550), (0.390, 0.580)]
+    for p in cluster:
+        ax.add_patch(Circle(p, 0.008, fc="#5B8DEF", ec="#1D4ED8", lw=0.8))
+    ax.add_patch(Circle((0.371, 0.573), 0.060, fill=False, ec="#1E4E8C", ls=(0, (4, 4)), lw=1.1))
+    for y in [0.720, 0.590, 0.460]:
+        _arrow(ax, (0.215, y), (0.292, 0.572), "#2B6CB0", 1.5)
+    ax.text(0.305, 0.415, "same task-relevant state\n-> nearby latents",
+            ha="center", va="top", fontsize=10, color="#1E4E8C", fontweight="bold")
+
+    # Panel B.
+    _box(ax, (0.515, 0.365), 0.45, 0.50, "#FAFFF8", "#2F855A", 1.2, radius=0.025)
+    ax.text(0.540, 0.825, "B. Desired resolution",
+            fontsize=13.5, fontweight="bold", color="#276749")
+    ax.text(0.540, 0.794, "Separable for action-relevant state differences",
+            fontsize=9.7, color="#276749")
+    px, py = 0.545, 0.675
+    state_specs = [
+        ("state A: contact left", -18, -0.11, "#2F855A", 0.675),
+        ("state B: centered", -5, 0.00, "#C53030", 0.545),
+        ("state C: contact right", 10, 0.10, "#805AD5", 0.415),
+    ]
+    for label, angle, dx, color, y in state_specs:
+        _draw_pusht_card(ax, px, y, card_w, card_h, angle, dx, label, color)
+    _draw_latent_axes(ax, (0.785, 0.470), (0.115, 0.170), "#276749")
+    clusters = [
+        ((0.838, 0.620), "#2F855A"),
+        ((0.835, 0.555), "#C53030"),
+        ((0.865, 0.490), "#805AD5"),
+    ]
+    for center, color in clusters:
+        cx, cy = center
+        pts = [(cx - 0.016, cy + 0.005), (cx + 0.006, cy + 0.020), (cx + 0.018, cy - 0.012)]
+        for p in pts:
+            ax.add_patch(Circle(p, 0.008, fc=color, ec="#2B2B2B", lw=0.5, alpha=0.75))
+        ax.add_patch(Circle(center, 0.045, fill=False, ec=color, ls=(0, (4, 4)), lw=1.0))
+    for _, _, _, color, y in state_specs:
+        _arrow(ax, (0.690, y + 0.045), (0.770, y + 0.005), color, 1.5)
+    ax.text(0.920, 0.610, "different transition /\ncost / action\n-> separated latents",
+            ha="center", va="center", fontsize=8.8, color="#276749", fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.25", facecolor="#FAFFF8", edgecolor="none", alpha=0.92))
+
+    # Panel C.
+    _box(ax, (0.035, 0.070), 0.93, 0.225, "#FBFBFA", "#A0AEC0", 1.0, radius=0.025)
+    ax.text(0.500, 0.262, "C. Task-dependent required granularity",
+            fontsize=13.5, fontweight="bold", ha="center", color="#1A202C")
+    x0, x1, y = 0.175, 0.825, 0.185
+    ax.plot([x0, x1], [y, y], color="#4A5568", lw=1.4)
+    _arrow(ax, (0.500, y), (x0, y), "#B91C1C", 2.0)
+    _arrow(ax, (0.500, y), (x1, y), "#1B7F3A", 2.0)
+    ax.text(x0 - 0.014, y + 0.040, "Needs fine\naction-conditioned\nresolution",
+            ha="right", va="center", fontsize=9.5, color="#B91C1C", fontweight="bold")
+    ax.text(x1 + 0.014, y + 0.040, "Tolerates stronger\ncompression of\nvisual nuisance",
+            ha="left", va="center", fontsize=9.5, color="#1B7F3A", fontweight="bold")
+    task_pos = [
+        ("PushT", 0.245, "#B91C1C", "contact precision"),
+        ("Reacher", 0.430, "#2B6CB0", "moderate resolution"),
+        ("Cube", 0.575, "#6B46C1", "structured manipulation"),
+        ("TwoRoom", 0.745, "#1B7F3A", "coarse topological\nresolution sufficient"),
+    ]
+    for name, x, color, sub in task_pos:
+        ax.add_patch(Circle((x, y), 0.0095, fc=color, ec="white", lw=0.7, zorder=3))
+        ax.text(x, y - 0.030, name, ha="center", va="top",
+                fontsize=10.8, color=color, fontweight="bold")
+        ax.text(x, y - 0.060, sub, ha="center", va="top", fontsize=8.3, color="#4A5568")
+
     fig.savefig(out_path)
     plt.close(fig)
     print(f"  wrote {out_path}")
@@ -623,13 +749,12 @@ def main():
     _setup_style()
     print(f"Output dir: {out_dir}")
     print(f"Data root:  {data_root}")
-    # Default renders only the figures still used in the paper (post-audit):
-    # sweep=2, radar=4, scatter=5, mechanism=6. Slots 1 and 3 (fig1_hero,
-    # fig3_pareto) are still callable via --only 1,3 if needed.
-    selected = set(args.only or ["2", "4", "5", "6"])
+    # Default renders the figures used in the paper. Slot 3 (fig3_pareto)
+    # remains callable via --only 3 but is not part of the default set.
+    selected = set(args.only or ["1", "2", "4", "5", "6"])
 
     if "1" in selected:
-        fig1_hero(out_dir / "fig1_hero.png")
+        fig1_concept(out_dir / "fig1_concept.png")
     if "2" in selected:
         fig2_sweep(out_dir / "fig2_sweep.png")
     if "3" in selected:

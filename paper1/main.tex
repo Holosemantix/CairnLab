@@ -557,7 +557,7 @@ Task-specificity explains why we observe no single optimal noise level on the sw
 
 \begin{table}[H]
 \centering
-\caption{Where each LeWM task sits on the invariance--resolution trade-off. The two ``demand'' columns are qualitative task-property reads, not independent measurements; they index the underlying behavioural and representational evidence in \Cref{sec:exp-sweep,sec:exp-diag} and the operational definition in \Cref{sec:bg-five-layers}. Sweep signatures come from \Cref{tab:sweep-clean,tab:sweep-px08}; diagnostic readings from \Cref{tab:diag-base-vs-best}.}
+\caption{Where each LeWM task sits on the invariance--resolution trade-off. The two ``demand'' columns are qualitative task-property reads, not independent measurements; they index the underlying behavioural and representational evidence in \Cref{sec:exp-sweep,sec:exp-diag} and the operational definition in \Cref{sec:bg-five-layers}. Sweep signatures come from \Cref{tab:sweep-unperturbed,tab:sweep-px08}; diagnostic readings from \Cref{tab:diag-base-vs-best}.}
 \label{tab:tradeoff-summary}
 \small
 \resizebox{\textwidth}{!}{%
@@ -716,7 +716,7 @@ The six main figures are produced by \code{tools/paper1\_figs.py}; run \codebrk{
   \caption{Cube}
 \end{subfigure}
 
-\caption{Corruption visualizations on the four tasks. Each task panel is a $2 \times 4$ grid: \textbf{Row 1} additive Gaussian pixel noise (the \emph{Clean} reference and $\sigma \in \{0.03, 0.05, 0.08\}$); \textbf{Row 2} Gaussian blur at kernel sizes $k \in \{3, 7, 11, 15\}$ (sigma derived via the OpenCV / torchvision auto rule). PushT at $\sigma = 0.08$ is visually close to pure noise, consistent with the near-collapse control success rate of $4.67\%$ reported in \Cref{tab:ood-cliff}.}
+\caption{Corruption visualizations on the four tasks. Each task panel is a $2 \times 4$ grid: \textbf{Row 1} additive Gaussian pixel noise (the \emph{Clean} reference and $\sigma \in \{0.03, 0.05, 0.08\}$); \textbf{Row 2} Gaussian blur at kernel sizes $k \in \{3, 7, 11, 15\}$ (sigma derived via the OpenCV / torchvision auto rule). PushT at $\sigma = 0.08$ is visually close to pure noise, consistent with the near-collapse control success rate of $4.67\%$ reported in \Cref{tab:corruption-cliff}.}
 \label{fig:corruption-viz}
 \end{figure}
 

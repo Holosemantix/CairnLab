@@ -6,10 +6,12 @@ Run:
 The PNG filenames match the figure numbers in the rendered PDF
 (``fig{N}_*.png`` is the N-th figure in the document order):
 
-    fig1_hero.png       — 4-task corruption cliff + per-task px+g 0.08 point-best recovery
-    fig2_sweep.png      — 4 panels of unperturbed / px+g 0.08 vs std_max
-    fig3_pareto.png     — per-task Pareto trajectory in (unperturbed, px+g 0.08)
+    fig2_sweep.png      — TwoRoom + PushT unperturbed / px+g 0.08 vs std_max
     fig4_radar.png      — 4-task diagnostic radar (base vs representative ckpt)
+
+    (fig1_hero and fig3_pareto were pruned from the paper after the
+    figure-density audit; their generator functions are kept below for
+    reference but are no longer in the default render set.)
     fig5_scatter.png    — PushT n=9 LeWM scatter: predictor_target_to_nn_cos_ratio
                           (max-std) vs unperturbed / corruption-drop
     fig6_mechanism.png  — mechanism schematic: pixels -> encoder -> predictor -> CEM
@@ -611,11 +613,11 @@ def main():
     _setup_style()
     print(f"Output dir: {out_dir}")
     print(f"Data root:  {data_root}")
-    selected = set(args.only or ["1", "2", "3", "4", "5", "6"])
+    # Default renders only the figures still used in the paper (post-audit):
+    # sweep=2, radar=4, scatter=5, mechanism=6. Slots 1 and 3 (fig1_hero,
+    # fig3_pareto) are still callable via --only 1,3 if needed.
+    selected = set(args.only or ["2", "4", "5", "6"])
 
-    # Document-order filenames: hero=1, sweep=2, pareto=3, radar=4,
-    # scatter=5, mechanism=6. The original Python function names are kept
-    # so that internal references remain stable.
     if "1" in selected:
         fig1_hero(out_dir / "fig1_hero.png")
     if "2" in selected:

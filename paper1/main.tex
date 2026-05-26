@@ -178,38 +178,35 @@ The framework decomposes the JEPA + CEM forward pass --- pixels $\to$ encoder $f
 \label{fig:concept}
 \end{figure}
 
-\paragraph{Minimal notation.} Let $z_i=f(x_i)$ and $\tilde z_i=f(\tilde x_i)$ be unperturbed and noised latents for the same token. Let
-\[
-  d_{\cos}(a,b)=1-\frac{a^{\top}b}{\lVert a\rVert\,\lVert b\rVert}
-\]
-and define the unperturbed nearest-neighbour (NN) scale
-\[
-  d_i^{\mathrm{NN}}=\min_{j\ne i}d_{\cos}(z_i,z_j).
-\]
-The introduced ratios are
-\begin{align}
+\paragraph{Minimal notation.} Let $z_i=f(x_i)$ and $\tilde z_i=f(\tilde x_i)$ be unperturbed and noised latents for the same token. The distance, local nearest-neighbour (NN) scale, and three introduced ratios are defined together as
+\begin{equation}
+\begin{aligned}
+  d_{\cos}(a,b)
+    &= 1-\frac{a^{\top}b}{\lVert a\rVert\,\lVert b\rVert},\\
+  d_i^{\mathrm{NN}}
+    &= \min_{j\ne i} d_{\cos}(z_i,z_j),\\
   r_i^{\mathrm{enc}}
-    &= \frac{d_{\cos}(z_i,\tilde z_i)}{d_i^{\mathrm{NN}}+\epsilon},
-  \notag\\
+    &= \frac{d_{\cos}(z_i,\tilde z_i)}{d_i^{\mathrm{NN}}+\epsilon},\\
   r_i^{\mathrm{pred}}
-    &= \frac{d_{\cos}\!\big(g(z)_i, g(\tilde z)_i\big)}{d_i^{\mathrm{NN}}+\epsilon},
-  \label{eq:diag-ratios}\\
+    &= \frac{d_{\cos}\!\big(g(z)_i, g(\tilde z)_i\big)}
+            {d_i^{\mathrm{NN}}+\epsilon},\\
   R_d
     &= \frac{\operatorname{median}_{t}\, d(z_t,z_{t+1})}
-    {\operatorname{median}_{(t,t')\in\mathcal{F}}\, d(z_t,z_{t'})+\epsilon}.
-  \label{eq:transition-resolution}
-\end{align}
+            {\operatorname{median}_{(t,t')\in\mathcal{F}}\, d(z_t,z_{t'})+\epsilon}.
+\end{aligned}
+\label{eq:minimal-notation}
+\end{equation}
 Here $r_i^{\mathrm{enc}}$ is the encoder-shift ratio, $r_i^{\mathrm{pred}}$ is the \fragility{}, and $R_d$ is the \transres{} for either cosine or L2 distance $d$. $\mathcal{F}$ denotes random far pairs from different temporal locations, and $\epsilon = 10^{-8}$ is a numerical-stability constant. Released JSON artifacts keep the implementation keys (\code{noise\_to\_nn\_cos\_ratio}, \fragmetric{}, and \code{transition\_resolution\_ratio\_\{cos,l2\}}), but the main text uses the shorter prose names above.
 
-\paragraph{Layer 1 --- Encoder shift.} The magnitude and direction of latent displacement under input noise. Metrics: raw angular/L2 shift, angular gain per unit noise, and the encoder-shift ratio in \Cref{eq:diag-ratios}.
+\paragraph{Layer 1 --- Encoder shift.} The magnitude and direction of latent displacement under input noise. Metrics: raw angular/L2 shift, angular gain per unit noise, and the encoder-shift ratio in \Cref{eq:minimal-notation}.
 
 \paragraph{Layer 2 --- Encoder geometry.} The global structure of the encoded latent space. Metrics: local neighbourhood scale, effective rank~\cite{roy2007effrank}, and Centered Kernel Alignment (CKA)~\cite{kornblith2019cka} between unperturbed-input and noisy-input latents at the diagnostic's maximum injection std.
 
-\paragraph{Layer 3 --- Predictor sensitivity.} How the predictor amplifies the encoder shift. Metrics: the \emph{\fragility{}} in \Cref{eq:diag-ratios} and multi-step rollout L2 drift at horizon $T$.
+\paragraph{Layer 3 --- Predictor sensitivity.} How the predictor amplifies the encoder shift. Metrics: the \emph{\fragility{}} in \Cref{eq:minimal-notation} and multi-step rollout L2 drift at horizon $T$.
 
 \paragraph{Layer 4 --- Latent-noise response.} Noise injected directly into the latent $z$ (bypassing the encoder) isolates predictor and cost contributions. Metrics: the slope of the planner's cost surface under latent perturbations and the latent robust radius, defined as the largest perturbation that keeps the cost ranking stable.
 
-\paragraph{Layer 5 --- Task resolution.} The control-relevant information retained in the latent. Metrics: the L2/cosine \transres{} $R_d$ in \Cref{eq:transition-resolution} and the inverse-dynamics linear-probe $R^{2}$, a controllability proxy in the spirit of linear-probe analysis~\cite{alain2017linearprobes}.
+\paragraph{Layer 5 --- Task resolution.} The control-relevant information retained in the latent. Metrics: the L2/cosine \transres{} $R_d$ in \Cref{eq:minimal-notation} and the inverse-dynamics linear-probe $R^{2}$, a controllability proxy in the spirit of linear-probe analysis~\cite{alain2017linearprobes}.
 
 \paragraph{Reading guidance.} Layers 1, 2, 4, and 5 supply descriptive evidence used throughout this paper (the per-task radar in \Cref{fig:radar} and the full base profile in \Cref{tab:full-diag}). Layer 3 is the only layer whose two full-coverage metrics --- the \fragility{} and the multi-step rollout drift --- are used as cross-checkpoint predictors in the partial-correlation analysis of \Cref{sec:diag-cross}; the other layers are kept descriptive because either their probe definition is not single-valued per checkpoint (Layers 1, 4) or their metric is saturated in some tasks (Layers 2, 5).
 

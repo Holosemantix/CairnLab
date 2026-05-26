@@ -84,7 +84,7 @@ Visual-corruption fragility 本身在 pixel-based RL（DrQ、DrQ-v2）、visual 
 
 **仍需要人工完成的一项**：
 
-- **References final manual source audit**。机器辅助核对已更新：VJEPA 的 Noisy-TV / R² 表述、Alain-Bengio OpenReview/arXiv 口径、DrQ/DrQ-v2 conference year、seq-JEPA NeurIPS 2025 poster、DrQ author order 均已校正。提交前仍建议人工逐条打开最终 bibliography 页面做最后确认。
+- **References final manual source audit**。机器辅助核对已更新：VJEPA 的 Noisy-TV / R² 表述、Alain-Bengio OpenReview/arXiv 口径、DrQ/DrQ-v2 conference year、seq-JEPA NeurIPS 2025 poster、DrQ author order 均已校正；ref [20] (maes2026stableworldmodel) 已通过 OpenReview forum 独立确认为 ICLR 2026 Workshop on World Models (Tiny Paper)，bib 加入 note 字段使 OpenReview URL 在 bibliography 中可见且可点击；ViGMO 实测 corruption 家族 (Gaussian noise + blur) 经原文核对后已在 related work 与 scope 段精确化（"visual distractions" → "sensor noise (Gaussian noise and blur)"）。提交前仍建议人工逐条打开最终 bibliography 页面做最后确认。
 
 ## 6. 讨论时常见问题
 

@@ -253,26 +253,39 @@ def fig1_hero(out_path: Path):
 def fig2_sweep(out_path: Path):
     tables = _canonical_eval_tables()
     sweep = tables["sweep"]
-    tasks = tables["tasks"]
-    fig, axes = plt.subplots(1, 4, figsize=(12, 3.4), sharey=True)
+    # Two most illustrative tasks: TwoRoom (visually redundant -> high-noise
+    # plateau) and PushT (contact-heavy -> clean and robust optima dissociate).
+    # Full per-task numbers including Reacher and Cube are in Tables 2 and 3.
+    tasks = ["TwoRoom", "PushT"]
+    fig, axes = plt.subplots(1, 2, figsize=(9.2, 4.4), sharey=True)
     for ax, t in zip(axes, tasks):
         ax.errorbar(SWEEP_STDS, sweep[t]["clean"], yerr=sweep[t]["clean_std"],
-                    fmt="o-", color="#4477AA", label="unperturbed",
-                    linewidth=1.6, markersize=4, capsize=2, elinewidth=0.8)
+                    fmt="o-", color="#4477AA",
+                    label="Eval: clean images",
+                    linewidth=1.9, markersize=5.5, capsize=2.5, elinewidth=0.9)
         ax.errorbar(SWEEP_STDS, sweep[t]["px08"], yerr=sweep[t]["px08_std"],
-                    fmt="s-", color="#EE6677", label="px+g 0.08",
-                    linewidth=1.6, markersize=4, capsize=2, elinewidth=0.8)
+                    fmt="s-", color="#EE6677",
+                    label=r"Eval: pixels+goal noise $\sigma=0.08$",
+                    linewidth=1.9, markersize=5.5, capsize=2.5, elinewidth=0.9)
         best_std = tables["corrupted_point_best"][t]["std"]
-        ax.axvline(best_std, color="#228833", linestyle="--", alpha=0.7, linewidth=1.0)
-        ax.set_title(f"{t}   (px+g 0.08 σ*={best_std:.3f})", fontsize=10.0)
-        ax.set_xlabel("std_max")
+        ax.axvline(best_std, color="#228833", linestyle="--",
+                   alpha=0.85, linewidth=1.3,
+                   label=r"Robust-eval optimum $\sigma^\ast$")
+        ax.set_title(rf"{t}   ($\sigma^\ast={best_std:.2f}$)", fontsize=12.5)
+        ax.set_xlabel(r"Train-time noise level $\sigma_{\max}$", fontsize=11.5)
         ax.set_xticks([0, 0.02, 0.04, 0.06, 0.08])
-        ax.set_xticklabels(["0", ".02", ".04", ".06", ".08"])
+        ax.set_xticklabels(["0", "0.02", "0.04", "0.06", "0.08"])
         ax.set_ylim(0, 105)
-        ax.grid(alpha=0.25, linewidth=0.4)
-    axes[0].set_ylabel("Success rate (%)")
-    axes[0].legend(loc="lower right", frameon=False, fontsize=8.5)
-    fig.tight_layout()
+        ax.grid(alpha=0.3, linewidth=0.5)
+        ax.tick_params(labelsize=10.5)
+    axes[0].set_ylabel("Success rate (%)", fontsize=11.5)
+    # Shared legend above the panels so the meaning of each curve and the
+    # dashed vertical line is unambiguous.
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center",
+               bbox_to_anchor=(0.5, 1.02), ncol=3,
+               frameon=False, fontsize=10.5)
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
     fig.savefig(out_path)
     plt.close(fig)
     print(f"  wrote {out_path}")

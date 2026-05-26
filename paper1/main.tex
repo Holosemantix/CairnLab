@@ -310,7 +310,7 @@ The same direction of failure is visible on PLDM but with task-dependent strengt
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig2_sweep.png}
-\caption{Noise-training sweep: unperturbed vs corrupted evaluation per task. Dashed vertical lines mark each task's px+g 0.08 point-best $\sigma^\ast$. No single \stdmax{} is jointly optimal across tasks.}
+\caption{Noise-training sweep on TwoRoom (visually redundant) and PushT (contact-heavy), illustrating the two patterns observed across the four-task grid. Blue: success rate under clean evaluation. Red: success rate under pixels+goal Gaussian noise $\sigma = 0.08$. Green dashed: each task's robust-eval optimum $\sigma^\ast$ (the train-time $\stdmax{}$ that maximises corrupted-eval success). TwoRoom recovers into a high-noise plateau; PushT's clean and robust optima dissociate. Full per-task numbers including Reacher and Cube are in \Cref{tab:sweep-unperturbed,tab:sweep-px08}.}
 \label{fig:sweep}
 \end{figure}
 

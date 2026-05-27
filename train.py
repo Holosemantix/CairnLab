@@ -987,8 +987,25 @@ def run(cfg):
     if warmup_type not in {"none", "wasserstein"}:
         raise ValueError(f"Unsupported loss.sigreg.warmup.type: {warmup_type}")
     sigreg_warmup = None
-    if warmup_type == "wasserstein" and int(warmup_cfg.get("epochs", 0)) > 0:
+    warmup_epochs = int(warmup_cfg.get("epochs", 0))
+    if warmup_type == "wasserstein" and warmup_epochs > 0:
         sigreg_warmup = WassersteinSIGReg(num_proj=int(warmup_cfg.get("num_proj", 1024)))
+        _warmup_weight = warmup_cfg.get("weight", None)
+        _weight_desc = (
+            f"(reuse loss.sigreg.weight={cfg.loss.sigreg.weight})"
+            if _warmup_weight is None
+            else str(_warmup_weight)
+        )
+        print(
+            f"[sigreg] Wasserstein warmup ENABLED: epochs={warmup_epochs}, "
+            f"num_proj={int(warmup_cfg.get('num_proj', 1024))}, weight={_weight_desc}"
+        )
+    else:
+        print(
+            f"[sigreg] Wasserstein warmup DISABLED "
+            f"(loss.sigreg.warmup.type={warmup_type}, epochs={warmup_epochs}); "
+            "using Epps-Pulley SIGReg for all epochs"
+        )
 
     data_module = spt.data.DataModule(train=train, val=val)
     module_kwargs = dict(

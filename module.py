@@ -38,6 +38,46 @@ class SIGReg(torch.nn.Module):
         return statistic.mean()  # average over projections and time
 
 
+class WassersteinSIGReg(torch.nn.Module):
+    """Sliced-Wasserstein Gaussian regularizer (scale-aware SIGReg warmup).
+
+    Shares SIGReg's input convention (``proj: (T, B, D)``). Each random 1D
+    projection of the embeddings is compared against standard-normal quantiles
+    with the squared 2-Wasserstein distance. Unlike the Epps-Pulley ``SIGReg``,
+    whose fixed knots assume the input already sits near unit scale, this loss
+    has a scale-aware gradient that actively pulls each projected marginal onto
+    ``N(0, 1)`` regardless of its current scale. It is meant as a warmup that
+    fixes embedding scale so the Epps-Pulley SIGReg's knots become well-aligned
+    afterwards (see notes_lewm_bn_removal.md §3.1).
+    """
+
+    def __init__(self, num_proj=1024):
+        super().__init__()
+        self.num_proj = num_proj
+
+    def forward(self, proj):
+        """
+        proj: (T, B, D)
+        """
+        proj = proj.float()
+        # Treat the batch dimension as the sample dimension per time step (B
+        # samples), matching SIGReg which averages its statistic over B only.
+        sample_count = proj.size(1)
+        if sample_count < 2:
+            return proj.new_tensor(0.0)
+        # sample random projections (unit-norm directions)
+        A = torch.randn(proj.size(-1), self.num_proj, device=proj.device)
+        A = A.div_(A.norm(p=2, dim=0).clamp_min(torch.finfo(proj.dtype).eps))
+        # (T, B, num_proj): sort each projected marginal over B and match it to
+        # standard-normal quantiles; the final mean averages over T and num_proj.
+        projected = (proj @ A).sort(dim=1).values
+        quantile_positions = (
+            torch.arange(sample_count, device=proj.device, dtype=proj.dtype) + 0.5
+        ) / float(sample_count)
+        normal_quantiles = torch.erfinv(2.0 * quantile_positions - 1.0) * (2.0**0.5)
+        return (projected - normal_quantiles.view(1, sample_count, 1)).square().mean()
+
+
 class FeedForward(nn.Module):
     """FeedForward network used in Transformers"""
 

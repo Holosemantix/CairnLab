@@ -93,6 +93,20 @@ loss:
     kwargs:
       knots: 17
       num_proj: 1024
+    # Optional scale-aware warmup for the anti-collapse regularizer. For the
+    # first `warmup.epochs` epochs the Epps-Pulley SIGReg term is replaced by a
+    # sliced-Wasserstein Gaussian regularizer that pulls embeddings onto unit
+    # scale (its gradient is scale-aware). Use this when removing BN
+    # (encoder.projection_head.norm_fn=none) leaves SIGReg stuck at a high
+    # constant — see notes_lewm_bn_removal.md §3.1/§5. During warmup the
+    # Epps-Pulley value is still logged (sigreg_epps_pulley) for monitoring, and
+    # sigreg_warmup_active flags which phase is live. Defaults below keep the
+    # classic LeWM behavior (no warmup).
+    warmup:
+      type: none        # none or wasserstein
+      epochs: 0         # epochs to run the warmup regularizer before switching to SIGReg
+      num_proj: 1024    # random projections for the Wasserstein warmup
+      weight: null      # warmup-phase regularizer weight; null reuses loss.sigreg.weight
   temporal_hinge:
     weight: 0.0 # disabled by default
     margin: 0.1

@@ -22,6 +22,7 @@ from module import (
     Embedder,
     MLP,
     SIGReg,
+    WassersteinSIGReg,
     inverse_dynamics_loss,
     temporal_straightness,
     transition_distance_prediction_loss,
@@ -695,7 +696,29 @@ def lejepa_forward(self, batch, stage, cfg):
         output["adaptive_consistency_dist_mean"] = adaptive_consistency_dist.mean()
         output["adaptive_consistency_weight_mean"] = cons_weights.detach().mean()
 
-    output["sigreg_loss"] = self.sigreg(emb.transpose(0, 1))
+    # Anti-collapse regularizer. Optionally warm up with a scale-aware
+    # sliced-Wasserstein Gaussian regularizer that pulls embeddings to unit
+    # scale before the Epps-Pulley SIGReg's fixed knots take over. This is the
+    # recommended companion when removing BN (norm_fn=none) leaves SIGReg stuck
+    # at a high constant (see notes_lewm_bn_removal.md §3.1/§5).
+    warmup_cfg = cfg.loss.sigreg.get("warmup", {})
+    warmup_active = (
+        getattr(self, "sigreg_warmup", None) is not None
+        and int(getattr(self, "current_epoch", 0)) < int(warmup_cfg.get("epochs", 0))
+    )
+    emb_tbd = emb.transpose(0, 1)
+    if warmup_active:
+        output["sigreg_loss"] = self.sigreg_warmup(emb_tbd)
+        warmup_weight = warmup_cfg.get("weight", None)
+        if warmup_weight is not None:
+            sigreg_lambd = float(warmup_weight)
+        # Keep the Epps-Pulley statistic visible so its descent can be tracked
+        # once the scale is fixed; detached so it never enters the loss graph.
+        with torch.no_grad():
+            output["sigreg_epps_pulley"] = self.sigreg(emb_tbd)
+    else:
+        output["sigreg_loss"] = self.sigreg(emb_tbd)
+    output["sigreg_warmup_active"] = emb.new_tensor(1.0 if warmup_active else 0.0)
     output["temporal_hinge_loss"] = compute_temporal_hinge(
         output, model=self.model, cfg=cfg
     )
@@ -778,6 +801,8 @@ def lejepa_forward(self, batch, stage, cfg):
                 or k.startswith("sigma_probe_")
                 or k.startswith("adaptive_")
                 or k == "pred_loss_mse_equiv"
+                or k == "sigreg_epps_pulley"
+                or k == "sigreg_warmup_active"
             )
         )
     }
@@ -956,13 +981,25 @@ def run(cfg):
         },
     }
 
+    # Optional scale-aware Wasserstein warmup for the anti-collapse regularizer.
+    warmup_cfg = cfg.loss.sigreg.get("warmup", {})
+    warmup_type = str(warmup_cfg.get("type", "none")).lower()
+    if warmup_type not in {"none", "wasserstein"}:
+        raise ValueError(f"Unsupported loss.sigreg.warmup.type: {warmup_type}")
+    sigreg_warmup = None
+    if warmup_type == "wasserstein" and int(warmup_cfg.get("epochs", 0)) > 0:
+        sigreg_warmup = WassersteinSIGReg(num_proj=int(warmup_cfg.get("num_proj", 1024)))
+
     data_module = spt.data.DataModule(train=train, val=val)
-    world_model = spt.Module(
+    module_kwargs = dict(
         model=world_model,
         sigreg=SIGReg(**cfg.loss.sigreg.kwargs),
         forward=partial(lejepa_forward, cfg=cfg),
         optim=optimizers,
     )
+    if sigreg_warmup is not None:
+        module_kwargs["sigreg_warmup"] = sigreg_warmup
+    world_model = spt.Module(**module_kwargs)
 
     ##########################
     ##       training       ##

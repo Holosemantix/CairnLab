@@ -93,20 +93,27 @@ loss:
     kwargs:
       knots: 17
       num_proj: 1024
-    # Optional scale-aware warmup for the anti-collapse regularizer. For the
-    # first `warmup.epochs` epochs the Epps-Pulley SIGReg term is replaced by a
-    # sliced-Wasserstein Gaussian regularizer that pulls embeddings onto unit
-    # scale (its gradient is scale-aware). Use this when removing BN
+    # Optional scale-aware Wasserstein companion. Use when removing BN
     # (encoder.projection_head.norm_fn=none) leaves SIGReg stuck at a high
-    # constant — see notes_lewm_bn_removal.md §3.1/§5. During warmup the
-    # Epps-Pulley value is still logged (sigreg_epps_pulley) for monitoring, and
-    # sigreg_warmup_active flags which phase is live. Defaults below keep the
-    # classic LeWM behavior (no warmup).
+    # constant — see notes_lewm_bn_removal.md §3.1/§5. Two schedule modes:
+    #   replace   (legacy) — during warmup: Wass only; after: SIGReg only.
+    #                        Has a phase switch that perturbs pred_loss.
+    #   add_decay (smooth) — SIGReg always on; Wass at full weight for
+    #                        `epochs` epochs, then linear decay over
+    #                        `decay_epochs` to 0. No phase switch.
+    # Logging keys (regardless of mode):
+    #   sigreg_loss  — Epps-Pulley value (always logged)
+    #   wass_loss    — Wasserstein value (logged when the module is built)
+    #   sigreg_scale / wass_scale — schedule scales on the loss contribution
+    #   sigreg_warmup_active — 1 inside the warmup window, 0 after
+    # Defaults below keep the classic LeWM behavior (no Wasserstein).
     warmup:
-      type: none        # none or wasserstein
-      epochs: 0         # epochs to run the warmup regularizer before switching to SIGReg
-      num_proj: 1024    # random projections for the Wasserstein warmup
-      weight: null      # warmup-phase regularizer weight; null reuses loss.sigreg.weight
+      type: none         # none or wasserstein
+      mode: replace      # replace or add_decay
+      epochs: 0          # full-weight Wass epochs
+      decay_epochs: 0    # linear-decay epochs (add_decay only)
+      num_proj: 1024     # random projections for the Wasserstein term
+      weight: null       # Wass term weight; null reuses loss.sigreg.weight
   temporal_hinge:
     weight: 0.0 # disabled by default
     margin: 0.1

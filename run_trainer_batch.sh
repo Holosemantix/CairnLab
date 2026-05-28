@@ -40,7 +40,8 @@ SWEEP_VARS=(
     # 训练相关
     encoder_projection_head_type encoder_projection_head_norm_fn encoder_projection_head_hidden_dim
     loss_sigreg_weight
-    loss_sigreg_warmup_type loss_sigreg_warmup_epochs loss_sigreg_warmup_num_proj loss_sigreg_warmup_weight
+    loss_sigreg_warmup_type loss_sigreg_warmup_mode loss_sigreg_warmup_epochs
+    loss_sigreg_warmup_decay_epochs loss_sigreg_warmup_num_proj loss_sigreg_warmup_weight
     loss_regularizer_type loss_regularizer_weight loss_regularizer_scope loss_regularizer_t
     loss_uniformity_mode loss_uniformity_temporal_exclusion
     loss_temporal_hinge_weight loss_temporal_hinge_margin loss_temporal_hinge_squared

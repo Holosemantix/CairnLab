@@ -696,29 +696,65 @@ def lejepa_forward(self, batch, stage, cfg):
         output["adaptive_consistency_dist_mean"] = adaptive_consistency_dist.mean()
         output["adaptive_consistency_weight_mean"] = cons_weights.detach().mean()
 
-    # Anti-collapse regularizer. Optionally warm up with a scale-aware
-    # sliced-Wasserstein Gaussian regularizer that pulls embeddings to unit
-    # scale before the Epps-Pulley SIGReg's fixed knots take over. This is the
-    # recommended companion when removing BN (norm_fn=none) leaves SIGReg stuck
-    # at a high constant (see notes_lewm_bn_removal.md §3.1/§5).
+    # Anti-collapse regularizer: SIGReg (Epps-Pulley) and optional Wasserstein
+    # companion. Two schedule modes (warmup.mode):
+    #   - replace (legacy): during the warmup window Wass replaces SIGReg; after,
+    #     only SIGReg. Phase switch can perturb pred_loss via the shared encoder.
+    #   - add_decay: SIGReg is always on; Wass runs at full weight for
+    #     `warmup.epochs` epochs, then linearly decays to 0 over `decay_epochs`,
+    #     producing a continuous regularizer landscape with no abrupt switch.
+    # `sigreg_loss` always carries the Epps-Pulley value; `wass_loss` is the
+    # Wasserstein value (when the module is built). Their loss contributions
+    # are scaled by `sigreg_scale` / `wass_scale` (also logged for diagnostics).
     warmup_cfg = cfg.loss.sigreg.get("warmup", {})
-    warmup_active = (
-        getattr(self, "sigreg_warmup", None) is not None
-        and int(getattr(self, "current_epoch", 0)) < int(warmup_cfg.get("epochs", 0))
-    )
+    warmup_mode = str(warmup_cfg.get("mode", "replace")).lower()
+    if warmup_mode not in {"replace", "add_decay"}:
+        raise ValueError(f"Unsupported loss.sigreg.warmup.mode: {warmup_mode}")
+
+    warmup_epochs = int(warmup_cfg.get("epochs", 0))
+    decay_epochs = int(warmup_cfg.get("decay_epochs", 0))
+    current_epoch_int = int(getattr(self, "current_epoch", 0))
+    has_warmup = getattr(self, "sigreg_warmup", None) is not None
+    in_warmup = current_epoch_int < warmup_epochs
+
+    if warmup_mode == "replace":
+        wass_scale = 1.0 if (has_warmup and in_warmup) else 0.0
+        sigreg_scale = 0.0 if (has_warmup and in_warmup) else 1.0
+    else:  # add_decay
+        sigreg_scale = 1.0
+        if not has_warmup:
+            wass_scale = 0.0
+        elif in_warmup:
+            wass_scale = 1.0
+        elif decay_epochs > 0 and (current_epoch_int - warmup_epochs) < decay_epochs:
+            wass_scale = 1.0 - float(current_epoch_int - warmup_epochs) / float(decay_epochs)
+        else:
+            wass_scale = 0.0
+
     emb_tbd = emb.transpose(0, 1)
-    if warmup_active:
-        output["sigreg_loss"] = self.sigreg_warmup(emb_tbd)
-        warmup_weight = warmup_cfg.get("weight", None)
-        if warmup_weight is not None:
-            sigreg_lambd = float(warmup_weight)
-        # Keep the Epps-Pulley statistic visible so its descent can be tracked
-        # once the scale is fixed; detached so it never enters the loss graph.
-        with torch.no_grad():
-            output["sigreg_epps_pulley"] = self.sigreg(emb_tbd)
-    else:
+
+    # SIGReg: detached forward when not active so the curve stays visible.
+    if sigreg_scale > 0:
         output["sigreg_loss"] = self.sigreg(emb_tbd)
-    output["sigreg_warmup_active"] = emb.new_tensor(1.0 if warmup_active else 0.0)
+    else:
+        with torch.no_grad():
+            output["sigreg_loss"] = self.sigreg(emb_tbd)
+
+    # Wasserstein: only computed when the module is built. Detached forward
+    # post-decay so the curve continues to track drift on the trained encoder.
+    if has_warmup:
+        if wass_scale > 0:
+            output["wass_loss"] = self.sigreg_warmup(emb_tbd)
+        else:
+            with torch.no_grad():
+                output["wass_loss"] = self.sigreg_warmup(emb_tbd)
+
+    warmup_weight_cfg = warmup_cfg.get("weight", None)
+    wass_lambd = sigreg_lambd if warmup_weight_cfg is None else float(warmup_weight_cfg)
+
+    output["sigreg_scale"] = emb.new_tensor(float(sigreg_scale))
+    output["wass_scale"] = emb.new_tensor(float(wass_scale))
+    output["sigreg_warmup_active"] = emb.new_tensor(1.0 if (has_warmup and in_warmup) else 0.0)
     output["temporal_hinge_loss"] = compute_temporal_hinge(
         output, model=self.model, cfg=cfg
     )
@@ -761,9 +797,11 @@ def lejepa_forward(self, batch, stage, cfg):
 
     output["loss"] = (
         output["pred_loss"]
-        + sigreg_lambd * output["sigreg_loss"]
+        + sigreg_lambd * sigreg_scale * output["sigreg_loss"]
         + hinge_cfg.weight * output["temporal_hinge_loss"]
     )
+    if "wass_loss" in output:
+        output["loss"] = output["loss"] + wass_lambd * wass_scale * output["wass_loss"]
     if "inverse_dynamics_loss" in output:
         output["loss"] = output["loss"] + inverse_weight * output["inverse_dynamics_loss"]
     if "transition_distance_loss" in output:
@@ -801,8 +839,9 @@ def lejepa_forward(self, batch, stage, cfg):
                 or k.startswith("sigma_probe_")
                 or k.startswith("adaptive_")
                 or k == "pred_loss_mse_equiv"
-                or k == "sigreg_epps_pulley"
                 or k == "sigreg_warmup_active"
+                or k == "sigreg_scale"
+                or k == "wass_scale"
             )
         )
     }
@@ -988,7 +1027,15 @@ def run(cfg):
         raise ValueError(f"Unsupported loss.sigreg.warmup.type: {warmup_type}")
     sigreg_warmup = None
     warmup_epochs = int(warmup_cfg.get("epochs", 0))
-    if warmup_type == "wasserstein" and warmup_epochs > 0:
+    warmup_decay_epochs = int(warmup_cfg.get("decay_epochs", 0))
+    warmup_mode_cfg = str(warmup_cfg.get("mode", "replace")).lower()
+    if warmup_mode_cfg not in {"replace", "add_decay"}:
+        raise ValueError(f"Unsupported loss.sigreg.warmup.mode: {warmup_mode_cfg}")
+    # Build the Wasserstein module whenever it could see any active step:
+    # warmup_epochs > 0 covers the legacy replace mode and the full-weight head
+    # of add_decay; decay_epochs > 0 covers a "decay only" add_decay with no
+    # full-weight head (rare but valid).
+    if warmup_type == "wasserstein" and (warmup_epochs > 0 or warmup_decay_epochs > 0):
         sigreg_warmup = WassersteinSIGReg(num_proj=int(warmup_cfg.get("num_proj", 1024)))
         _warmup_weight = warmup_cfg.get("weight", None)
         _weight_desc = (
@@ -997,13 +1044,15 @@ def run(cfg):
             else str(_warmup_weight)
         )
         print(
-            f"[sigreg] Wasserstein warmup ENABLED: epochs={warmup_epochs}, "
+            f"[sigreg] Wasserstein warmup ENABLED: mode={warmup_mode_cfg}, "
+            f"epochs={warmup_epochs}, decay_epochs={warmup_decay_epochs}, "
             f"num_proj={int(warmup_cfg.get('num_proj', 1024))}, weight={_weight_desc}"
         )
     else:
         print(
             f"[sigreg] Wasserstein warmup DISABLED "
-            f"(loss.sigreg.warmup.type={warmup_type}, epochs={warmup_epochs}); "
+            f"(type={warmup_type}, mode={warmup_mode_cfg}, "
+            f"epochs={warmup_epochs}, decay_epochs={warmup_decay_epochs}); "
             "using Epps-Pulley SIGReg for all epochs"
         )
 

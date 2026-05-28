@@ -16,15 +16,22 @@
 #   encoder_projection_head_type, encoder_projection_head_norm_fn,
 #   encoder_projection_head_hidden_dim,
 #   loss_sigreg_weight (lewm anti-collapse, default 0.09),
-#   loss_sigreg_warmup_type (lewm-only; none | wasserstein. wasserstein swaps
-#                            SIGReg for a scale-aware sliced-Wasserstein
-#                            regularizer during warmup so BN-free training does
-#                            not collapse and SIGReg can descend afterwards;
-#                            see notes_lewm_bn_removal.md §3.1/§5),
-#   loss_sigreg_warmup_epochs (epochs to run the warmup regularizer before
-#                              switching back to Epps-Pulley SIGReg; needs > 0),
-#   loss_sigreg_warmup_num_proj (random projections for the Wasserstein warmup),
-#   loss_sigreg_warmup_weight (warmup-phase weight; empty reuses loss_sigreg_weight),
+#   loss_sigreg_warmup_type (lewm-only; none | wasserstein. Adds a scale-aware
+#                            sliced-Wasserstein companion to SIGReg; intended
+#                            for BN-free training where SIGReg gets stuck; see
+#                            notes_lewm_bn_removal.md §3.1/§5),
+#   loss_sigreg_warmup_mode (replace | add_decay; default replace.
+#                            replace   = Wass replaces SIGReg during warmup,
+#                                        only SIGReg after (legacy, has a
+#                                        phase switch that perturbs pred_loss).
+#                            add_decay = SIGReg always on; Wass at full weight
+#                                        during warmup_epochs, then linear
+#                                        decay over decay_epochs to 0 (smooth)),
+#   loss_sigreg_warmup_epochs (epochs at full Wass weight),
+#   loss_sigreg_warmup_decay_epochs (linear-decay epochs after warmup;
+#                                     add_decay only, ignored for replace),
+#   loss_sigreg_warmup_num_proj (random projections for the Wasserstein term),
+#   loss_sigreg_warmup_weight (Wass term weight; empty reuses loss_sigreg_weight),
 #   loss_regularizer_*, loss_uniformity_*,
 #   loss_temporal_hinge_*, loss_inverse_dynamics_weight,
 #   loss_transition_distance_weight, loss_pred_*, loss_rollout_*,
@@ -205,7 +212,9 @@ add_override "encoder.projection_head.norm_fn" "${encoder_projection_head_norm_f
 add_override "encoder.projection_head.hidden_dim" "${encoder_projection_head_hidden_dim:-}"
 add_override "loss.sigreg.weight" "${loss_sigreg_weight:-}"
 add_override "loss.sigreg.warmup.type" "${loss_sigreg_warmup_type:-}"
+add_override "loss.sigreg.warmup.mode" "${loss_sigreg_warmup_mode:-}"
 add_override "loss.sigreg.warmup.epochs" "${loss_sigreg_warmup_epochs:-}"
+add_override "loss.sigreg.warmup.decay_epochs" "${loss_sigreg_warmup_decay_epochs:-}"
 add_override "loss.sigreg.warmup.num_proj" "${loss_sigreg_warmup_num_proj:-}"
 add_override "loss.sigreg.warmup.weight" "${loss_sigreg_warmup_weight:-}"
 add_override "loss.regularizer.type" "${loss_regularizer_type:-}"

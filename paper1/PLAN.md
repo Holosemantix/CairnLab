@@ -2,7 +2,7 @@
 
 > Source of truth: `paper1/main.tex`. 数值、表格、图和 artifact 以论文正文与 `assets/paper1_data/` 为准。
 > Reframing 执行依据：`paper1/paper1_acpc_rewrite_execution_plan.md`。
-> Last updated: 2026-05-29（reframed: invariance–resolution → action-conditioned predictive consistency）。
+> Last updated: 2026-05-29（reframed: latent invariance shorthand → action-conditioned predictive consistency）。
 
 ---
 
@@ -36,7 +36,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 ### Step 4 — 现有实验作为现象锚点 / 探针，而非最终故事
 
-统一 4 task × 36 ckpt × 3 seeds × 100 traj 协议下：无噪训练 corruption cliff（PushT 86→5、TwoRoom 94→50、Reacher/Cube 20–44pt drop），noise training 大幅恢复但是 **coarse global scalar pressure**（broad task-dependent plateaus）。重点写法：失效的本质不是”像素有噪声”，而是 visual perturbation 把模型推进了不同的 action-conditioned predictive neighborhood。PLDM 复现 task-level signature（method-family 证据）。
+统一 4 tasks × 9 configs（base + 8 noise levels）× 3 seeds × 100 traj 协议下：无噪训练 corruption cliff（PushT 86→5、TwoRoom 94→50、Reacher/Cube 20–44pt drop），noise training 大幅恢复但是 **coarse global scalar pressure**（broad task-dependent plateaus）。重点写法：失效的本质不是”像素有噪声”，而是 visual perturbation 把模型推进了不同的 action-conditioned predictive neighborhood。PLDM 复现 task-level signature（method-family 证据）。任务面板必须写成 heterogeneous stress panel：TwoRoom / PushT / Reacher / Cube 分别覆盖 discrete redundancy、contact-heavy manipulation、low-dimensional continuous control、structured 3D coupling，不声称代表 all control tasks。
 
 ### Step 5 — partial-correlation 负结果 → 新指标动机
 
@@ -88,6 +88,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 - 框架已 reframe：title / abstract / intro / related work / 新增 §3 ACPC 概念+诊断 / discussion / conclusion 已围绕 action-conditioned predictive consistency 重写；实验数值、表格、artifact **未改**（仍是 corruption cliff → noise recovery → diagnostics → partial-corr null → PLDM → blur）。
 - ACPC 系列指标（ACPC-1/H、PCC、CRA、MAF、ADM、SPRR）在正文改为 **paired-diagnostic protocol definitions**；它们尚未作为 empirical evidence 报告。
+- Phase 0 runner 已加：`tools/paper1_phase0_acpc.py` 会从 canonical eval manifest 解析 checkpoints，并在存在 loadable model object 时计算 ACPC-1/H、PCC、CRA、MAF、ADM action-distance proxy、SPRR；`--dry-run` 可先检查本机路径覆盖率。当前本地 canonical LeWM `path` 多数只有 `eval_results`，缺少可直接 `torch.load` 的 model object，实际出数前需要补齐 checkpoint root 或恢复 model object files。
 - 最小可立项版本需先完成 **Phase 0**（execution plan §8）：用现有 checkpoints 计算 ACPC-H / PCC / ranking / ADM，证明比 old fragility ratio 更贴近 closed-loop failure，或至少解释 heteroscedastic negative result；related work 已明确 ViGMO / Bisim-JEPA / LeJEPA theory 的边界。Phase 0 成立后再进 Phase 1 方法实验。
 - `paper1/main.pdf` 可 clean build（37 pages）；`tools/check_paper1_consistency.py` 仍通过（数值/artifact 未动）。
 
@@ -109,7 +110,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 ### 7.1 Paper 1 v0 — 当前状态
 
-已从 invariance-resolution diagnostic 重构为 **action-conditioned predictive consistency** 的 reframing + diagnostic paper。实验证据（corruption cliff、noise sweep、PLDM、blur、partial-corr null、hetero 负结果）保持不变，改作 ACPC 的现象锚点 / 探针。**不再按旧版本直接挂出**：最小可立项需先完成 Phase 0（计算 ACPC-H / PCC / ranking / ADM 并证明解释力，execution plan §8）以及 references 人工核对（§5）。注意 §7.3.b（adaptive resolution / per-token consistency）已与本文 motivate 的 APDC 高度重合——若补 Phase 1 方法实验，应明确 Paper 1 与 Paper 2b 的边界。
+已重构为 **action-conditioned predictive consistency** 的 reframing + diagnostic paper。实验证据（corruption cliff、noise sweep、PLDM、blur、partial-corr null、hetero 负结果）保持不变，改作 ACPC 的现象锚点 / 探针。**不再按旧版本直接挂出**：最小可立项需先完成 Phase 0（计算 ACPC-H / PCC / ranking / ADM 并证明解释力，execution plan §8）以及 references 人工核对（§5）。注意 §7.3.b（adaptive resolution / per-token consistency）已与本文 motivate 的 APDC 高度重合——若补 Phase 1 方法实验，应明确 Paper 1 与 Paper 2b 的边界。
 
 ### 7.2 Paper 1 v1 — 可选增强（不阻塞 v0）
 
@@ -136,7 +137,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 #### 7.3.b Adaptive resolution / AAAC
 
 - **核心问题**：能否在 controller 端通过 per-token consistency routing，突破 input-side noise training 的 per-task tuning 边界？
-- **由 Paper 1 哪里 motivating**：§5.5 "Additional ablation" 已验证 σ-head 学到了 prediction difficulty，但作为 loss reweighter 在 PushT 上 collapse（86% → 13%）；§5.5 Future direction 1 明示该方向。Paper 1 trade-off 是 input-side full picture，Paper 2b 要回答 controller-side 是否能进一步榨出增益。
+- **由 Paper 1 哪里 motivating**：§5.5 "Additional ablation" 已验证 σ-head 学到了 prediction difficulty，但作为 loss reweighter 在 PushT 上 collapse（86% → 13%）；§5.5 Future direction 1 明示该方向。Paper 1 给出 input-side selective-consistency 诊断图景，Paper 2b 要回答 controller-side 是否能进一步榨出增益。
 - **当前状态**：完整 4 任务 sweep + 4 件套因果干预（constant_w、random_gate、shuffle_σ、shuffle_A）已完成。**关键数据**：PushT 强视觉扰动（px+goal 0.08）C1+C2 联用 = 85.33 vs C1 单独 75.75（**+9.58pt**）；causal claim "per-token routing 本身是主导项"（constant_w −28.67pt）经 ablation 证实。详细 plan 在 `plan_adaptive_resolution.md`；**paper 写作未开始**。
 - **相对 Paper 1 的 delta**：Paper 1 诊断现象 + input-side fix 的边界；Paper 2b 提供 controller-side instantiation，与 input-side noise 正交可叠加。
 
@@ -149,7 +150,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 ### 7.4 长程方向
 
-- **IB / rate-distortion 理论 framing**：把 invariance-resolution trade-off 形式化为 information bottleneck 或 rate-distortion 优化问题。Paper 1 §5.5 future direction 3 明示但当前认为现象未 stable 到值得形式化。
+- **IB / rate-distortion 理论 framing**：把 selective-consistency tension 形式化为 information bottleneck 或 rate-distortion 优化问题。Paper 1 §5.5 future direction 3 明示但当前认为现象未 stable 到值得形式化。
 - **Sim-to-real corruption**：把 Gaussian noise / blur 替换成真相机噪声、光照变化、运动模糊等更接近 deployment 的 visual shifts。
 - **Cross-architecture extension**：把 5 层诊断协议测在 reconstruction-based world model（DreamerV3）和 decoder-free latent MPC（TD-MPC2）上，看现象与机制是否跨更大架构空间复现。
 

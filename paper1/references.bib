@@ -279,13 +279,9 @@
 
 %% ===========================================================================
 %% References added for the action-conditioned predictive-consistency (ACPC)
-%% reframing. NOTE: every entry below is flagged "TODO verify" because venue,
-%% author spelling, arXiv ID, version, or DOI has not yet been confirmed against
-%% the published source. A manual bibliography audit is required before any
-%% camera-ready submission (see PLAN.md and paper1_acpc_rewrite_execution_plan.md).
+%% reframing.
 %% ===========================================================================
 
-% TODO verify: arXiv ID 2505.12477, author list, and venue/status (preprint vs accepted).
 @misc{vanassel2025jointembeddingreconstruction,
   title         = {Joint Embedding vs Reconstruction: Provable Benefits of Latent Space Prediction for Self-Supervised Learning},
   author        = {Van Assel, Hugues and Ibrahim, Mark and Biancalani, Tommaso and Regev, Aviv and Balestriero, Randall},
@@ -294,11 +290,9 @@
   archivePrefix = {arXiv},
   primaryClass  = {cs.LG},
   doi           = {10.48550/arXiv.2505.12477},
-  note          = {TODO verify arXiv ID / authors / venue before camera-ready}
+  url           = {https://arxiv.org/abs/2505.12477}
 }
 
-% TODO verify: arXiv ID 2605.26379 looks future-dated; confirm the real identifier,
-% author list, title, and venue/status before citing.
 @misc{klindt2026lejepaworldmodel,
   title         = {When Does LeJEPA Learn a World Model?},
   author        = {Klindt, David and LeCun, Yann and Balestriero, Randall},
@@ -306,66 +300,71 @@
   eprint        = {2605.26379},
   archivePrefix = {arXiv},
   primaryClass  = {stat.ML},
-  note          = {TODO verify arXiv ID / authors / venue before camera-ready}
+  doi           = {10.48550/arXiv.2605.26379},
+  url           = {https://arxiv.org/abs/2605.26379}
 }
 
-% TODO verify: confirm proceedings volume/pages and author spelling.
 @inproceedings{grimm2020valueequivalence,
   title     = {The Value Equivalence Principle for Model-Based Reinforcement Learning},
   author    = {Grimm, Christopher and Barreto, Andre and Singh, Satinder and Silver, David},
   booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {33},
   year      = {2020},
-  note      = {TODO verify volume/pages}
+  url       = {https://proceedings.neurips.cc/paper/2020/hash/3bb585ea00014b0e3ebe4c6dd165a358-Abstract.html}
 }
 
-% TODO verify: arXiv ID 2505.22772, author list, and venue/status.
-@misc{voelcker2025calibratedvalueaware,
-  title         = {Calibrated Value-Aware Model Learning with Stochastic Environment Models},
-  author        = {Voelcker, Claas and Pedan, Anastasiia and Ahmadian, Arash and Abachi, Romina and Gilitschenski, Igor and Farahmand, Amir-massoud},
-  year          = {2025},
-  eprint        = {2505.22772},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.LG},
-  note          = {TODO verify arXiv ID / authors / venue before camera-ready}
+@inproceedings{voelcker2025calibratedvalueaware,
+  title     = {Calibrated Value-Aware Model Learning with Probabilistic Environment Models},
+  author    = {Voelcker, Claas A. and Pedan, Anastasiia and Ahmadian, Arash and Abachi, Romina and Gilitschenski, Igor and Farahmand, Amir-Massoud},
+  booktitle = {Proceedings of the 42nd International Conference on Machine Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {267},
+  pages     = {61745--61768},
+  year      = {2025},
+  publisher = {PMLR},
+  url       = {https://proceedings.mlr.press/v267/voelcker25a.html}
 }
 
-% TODO verify: PMLR volume/pages and author spelling for the CoLLAs 2023 proceedings.
 @inproceedings{dupuis2023vibr,
   title     = {{VIBR}: Learning View-Invariant Value Functions for Robust Visual Control},
   author    = {Dupuis, Tom and Rabarisoa, Jaonary and Pham, Quoc-Cuong and Filliat, David},
-  booktitle = {Proceedings of the Second Conference on Lifelong Learning Agents (CoLLAs)},
+  booktitle = {Proceedings of The 2nd Conference on Lifelong Learning Agents},
   series    = {Proceedings of Machine Learning Research},
   volume    = {232},
   pages     = {658--682},
   year      = {2023},
   publisher = {PMLR},
-  note      = {TODO verify volume/pages}
+  url       = {https://proceedings.mlr.press/v232/dupuis23a.html}
 }
 
-% TODO verify: confirm ICLR 2021 acceptance and final author list.
 @inproceedings{zhang2021dbc,
   title     = {Learning Invariant Representations for Reinforcement Learning without Reconstruction},
-  author    = {Zhang, Amy and McAllister, Rowan and Calandra, Roberto and Gal, Yarin and Levine, Sergey},
+  author    = {Zhang, Amy and McAllister, Rowan T. and Calandra, Roberto and Gal, Yarin and Levine, Sergey},
   booktitle = {Proceedings of the International Conference on Learning Representations (ICLR)},
   year      = {2021},
-  note      = {Deep Bisimulation for Control (DBC). TODO verify final metadata}
+  url       = {https://iclr.cc/virtual/2021/poster/2863}
 }
 
-% TODO verify: confirm ICML 2019 venue and pages.
 @inproceedings{gelada2019deepmdp,
   title     = {{DeepMDP}: Learning Continuous Latent Space Models for Representation Learning},
   author    = {Gelada, Carles and Kumar, Saurabh and Buckman, Jacob and Nachum, Ofir and Bellemare, Marc G.},
-  booktitle = {Proceedings of the International Conference on Machine Learning (ICML)},
+  booktitle = {Proceedings of the 36th International Conference on Machine Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {97},
+  pages     = {2170--2179},
   year      = {2019},
-  note      = {TODO verify pages}
+  publisher = {PMLR},
+  url       = {https://proceedings.mlr.press/v97/gelada19a.html}
 }
 
-% TODO verify: BS-MPC bibliographic details (authors, venue, year, identifier) are
-% UNCONFIRMED. Confirm the exact reference for bisimulation-regularized MPC encoders
-% before citing, or replace with the intended source.
-@misc{bsmpc,
-  title  = {{BS-MPC}: Bisimulation-Regularized Model Predictive Control for Robust Visual Control},
-  author = {{TODO verify authors}},
-  year   = {2024},
-  note   = {TODO verify authors / venue / year / identifier before camera-ready}
+@inproceedings{bsmpc,
+  title         = {Bisimulation Metric for Model Predictive Control},
+  author        = {Shimizu, Yutaka and Tomizuka, Masayoshi},
+  booktitle     = {Proceedings of the International Conference on Learning Representations (ICLR)},
+  year          = {2025},
+  eprint        = {2410.04553},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  doi           = {10.48550/arXiv.2410.04553},
+  url           = {https://openreview.net/forum?id=F07ic7huE3}
 }

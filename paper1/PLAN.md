@@ -14,7 +14,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 两个负结果指向新指标：(i) 控制掉训练噪声后，single-step encoder/predictor fragility 不能解释 corruption gap（partial-correlation null 在 LeWM、PLDM、joint n=18 三处复现），而 multi-step predictor drift 在部分任务（Reacher partial ρ=+0.79）保留残差信号；(ii) heteroscedastic σ-head 用 prediction error 下采样 hard transitions，让 PushT clean 从 86% 崩到 13%——说明 **hard ≠ nuisance**。诊断工具只做 mechanism localization 与 checkpoint selection，**不预测** robustness。
 
-本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，给出 ACPC 系列诊断指标（目前是 **proposed / Phase 0 TODO，尚未计算**），并据此指出方法方向 adaptive predictive-dynamics consistency（plan-side robust CEM、adaptive resolution、spherical world model — §7.3 仍为后续独立方向）。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
+本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，给出 ACPC 系列 paired-diagnostic protocol（目前尚未作为正文结果计算），并据此指出方法方向 adaptive predictive-dynamics consistency（plan-side robust CEM、adaptive resolution、spherical world model — §7.3 仍为后续独立方向）。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
 
 ---
 
@@ -55,8 +55,8 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 ## 3. 贡献写法 C1–C4
 
 - **C1 — Problem reframing。** 视觉鲁棒性应定义为 action-conditioned predictive consistency + discriminability countercondition，而非 encoder-level latent invariance。main.tex §3（`sec:acpc`）给出形式化与 downstream readout 的边界。
-- **C2 — Diagnostic evidence。** 统一 4 task × 8 noise × 3 seeds × 100 traj（PLDM 复现）下：visual perturbation 造成 closed-loop failure；noise augmentation 只是 coarse global pressure；pointwise single-step fragility 不够（控 std_max 后 partial ρ=+0.06，PLDM/joint 复现），multi-step predictor drift 在部分任务保留残差（Reacher +0.79）。
-- **C3 — Selective-consistency diagnostics（proposed）。** 定义 ACPC-1 / ACPC-H / PCC / CRA / MAF / ADM / SPRR，比较同一动作序列下 clean/corrupted predictions 并单独度量 action-relevant discriminability。**多数尚未计算，明确标注为 proposed Phase-0 probes，不是 results。**
+- **C2 — Diagnostic evidence。** 统一 4 task × 9 configs（base + 8 noise levels）× 3 seeds × 100 traj（PLDM 复现）下：visual perturbation 造成 closed-loop failure；noise augmentation 只是 coarse global pressure；pointwise single-step fragility 不够（控 std_max 后 partial ρ=+0.06，PLDM/joint 复现），multi-step predictor drift 在部分任务保留残差（Reacher +0.79）。
+- **C3 — Selective-consistency diagnostics。** 定义 ACPC-1 / ACPC-H / PCC / CRA / MAF / ADM / SPRR，比较同一动作序列下 clean/corrupted predictions 并单独度量 action-relevant discriminability。**这些 paired ACPC quantities 是下一步 diagnostic pass 的 protocol definitions，目前不是正文结果。**
 - **C4 — Method-design implication。** 据上指出 adaptive predictive-dynamics consistency：在 predictor 之后做 consistency，按 action sensitivity gating，保留 action-sensitive transitions。hetero σ-head 负结果（hard ≠ nuisance）说明为何 error-based gate 是错的。无方法实验时只写成 design implication / future direction。
 
 ## 4. 写作立场
@@ -78,7 +78,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 - 不要把 robustness 定义成 z_clean ≈ z_corrupted。
 - 不要写 "no universal std_max" 强定理；用 coarse global scalar pressure / broad task-dependent plateaus。
 - 不要说任何 diagnostic universally predicts robustness（含 ACPC-H / SPRR）；它们 localize mechanism、motivate method target。
-- 不要把 ACPC 系列指标写成已计算结果——它们是 proposed / Phase-0 TODO。
+- 不要把 ACPC 系列 paired 指标写成已计算结果——它们是下一步 diagnostic pass 的 protocol definitions。
 - 不要声称证明或加强 LeJEPA identifiability。
 - 不要说所有 JEPA 都会同样崩溃；不要把 PLDM mechanism 写成 LeWM 的简单复制；不要把 blur eval-only 写成 blur training conclusion（blur collapse 主要集中在 TwoRoom，task ordering 是 corruption-specific）。
 
@@ -87,13 +87,13 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 **状态：not submit-ready；正在 reframe 到 predictive-consistency diagnostics，可能加一个 lightweight method（execution plan §12）。**
 
 - 框架已 reframe：title / abstract / intro / related work / 新增 §3 ACPC 概念+诊断 / discussion / conclusion 已围绕 action-conditioned predictive consistency 重写；实验数值、表格、artifact **未改**（仍是 corruption cliff → noise recovery → diagnostics → partial-corr null → PLDM → blur）。
-- ACPC 系列指标（ACPC-1/H、PCC、CRA、MAF、ADM、SPRR）在正文标注为 **proposed / Phase-0 TODO，尚未计算**。
+- ACPC 系列指标（ACPC-1/H、PCC、CRA、MAF、ADM、SPRR）在正文改为 **paired-diagnostic protocol definitions**；它们尚未作为 empirical evidence 报告。
 - 最小可立项版本需先完成 **Phase 0**（execution plan §8）：用现有 checkpoints 计算 ACPC-H / PCC / ranking / ADM，证明比 old fragility ratio 更贴近 closed-loop failure，或至少解释 heteroscedastic negative result；related work 已明确 ViGMO / Bisim-JEPA / LeJEPA theory 的边界。Phase 0 成立后再进 Phase 1 方法实验。
 - `paper1/main.pdf` 可 clean build（37 pages）；`tools/check_paper1_consistency.py` 仍通过（数值/artifact 未动）。
 
 **仍需要人工完成**：
 
-- **References final manual source audit**。reframe 新增条目（`vanassel2025jointembeddingreconstruction`、`klindt2026lejepaworldmodel`、`grimm2020valueequivalence`、`voelcker2025calibratedvalueaware`、`dupuis2023vibr`、`zhang2021dbc`、`gelada2019deepmdp`、`bsmpc`）全部带 `TODO verify` 标记，venue / arXiv ID / author / DOI 未核验；`bsmpc` 的 author/venue 是占位，提交前必须替换或确认。旧条目 audit 结论保持不变（VJEPA Noisy-TV / R²、Alain-Bengio、DrQ/DrQ-v2、seq-JEPA、maes2026stableworldmodel ICLR 2026 Workshop、ViGMO corruption 家族均已校正）。
+- **References final source audit**。reframe 新增条目已做首轮核验并移除 `TODO verify`：`bsmpc` 已替换为 Shimizu--Tomizuka, ICLR 2025 / arXiv:2410.04553；`voelcker2025calibratedvalueaware` 已改为 ICML 2025 PMLR 267 的正式题名 *Calibrated Value-Aware Model Learning with Probabilistic Environment Models*；`dupuis2023vibr`、`gelada2019deepmdp` 已补 PMLR volume/pages。提交前仍需做最终人工 bib audit，尤其是 2026 arXiv 条目是否已有新版 metadata。
 
 ## 6. 讨论时常见问题
 

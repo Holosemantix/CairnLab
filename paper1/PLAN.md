@@ -1,98 +1,107 @@
 # Paper 1 — 故事线与研究路线图
 
 > Source of truth: `paper1/main.tex`. 数值、表格、图和 artifact 以论文正文与 `assets/paper1_data/` 为准。
-> Last updated: 2026-05-25.
+> Reframing 执行依据：`paper1/paper1_acpc_rewrite_execution_plan.md`。
+> Last updated: 2026-05-29（reframed: invariance–resolution → action-conditioned predictive consistency）。
 
 ---
 
 ## 1. 一分钟版本（讨论入口）
 
-JEPA 这类世界模型在 latent 空间预测而不是重建像素，因此一种常见 informal 直觉是：latent prediction 会降低保留 observation-level 细节的压力，从而更偏向保留对未来 target representation 有用的结构。Paper 1 不把这句话写成“JEPA 天然鲁棒性神话”，而是系统刻画它在 closed-loop control 下的 visual-corruption robustness boundary。
+JEPA 这类 latent predictive world model 在 latent 空间预测而非重建像素，常被期待能 abstract 掉 nuisance 视觉细节。但对 control 而言，视觉鲁棒性**不应**定义成 clean/corrupted 图像的 encoder 输出越接近越好。corrupted observation 完全可以 encode 成不同 latent；真正要求的是：在**同一历史、同一动作干预**下，世界模型预测的下一状态与多步 rollout 在任务相关坐标上保持一致。我们把这个性质命名为 **action-conditioned predictive consistency (ACPC)**，并配一个 discriminability countercondition：会改变 action-conditioned transition、cost 或最优行为的状态差异必须保持可区分。encoder-level latent closeness 既不充分也不必要。
 
-我们在 4 个机器人控制任务（PushT、TwoRoom、Reacher、Cube）上系统地测了一下：unperturbed evaluation images 上 86% 成功的 PushT，在 observation+goal image 加 Gaussian pixel noise（std=0.08）后跌到 5%；TwoRoom 从 94% 跌到 50%。给训练数据加同类噪声能基本恢复——但在当前 sweep grid 上没有观察到一个跨任务共同最优的噪声量：任务结构决定最佳剂量，unperturbed 最优和 robustness 最优甚至在同一任务上还会错开。
+Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchmark）来检验这个性质：在 4 个控制任务（PushT、TwoRoom、Reacher、Cube）上，无噪声训练的 LeWM 在 observation+goal 加噪（std=0.08）后，PushT 从 86% 掉到 5%、TwoRoom 从 94% 掉到 50%。给训练加同类噪声能恢复大部分性能，但它是一个 **coarse global scalar pressure**，呈 broad task-dependent plateaus，而非 principled 解（不再写成”无 universal std_max”定理）。
 
-我们把这个现象命名为 **invariance-resolution trade-off**——加噪声同时压平无关像素变化（有益 invariance）和任务相关细节（有害 resolution loss）。一个 5 层诊断协议把机制拆开来读；第二个方法家族 PLDM 复现了 task-level signature，但 full diagnostic profile 与 LeWM compression chain 不同。我们也专门测了"label-free 诊断指标能否直接预测 corruption robustness"，结论是 partial-correlation null 在 LeWM、PLDM、joint n=18 三处稳定复现：诊断工具能做 mechanism localization 和 checkpoint selection，但不能替代真实 corruption evaluation。
+两个负结果指向新指标：(i) 控制掉训练噪声后，single-step encoder/predictor fragility 不能解释 corruption gap（partial-correlation null 在 LeWM、PLDM、joint n=18 三处复现），而 multi-step predictor drift 在部分任务（Reacher partial ρ=+0.79）保留残差信号；(ii) heteroscedastic σ-head 用 prediction error 下采样 hard transitions，让 PushT clean 从 86% 崩到 13%——说明 **hard ≠ nuisance**。诊断工具只做 mechanism localization 与 checkpoint selection，**不预测** robustness。
 
-本文是 **diagnostic paper 不是 method paper**。它的价值在于把这个 trade-off 命名、量化，并划清诊断工具的边界，为后续 method paper（plan-side robust CEM、adaptive resolution、spherical world model — §7.3）建立 baseline 与诊断框架。
+本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，给出 ACPC 系列诊断指标（目前是 **proposed / Phase 0 TODO，尚未计算**），并据此指出方法方向 adaptive predictive-dynamics consistency（plan-side robust CEM、adaptive resolution、spherical world model — §7.3 仍为后续独立方向）。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
 
 ---
 
-## 2. 故事线（2–3 分钟版本，6 步逻辑链）
+## 2. 故事线（reframed 逻辑链）
 
-每一步独立可读；前一步推出下一步的必要性。
+每一步独立可读；前一步推出下一步的必要性。CEM 只在 setup / evaluation 出现，不进 thesis。
 
-### Step 1 — 表征 invariance 与控制 invariance 的张力
+### Step 1 — 承认 JEPA 优势但限定其作用域
 
-JEPA 把训练目标从"重建像素"换成"在 latent 空间预测未来表征"，因此 latent prediction 可能降低保留 observation-level 像素细节的压力，倾向于忽略与预测目标无关的视觉变化。**但"控制需要的不变性"和"latent prediction 学到的不变性"不一定是同一种**：闭环 CEM 规划要求 latent 在压制视觉冗余的同时，保留会改变动作选择的 action-relevant 细粒度差异（recognition / linear probe 不需要这一点，control 需要）。Paper 真正的研究问题因此是：**latent predictive world model 学到的不变性，是否同时保留了 control 所需的 action-relevant resolution，使其在 visual corruption 下能可靠闭环控制？** 我们在 JEPA-style world model + CEM planning + 任务成功率 + 跨 checkpoint 诊断的设定下系统刻画这个张力——这个长限定组合是 study setting，**不是 motivation 本身**。
+相比 reconstruction，joint-embedding prediction 降低了重建 high-magnitude nuisance 特征的压力，但仍需 augmentation 或 inductive bias 才能判断”什么是 irrelevant”（Joint-Embedding vs Reconstruction）。在 control 里，irrelevance 不是 image-level / label-level，而是 **action / transition / cost dependent**。所以不能写”latent prediction 不重建像素，所以 robust”，只能写”它减少了一种压力，但没回答 control 该 contract 哪些视觉变化”。
 
-### Step 2 — 现象锚点：把抽象 invariance 直觉落到可量化失效
+### Step 2 — 吸收 LeJEPA world-model 理论但不撞车
 
-Visual-corruption fragility 本身在 pixel-based RL（DrQ、DrQ-v2）、visual MBRL（ViGMO）和 visual generalization 基准里早已被广泛记录，**不是本文的新发现**。Step 2 的贡献不是"加噪声会让模型坏"，而是**把这个一般规律具体落到 JEPA latent world model + CEM closed-loop control 的 success-rate 评测上**：在统一的 4 task × 36 LeWM checkpoint × 3 evaluation seeds × 100 trajectories 协议下，**unperturbed 上 86% 的 PushT，在像素+goal 加 Gaussian noise std=0.08 后跌到 5%；TwoRoom 94% → 50%；Reacher、Cube 也有 20–44pt 的 drop。** 这给 Step 1 那个 invariance 直觉一个可量化反例锚点——latent prediction 本身不自动给 closed-loop control 带来 visual-corruption robustness。Cliff 还呈现 **task-specific signature**（PushT 最敏感、Cube 最不敏感、PLDM 跨方法复现 PushT/TwoRoom 大 cliff 但 Reacher/Cube 弱）而不是单点 failure，为 Step 3 的 recovery sweep 和 Step 4 的 trade-off 命名提供起点。文中保留 `clean` 只是 artifact/condition name，正文定义为 unperturbed/original evaluation images。
+*When Does LeJEPA Learn a World Model?* 说明在一定假设下 LeJEPA 能线性恢复世界 latent 变量并支持 latent-space planning，主要解决 state-side identifiability，并指出 action-conditioned transition 是自然扩展。我们的问题是 **complementary**：给定一个学好的 visual world model，clean / corrupted observation 在同一动作干预下是否产生一致预测。我们**不**声称证明或加强任何 identifiability / planning-equivalence 结论。
 
-### Step 3 — 直觉性解药"加噪声训练"碰到边界
+### Step 3 — 重新定义视觉鲁棒性：ACPC 而非 latent invariance
 
-把同类 Gaussian noise 加进训练能基本关闭这个 gap。但完整的 8-level noise sweep 揭示：**在当前 sweep grid 上没有单一 `std_max` 跨任务共同最优**。视觉冗余强的 TwoRoom 越加越好（最优 std=0.08）；接触/精细控制的 PushT 的 **unperturbed 最优在 std=0.03，robustness 最优在 std=0.06，两者错开**。"加噪声就行了"这种简单解答被这组数据关掉。
+旧代理 d(z_t, z̃_t) 小被换成：在同一动作序列下，F^k(z_t, a) 与 F^k(z̃_t, a) 在任务相关读数 Π 上一致（k=1…H）。允许 z≠z̃。配 discriminability countercondition：会改变 future transition / cost / 最优行为的 state 差异必须保留。central tension 不是抽象 invariance-vs-resolution，而是”same-state perturbation pairs → 高 predictive consistency；action-distinct pairs → 高 predictive discriminability”。形式化见 main.tex §3（`sec:acpc`）。
 
-### Step 4 — 命名并解释这个边界：invariance-resolution trade-off
+### Step 4 — 现有实验作为现象锚点 / 探针，而非最终故事
 
-为什么没有 universal 最优？因为噪声训练同时产生两种压缩：把无关像素变化压平（有益的 **invariance**），同时把任务相关的细节也压平（有害的 **resolution 损失**）。任务结构决定二者权重——视觉冗余强的任务能吸收更多压缩，接触/精细控制任务不行。我们把这个张力命名为 **invariance-resolution trade-off**，作为后续机制分析的概念锚点。Paper §3.3 给出 operational 定义（invariance 由 Layer 1/2 metric 度量、resolution 由 Layer 5 metric 度量），§4.3 Pareto Figure 是行为投影、§4.4 Table 4 是表征投影、§5.2 Table 9 把 4 task 放到 trade-off plane 上作为统一总结——trade-off 是文章的中心组织概念，不只是 discussion 的解释词。
+统一 4 task × 36 ckpt × 3 seeds × 100 traj 协议下：无噪训练 corruption cliff（PushT 86→5、TwoRoom 94→50、Reacher/Cube 20–44pt drop），noise training 大幅恢复但是 **coarse global scalar pressure**（broad task-dependent plateaus）。重点写法：失效的本质不是”像素有噪声”，而是 visual perturbation 把模型推进了不同的 action-conditioned predictive neighborhood。PLDM 复现 task-level signature（method-family 证据）。
 
-### Step 5 — 机制：5 层诊断 + 跨方法验证
+### Step 5 — partial-correlation 负结果 → 新指标动机
 
-我们设计了一个 5 层诊断协议（encoder shift → encoder geometry → predictor sensitivity → latent-noise response → task resolution），把 control pipeline 拆成 5 个独立可测的阶段。**LeWM 上的证据支持 compression-chain reading：表征 effective rank 压缩 → 状态间分辨率丢失 → 可控性（inverse-dynamics R²）下降。** PLDM（第二个方法家族）复现 task-level signature，但 full diagnostic 显示它的 diagnostic profile 更一致地伴随 multi-step predictor drift 下降，rank/resolution 大体保留。因为我们没有对 PLDM 做 causal intervention，所以这里写成 **mechanism boundary / architecture-specific profile**，不写成“PLDM 因果证明动力学预测出问题”。
+控制 std_max 后，最强 single-step fragility ratio 对 corruption drop 的 partial ρ 塌到 **+0.06**（95% bootstrap CI [−0.00, +0.25]，含 0），在 PLDM（−0.14）、joint n=18（+0.11）复现。Reacher 的 multi-step rollout drift partial ρ=**+0.79** 保留残差信号。结论：label-free pointwise / single-step 不是 control robustness 的正确抽象；更接近问题本质的是 **multi-step action-conditioned predictive consistency（ACPC-H）**。
 
-### Step 6 — 诊断工具的边界：能定位机制和选 checkpoint，不能替代 corruption evaluation
+### Step 6 — heteroscedastic σ-head 负结果放核心
 
-最后我们专门测了 model selection 实践中的实用问题："label-free 诊断指标能否直接预测 corruption robustness"。在 LeWM PushT n=9 sweep 上，最强单一指标（**fragility ratio**）对 corruption drop 的 unconditional 相关性看似很强（ρ=−0.77）。但 partial correlation 控制掉 std_max 后，**相关性塌到 +0.06（95% bootstrap CI [−0.00, +0.25]，含 0）**。这个 null 在 PLDM PushT 上复现（partial=−0.14，CI [−1.00, +0.87]），在 joint LeWM+PLDM n=18 上也复现（partial=+0.11，CI [−0.54, +0.71]）。**诊断工具的关键作用不是当 oracle，而是定位机制、筛 checkpoint、告诉后续方法该修哪一层**。这反而增强了后续 method paper 的落点。
+σ-head 学到了 prediction difficulty，但把 hard transitions downweight 后 PushT clean 从 86% 崩到 13%。这说明 **hard ≠ nuisance**：contact-sensitive transition 预测难，恰因为它们 action-relevant，不能被 global compression / uncertainty downweighting / naive invariance 丢掉。故方法应是 **sensitivity-aware predictive consistency**，不是 error-based downweighting。
+
+### Step 7 — 方法引子：Adaptive Predictive-Dynamics Consistency
+
+落点：在同一动作干预下 regularize clean/corrupted **predictions**（不是 encoder outputs），按 action / transition sensitivity gating；low sensitivity → 更强 consistency，high sensitivity → 更强 discriminability guard，high prediction difficulty 本身不 downweight。方法名暂定 APDC / Selective Predictive Consistency，**本文只写成 design implication / future direction**，不当成已完成结果。
 
 ---
 
 ## 3. 贡献写法 C1–C4
 
-- **C1：系统化暴露问题。** 4 task × 8 noise level × 2 method × 3 eval seeds × 100 traj 的统一协议下，量化 latent predictive control 的 visual-corruption cliff，确认现象不是单一 ckpt / 单一架构的偶然。
-- **C2：提出 invariance-resolution trade-off + 5 层诊断 toolkit。** 不只看 success rate，把 failure 拆到 encoder geometry / predictor sensitivity / latent-noise response / task resolution，并给出 partial-correlation 验证方案。
-- **C3：机制解释 LeWM-centred + PLDM mechanism boundary 显式。** Noise augmentation gain 在 LeWM 上对应 "compression chain"；PLDM 复现 task-level signature，但 diagnostic profile 更一致地伴随 predictor drift 下降，机制层面 architecture-aware。
-- **C4：诊断指标的范围明确。** 最强 cross-checkpoint diagnostic 是 checkpoint quality probe；partial-correlation 控制 std_max 后对 corruption drop 的 residual association null 在 LeWM/PLDM/joint 三处复现，95% bootstrap CI 全部含 0。
+- **C1 — Problem reframing。** 视觉鲁棒性应定义为 action-conditioned predictive consistency + discriminability countercondition，而非 encoder-level latent invariance。main.tex §3（`sec:acpc`）给出形式化与 downstream readout 的边界。
+- **C2 — Diagnostic evidence。** 统一 4 task × 8 noise × 3 seeds × 100 traj（PLDM 复现）下：visual perturbation 造成 closed-loop failure；noise augmentation 只是 coarse global pressure；pointwise single-step fragility 不够（控 std_max 后 partial ρ=+0.06，PLDM/joint 复现），multi-step predictor drift 在部分任务保留残差（Reacher +0.79）。
+- **C3 — Selective-consistency diagnostics（proposed）。** 定义 ACPC-1 / ACPC-H / PCC / CRA / MAF / ADM / SPRR，比较同一动作序列下 clean/corrupted predictions 并单独度量 action-relevant discriminability。**多数尚未计算，明确标注为 proposed Phase-0 probes，不是 results。**
+- **C4 — Method-design implication。** 据上指出 adaptive predictive-dynamics consistency：在 predictor 之后做 consistency，按 action sensitivity gating，保留 action-sensitive transitions。hetero σ-head 负结果（hard ≠ nuisance）说明为何 error-based gate 是错的。无方法实验时只写成 design implication / future direction。
 
 ## 4. 写作立场
 
 **应该坚持的强说法**：
 
-- Latent prediction alone does not guarantee visual-corruption robustness for control.
-- Visual-corruption failure is a real closed-loop control issue, not a representation-space curiosity.
-- Noise training creates a task-dependent invariance-resolution trade-off.
-- LeWM 的 mechanism evidence 支持 compression-chain reading.
-- PLDM 支持现象跨方法，但 diagnostic profile 不等同于 LeWM compression chain.
+- 视觉鲁棒性应定义为 action-conditioned predictive consistency，而非 encoder-level latent invariance；latent closeness 既不充分也不必要。
+- 必须保留 discriminability countercondition：改变 action-conditioned transition / cost / 最优行为的差异要可区分。
+- Latent prediction alone 不保证 control 的 visual-corruption robustness；visual-corruption failure 是真实 closed-loop 控制问题，不是 representation-space curiosity。
+- noise training 是 coarse global scalar pressure（broad task-dependent plateaus），不是 principled 解。
+- pointwise single-step fragility 不预测 corruption gap；multi-step predictive consistency 更接近问题本质。
+- hard ≠ nuisance：difficulty-based downweighting 会丢掉 action-relevant transitions。
+- visual perturbation 是 controlled probe，不是新 benchmark。
 
 **需要避免的过强说法**：
 
-- 不要说所有 JEPA 都会同样崩溃.
-- 不要说某个 diagnostic universally predicts robustness.
-- 不要说 cost surface 已被排除为所有任务的主因.
-- 不要把 blur eval-only 写成 blur training conclusion.
-- 不要说 Gaussian-noise sweep 的 per-task signature 整体泛化到 blur；更稳的说法是 blur collapse 主要集中在 TwoRoom，其他任务整体更稳定，说明 visual fragility 能跨 Gaussian-noise axis 出现，但 task ordering 和 recovery profile 是 corruption-specific.
-- 不要把 PLDM mechanism 写成 LeWM mechanism 的简单复制.
+- 不要把 "JEPA + rollout + CEM planning" 当 novelty；CEM 只是 evaluation-time action optimizer。
+- 不要把中心概念叫成 "planning equivalence"；planning / cost / action 是 downstream readout。
+- 不要把 robustness 定义成 z_clean ≈ z_corrupted。
+- 不要写 "no universal std_max" 强定理；用 coarse global scalar pressure / broad task-dependent plateaus。
+- 不要说任何 diagnostic universally predicts robustness（含 ACPC-H / SPRR）；它们 localize mechanism、motivate method target。
+- 不要把 ACPC 系列指标写成已计算结果——它们是 proposed / Phase-0 TODO。
+- 不要声称证明或加强 LeJEPA identifiability。
+- 不要说所有 JEPA 都会同样崩溃；不要把 PLDM mechanism 写成 LeWM 的简单复制；不要把 blur eval-only 写成 blur training conclusion（blur collapse 主要集中在 TwoRoom，task ordering 是 corruption-specific）。
 
 ## 5. 当前 submit-readiness
 
-- 主文 story 已闭环：failure → recovery → trade-off → mechanism → boundary.
-- LeWM 是主 microscope，PLDM 是 second-family replication，blur 是 cross-corruption sanity check.
-- 95% checkpoint-row bootstrap CI 已加入 Table 7 / Appendix F / 正文，用来约束 partial-correlation 结论强度.
-- Success-rate tables 的 uncertainty 是 3 evaluation seeds 的 population std；correlation intervals 是 checkpoint-level bootstrap CI，二者口径已在正文区分.
-- `tools/check_paper1_consistency.py` 已覆盖核心 artifact 与关键数值一致性.
-- `paper1/main.pdf` 可 clean build（33 pages, 0 Overfull, 0 errors）.
+**状态：not submit-ready；正在 reframe 到 predictive-consistency diagnostics，可能加一个 lightweight method（execution plan §12）。**
 
-**仍需要人工完成的一项**：
+- 框架已 reframe：title / abstract / intro / related work / 新增 §3 ACPC 概念+诊断 / discussion / conclusion 已围绕 action-conditioned predictive consistency 重写；实验数值、表格、artifact **未改**（仍是 corruption cliff → noise recovery → diagnostics → partial-corr null → PLDM → blur）。
+- ACPC 系列指标（ACPC-1/H、PCC、CRA、MAF、ADM、SPRR）在正文标注为 **proposed / Phase-0 TODO，尚未计算**。
+- 最小可立项版本需先完成 **Phase 0**（execution plan §8）：用现有 checkpoints 计算 ACPC-H / PCC / ranking / ADM，证明比 old fragility ratio 更贴近 closed-loop failure，或至少解释 heteroscedastic negative result；related work 已明确 ViGMO / Bisim-JEPA / LeJEPA theory 的边界。Phase 0 成立后再进 Phase 1 方法实验。
+- `paper1/main.pdf` 可 clean build（37 pages）；`tools/check_paper1_consistency.py` 仍通过（数值/artifact 未动）。
 
-- **References final manual source audit**。机器辅助核对已更新：VJEPA 的 Noisy-TV / R² 表述、Alain-Bengio OpenReview/arXiv 口径、DrQ/DrQ-v2 conference year、seq-JEPA NeurIPS 2025 poster、DrQ author order 均已校正；ref [20] (maes2026stableworldmodel) 已通过 OpenReview forum 独立确认为 ICLR 2026 Workshop on World Models (Tiny Paper)，bib 加入 note 字段使 OpenReview URL 在 bibliography 中可见且可点击；ViGMO 实测 corruption 家族 (Gaussian noise + blur) 经原文核对后已在 related work 与 scope 段精确化（"visual distractions" → "sensor noise (Gaussian noise and blur)"）。提交前仍建议人工逐条打开最终 bibliography 页面做最后确认。
+**仍需要人工完成**：
+
+- **References final manual source audit**。reframe 新增条目（`vanassel2025jointembeddingreconstruction`、`klindt2026lejepaworldmodel`、`grimm2020valueequivalence`、`voelcker2025calibratedvalueaware`、`dupuis2023vibr`、`zhang2021dbc`、`gelada2019deepmdp`、`bsmpc`）全部带 `TODO verify` 标记，venue / arXiv ID / author / DOI 未核验；`bsmpc` 的 author/venue 是占位，提交前必须替换或确认。旧条目 audit 结论保持不变（VJEPA Noisy-TV / R²、Alain-Bengio、DrQ/DrQ-v2、seq-JEPA、maes2026stableworldmodel ICLR 2026 Workshop、ViGMO corruption 家族均已校正）。
 
 ## 6. 讨论时常见问题
 
-- 题目是否应该更强调 "latent prediction is not visual robustness"，还是更强调 "invariance-resolution trade-off"？
-- PLDM 放在主文还是 appendix 的分量是否合适？
-- Blur eval-only 是否足够作为 sanity check，还是需要后续 blur training v1？
-- 五层诊断公式是否已足够清楚，还是需要把更多 metric definition 移到主文？
-- 当前 paper 是投 empirical diagnostics 方向，还是后续补 algorithm 后转 method paper？
+- ACPC 系列指标在 Phase 0 上能否比 old fragility ratio 更贴近 corrupted success / corruption gap？（失败判据见 execution plan §8.7）
+- candidate action sequence 来源如何固定（CEM 采样 / 固定 random / dataset actions），保证 clean/noisy 同一 candidate set？
+- Π（task-relevant predictive readout）与 Ψ（discriminability readout）具体取什么？full latent / transition delta / cost feature / learned projection？
+- 是否补 Phase 1 方法实验后转成 method paper，还是先以 reframing + diagnostic 形态投出？
+- 新增 related work 边界（Bisim-JEPA / ViGMO / value equivalence / LeJEPA theory）是否足够区分，避免被 reviewer 当作 condition stacking？
 
 ---
 
@@ -100,7 +109,7 @@ Visual-corruption fragility 本身在 pixel-based RL（DrQ、DrQ-v2）、visual 
 
 ### 7.1 Paper 1 v0 — 当前状态
 
-完成度 95%。主线 story、PLDM 复制、blur sanity check、bootstrap CI 都已就位。差一项人工 arXiv 核对（§5）就可提交。
+已从 invariance-resolution diagnostic 重构为 **action-conditioned predictive consistency** 的 reframing + diagnostic paper。实验证据（corruption cliff、noise sweep、PLDM、blur、partial-corr null、hetero 负结果）保持不变，改作 ACPC 的现象锚点 / 探针。**不再按旧版本直接挂出**：最小可立项需先完成 Phase 0（计算 ACPC-H / PCC / ranking / ADM 并证明解释力，execution plan §8）以及 references 人工核对（§5）。注意 §7.3.b（adaptive resolution / per-token consistency）已与本文 motivate 的 APDC 高度重合——若补 Phase 1 方法实验，应明确 Paper 1 与 Paper 2b 的边界。
 
 ### 7.2 Paper 1 v1 — 可选增强（不阻塞 v0）
 

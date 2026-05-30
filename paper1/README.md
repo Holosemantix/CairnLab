@@ -2,7 +2,7 @@
 
 Self-contained LaTeX source for the arXiv preprint.
 
-> *Diagnosing the Invariance--Resolution Trade-off in JEPA World Models for Control*
+> *Action-Conditioned Predictive Consistency for Robust Visual World Models*
 
 Companion plan / storyline doc: `PLAN.md` (next to this README).
 
@@ -27,7 +27,7 @@ bash build.sh           # builds main.pdf
 bash build.sh --clean   # remove intermediates first
 ```
 
-To regenerate the 6 figures before building:
+To regenerate the 5 main figures before building:
 
 ```bash
 cd .. && python -m tools.paper1_figs --out-dir assets/paper1_figs

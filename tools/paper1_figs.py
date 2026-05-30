@@ -1,4 +1,4 @@
-"""Render the Paper 1 figures for the Invariance-Resolution paper.
+"""Render the Paper 1 figures for the ACPC paper.
 
 Run:
     python -m tools.paper1_figs --out-dir assets/paper1_figs
@@ -6,7 +6,7 @@ Run:
 The PNG filenames match the figure numbers in the rendered PDF
 (``fig{N}_*.png`` is the N-th figure in the document order):
 
-    fig1_concept.png    — conceptual invariance-resolution trade-off schematic
+    fig1_concept.png    — conceptual ACPC/selective-consistency schematic
     fig2_sweep.png      — TwoRoom + PushT unperturbed / px+g 0.08 vs std_max
     fig4_radar.png      — 4-task diagnostic radar (base vs representative ckpt)
 
@@ -195,7 +195,7 @@ def _canonical_diag_tables() -> Dict[str, Dict]:
 
 
 # ============================================================================
-# Figure 1 — Conceptual schematic: invariance-resolution trade-off
+# Figure 1 — Conceptual schematic: action-conditioned predictive consistency
 # ============================================================================
 
 def _box(ax, xy, w, h, fc, ec="#333333", lw=1.0, radius=0.018):
@@ -272,56 +272,58 @@ def _draw_latent_axes(ax, origin, size, label_color="#4A5568"):
     ax.plot([ox, ox], [oy, oy + sy], color="#111111", lw=1.1)
     _arrow(ax, (ox + sx, oy), (ox + sx + 0.02, oy), "#111111", 1.0)
     _arrow(ax, (ox, oy + sy), (ox, oy + sy + 0.02), "#111111", 1.0)
-    ax.text(ox + sx + 0.030, oy - 0.006, r"$z_1$", fontsize=10, color=label_color)
-    ax.text(ox - 0.010, oy + sy + 0.030, r"$z_2$", fontsize=10, color=label_color)
+    ax.text(ox + sx + 0.030, oy - 0.006, r"$\hat z_1$", fontsize=10, color=label_color)
+    ax.text(ox - 0.010, oy + sy + 0.030, r"$\hat z_2$", fontsize=10, color=label_color)
 
 
 def fig1_concept(out_path: Path):
-    """Conceptual schematic for the invariance-resolution trade-off."""
+    """Conceptual schematic for action-conditioned predictive consistency."""
     fig, ax = plt.subplots(figsize=(13.2, 7.0))
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
 
-    ax.text(0.5, 0.965, "Invariance--Resolution Trade-off in JEPA Control",
+    ax.text(0.5, 0.965, "Action-Conditioned Predictive Consistency",
             ha="center", va="top", fontsize=19, fontweight="bold", color="#1A202C")
     ax.text(
         0.5, 0.925,
-        "Contract nuisance variants of the same task-relevant state; preserve distinctions that change transition, cost, or action.",
+        "Same-state visual perturbations should agree after prediction; action-relevant differences must remain separable.",
         ha="center", va="top", fontsize=11.2, color="#4A5568"
     )
 
     # Panel A.
     _box(ax, (0.035, 0.365), 0.45, 0.50, "#F8FBFF", "#2B6CB0", 1.2, radius=0.025)
-    ax.text(0.060, 0.825, "A. Desired invariance",
-            fontsize=13.5, fontweight="bold", color="#1E4E8C")
-    ax.text(0.060, 0.794, "Invariant to nuisance variation of the same task-relevant state",
-            fontsize=9.7, color="#1E4E8C")
+    ax.text(0.060, 0.835, "A. Same-state predictive consistency",
+            fontsize=12.5, fontweight="bold", color="#1E4E8C")
+    ax.text(0.060, 0.784, "Clean/noisy views may encode differently;\n"
+            "the same action should predict the same future",
+            fontsize=7.7, color="#1E4E8C", linespacing=1.05)
     card_x, card_w, card_h = 0.070, 0.135, 0.090
-    _draw_tworoom_card(ax, card_x, 0.675, card_w, card_h, "original", "original")
-    _draw_tworoom_card(ax, card_x, 0.545, card_w, card_h, "noise", "Gaussian pixel noise")
-    _draw_tworoom_card(ax, card_x, 0.415, card_w, card_h, "lighting", "lighting / texture shift")
+    _draw_tworoom_card(ax, card_x, 0.625, card_w, card_h, "original", "original")
+    _draw_tworoom_card(ax, card_x, 0.500, card_w, card_h, "noise", "Gaussian pixel noise")
+    _draw_tworoom_card(ax, card_x, 0.375, card_w, card_h, "lighting", "lighting / texture shift")
     _draw_latent_axes(ax, (0.305, 0.470), (0.115, 0.170), "#1E4E8C")
     cluster = [(0.352, 0.565), (0.365, 0.595), (0.377, 0.550), (0.390, 0.580)]
     for p in cluster:
         ax.add_patch(Circle(p, 0.008, fc="#5B8DEF", ec="#1D4ED8", lw=0.8))
     ax.add_patch(Circle((0.371, 0.573), 0.060, fill=False, ec="#1E4E8C", ls=(0, (4, 4)), lw=1.1))
-    for y in [0.720, 0.590, 0.460]:
+    for y in [0.670, 0.545, 0.420]:
         _arrow(ax, (0.215, y), (0.292, 0.572), "#2B6CB0", 1.5)
-    ax.text(0.305, 0.415, "same task-relevant state\n-> nearby latents",
+    ax.text(0.305, 0.415, "same state + same action\n-> consistent predictions",
             ha="center", va="top", fontsize=10, color="#1E4E8C", fontweight="bold")
 
     # Panel B.
     _box(ax, (0.515, 0.365), 0.45, 0.50, "#FAFFF8", "#2F855A", 1.2, radius=0.025)
-    ax.text(0.540, 0.825, "B. Desired resolution",
-            fontsize=13.5, fontweight="bold", color="#276749")
-    ax.text(0.540, 0.794, "Separable for action-relevant state differences",
-            fontsize=9.7, color="#276749")
+    ax.text(0.540, 0.835, "B. Action-relevant discriminability",
+            fontsize=12.5, fontweight="bold", color="#276749")
+    ax.text(0.540, 0.784, "State differences that change transition, cost, or action\n"
+            "stay separable after prediction",
+            fontsize=7.7, color="#276749", linespacing=1.05)
     px, py = 0.545, 0.675
     state_specs = [
-        ("state A: contact left", -18, -0.11, "#2F855A", 0.675),
-        ("state B: centered", -5, 0.00, "#C53030", 0.545),
-        ("state C: contact right", 10, 0.10, "#805AD5", 0.415),
+        ("state A: contact left", -18, -0.11, "#2F855A", 0.625),
+        ("state B: centered", -5, 0.00, "#C53030", 0.500),
+        ("state C: contact right", 10, 0.10, "#805AD5", 0.375),
     ]
     for label, angle, dx, color, y in state_specs:
         _draw_pusht_card(ax, px, y, card_w, card_h, angle, dx, label, color)
@@ -339,21 +341,21 @@ def fig1_concept(out_path: Path):
         ax.add_patch(Circle(center, 0.045, fill=False, ec=color, ls=(0, (4, 4)), lw=1.0))
     for _, _, _, color, y in state_specs:
         _arrow(ax, (0.690, y + 0.045), (0.770, y + 0.005), color, 1.5)
-    ax.text(0.920, 0.610, "different transition /\ncost / action\n-> separated latents",
+    ax.text(0.920, 0.610, "different transition /\ncost / action\n-> separated predictions",
             ha="center", va="center", fontsize=8.8, color="#276749", fontweight="bold",
             bbox=dict(boxstyle="round,pad=0.25", facecolor="#FAFFF8", edgecolor="none", alpha=0.92))
 
     # Panel C.
     _box(ax, (0.035, 0.070), 0.93, 0.225, "#FBFBFA", "#A0AEC0", 1.0, radius=0.025)
-    ax.text(0.500, 0.262, "C. Task-dependent required granularity",
+    ax.text(0.500, 0.262, "C. Task-dependent selective-consistency demand",
             fontsize=13.5, fontweight="bold", ha="center", color="#1A202C")
     x0, x1, y = 0.175, 0.825, 0.185
     ax.plot([x0, x1], [y, y], color="#4A5568", lw=1.4)
     _arrow(ax, (0.500, y), (x0, y), "#B91C1C", 2.0)
     _arrow(ax, (0.500, y), (x1, y), "#1B7F3A", 2.0)
-    ax.text(x0 - 0.014, y + 0.040, "Needs fine\naction-conditioned\nresolution",
+    ax.text(x0 - 0.014, y + 0.040, "Needs stronger\ndiscriminability\nguard",
             ha="right", va="center", fontsize=9.5, color="#B91C1C", fontweight="bold")
-    ax.text(x1 + 0.014, y + 0.040, "Tolerates stronger\ncompression of\nvisual nuisance",
+    ax.text(x1 + 0.014, y + 0.040, "Tolerates stronger\nsame-state\nconsistency",
             ha="left", va="center", fontsize=9.5, color="#1B7F3A", fontweight="bold")
     task_pos = [
         ("PushT", 0.245, "#B91C1C", "contact precision"),

@@ -338,6 +338,52 @@ def _cost_info(batch: Mapping[str, torch.Tensor], history_size: int) -> dict[str
     }
 
 
+def _manual_candidate_costs(
+    model,
+    batch: Mapping[str, torch.Tensor],
+    candidates: torch.Tensor,
+    *,
+    history_size: int,
+) -> torch.Tensor:
+    """Compute final-goal candidate costs without using model.get_cost().
+
+    PLDM checkpoints expose the same encode/action_encoder/predict primitives as
+    LeWM, but the upstream PLDM get_cost path broadcasts a (B, 1, D) goal
+    embedding directly against a (B, S, T, D) rollout tensor. That aligns the
+    batch dimension with the candidate dimension when S != B. This helper keeps
+    the dimensions explicit and returns the same planner-facing (B, S) cost
+    surface needed by PCC/CRA/MAF.
+    """
+    b, n_candidates, action_steps = candidates.shape[:3]
+    context = {
+        "pixels": batch["pixels"][:, :history_size],
+        "action": batch["action"][:, :history_size],
+    }
+    goal = {"pixels": batch["pixels"][:, -1:]}
+
+    context_outputs = model.encode(context)
+    goal_outputs = model.encode(goal)
+    context_emb = context_outputs["emb"].detach()
+    goal_emb = goal_outputs["emb"][:, -1].detach()
+
+    init = context_emb.unsqueeze(1).expand(
+        b, n_candidates, history_size, context_emb.size(-1)
+    )
+    init = init.reshape(b * n_candidates, history_size, context_emb.size(-1)).clone()
+
+    act_flat = candidates.reshape(b * n_candidates, action_steps, candidates.size(-1))
+    act_emb = model.action_encoder(act_flat)
+    rollout_steps = max(0, action_steps - history_size + 1)
+    chain = _autoregressive_rollout(model, init, act_emb, history_size, rollout_steps)
+    pred_final = chain[:, -1].reshape(b, n_candidates, -1)
+
+    goal_final = goal_emb.unsqueeze(1).expand_as(pred_final)
+    spaces = get_model_spaces(model)
+    if spaces["inference_cost_type"] == "cosine":
+        return 1.0 - F.cosine_similarity(pred_final, goal_final, dim=-1)
+    return F.mse_loss(pred_final, goal_final, reduction="none").sum(dim=-1)
+
+
 def _ranking_metrics(
     clean_costs: torch.Tensor,
     noisy_costs: torch.Tensor,
@@ -393,6 +439,7 @@ def compute_cost_metrics(
     clean_batch: Mapping[str, torch.Tensor],
     noisy_batch: Mapping[str, torch.Tensor],
     *,
+    method: str,
     history_size: int,
     future_steps: int,
     random_action_trials: int,
@@ -407,8 +454,16 @@ def compute_cost_metrics(
         random_action_trials=random_action_trials,
         seed=seed,
     )
-    clean_costs = model.get_cost(_cost_info(clean_batch, history_size), candidates)
-    noisy_costs = model.get_cost(_cost_info(noisy_batch, history_size), candidates)
+    if method == "PLDM":
+        clean_costs = _manual_candidate_costs(
+            model, clean_batch, candidates, history_size=history_size
+        )
+        noisy_costs = _manual_candidate_costs(
+            model, noisy_batch, candidates, history_size=history_size
+        )
+    else:
+        clean_costs = model.get_cost(_cost_info(clean_batch, history_size), candidates)
+        noisy_costs = model.get_cost(_cost_info(noisy_batch, history_size), candidates)
     return {
         "candidate_count": float(candidates.size(1)),
         "future_steps": float(future_steps),
@@ -520,6 +575,7 @@ def run_checkpoint(
             model,
             batch,
             noisy_batch,
+            method=method,
             history_size=history_size,
             future_steps=args.future_steps,
             random_action_trials=args.random_action_trials,

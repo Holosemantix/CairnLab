@@ -612,7 +612,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(corrupt_goal=True)
 
     p.add_argument("--state-key", default=None)
-    p.add_argument("--frameskip", type=int, default=1)
+    p.add_argument(
+        "--frameskip",
+        type=int,
+        default=5,
+        help="Dataset action frameskip/action-block size. Canonical Paper 1 runs use 5.",
+    )
     p.add_argument("--img-size", type=int, default=224)
     p.add_argument("--embedding-space", choices=["raw", "normalized"], default=None)
     p.add_argument("--seed", type=int, default=3072)

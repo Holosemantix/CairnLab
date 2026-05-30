@@ -757,7 +757,7 @@ Unperturbed evaluation uses no noise, 100 trajectories per seed $\times$ 3 seeds
 Training runs on a single NVIDIA H800 (80\,GB) and follows the LeWM training schedule released with the baseline.
 
 \subsection{Main-figure rendering}
-The five main figures are produced by \code{tools/paper1\_figs.py}; run \codebrk{python -m tools.paper1\_figs --out-dir assets/paper1\_figs}. The script reads \dataset{canonical\_evals\_20260517.json} together with \dataset{canonical\_diagnostics\_20260517.json}; no checkpoint or model loading is required.
+The concept figure is maintained as the static asset \codebrk{assets/paper1\_figs/fig1\_concept.png}. The remaining generated main figures are produced by \code{tools/paper1\_figs.py}; run \codebrk{python -m tools.paper1\_figs --out-dir assets/paper1\_figs}. The script reads \dataset{canonical\_evals\_20260517.json} together with \dataset{canonical\_diagnostics\_20260517.json}; no checkpoint or model loading is required.
 
 \subsection{Corruption visualizations}\label{sec:appendix-A-corruption-viz}
 \Cref{fig:corruption-viz} shows representative renderings of the two evaluated corruption families, applied to a sample observation from each of the four tasks. The Gaussian-noise row includes a mild calibration severity $\sigma = 0.03$ in addition to the two evaluation endpoints $\sigma \in \{0.05, 0.08\}$ used in \Cref{sec:exp-cliff,sec:exp-sweep} (the main-sweep px+goal grid); the Gaussian-blur kernel sizes ($k \in \{3, 7, 11, 15\}$) match the stress test in \Cref{sec:appendix-G}. Each panel is a single $224 \times 224$ RGB frame from the corresponding task's evaluation rollout, after corruption and before encoder normalisation.

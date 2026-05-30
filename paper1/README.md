@@ -27,7 +27,7 @@ bash build.sh           # builds main.pdf
 bash build.sh --clean   # remove intermediates first
 ```
 
-To regenerate the 5 main figures before building:
+Figure 1 (`fig1_concept.png`) is maintained as a static concept asset. To regenerate the remaining generated main figures before building:
 
 ```bash
 cd .. && python -m tools.paper1_figs --out-dir assets/paper1_figs

@@ -2,7 +2,7 @@
 
 > Source of truth: `paper1/main.tex`. 数值、表格、图和 artifact 以论文正文与 `assets/paper1_data/` 为准。
 > Reframing 执行依据：`paper1/paper1_acpc_rewrite_execution_plan.md`。
-> Last updated: 2026-05-29（reframed: latent invariance shorthand → action-conditioned predictive consistency）。
+> Last updated: 2026-05-30（Phase 0 ACPC diagnostics artifact integrated as exploratory evidence）。
 
 ---
 
@@ -14,7 +14,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 两个负结果指向新指标：(i) 控制掉训练噪声后，single-step encoder/predictor fragility 不能解释 corruption gap（partial-correlation null 在 LeWM、PLDM、joint n=18 三处复现），而 multi-step predictor drift 在部分任务（Reacher partial ρ=+0.79）保留残差信号；(ii) heteroscedastic σ-head 用 prediction error 下采样 hard transitions，让 PushT clean 从 86% 崩到 13%——说明 **hard ≠ nuisance**。诊断工具只做 mechanism localization 与 checkpoint selection，**不预测** robustness。
 
-本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，给出 ACPC 系列 paired-diagnostic protocol（目前尚未作为正文结果计算），并据此指出方法方向 adaptive predictive-dynamics consistency（plan-side robust CEM、adaptive resolution、spherical world model — §7.3 仍为后续独立方向）。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
+本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，给出 ACPC 系列 paired-diagnostic protocol，并用 Phase 0 full-sweep artifact 做 exploratory sanity check：fragile baselines 到 robust point-best 时 ACPC-H / PCC / CRA / MAF 按预期改善，但这些指标仍只做 mechanism localization，不写成 universal robustness predictor。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
 
 ---
 
@@ -56,7 +56,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 - **C1 — Problem reframing。** 视觉鲁棒性应定义为 action-conditioned predictive consistency + discriminability countercondition，而非 encoder-level latent invariance。main.tex §3（`sec:acpc`）给出形式化与 downstream readout 的边界。
 - **C2 — Diagnostic evidence。** 统一 4 task × 9 configs（base + 8 noise levels）× 3 seeds × 100 traj（PLDM 复现）下：visual perturbation 造成 closed-loop failure；noise augmentation 只是 coarse global pressure；pointwise single-step fragility 不够（控 std_max 后 partial ρ=+0.06，PLDM/joint 复现），multi-step predictor drift 在部分任务保留残差（Reacher +0.79）。
-- **C3 — Selective-consistency diagnostics。** 定义 ACPC-1 / ACPC-H / PCC / CRA / MAF / ADM / SPRR，比较同一动作序列下 clean/corrupted predictions 并单独度量 action-relevant discriminability。**这些 paired ACPC quantities 是下一步 diagnostic pass 的 protocol definitions，目前不是正文结果。**
+- **C3 — Selective-consistency diagnostics。** 定义 ACPC-1 / ACPC-H / PCC / CRA / MAF / ADM / SPRR，比较同一动作序列下 clean/corrupted predictions 并单独度量 action-relevant discriminability。Phase 0 已对 LeWM+PLDM full sweep 出数（72/72 rows ok），可作为 face-validity / mechanism-localization evidence，但不能写成单指标预测 robustness。
 - **C4 — Method-design implication。** 据上指出 adaptive predictive-dynamics consistency：在 predictor 之后做 consistency，按 action sensitivity gating，保留 action-sensitive transitions。hetero σ-head 负结果（hard ≠ nuisance）说明为何 error-based gate 是错的。无方法实验时只写成 design implication / future direction。
 
 ## 4. 写作立场
@@ -77,20 +77,20 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 - 不要把中心概念叫成 "planning equivalence"；planning / cost / action 是 downstream readout。
 - 不要把 robustness 定义成 z_clean ≈ z_corrupted。
 - 不要写 "no universal std_max" 强定理；用 coarse global scalar pressure / broad task-dependent plateaus。
-- 不要说任何 diagnostic universally predicts robustness（含 ACPC-H / SPRR）；它们 localize mechanism、motivate method target。
-- 不要把 ACPC 系列 paired 指标写成已计算结果——它们是下一步 diagnostic pass 的 protocol definitions。
+- 不要说任何 diagnostic universally predicts robustness（含 ACPC-H / PCC / CRA / MAF / SPRR）；它们 localize mechanism、motivate method target。
+- 不要把 Phase 0 ACPC 写成方法结果或因果证据；它是 post-hoc checkpoint diagnostic，且 ADM 目前是 action-distance proxy，不是 oracle task-state margin。
 - 不要声称证明或加强 LeJEPA identifiability。
 - 不要说所有 JEPA 都会同样崩溃；不要把 PLDM mechanism 写成 LeWM 的简单复制；不要把 blur eval-only 写成 blur training conclusion（blur collapse 主要集中在 TwoRoom，task ordering 是 corruption-specific）。
 
 ## 5. 当前 submit-readiness
 
-**状态：not submit-ready；正在 reframe 到 predictive-consistency diagnostics，可能加一个 lightweight method（execution plan §12）。**
+**状态：closer, but still not submit-ready；Phase 0 ACPC artifact 已完成并纳入 appendix，下一步是 references final audit 和是否补 Phase 1 method 的决策。**
 
-- 框架已 reframe：title / abstract / intro / related work / 新增 §3 ACPC 概念+诊断 / discussion / conclusion 已围绕 action-conditioned predictive consistency 重写；实验数值、表格、artifact **未改**（仍是 corruption cliff → noise recovery → diagnostics → partial-corr null → PLDM → blur）。
-- ACPC 系列指标（ACPC-1/H、PCC、CRA、MAF、ADM、SPRR）在正文改为 **paired-diagnostic protocol definitions**；它们尚未作为 empirical evidence 报告。
-- Phase 0 runner 已加：`tools/paper1_phase0_acpc.py` 会从 canonical eval manifest 解析 checkpoints，并在存在 loadable model object 时计算 ACPC-1/H、PCC、CRA、MAF、ADM action-distance proxy、SPRR；`--dry-run` 可先检查本机路径覆盖率。当前本地 canonical LeWM `path` 多数只有 `eval_results`，缺少可直接 `torch.load` 的 model object，实际出数前需要补齐 checkpoint root 或恢复 model object files。
-- 最小可立项版本需先完成 **Phase 0**（execution plan §8）：用现有 checkpoints 计算 ACPC-H / PCC / ranking / ADM，证明比 old fragility ratio 更贴近 closed-loop failure，或至少解释 heteroscedastic negative result；related work 已明确 ViGMO / Bisim-JEPA / LeJEPA theory 的边界。Phase 0 成立后再进 Phase 1 方法实验。
-- `paper1/main.pdf` 可 clean build（37 pages）；`tools/check_paper1_consistency.py` 仍通过（数值/artifact 未动）。
+- 框架已 reframe：title / abstract / intro / related work / 新增 §3 ACPC 概念+诊断 / discussion / conclusion 已围绕 action-conditioned predictive consistency 重写；核心实验链仍是 corruption cliff → noise recovery → diagnostics → partial-corr null → PLDM → blur，新增 Appendix H 只作为 Phase 0 paired-ACPC exploratory artifact。
+- ACPC 系列指标（ACPC-1/H、PCC、CRA、MAF、ADM、SPRR）现在有 full-sweep Phase 0 artifact：`assets/paper1_data/acpc_phase0_diagnostics.json`，72 rows = 2 methods × 4 tasks × 9 std levels，全部 `status=ok`。
+- 价值判断：Phase 0 有价值，足以说明 protocol 可计算且 face-valid。最大 cliff 的 baseline rows 有高 ACPC-H / PCC / ranking disruption / MAF，robust point-best 明显改善；PLDM Reacher 是 scope boundary，因为 no-noise baseline already robust，指标也 already mild。
+- claim 边界：不能声称 ACPC-H / PCC / CRA / MAF / SPRR 预测 robustness；joint partial 仍 task-specific（ACPC-H vs drop：PushT +0.67、Reacher +0.71，但 TwoRoom +0.21、Cube +0.33），且是 post-hoc small-n diagnostic。
+- `paper1/main.pdf` 需要随本次正文更新重编译；`tools/check_paper1_consistency.py` 应继续覆盖新增 ACPC artifact。
 
 **仍需要人工完成**：
 
@@ -98,7 +98,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 ## 6. 讨论时常见问题
 
-- ACPC 系列指标在 Phase 0 上能否比 old fragility ratio 更贴近 corrupted success / corruption gap？（失败判据见 execution plan §8.7）
+- Phase 0 ACPC artifact 是否足以支撑 reframing + diagnostic 投稿，还是必须补 Phase 1 training objective？
 - candidate action sequence 来源如何固定（CEM 采样 / 固定 random / dataset actions），保证 clean/noisy 同一 candidate set？
 - Π（task-relevant predictive readout）与 Ψ（discriminability readout）具体取什么？full latent / transition delta / cost feature / learned projection？
 - 是否补 Phase 1 方法实验后转成 method paper，还是先以 reframing + diagnostic 形态投出？
@@ -110,7 +110,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 ### 7.1 Paper 1 v0 — 当前状态
 
-已重构为 **action-conditioned predictive consistency** 的 reframing + diagnostic paper。实验证据（corruption cliff、noise sweep、PLDM、blur、partial-corr null、hetero 负结果）保持不变，改作 ACPC 的现象锚点 / 探针。**不再按旧版本直接挂出**：最小可立项需先完成 Phase 0（计算 ACPC-H / PCC / ranking / ADM 并证明解释力，execution plan §8）以及 references 人工核对（§5）。注意 §7.3.b（adaptive resolution / per-token consistency）已与本文 motivate 的 APDC 高度重合——若补 Phase 1 方法实验，应明确 Paper 1 与 Paper 2b 的边界。
+已重构为 **action-conditioned predictive consistency** 的 reframing + diagnostic paper。实验证据（corruption cliff、noise sweep、PLDM、blur、partial-corr null、hetero 负结果）保持不变，改作 ACPC 的现象锚点 / 探针；Phase 0 ACPC artifact 已完成并作为 exploratory Appendix H 纳入正文。**不再按旧版本直接挂出**：提交前至少还需要 references 人工核对（§5）和一次完整 PDF/claim audit。注意 §7.3.b（adaptive resolution / per-token consistency）已与本文 motivate 的 APDC 高度重合——若补 Phase 1 方法实验，应明确 Paper 1 与 Paper 2b 的边界。
 
 ### 7.2 Paper 1 v1 — 可选增强（不阻塞 v0）
 

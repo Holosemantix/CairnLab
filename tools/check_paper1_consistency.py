@@ -26,6 +26,7 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
     ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
+    ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
 ]
 
 REQUIRED_ARTIFACTS = [
@@ -44,6 +45,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.schema.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
+    ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -93,6 +95,18 @@ EXPECTED_PLDM_FULL_DIAG_METRICS = {
     "action_mean_pred_shift_norm",
     "predictor_target_to_nn_cos_ratio_at_max_std",
     "predictor_rollout_T8_l2",
+}
+EXPECTED_ACPC_PHASE0_METRICS = {
+    "encoder_shift_to_nn_l2",
+    "acpc_1_norm_by_transition",
+    "acpc_h_norm_by_transition",
+    "pcc_abs_median",
+    "pcc_abs_p90",
+    "cra_spearman_mean",
+    "elite_overlap_mean",
+    "maf_flip_rate",
+    "adm_l2_median",
+    "sprr",
 }
 EXPECTED_BOOTSTRAP_SCOPES = {"within_lewm", "within_pldm", "joint"}
 EXPECTED_BOOTSTRAP_METRICS = {"frag", "drift"}
@@ -425,6 +439,63 @@ def check_pldm_full_diagnostics_json() -> None:
                 )
 
 
+def check_acpc_phase0_diagnostics_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    meta = data.get("metadata", {})
+    if meta.get("schema_version") != "paper1-acpc-phase0-0.1":
+        fail(f"unexpected ACPC Phase-0 schema: {meta.get('schema_version')!r}")
+    if set(meta.get("methods", [])) != EXPECTED_METHODS:
+        fail(f"ACPC Phase-0 methods mismatch: {meta.get('methods')}")
+    if set(meta.get("tasks", [])) != EXPECTED_TASKS:
+        fail(f"ACPC Phase-0 tasks mismatch: {meta.get('tasks')}")
+    if set(meta.get("std_keys", [])) != EXPECTED_CONFIGS:
+        fail(f"ACPC Phase-0 std keys mismatch: {meta.get('std_keys')}")
+    if meta.get("dry_run") is not False:
+        fail("ACPC Phase-0 artifact must be from a real run, not dry-run")
+
+    rows = data.get("rows")
+    if not isinstance(rows, list) or len(rows) != len(EXPECTED_METHODS) * len(EXPECTED_TASKS) * len(EXPECTED_CONFIGS):
+        fail(f"ACPC Phase-0 row count mismatch: {len(rows) if isinstance(rows, list) else type(rows)}")
+
+    seen: set[tuple[str, str, str]] = set()
+    for row in rows:
+        key = (row.get("method"), row.get("task"), row.get("std_key"))
+        if key in seen:
+            fail(f"duplicate ACPC Phase-0 row: {key}")
+        seen.add(key)
+        method, task, std_key = key
+        if method not in EXPECTED_METHODS or task not in EXPECTED_TASKS or std_key not in EXPECTED_CONFIGS:
+            fail(f"unexpected ACPC Phase-0 row key: {key}")
+        if row.get("status") != "ok":
+            fail(f"ACPC Phase-0 row {key} is not ok: {row.get('status')}")
+        if int(row.get("candidate_count", -1)) != 65:
+            fail(f"ACPC Phase-0 row {key} unexpected candidate_count: {row.get('candidate_count')}")
+        if int(row.get("rollout_horizon_actual", -1)) != 8:
+            fail(f"ACPC Phase-0 row {key} unexpected rollout horizon: {row.get('rollout_horizon_actual')}")
+        if int(row.get("n_sequences", -1)) != 100:
+            fail(f"ACPC Phase-0 row {key} unexpected n_sequences: {row.get('n_sequences')}")
+        if abs(float(row.get("noise_std", float("nan"))) - 0.08) > TOL:
+            fail(f"ACPC Phase-0 row {key} unexpected noise_std: {row.get('noise_std')}")
+        missing = EXPECTED_ACPC_PHASE0_METRICS - set(row)
+        if missing:
+            fail(f"ACPC Phase-0 row {key} missing metrics: {sorted(missing)}")
+        for metric in EXPECTED_ACPC_PHASE0_METRICS:
+            value = row[metric]
+            if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                fail(f"ACPC Phase-0 row {key}/{metric} is not finite")
+
+    expected_seen = {
+        (method, task, std_key)
+        for method in EXPECTED_METHODS
+        for task in EXPECTED_TASKS
+        for std_key in EXPECTED_CONFIGS
+    }
+    if seen != expected_seen:
+        fail("ACPC Phase-0 row coverage mismatch")
+
+
 def check_blur_baselines_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -718,6 +789,7 @@ def main() -> int:
         ("canonical diagnostics json", check_canonical_diagnostics_json),
         ("pldm diagnostics json", check_pldm_diagnostics_json),
         ("pldm full diagnostics json", check_pldm_full_diagnostics_json),
+        ("acpc phase0 diagnostics json", check_acpc_phase0_diagnostics_json),
         ("blur baselines json", check_blur_baselines_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),

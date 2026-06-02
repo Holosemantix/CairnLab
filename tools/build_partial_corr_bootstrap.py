@@ -305,6 +305,7 @@ def main() -> None:
             "ci_high_pct": args.ci_high,
             "metrics": list(METRICS),
             "outcomes": list(OUTCOMES),
+            "robust_eval_metric": "pixels_std0.08",
             "created_utc": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
             "sources": {
                 "evals_lewm": args.evals_lewm,
@@ -343,7 +344,7 @@ def _fmt_cell(cell: dict) -> str:
 def _print_summary(by_task: dict, ci_low: float, ci_high: float) -> None:
     print("=" * 104)
     print(f"Partial Spearman ρ point estimate and {ci_high - ci_low:.0f}% bootstrap CI")
-    print(f"(metric = fragility ratio; outcome = OOD drop; partial out of std_max")
+    print(f"(metric = fragility ratio; outcome = observation-noise drop; partial out of std_max")
     print(f" within-method, std_max + method-dummy for joint)")
     print("=" * 104)
     headline = f"{'Task':<10}{'within-LeWM':>30}{'within-PLDM':>30}{'joint LeWM+PLDM':>32}"
@@ -362,10 +363,10 @@ def _print_summary(by_task: dict, ci_low: float, ci_high: float) -> None:
     rows = [
         ("ρ(metric, clean) uncond.",       b["rho_metric_clean"]),
         ("ρ(metric, clean) | std_max",     b["partial_metric_clean_on_std"]),
-        ("ρ(metric, px+g 0.08) uncond.",   b["rho_metric_px08"]),
-        ("ρ(metric, px+g 0.08) | std_max", b["partial_metric_px08_on_std"]),
-        ("ρ(metric, OOD drop) uncond.",    b["rho_metric_drop"]),
-        ("ρ(metric, OOD drop) | std_max",  b["partial_metric_drop_on_std"]),
+        ("ρ(metric, pixels 0.08) uncond.",   b["rho_metric_px08"]),
+        ("ρ(metric, pixels 0.08) | std_max", b["partial_metric_px08_on_std"]),
+        ("ρ(metric, obs-noise drop) uncond.",    b["rho_metric_drop"]),
+        ("ρ(metric, obs-noise drop) | std_max",  b["partial_metric_drop_on_std"]),
     ]
     for label, cell in rows:
         print(f"  {label:<38}{_fmt_cell(cell):>34}")

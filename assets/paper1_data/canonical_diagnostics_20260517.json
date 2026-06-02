@@ -236,62 +236,61 @@
     "table4_ood_drop": {
       "Cube": {
         "predictor_rollout_T8_l2_at_max_std": {
-          "pearson": 0.92,
-          "spearman": 0.54
+          "pearson": 0.91,
+          "spearman": 0.48
         },
         "predictor_target_to_nn_cos_ratio_at_max_std": {
-          "pearson": 0.36,
-          "spearman": 0.21
+          "pearson": 0.39,
+          "spearman": 0.27
         }
       },
       "PushT": {
         "predictor_rollout_T8_l2_at_max_std": {
-          "pearson": 0.99,
-          "spearman": 0.88
+          "pearson": 0.98,
+          "spearman": 0.93
         },
         "predictor_target_to_nn_cos_ratio_at_max_std": {
-          "pearson": -0.54,
-          "spearman": -0.77
+          "pearson": -0.55,
+          "spearman": -0.8
         }
       },
       "Reacher": {
         "predictor_rollout_T8_l2_at_max_std": {
           "pearson": 0.99,
-          "spearman": 0.87
+          "spearman": 0.58
         },
         "predictor_target_to_nn_cos_ratio_at_max_std": {
-          "pearson": 0.97,
-          "spearman": 0.35
+          "pearson": 0.98,
+          "spearman": 0.55
         }
       },
       "TwoRoom": {
         "predictor_rollout_T8_l2_at_max_std": {
-          "pearson": 0.89,
-          "spearman": 1.0
+          "pearson": 0.81,
+          "spearman": 0.31
         },
         "predictor_target_to_nn_cos_ratio_at_max_std": {
-          "pearson": 0.96,
-          "spearman": 0.72
+          "pearson": 0.92,
+          "spearman": 0.2
         }
       }
     },
     "table4b_partial_spearman_ood_drop_given_std_max": {
       "Cube": {
-        "predictor_rollout_T8_l2_at_max_std": 0.5,
-        "predictor_target_to_nn_cos_ratio_at_max_std": 0.14
+        "predictor_rollout_T8_l2_at_max_std": 0.23,
+        "predictor_target_to_nn_cos_ratio_at_max_std": 0.12
       },
       "PushT": {
-        "predictor_rollout_T8_l2_at_max_std": -0.03,
-        "predictor_target_to_nn_cos_ratio_at_max_std": 0.06
+        "predictor_rollout_T8_l2_at_max_std": -0.01,
+        "predictor_target_to_nn_cos_ratio_at_max_std": 0.19
       },
       "Reacher": {
-        "predictor_rollout_T8_l2_at_max_std": 0.79,
-        "predictor_target_to_nn_cos_ratio_at_max_std": -0.12
+        "predictor_rollout_T8_l2_at_max_std": 0.37,
+        "predictor_target_to_nn_cos_ratio_at_max_std": 0.27
       },
       "TwoRoom": {
-        "note": "rank ties / residualisation singular at n=9",
         "predictor_rollout_T8_l2_at_max_std": null,
-        "predictor_target_to_nn_cos_ratio_at_max_std": null
+        "predictor_target_to_nn_cos_ratio_at_max_std": -0.03
       }
     },
     "table5_pusht_fragility_metric": {
@@ -300,14 +299,14 @@
       "spearman": {
         "rho_metric_clean_partial_given_std_max": -0.59,
         "rho_metric_clean_unconditional": -0.33,
-        "rho_metric_ood_drop_partial_given_std_max": 0.06,
-        "rho_metric_ood_drop_unconditional": -0.77,
-        "rho_metric_pixels_goal_std0.08_partial_given_std_max": -0.41,
-        "rho_metric_pixels_goal_std0.08_unconditional": 0.55,
+        "rho_metric_ood_drop_partial_given_std_max": 0.19,
+        "rho_metric_ood_drop_unconditional": -0.8,
+        "rho_metric_pixels_std0.08_partial_given_std_max": -0.53,
+        "rho_metric_pixels_std0.08_unconditional": 0.6,
         "rho_std_max_clean": 0.0,
         "rho_std_max_metric": 0.83,
-        "rho_std_max_ood_drop": -0.93,
-        "rho_std_max_pixels_goal_std0.08": 0.82
+        "rho_std_max_ood_drop": -0.98,
+        "rho_std_max_pixels_std0.08": 0.88
       }
     }
   },

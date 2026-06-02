@@ -6,7 +6,7 @@ Run:
 Script-generated PNG filenames match the figure numbers in the rendered PDF
 where applicable:
 
-    fig2_sweep.png      — TwoRoom + PushT unperturbed / px+g 0.08 vs std_max
+    fig2_sweep.png      — unperturbed / pixels-only 0.08 vs std_max
     fig4_radar.png      — 4-task diagnostic radar (base vs representative ckpt)
 
     (fig3_pareto was pruned from the paper after the figure-density audit;
@@ -46,6 +46,8 @@ import numpy as np
 # ============================================================================
 
 SWEEP_STDS = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
+ROBUST_EVAL_METRIC = "pixels_std0.08"
+ROBUST_EVAL_LABEL = r"Eval: observation noise $\sigma=0.08$ (clean goal)"
 
 # §4.4 Table 3 — 6 diagnostic metrics × {base, representative} × 4 tasks
 # Metric order chosen so "compression" metrics group on one side of the radar.
@@ -117,8 +119,8 @@ def _canonical_eval_tables() -> Dict[str, Dict]:
             metrics = entry["metrics"]
             clean_vals.append(float(metrics["clean"]["mean"]))
             clean_stds.append(float(metrics["clean"]["std"]))
-            px08_vals.append(float(metrics["pixels_goal_std0.08"]["mean"]))
-            px08_stds.append(float(metrics["pixels_goal_std0.08"]["std"]))
+            px08_vals.append(float(metrics[ROBUST_EVAL_METRIC]["mean"]))
+            px08_stds.append(float(metrics[ROBUST_EVAL_METRIC]["std"]))
 
         sweep[task] = {
             "clean": clean_vals,
@@ -389,7 +391,7 @@ def fig2_sweep(out_path: Path):
                     linewidth=1.7, markersize=4.5, capsize=2.2, elinewidth=0.85)
         ax.errorbar(SWEEP_STDS, sweep[t]["px08"], yerr=sweep[t]["px08_std"],
                     fmt="s-", color="#EE6677",
-                    label=r"Eval: pixels+goal noise $\sigma=0.08$",
+                    label=ROBUST_EVAL_LABEL,
                     linewidth=1.7, markersize=4.5, capsize=2.2, elinewidth=0.85)
         best_std = tables["corrupted_point_best"][t]["std"]
         ax.axvline(best_std, color="#228833", linestyle="--",
@@ -432,7 +434,7 @@ def _canonical_fig3_rows() -> List[Tuple[float, float, float, float]]:
             float(std_key),
             float(diag_entry["predictor_target_to_nn_cos_ratio_at_max_std"]),
             float(eval_entry["clean"]["mean"]),
-            float(eval_entry["pixels_goal_std0.08"]["mean"]),
+            float(eval_entry[ROBUST_EVAL_METRIC]["mean"]),
         ))
     return rows
 
@@ -506,7 +508,7 @@ def fig3_scatter(out_path: Path, data_root: Path):
     rho_clean = _panel(ax_clean, cleans, "PushT unperturbed success rate (%)",
                        "(a)  vs unperturbed success — residual ckpt-quality signal",
                        anchor_y_top=0.18)
-    rho_drop = _panel(ax_drop, drops, "PushT eval drop  (unperturbed − px+g 0.08, pts)",
+    rho_drop = _panel(ax_drop, drops, "PushT eval drop  (unperturbed − pixels 0.08, pts)",
                       "(b)  vs corruption drop — mediated by std_max",
                       anchor_y_top=0.96)
 
@@ -675,7 +677,7 @@ def fig5_mechanism(out_path: Path):
 
 
 # ============================================================================
-# Figure 6 — Pareto frontier: (unperturbed, px+g 0.08) per (task, std_max)
+# Figure 6 — Pareto frontier: (unperturbed, pixels-only 0.08) per (task, std_max)
 # Each task gets a connected curve; markers coloured by std_max.
 # ============================================================================
 
@@ -701,7 +703,7 @@ def fig6_pareto(out_path: Path):
             ax.scatter(x, y, s=55, marker=markers[task],
                        color=colors[task], alpha=0.55 + 0.05 * SWEEP_STDS[1:].index(s),
                        edgecolor="black", linewidth=0.3, zorder=3)
-        # mark px+g 0.08 point-best
+        # mark pixels-only 0.08 point-best
         best_std = tables["corrupted_point_best"][task]["std"]
         if best_std in SWEEP_STDS:
             i = SWEEP_STDS.index(best_std)
@@ -718,7 +720,7 @@ def fig6_pareto(out_path: Path):
     ax.set_xlim(0, 105)
     ax.set_ylim(0, 105)
     ax.set_xlabel("Unperturbed success rate (%)")
-    ax.set_ylabel("Corrupted success rate (%)  —  px+g 0.08")
+    ax.set_ylabel("Corrupted success rate (%)  —  pixels 0.08")
     ax.grid(alpha=0.25, linewidth=0.4)
     ax.legend(loc="lower right", frameon=False, fontsize=8.5, ncol=2)
     fig.tight_layout()

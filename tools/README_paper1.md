@@ -9,7 +9,7 @@ python -m tools.check_paper1_consistency
 cd paper1 && bash build.sh --clean
 ```
 
-`check_paper1_consistency.py` 是提交前的主检查入口。它验证必需 artifact 是否存在、旧口径字符串是否消失、LeWM/PLDM/blur canonical JSON 结构是否完整、正文引用的关键相关系数和 bootstrap CI 是否能从 artifact 复算到相同数值。
+`check_paper1_consistency.py` 是提交前的主检查入口。它验证必需 artifact 是否存在、旧口径字符串是否消失、LeWM/PLDM/blur/ACPC-basin canonical JSON 结构是否完整、正文引用的关键相关系数和 bootstrap CI 是否能从 artifact 复算到相同数值。Paper 1 当前主 corrupted endpoint 是 `pixels_std0.08`：只扰动 observation pixels，goal 保持 clean；`pixels_goal_std0.08` 只作为更强 stress condition。
 
 `paper1/build.sh --clean` 用 `latexmk` 重建 PDF。构建后建议检查 log：
 
@@ -24,7 +24,8 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 | `tools/paper1_figs.py` | 渲染主文中由脚本生成的图 | `assets/paper1_data/canonical_evals_20260517.json`, `assets/paper1_data/canonical_diagnostics_20260517.json` | `assets/paper1_figs/fig2_sweep.png`, `fig4_radar.png`, `fig5_scatter.png`, `fig6_mechanism.png`；`fig3_pareto.png` 可用 `--only 3` 生成但当前不进正文 |
 | `tools/build_partial_corr_bootstrap.py` | 为 partial Spearman 相关计算 95% percentile bootstrap CI | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/partial_corr_bootstrap_20260523.json`，用于主文 Table 7 和 Appendix F |
 | `tools/pldm_correlation_analysis.py` | 复算 LeWM/PLDM within-method 与 joint partial correlation | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/cross_method_corr_pldm_20260522.json`，用于 Appendix F 和 consistency checker |
-| `tools/paper1_phase0_acpc.py` | Phase 0 paired ACPC 诊断 runner：ACPC-1/H、PCC、CRA、MAF、ADM proxy、SPRR | LeWM/PLDM canonical eval manifest + 本地 loadable model checkpoints | `assets/paper1_data/acpc_phase0_diagnostics.json`；dry-run 可先检查哪些 checkpoint 能解析 |
+| `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / prediction radius / contraction | LeWM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；主文 Table~\ref{tab:acpc-basin} 的 source |
+| `tools/paper1_phase0_acpc.py` | 低频 paired ACPC 诊断 runner：ACPC-1/H、PCC、CRA、MAF、ADM proxy、SPRR | LeWM/PLDM canonical eval manifest + 本地 loadable model checkpoints | `assets/paper1_data/acpc_phase0_diagnostics.json`；保留作后续 PCC/CRA/ADM 扩展，不作为当前主文 ACPC-basin source |
 
 常用重生成命令：
 
@@ -42,6 +43,13 @@ python -m tools.build_partial_corr_bootstrap \
   --out assets/paper1_data/partial_corr_bootstrap_20260523.json \
   --n-bootstrap 1000 --seed 42
 
+python -m tools.paper1_acpc_basin \
+  --dry-run \
+  --out /tmp/acpc_basin_dry.json
+
+python -m tools.paper1_acpc_basin \
+  --out assets/paper1_data/acpc_basin_diagnostics.json
+
 python -m tools.paper1_phase0_acpc \
   --dry-run --methods LeWM PLDM --tasks PushT \
   --out /tmp/acpc_phase0_dry.json
@@ -53,6 +61,8 @@ python -m tools.paper1_phase0_acpc \
 ```
 
 95% CI 的口径：脚本对 checkpoint rows 做 with-replacement bootstrap。within-LeWM 和 within-PLDM 是每个 task 的 9 个 checkpoint rows；joint 分析是 LeWM+PLDM 共 18 个 rows，并在 partial correlation 中同时 conditioning on `std_max` 和 `method`。CI 是 bootstrap 分布的 2.5/97.5 percentile，不是额外 evaluation seed 的置信区间。
+
+ACPC basin runner 默认只接受 Gaussian-noise corruption specs，并使用 dense eval grid `0.01 ... 0.08`，以匹配 Paper 1 的 Gaussian-noise training sweep；它默认只扰动 observation history、保持 goal clean。不要把 blur/resize 混入这个 artifact。`--dry-run` 只解析 manifest 和 epoch-10 checkpoint 路径，不加载模型。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 `/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/<task-root>/ckpt/<subdir>/` 下存在唯一 `*epoch_10_object.ckpt`。
 
 Phase 0 ACPC runner 的 `--dry-run` 只解析 manifest 和 checkpoint 路径，不需要 `torch`。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 canonical eval 里的 `path` 或 `--model-root` 下存在可 `torch.load` 的 model object checkpoint。当前 ADM 是 action-distance latent proxy，不是 oracle state/keypoint ADM。
 

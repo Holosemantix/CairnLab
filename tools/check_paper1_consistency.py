@@ -24,6 +24,7 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json",
     ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
+    ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json",
     ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
@@ -44,6 +45,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.schema.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.schema.json",
+    ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
     ROOT / "DATA_MANIFEST.md",
@@ -78,7 +80,13 @@ EXPECTED_CONFIGS = {
     "0.07",
     "0.08",
 }
-REQUIRED_METRICS = {"clean", "pixels_goal_std0.05", "pixels_goal_std0.08"}
+REQUIRED_METRICS = {
+    "clean",
+    "pixels_std0.05",
+    "pixels_std0.08",
+    "pixels_goal_std0.05",
+    "pixels_goal_std0.08",
+}
 REQUIRED_DIAG_TASKS = EXPECTED_TASKS
 EXPECTED_METHODS = {"LeWM", "PLDM"}
 EXPECTED_BLUR_CONDITIONS = {
@@ -110,6 +118,19 @@ EXPECTED_ACPC_PHASE0_METRICS = {
 }
 EXPECTED_BOOTSTRAP_SCOPES = {"within_lewm", "within_pldm", "joint"}
 EXPECTED_BOOTSTRAP_METRICS = {"frag", "drift"}
+EXPECTED_ACPC_BASIN_CORRUPTIONS = {round(i / 100, 2) for i in range(1, 9)}
+REQUIRED_ACPC_BASIN_FIELDS = {
+    "pixels_std0.08_success",
+    "pixels_goal_std0.08_success",
+    "corruption_drop",
+    "pixels_goal_corruption_drop",
+    "encoder_view_pair_l2_norm_by_nn",
+    "pred_view_pair_l2_norm_by_transition",
+    "basin_contraction_pair_norm",
+    "encoder_to_clean_l2_norm_by_nn_median",
+    "pred_to_clean_l2_norm_by_transition_median",
+    "basin_contraction_to_clean_norm_median",
+}
 TOL = 1e-9
 
 
@@ -541,6 +562,75 @@ def check_blur_baselines_json() -> None:
                 fail(f"blur baseline {method}/{task} drop mismatch: {drop}")
 
 
+def check_acpc_basin_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    meta = data.get("metadata", {})
+    if meta.get("schema_version") != "paper1-acpc-basin-0.1":
+        fail(f"unexpected ACPC basin schema: {meta.get('schema_version')!r}")
+    if meta.get("method") != "LeWM":
+        fail(f"ACPC basin method should be LeWM, got {meta.get('method')!r}")
+    if meta.get("corrupt_goal") is not False:
+        fail("ACPC basin metadata should mark corrupt_goal=false")
+
+    corruptions = meta.get("corruptions")
+    if not isinstance(corruptions, list) or len(corruptions) != 8:
+        fail("ACPC basin metadata must list exactly 8 Gaussian-noise corruptions")
+    got_magnitudes = set()
+    for spec in corruptions:
+        if spec.get("type") != "gaussian_noise":
+            fail(f"ACPC basin contains non-noise corruption: {spec}")
+        got_magnitudes.add(round(float(spec.get("magnitude")), 2))
+    if got_magnitudes != EXPECTED_ACPC_BASIN_CORRUPTIONS:
+        fail(
+            "ACPC basin corruption grid mismatch: "
+            f"got {sorted(got_magnitudes)}, want {sorted(EXPECTED_ACPC_BASIN_CORRUPTIONS)}"
+        )
+
+    rows = data.get("rows")
+    if not isinstance(rows, list) or len(rows) != len(EXPECTED_TASKS) * len(EXPECTED_CONFIGS):
+        fail("ACPC basin rows must cover 4 tasks x 9 configs")
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        if row.get("status") != "ok":
+            fail(f"ACPC basin row is not ok: {row.get('task')}/{row.get('std_key')}")
+        task = row.get("task")
+        std_key = row.get("std_key")
+        if task not in EXPECTED_TASKS or std_key not in EXPECTED_CONFIGS:
+            fail(f"unexpected ACPC basin row key: {task}/{std_key}")
+        key = (task, std_key)
+        if key in seen:
+            fail(f"duplicate ACPC basin row: {task}/{std_key}")
+        seen.add(key)
+        if row.get("method") != "LeWM":
+            fail(f"ACPC basin row method should be LeWM: {task}/{std_key}")
+        if row.get("corrupt_goal") is not False:
+            fail(f"ACPC basin {task}/{std_key} should keep the goal clean by default")
+        model_file = str(row.get("model_file", ""))
+        if not model_file.endswith("epoch_10_object.ckpt"):
+            fail(f"ACPC basin row does not use epoch_10 object ckpt: {model_file}")
+        variants = row.get("variant_rows")
+        if not isinstance(variants, list) or len(variants) != 8:
+            fail(f"ACPC basin {task}/{std_key} must contain 8 variant rows")
+        variant_magnitudes = set()
+        for variant in variants:
+            if variant.get("corruption_type") != "gaussian_noise":
+                fail(f"ACPC basin {task}/{std_key} has non-noise variant: {variant}")
+            variant_magnitudes.add(round(float(variant.get("magnitude")), 2))
+        if variant_magnitudes != EXPECTED_ACPC_BASIN_CORRUPTIONS:
+            fail(f"ACPC basin {task}/{std_key} variant grid mismatch")
+        missing = REQUIRED_ACPC_BASIN_FIELDS - set(row)
+        if missing:
+            fail(f"ACPC basin {task}/{std_key} missing fields: {sorted(missing)}")
+        for field in REQUIRED_ACPC_BASIN_FIELDS:
+            value = row[field]
+            if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                fail(f"ACPC basin {task}/{std_key}/{field} is not finite")
+    if seen != {(task, std) for task in EXPECTED_TASKS for std in EXPECTED_CONFIGS}:
+        fail("ACPC basin task/config coverage mismatch")
+
+
 def check_external_baselines_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -560,7 +650,7 @@ def check_external_baselines_json() -> None:
     if training.get("image_noise_std_max") != 0.0 or training.get("image_noise_noise_prob") != 0.0:
         fail("PLDM external baseline is expected to be clean-trained")
 
-    required_eval = {"clean", "pixels_goal_std0.05", "pixels_goal_std0.08"}
+    required_eval = {"clean", "pixels_std0.08", "pixels_goal_std0.05", "pixels_goal_std0.08"}
     evaluation = entry.get("evaluation", {})
     missing = required_eval - set(evaluation)
     if missing:
@@ -569,9 +659,9 @@ def check_external_baselines_json() -> None:
         check_metric_summary("PushT/PLDM_clean_trained", "external", metric_name, summary)
 
     clean = evaluation["clean"]["mean"]
-    px08 = evaluation["pixels_goal_std0.08"]["mean"]
-    if round(clean - px08, 2) != 65.33:
-        fail(f"unexpected PLDM clean-to-px+goal0.08 drop: {clean - px08}")
+    px08 = evaluation["pixels_std0.08"]["mean"]
+    if round(clean - px08, 2) != 57.00:
+        fail(f"unexpected PLDM clean-to-pixels0.08 drop: {clean - px08}")
 
 
 def check_pldm_correlations_json() -> None:
@@ -582,8 +672,8 @@ def check_pldm_correlations_json() -> None:
         fail(f"PLDM correlation tasks mismatch: expected {sorted(EXPECTED_TASKS)}, got {sorted(data)}")
 
     expected_push = {
-        ("within_pldm", "partial_metric_drop_on_std"): -0.14,
-        ("joint", "partial_metric_drop_on_std_method"): 0.11,
+        ("within_pldm", "partial_metric_drop_on_std"): -0.05,
+        ("joint", "partial_metric_drop_on_std_method"): 0.22,
     }
     for task, block in data.items():
         rows = block.get("rows", {})
@@ -685,23 +775,23 @@ def check_partial_corr_bootstrap_json() -> None:
     )
     _check_bootstrap_cell(
         data, "PushT", "within_lewm", "frag", "partial_metric_px08_on_std",
-        -0.41, (-0.77, 0.00),
+        -0.53, (-0.84, 0.00),
     )
     _check_bootstrap_cell(
         data, "PushT", "within_lewm", "frag", "partial_metric_drop_on_std",
-        0.06, (-0.00, 0.25),
+        0.19, (-0.00, 0.70),
     )
     _check_bootstrap_cell(
         data, "PushT", "within_pldm", "frag", "partial_metric_drop_on_std",
-        -0.14, (-1.00, 0.87),
+        -0.05, (-0.92, 0.61),
     )
     _check_bootstrap_cell(
         data, "PushT", "joint", "frag", "partial_metric_drop_on_std_method",
-        0.11, (-0.54, 0.71),
+        0.22, (-0.59, 0.61),
     )
     _check_bootstrap_cell(
         data, "Reacher", "within_lewm", "drift", "partial_metric_drop_on_std",
-        0.79, (0.00, 1.00),
+        0.37, (-0.35, 0.99),
     )
 
 
@@ -722,7 +812,7 @@ def check_published_correlations() -> None:
         z = [float(std_key) for std_key in std_keys]
         clean = [float(evals[task][std_key]["metrics"]["clean"]["mean"]) for std_key in std_keys]
         px08 = [
-            float(evals[task][std_key]["metrics"]["pixels_goal_std0.08"]["mean"])
+            float(evals[task][std_key]["metrics"]["pixels_std0.08"]["mean"])
             for std_key in std_keys
         ]
         drop = [c - p for c, p in zip(clean, px08)]
@@ -755,7 +845,7 @@ def check_published_correlations() -> None:
     ]
     clean = [float(evals["PushT"][std_key]["metrics"]["clean"]["mean"]) for std_key in push_keys]
     px08 = [
-        float(evals["PushT"][std_key]["metrics"]["pixels_goal_std0.08"]["mean"])
+        float(evals["PushT"][std_key]["metrics"]["pixels_std0.08"]["mean"])
         for std_key in push_keys
     ]
     drop = [c - p for c, p in zip(clean, px08)]
@@ -763,12 +853,12 @@ def check_published_correlations() -> None:
     recomputed = {
         "rho_std_max_metric": round2(spearman(z, fragility)),
         "rho_std_max_clean": round2(spearman(z, clean)),
-        "rho_std_max_pixels_goal_std0.08": round2(spearman(z, px08)),
+        "rho_std_max_pixels_std0.08": round2(spearman(z, px08)),
         "rho_std_max_ood_drop": round2(spearman(z, drop)),
         "rho_metric_clean_unconditional": round2(spearman(fragility, clean)),
         "rho_metric_clean_partial_given_std_max": round2(partial_spearman(fragility, clean, z)),
-        "rho_metric_pixels_goal_std0.08_unconditional": round2(spearman(fragility, px08)),
-        "rho_metric_pixels_goal_std0.08_partial_given_std_max": round2(
+        "rho_metric_pixels_std0.08_unconditional": round2(spearman(fragility, px08)),
+        "rho_metric_pixels_std0.08_partial_given_std_max": round2(
             partial_spearman(fragility, px08, z)
         ),
         "rho_metric_ood_drop_unconditional": round2(spearman(fragility, drop)),
@@ -791,6 +881,7 @@ def main() -> int:
         ("pldm full diagnostics json", check_pldm_full_diagnostics_json),
         ("acpc phase0 diagnostics json", check_acpc_phase0_diagnostics_json),
         ("blur baselines json", check_blur_baselines_json),
+        ("acpc basin json", check_acpc_basin_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),
         ("partial-corr bootstrap json", check_partial_corr_bootstrap_json),

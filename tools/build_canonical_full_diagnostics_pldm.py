@@ -37,10 +37,10 @@ TASK_TO_PREFIX = {
     "Cube": "cube",
 }
 REPRESENTATIVE_STD_BY_TASK = {
-    "TwoRoom": "0.05",
+    "TwoRoom": "0.06",
     "PushT": "0.03",
-    "Reacher": "0.04",
-    "Cube": "0.08",
+    "Reacher": "0.03",
+    "Cube": "0.04",
 }
 SUMMARY_METRICS = (
     "clean_effective_rank",
@@ -141,7 +141,7 @@ def build(root: Path, out_path: Path, schema_path: Path | None = None) -> dict:
             "configs": list(EXPECTED_CONFIGS),
             "summary_metric_order": list(SUMMARY_METRICS),
             "representative_selection": (
-                "Representative rows use the PLDM px+goal 0.08 point-best checkpoint "
+                "Representative rows use the PLDM pixels 0.08 clean-goal point-best checkpoint "
                 "per task, except where explicitly interpreted as a diagnostic representative."
             ),
         },

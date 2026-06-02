@@ -3,8 +3,8 @@ invariance–resolution paper.
 
 For each of the four tasks (TwoRoom, PushT, Reacher, Cube) we compute:
 
-1.  Within-PLDM Spearman ρ(metric, clean) / ρ(metric, OOD drop) and the
-    partial Spearman conditioned on std_max. n=9 for every task.
+1.  Within-PLDM Spearman ρ(metric, clean) / ρ(metric, observation-noise drop)
+    and the partial Spearman conditioned on std_max. n=9 for every task.
 2.  Joint LeWM+PLDM Spearman and partial-on-(std_max, method dummy).
     This is n=18 for every task.
 
@@ -116,6 +116,7 @@ def partial_spearman_two(
 TASKS = ("TwoRoom", "PushT", "Reacher", "Cube")
 FRAG_KEY = "predictor_target_to_nn_cos_ratio_at_max_std"
 DRIFT_KEY = "predictor_rollout_T8_l2_at_max_std"
+ROBUST_EVAL_KEY = "pixels_std0.08"
 
 
 def assemble_rows(
@@ -134,7 +135,7 @@ def assemble_rows(
         try:
             m = evals[task][std_key]["metrics"]
             clean = m["clean"]["mean"]
-            px08 = m["pixels_goal_std0.08"]["mean"]
+            px08 = m[ROBUST_EVAL_KEY]["mean"]
         except KeyError:
             continue
         d = pmbt[std_key]

@@ -1137,7 +1137,7 @@
       "0.07",
       "0.08"
     ],
-    "representative_selection": "Representative rows use the PLDM px+goal 0.08 point-best checkpoint per task, except where explicitly interpreted as a diagnostic representative.",
+    "representative_selection": "Representative rows use the PLDM pixels 0.08 clean-goal point-best checkpoint per task, except where explicitly interpreted as a diagnostic representative.",
     "schema_version": "pldm-full-diagnostics-1.0",
     "scope": "Full PLDM diagnostics-summary rows for 4 tasks x 9 checkpoints.",
     "source": "per-ckpt eval_results/diagnostics/diagnostics_summary.json",
@@ -1183,17 +1183,17 @@
         },
         "base_subdir": "cube_pldm_baseline",
         "representative": {
-          "action_mean_pred_shift_norm": 0.32252761721611023,
-          "clean_effective_rank": 124.793,
-          "clean_nn_cos_dist_median": 0.18244,
-          "id_probe_r2": 0.5530537366867065,
-          "predictor_rollout_T8_l2": 0.618172287940979,
-          "predictor_target_to_nn_cos_ratio_at_max_std": 2.5374721195250868e-06,
-          "transition_resolution_ratio_cos": 0.4179257483433363,
-          "transition_resolution_ratio_l2": 0.6400744248166255
+          "action_mean_pred_shift_norm": 0.31655868887901306,
+          "clean_effective_rank": 124.48888,
+          "clean_nn_cos_dist_median": 0.1792,
+          "id_probe_r2": 0.5576047301292419,
+          "predictor_rollout_T8_l2": 4.017085075378418,
+          "predictor_target_to_nn_cos_ratio_at_max_std": 2.6989970526952186e-06,
+          "transition_resolution_ratio_cos": 0.4083153511784525,
+          "transition_resolution_ratio_l2": 0.631302379783589
         },
-        "representative_std": "0.08",
-        "representative_subdir": "cube_pldm_noise_0to008_p1"
+        "representative_std": "0.04",
+        "representative_subdir": "cube_pldm_noise_0to004_p1"
       },
       "PushT": {
         "base": {
@@ -1233,17 +1233,17 @@
         },
         "base_subdir": "reacher_pldm_baseline",
         "representative": {
-          "action_mean_pred_shift_norm": 0.3554511070251465,
-          "clean_effective_rank": 114.99009,
-          "clean_nn_cos_dist_median": 0.13112,
-          "id_probe_r2": 0.19597375392913818,
-          "predictor_rollout_T8_l2": 1.2312943935394287,
-          "predictor_target_to_nn_cos_ratio_at_max_std": 4.933849413982036e-06,
-          "transition_resolution_ratio_cos": 0.2621107278367922,
-          "transition_resolution_ratio_l2": 0.5103979523506087
+          "action_mean_pred_shift_norm": 0.3338613212108612,
+          "clean_effective_rank": 108.13817,
+          "clean_nn_cos_dist_median": 0.1156,
+          "id_probe_r2": 0.1843714416027069,
+          "predictor_rollout_T8_l2": 0.9352490901947021,
+          "predictor_target_to_nn_cos_ratio_at_max_std": 6.187276484636992e-06,
+          "transition_resolution_ratio_cos": 0.2320564079677085,
+          "transition_resolution_ratio_l2": 0.4823948160015986
         },
-        "representative_std": "0.04",
-        "representative_subdir": "reacher_pldm_noise_0to004_p1"
+        "representative_std": "0.03",
+        "representative_subdir": "reacher_pldm_noise_0to003_p1"
       },
       "TwoRoom": {
         "base": {
@@ -1258,24 +1258,24 @@
         },
         "base_subdir": "tworoom_pldm_baseline",
         "representative": {
-          "action_mean_pred_shift_norm": 0.5895625352859497,
-          "clean_effective_rank": 72.79673,
-          "clean_nn_cos_dist_median": 0.05047,
-          "id_probe_r2": 0.32732832431793213,
-          "predictor_rollout_T8_l2": 1.1910905838012695,
-          "predictor_target_to_nn_cos_ratio_at_max_std": 1.1716942112447494e-05,
-          "transition_resolution_ratio_cos": 0.6963479604776629,
-          "transition_resolution_ratio_l2": 0.8269911535342308
+          "action_mean_pred_shift_norm": 0.5843967795372009,
+          "clean_effective_rank": 72.70456,
+          "clean_nn_cos_dist_median": 0.05532,
+          "id_probe_r2": 0.32013875246047974,
+          "predictor_rollout_T8_l2": 1.0159246921539307,
+          "predictor_target_to_nn_cos_ratio_at_max_std": 1.1371518893778643e-05,
+          "transition_resolution_ratio_cos": 0.6893687587332469,
+          "transition_resolution_ratio_l2": 0.8254018986796154
         },
-        "representative_std": "0.05",
-        "representative_subdir": "tworoom_pldm_noise_0to005_p1"
+        "representative_std": "0.06",
+        "representative_subdir": "tworoom_pldm_noise_0to006_p1"
       }
     }
   },
   "representative_std_by_task": {
-    "Cube": "0.08",
+    "Cube": "0.04",
     "PushT": "0.03",
-    "Reacher": "0.04",
-    "TwoRoom": "0.05"
+    "Reacher": "0.03",
+    "TwoRoom": "0.06"
   }
 }

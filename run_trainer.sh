@@ -55,14 +55,19 @@
 #   loss_adaptive_consistency_enabled, loss_adaptive_consistency_weight,
 #   loss_adaptive_consistency_noise_std_min/max,
 #   loss_adaptive_consistency_noise_prob, loss_adaptive_consistency_distance,
-#   loss_adaptive_consistency_detach_clean,
+#   loss_adaptive_consistency_detach_origin
+#   (legacy loss_adaptive_consistency_detach_clean is still accepted),
+#   pred_target               prediction target view:
+#                              perturbed = target from configured perturbed future view,
+#                              origin = target from unperturbed/original future view.
+#                              target_view/loss_pred_target_view are aliases.
 #   seed, wm_embed_dim, wm_inference_*, image_noise_std_min/max/apply_to_val
 #
 # 新增 env vars:
-#   image_noise_noise_prob    每帧加噪概率 (默认 1.0；<1 制造 clean+noisy 混合)
-#   post_train_eval_mode      训练后执行模式：full | clean | none
+#   image_noise_noise_prob    每帧加噪概率 (默认 1.0；<1 制造 unperturbed+noisy 混合)
+#   post_train_eval_mode      训练后执行模式：full | origin | none
 #                              full  = eval sweep + full diagnostics（默认，旧行为）
-#                              clean = 只跑 clean eval，不跑 corruption sweep/diagnostics
+#                              origin = 只跑 unperturbed eval，不跑 corruption sweep/diagnostics
 #                              none  = 不跑 eval/diagnostics
 #   eval_corruption_type      eval sweep 损坏家族：gaussian_noise (默认) | gaussian_blur | resize
 #                              gaussian_noise → 用 eval_corruption_stds 作为 std 列表
@@ -76,12 +81,14 @@
 #                              默认 "0.0 0.03 0.05 0.08"
 #                              传 "" 跳过 eval sweep（仍跑 noise table）
 #   eval_blur_kernel_sizes    eval sweep 模糊核大小列表（gaussian_blur 时使用）
-#                              默认 "1 3 7 15"（1 = clean / no-op；偶数会向上取奇）
+#                              默认 "1 3 7 15"（1 = unperturbed / no-op；偶数会向上取奇）
 #   eval_resize_factors       eval sweep resize factor 列表（resize 时使用）
-#                              默认 "1.0 0.75 0.5 0.25"（1.0 = clean）
+#                              默认 "1.0 0.75 0.5 0.25"（1.0 = unperturbed）
 #   eval_corruption_apply_to  eval sweep 加噪目标，逗号分隔；'+' 表示同一组里多目标
-#                              默认 "pixels+goal,pixels,goal"
-#                              （"pixels+goal" 表示同时加噪两端）
+#                              默认 "pixels"（paper primary: observation-only,
+#                              unperturbed goal）。设为 "pixels,pixels+goal" 可同时跑
+#                              primary 和 auxiliary stress；"pixels+goal" 表示
+#                              同时加噪 observation 与 goal。
 #   frameskip                 数据加载 frameskip；默认 5（与训练 data config 一致）
 #   eval_gpus                 GPU id 列表，空格分隔；默认自动探测全部
 #   noise_table_stds          诊断扫的 std；默认 0.0~0.10 一组（仍由本字段控制）
@@ -235,6 +242,7 @@ add_override "loss.temporal_hinge.dynamic.max_margin" "${loss_temporal_hinge_dyn
 add_override "loss.inverse_dynamics.weight" "${loss_inverse_dynamics_weight:-}"
 add_override "loss.transition_distance.weight" "${loss_transition_distance_weight:-}"
 add_override "loss.pred.space" "${loss_pred_space:-}"
+add_override "loss.pred.target_view" "${pred_target:-${target_view:-${loss_pred_target_view:-}}}"
 add_override "loss.target_stop_grad" "${loss_target_stop_grad:-}"
 add_override "loss.pred.type" "${loss_pred_type:-}"
 add_override "loss.hetero.enabled" "${loss_hetero_enabled:-}"
@@ -259,7 +267,7 @@ add_override "loss.adaptive_consistency.noise_std_min" "${loss_adaptive_consiste
 add_override "loss.adaptive_consistency.noise_std_max" "${loss_adaptive_consistency_noise_std_max:-}"
 add_override "loss.adaptive_consistency.noise_prob" "${loss_adaptive_consistency_noise_prob:-}"
 add_override "loss.adaptive_consistency.distance" "${loss_adaptive_consistency_distance:-}"
-add_override "loss.adaptive_consistency.detach_clean" "${loss_adaptive_consistency_detach_clean:-}"
+add_override "loss.adaptive_consistency.detach_origin" "${loss_adaptive_consistency_detach_origin:-${loss_adaptive_consistency_detach_clean:-}}"
 add_override "wm.embed_dim" "${wm_embed_dim:-}"
 add_override "wm.inference.rollout_state_space" "${wm_inference_rollout_state_space:-}"
 add_override "wm.inference.cost_space" "${wm_inference_cost_space:-}"
@@ -269,8 +277,33 @@ add_override "image_noise.std_max" "${image_noise_std_max:-}"
 add_override "image_noise.noise_prob" "${image_noise_noise_prob:-}"
 add_override "image_noise.apply_to_val" "${image_noise_apply_to_val:-}"
 
-# ---------- 2. 训练 ----------
-swanlab login -k "${SWANLAB_API_KEY}"
+# ---------- 2. 训练（支持 skip_train=1 跳过） ----------
+if [ "${skip_train:-0}" = "1" ]; then
+    echo "[train] skipped (skip_train=1)"
+else
+    swanlab login -k "${SWANLAB_API_KEY}"
+    # Defensive: if STABLEWM_HOME already points to a lewm-* subdir, go up one level first
+    if [[ "$(basename "$STABLEWM_HOME")" == lewm-* ]]; then
+        export STABLEWM_HOME="$(dirname "$STABLEWM_HOME")/lewm-${dataset_dirname}"
+    else
+        export STABLEWM_HOME="${STABLEWM_HOME}/lewm-${dataset_dirname}"
+    fi
+
+    echo "==================================================="
+    echo "[train] starting ${trainer_file} for ${output_model_name}"
+    echo "==================================================="
+    python ${trainer_file} --config-name="${config_name}" \
+        logger_backend=swanlab \
+        swanlab.enabled=True \
+        "${CMD_ARGS[@]}"
+
+    train_status=$?
+    if [ $train_status -ne 0 ]; then
+        echo "[train] failed with status ${train_status}; skipping eval sweep"
+        exit $train_status
+    fi
+fi
+
 # Defensive: if STABLEWM_HOME already points to a lewm-* subdir, go up one level first
 if [[ "$(basename "$STABLEWM_HOME")" == lewm-* ]]; then
     export STABLEWM_HOME="$(dirname "$STABLEWM_HOME")/lewm-${dataset_dirname}"
@@ -278,31 +311,23 @@ else
     export STABLEWM_HOME="${STABLEWM_HOME}/lewm-${dataset_dirname}"
 fi
 
-echo "==================================================="
-echo "[train] starting ${trainer_file} for ${output_model_name}"
-echo "==================================================="
-python ${trainer_file} --config-name="${config_name}" \
-    logger_backend=swanlab \
-    swanlab.enabled=True \
-    "${CMD_ARGS[@]}"
-
-train_status=$?
-if [ $train_status -ne 0 ]; then
-    echo "[train] failed with status ${train_status}; skipping eval sweep"
-    exit $train_status
-fi
-
 # ---------- 3. Eval / Noise 通用准备 ----------
-ckpt_rel="ckpt/${output_model_name}/${output_model_name}_epoch_${eval_epoch}"
-ckpt_abs="${STABLEWM_HOME}/${ckpt_rel}_object.ckpt"
-results_dir="${STABLEWM_HOME}/ckpt/${output_model_name}/eval_results"
+if [ -n "${ckpt_override:-}" ]; then
+    ckpt_abs="${ckpt_override}"
+    ckpt_rel="$(basename "${ckpt_abs}" _object.ckpt)"
+    results_dir="${STABLEWM_HOME}/ckpt/${output_model_name}/eval_results"
+else
+    ckpt_rel="ckpt/${output_model_name}/${output_model_name}_epoch_${eval_epoch}"
+    ckpt_abs="${STABLEWM_HOME}/${ckpt_rel}_object.ckpt"
+    results_dir="${STABLEWM_HOME}/ckpt/${output_model_name}/eval_results"
+fi
 mkdir -p "${results_dir}"
 
 post_train_eval_mode="${post_train_eval_mode:-full}"
 case "${post_train_eval_mode}" in
-    full|clean|none) ;;
+    full|origin|none) ;;
     *)
-        echo "[eval] post_train_eval_mode must be one of: full, clean, none; got '${post_train_eval_mode}'"
+        echo "[eval] post_train_eval_mode must be one of: full, origin, none; got '${post_train_eval_mode}'"
         exit 1
         ;;
 esac
@@ -339,7 +364,7 @@ case "${post_train_eval_mode}" in
         [ "${skip_eval_sweep:-0}" != "1" ] && run_eval_sweep=1
         [ "${skip_diagnostics:-${skip_noise_table:-0}}" != "1" ] && run_diagnostics=1
         ;;
-    clean)
+    origin)
         run_eval_sweep=1
         eval_corruption_stds="0.0"
         run_diagnostics=0
@@ -457,7 +482,7 @@ if [ "${run_eval_sweep}" = "1" ]; then
     # alternative corruption family on the same checkpoint; the output
     # filenames are tagged so they do not collide with the noise sweep.
     eval_corruption_type="${eval_corruption_type:-gaussian_noise}"
-    eval_corruption_apply_to="${eval_corruption_apply_to:-pixels+goal,pixels,goal}"
+    eval_corruption_apply_to="${eval_corruption_apply_to:-pixels}"
 
     # Per-type magnitude lists (only the one matching eval_corruption_type
     # is consumed; the others are ignored). For `gaussian_noise` we keep
@@ -465,7 +490,7 @@ if [ "${run_eval_sweep}" = "1" ]; then
     # for the new families we use suggestive names.
     eval_corruption_stds="${eval_corruption_stds-0.0 0.03 0.05 0.08}"
     eval_blur_kernel_sizes="${eval_blur_kernel_sizes-3 7 11 15}"    # odd px; kernel_size=1 is the no-op but omitted from defaults to avoid shell-word-split issues on cloud launchers
-    eval_resize_factors="${eval_resize_factors-1.0 0.75 0.5 0.25}"  # 1.0 = clean
+    eval_resize_factors="${eval_resize_factors-1.0 0.75 0.5 0.25}"  # 1.0 = unperturbed
 
     # 构造 (label, magnitude, mode, seed, ctype) 任务列表。多 seed 时 label 后缀 _seed${seed}，
     # 单 seed (eval_seeds=1) 时不加后缀以保持向后兼容（产出的文件名跟旧脚本一致）。
@@ -486,13 +511,13 @@ if [ "${run_eval_sweep}" = "1" ]; then
 
     jobs=()
     for mag in $_sweep_mags; do
-        # is_clean: gaussian_noise → mag == 0.0 ; gaussian_blur → mag == 1 ; resize → mag == 1.0
-        is_clean=$(awk -v m="$mag" -v z="$_zero_mag" 'BEGIN{print (m+0==z+0)?1:0}')
+        # is_origin: gaussian_noise → mag == 0.0 ; gaussian_blur → mag == 1 ; resize → mag == 1.0
+        is_origin=$(awk -v m="$mag" -v z="$_zero_mag" 'BEGIN{print (m+0==z+0)?1:0}')
         for ((s=0; s<eval_seeds; s++)); do
             cur_seed=$(( eval_base_seed + s ))
             suf=$(seed_suffix "${cur_seed}")
-            if [ "$is_clean" = "1" ]; then
-                jobs+=("clean${suf}|${_zero_mag}|none|${cur_seed}|${eval_corruption_type}")
+            if [ "$is_origin" = "1" ]; then
+                jobs+=("origin${suf}|${_zero_mag}|none|${cur_seed}|${eval_corruption_type}")
             else
                 IFS=',' read -ra modes <<< "${eval_corruption_apply_to}"
                 for mode in "${modes[@]}"; do
@@ -595,8 +620,8 @@ if [ "${run_diagnostics}" = "1" ]; then
     CUDA_VISIBLE_DEVICES=${gpu_array[0]} python -m tools.repr_analysis.run_full_diagnostics \
         "${diag_args[@]}" 2>&1 | tee "${results_dir}/diagnostics.log"
 else
-    if [ "${post_train_eval_mode}" = "clean" ]; then
-        echo "[diagnostics] skipped (post_train_eval_mode=clean)"
+    if [ "${post_train_eval_mode}" = "origin" ]; then
+        echo "[diagnostics] skipped (post_train_eval_mode=origin)"
     elif [ "${post_train_eval_mode}" = "none" ]; then
         echo "[diagnostics] skipped (post_train_eval_mode=none)"
     else

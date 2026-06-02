@@ -18,7 +18,7 @@ image_noise:
   type: gaussian_noise
   std_min: 0.0 # per-frame std lower bound; 0 disables when std_max==0
   std_max: 0.0 # per-frame std upper bound
-  noise_prob: 1.0 # per-frame Bernoulli prob of applying noise; <1 leaves some frames clean
+  noise_prob: 1.0 # per-frame Bernoulli prob of applying noise; <1 leaves some frames unperturbed
   apply_to_val: False
 
 encoder:
@@ -82,6 +82,14 @@ predictor:
 loss:
   pred:
     space: raw # raw or l2_norm/normalized; only changes pred_loss MSE inputs
+    # Prediction target view:
+    #   perturbed = full-stream augmentation behavior; configured image perturbation
+    #               is applied to the whole pixels sequence, so context and future
+    #               target are both encoded from the perturbed view.
+    #   origin = keep the dataset at its original view and apply image_noise inside
+    #            the forward pass only to predictor history/context, while target
+    #            latents come from unperturbed future frames.
+    target_view: perturbed
   # SimSiam-style stop-grad on the target branch (Chen & He, CVPR 2021).
   # Default false preserves classic LeWM behavior. Setting true is the
   # recommended companion when removing BN from the projection head — the
@@ -166,7 +174,7 @@ loss:
                               # achieved implicitly by mode=full + loss.hetero.enabled=false.
                               # dgc = Diagnostic-Gated Consistency: replaces K-perturb
                               # action sensitivity with single-shot fragility =
-                              # ||predict(noisy_z, a) - predict(clean_z, a)|| / nn_dist.
+                              # ||predict(noisy_z, a) - predict(origin_z, a)|| / nn_dist.
                               # Drops K, delta_scale, chaos discount, warmup; reuses
                               # noisy encoder forward with adaptive_consistency. See
                               # plan_adaptive_resolution.md §3.8.2.
@@ -189,8 +197,8 @@ loss:
     w_min: 0.2
     w_max: 1.0
   # Stage C: action-aware adaptive encoder consistency. This keeps the main
-  # LeWM MSE + SIGReg objective unchanged and adds a small clean/noisy encoder
-  # consistency term weighted by the detached action-gate weights. Requires
+  # LeWM MSE + SIGReg objective unchanged and adds a small original/noisy
+  # encoder consistency term weighted by the detached action-gate weights. Requires
   # loss.action_gate.enabled=true for non-uniform weights.
   adaptive_consistency:
     enabled: false
@@ -199,5 +207,6 @@ loss:
     noise_std_max: 0.04
     noise_prob: 1.0
     distance: l2              # l2 or cosine
-    detach_clean: true
+    detach_origin: true
+    detach_clean: null        # deprecated alias; kept for old overrides only
     require_action_gate: true

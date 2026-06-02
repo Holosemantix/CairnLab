@@ -49,7 +49,7 @@ SWEEP_VARS=(
     loss_temporal_hinge_dynamic_min_margin loss_temporal_hinge_dynamic_max_margin
     loss_inverse_dynamics_weight loss_transition_distance_weight
     loss_target_stop_grad
-    loss_pred_space loss_pred_type loss_rollout_weight loss_rollout_steps
+    loss_pred_space pred_target target_view loss_pred_target_view loss_pred_type loss_rollout_weight loss_rollout_steps
     loss_hetero_enabled loss_hetero_mode loss_hetero_probe_weight loss_hetero_logvar_hidden_dim
     loss_hetero_s_min loss_hetero_s_max loss_hetero_tau_floor
     loss_action_gate_enabled loss_action_gate_mode loss_action_gate_intervention
@@ -59,7 +59,7 @@ SWEEP_VARS=(
     loss_adaptive_consistency_enabled loss_adaptive_consistency_weight
     loss_adaptive_consistency_noise_std_min loss_adaptive_consistency_noise_std_max
     loss_adaptive_consistency_noise_prob loss_adaptive_consistency_distance
-    loss_adaptive_consistency_detach_clean
+    loss_adaptive_consistency_detach_origin loss_adaptive_consistency_detach_clean
     wm_embed_dim wm_inference_rollout_state_space wm_inference_cost_space wm_inference_cost_type
     image_noise_std_min image_noise_std_max image_noise_noise_prob image_noise_apply_to_val
     # eval / 诊断

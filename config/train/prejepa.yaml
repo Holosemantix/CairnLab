@@ -9,8 +9,8 @@
 # (vision-only) and PLDM (vision-only) under our visual-OOD framing.
 #
 # Appendix variant: set `wm.encoding.proprio=10` at CLI to enable the with-prop
-# (original DINO-WM benchmark) configuration. Useful to show that visual noise
-# still hurts when a clean proprio side-channel is present.
+# (original DINO-WM benchmark) configuration. Useful to show that visual perturbation
+# still hurts when an original proprio side-channel is present.
 
 defaults:
   - _self_

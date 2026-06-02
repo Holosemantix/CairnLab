@@ -42,7 +42,6 @@ eval:
     std: 0.0 # 0 disables; pixel-space std converted for ImageNet-normalized tensors
     apply_to:
       - pixels
-      - goal
   callables:
     # -- set state
     - method: set_state

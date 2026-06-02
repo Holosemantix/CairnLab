@@ -47,7 +47,7 @@ import numpy as np
 
 SWEEP_STDS = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
 ROBUST_EVAL_METRIC = "pixels_std0.08"
-ROBUST_EVAL_LABEL = r"Eval: observation noise $\sigma=0.08$ (clean goal)"
+ROBUST_EVAL_LABEL = r"Eval: observation noise $\sigma=0.08$ (unperturbed goal)"
 
 # §4.4 Table 3 — 6 diagnostic metrics × {base, representative} × 4 tasks
 # Metric order chosen so "compression" metrics group on one side of the radar.

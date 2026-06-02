@@ -28,6 +28,7 @@ from module import (
     transition_distance_prediction_loss,
 )
 from utils import (
+    AddNormalizedGaussianNoise,
     get_column_normalizer,
     get_img_noise_transform,
     get_img_preprocessor,
@@ -186,7 +187,7 @@ def compute_action_gate_metrics(
     model,
     ctx_emb,
     ctx_action_raw,
-    pred_emb_clean,
+    pred_emb_origin,
     s_t,
     *,
     K: int,
@@ -214,7 +215,7 @@ def compute_action_gate_metrics(
     Inputs:
       ctx_emb         (B, T_ctx, D)  — encoder output, used as predictor input
       ctx_action_raw  (B, T_ctx, action_dim) — raw actions (post nan_to_num)
-      pred_emb_clean  (B, T_ctx, D)  — predictor output on clean actions
+      pred_emb_origin (B, T_ctx, D)  — predictor output on original actions
       s_t             (B, T_ctx) or None — clamped sigma from hetero probe
       mode            "full" (default, gA + gS) | "sigma_only" (gS-only ablation;
                       skips K perturbation forwards, sets gA≡0.5, critical = gS*0.5).
@@ -232,7 +233,7 @@ def compute_action_gate_metrics(
                                            consistency pressure, kills per-token spread).
       fragile_t       Required when mode="dgc". (B, T_ctx) tensor of detached
                       per-token predictor fragility = ||predict(noisy_z, a) -
-                      predict(clean_z, a)|| / nn_dist (single-sample). Replaces
+                      predict(origin_z, a)|| / nn_dist (single-sample). Replaces
                       the K-perturb action sensitivity A_t. See
                       plan_adaptive_resolution.md §3.8.2.
     """
@@ -253,7 +254,7 @@ def compute_action_gate_metrics(
     metrics = {}
     with torch.no_grad():
         ctx_emb_d = ctx_emb.detach()
-        pred_clean_d = pred_emb_clean.detach()
+        pred_origin_d = pred_emb_origin.detach()
         B, T_ctx = ctx_emb_d.shape[:2]
 
         if sigma_only:
@@ -265,7 +266,7 @@ def compute_action_gate_metrics(
             log_A = zero_bt
         elif dgc_mode:
             # DGC mode: replace K-perturb action sensitivity with single-shot
-            # fragility = ||predict(noisy_z, a) - predict(clean_z, a)|| / nn_dist
+            # fragility = ||predict(noisy_z, a) - predict(origin_z, a)|| / nn_dist
             # precomputed in lejepa_forward. CV is undefined for K=1, set to 0.
             frag = fragile_t.detach().to(ctx_emb_d.dtype)
             A_mean = frag
@@ -276,7 +277,7 @@ def compute_action_gate_metrics(
             action_std = ctx_action_raw.float().std(dim=(0, 1), unbiased=False).clamp(min=1e-6)
             # Freeze BN stats during the K perturbation forwards. Otherwise the
             # OOD-ish perturbed activations update BatchNorm running mean/var on
-            # every train step, drifting them away from the clean-data distribution.
+            # every train step, drifting them away from the original-data distribution.
             # See plan_adaptive_resolution.md §8.3.6.4.
             bn_states = []
             for m in model.modules():
@@ -290,7 +291,7 @@ def compute_action_gate_metrics(
                     act_pert = ctx_action_raw + delta
                     act_emb_pert = model.action_encoder(act_pert)
                     pred_pert = model.predict(ctx_emb_d, act_emb_pert)
-                    diff = (pred_pert - pred_clean_d).pow(2).sum(dim=-1).clamp(min=0).sqrt()
+                    diff = (pred_pert - pred_origin_d).pow(2).sum(dim=-1).clamp(min=0).sqrt()
                     delta_norm = delta.pow(2).sum(dim=-1).clamp(min=0).sqrt().clamp(min=delta_norm_floor)
                     A_samples.append(diff / delta_norm)
             finally:
@@ -429,20 +430,86 @@ def apply_pixel_gaussian_noise(x, *, std_min: float, std_max: float, noise_prob:
     return x + noise * std
 
 
-def adaptive_consistency_loss(clean_emb, noisy_emb, weights, *, distance: str, detach_clean: bool):
-    """Weighted clean/noisy encoder consistency for Stage C."""
-    if detach_clean:
-        clean_emb = clean_emb.detach()
+def resolve_pred_target_view(cfg) -> str:
+    """Resolve the prediction target view used by the LeWM loss."""
+    pred_cfg = cfg.loss.get("pred", {})
+    target_view = pred_cfg.get("target_view", "perturbed")
+    target_view = str(target_view).lower()
+    aliases = {
+        "perturb": "perturbed",
+        "perturbed": "perturbed",
+        "corrupt": "perturbed",
+        "corrupted": "perturbed",
+        "aug": "perturbed",
+        "augmented": "perturbed",
+        "full": "perturbed",
+        "full_sequence": "perturbed",
+        "origin": "origin",
+        "orig": "origin",
+        "original": "origin",
+        "unperturbed": "origin",
+        "origin_target": "origin",
+        "origin_future": "origin",
+    }
+    if target_view not in aliases:
+        valid = ", ".join(sorted(aliases))
+        raise ValueError(
+            f"Unsupported loss.pred.target_view={target_view!r}; valid: {valid}"
+        )
+    return aliases[target_view]
+
+
+def image_perturbation_enabled_for_stage(cfg, stage: str) -> bool:
+    """Match train-set perturbation semantics for in-forward origin-target ablations."""
+    image_cfg = cfg.get("image_noise", {})
+    if image_cfg is None:
+        return False
+    if float(image_cfg.get("std_max", 0.0)) <= 0.0:
+        return False
+    if float(image_cfg.get("noise_prob", 1.0)) <= 0.0:
+        return False
+    if stage in {"train", "training"}:
+        return True
+    return bool(image_cfg.get("apply_to_val", False))
+
+
+def apply_configured_pixel_perturbation(batch, cfg, stage: str):
+    """Apply the configured image perturbation to batch pixels for this stage."""
+    if not image_perturbation_enabled_for_stage(cfg, stage):
+        return batch["pixels"]
+    image_cfg = cfg.get("image_noise", {})
+    noise = AddNormalizedGaussianNoise(
+        image_cfg.get("std_min", 0.0),
+        image_cfg.get("std_max", 0.0),
+        noise_prob=image_cfg.get("noise_prob", 1.0),
+    )
+    return noise(batch["pixels"])
+
+
+def adaptive_consistency_loss(origin_emb, noisy_emb, weights, *, distance: str, detach_origin: bool):
+    """Weighted original/noisy encoder consistency for Stage C."""
+    if detach_origin:
+        origin_emb = origin_emb.detach()
     distance = distance.lower()
     if distance == "l2":
-        dist = torch.linalg.vector_norm(noisy_emb - clean_emb, dim=-1)
+        dist = torch.linalg.vector_norm(noisy_emb - origin_emb, dim=-1)
     elif distance == "cosine":
-        clean_n = torch.nn.functional.normalize(clean_emb, dim=-1)
+        origin_n = torch.nn.functional.normalize(origin_emb, dim=-1)
         noisy_n = torch.nn.functional.normalize(noisy_emb, dim=-1)
-        dist = (1.0 - (clean_n * noisy_n).sum(dim=-1)).clamp_min(0.0)
+        dist = (1.0 - (origin_n * noisy_n).sum(dim=-1)).clamp_min(0.0)
     else:
         raise ValueError(f"Unsupported adaptive consistency distance: {distance}")
     return (weights.detach() * dist).mean(), dist.detach()
+
+
+def resolve_adaptive_detach_origin(cons_cfg) -> bool:
+    """Prefer detach_origin; accept detach_clean only as a legacy override."""
+    detach_origin = cons_cfg.get("detach_origin", None)
+    if detach_origin is None:
+        detach_origin = cons_cfg.get("detach_clean", True)
+    if isinstance(detach_origin, str):
+        return detach_origin.strip().lower() not in {"0", "false", "no", "off"}
+    return bool(detach_origin)
 
 
 def compute_temporal_hinge(output, *, model, cfg):
@@ -515,14 +582,35 @@ def lejepa_forward(self, batch, stage, cfg):
     # Replace NaN values with 0 (occurs at sequence boundaries)
     batch["action"] = torch.nan_to_num(batch["action"], 0.0)
 
+    pred_cfg = cfg.loss.get("pred", {})
+    pred_space = pred_cfg.get("space", "raw")
+    target_view = resolve_pred_target_view(cfg)
+
     output = self.model.encode(batch)
 
     emb = output["emb"]  # (B, T, D)
     act_emb = output["act_emb"]
-    pred_cfg = cfg.loss.get("pred", {})
-    pred_space = pred_cfg.get("space", "raw")
 
-    ctx_emb = emb[:, :ctx_len]
+    if target_view == "perturbed":
+        ctx_emb = emb[:, :ctx_len]
+    elif target_view == "origin":
+        perturbed_pixels = apply_configured_pixel_perturbation(batch, cfg, stage)
+        if perturbed_pixels is batch["pixels"]:
+            perturbed_output = output
+        else:
+            perturbed_batch = dict(batch)
+            perturbed_batch["pixels"] = perturbed_pixels
+            perturbed_output = self.model.encode(perturbed_batch)
+        ctx_emb = perturbed_output["emb"][:, :ctx_len]
+        with torch.no_grad():
+            origin_ctx = emb[:, :ctx_len]
+            output["target_view_origin_future"] = emb.new_tensor(1.0)
+            output["target_view_context_noise_l2"] = torch.linalg.vector_norm(
+                ctx_emb.detach() - origin_ctx.detach(), dim=-1
+            ).mean()
+    else:
+        raise RuntimeError(f"Unhandled target_view={target_view}")
+
     ctx_act = act_emb[:, :ctx_len]
 
     tgt_emb = emb[:, n_preds:]  # label
@@ -630,7 +718,7 @@ def lejepa_forward(self, batch, stage, cfg):
             self.model,
             ctx_emb=ctx_emb,
             ctx_action_raw=output["action"][:, :ctx_len],
-            pred_emb_clean=pred_emb,
+            pred_emb_origin=pred_emb,
             s_t=s_t,
             K=int(gate_cfg.get("num_delta_samples", 4)),
             delta_scale=float(gate_cfg.get("delta_scale", 0.25)),
@@ -670,10 +758,10 @@ def lejepa_forward(self, batch, stage, cfg):
         if reuse_dgc_noisy:
             noisy_emb = output["_dgc_noisy_emb"][:, :ctx_len]
         else:
-            clean_pixels = batch["pixels"]
+            origin_pixels = batch["pixels"]
             noisy_batch = dict(batch)
             noisy_batch["pixels"] = apply_pixel_gaussian_noise(
-                clean_pixels,
+                origin_pixels,
                 std_min=cons_std_min,
                 std_max=cons_std_max,
                 noise_prob=cons_noise_prob,
@@ -691,7 +779,7 @@ def lejepa_forward(self, batch, stage, cfg):
             noisy_emb,
             cons_weights,
             distance=cons_cfg.get("distance", "l2"),
-            detach_clean=cons_cfg.get("detach_clean", True),
+            detach_origin=resolve_adaptive_detach_origin(cons_cfg),
         )
         output["adaptive_consistency_dist_mean"] = adaptive_consistency_dist.mean()
         output["adaptive_consistency_weight_mean"] = cons_weights.detach().mean()
@@ -838,6 +926,7 @@ def lejepa_forward(self, batch, stage, cfg):
                 or k.startswith("hetero_")
                 or k.startswith("sigma_probe_")
                 or k.startswith("adaptive_")
+                or k.startswith("target_view_")
                 or k == "pred_loss_mse_equiv"
                 or k == "sigreg_warmup_active"
                 or k == "sigreg_scale"
@@ -886,11 +975,17 @@ def run(cfg):
     train_set, val_set = spt.data.random_split(
         dataset, lengths=[cfg.train_split, 1 - cfg.train_split], generator=rnd_gen
     )
+    target_view = resolve_pred_target_view(cfg)
     img_noise = get_img_noise_transform(cfg.get("image_noise"))
-    if img_noise is not None:
+    if img_noise is not None and target_view == "perturbed":
         train_set = TransformDataset(train_set, img_noise)
         if cfg.image_noise.get("apply_to_val", False):
             val_set = TransformDataset(val_set, img_noise)
+    elif img_noise is not None:
+        print(
+            f"[image_noise] target_view={target_view}: "
+            "using in-forward perturbed history with origin future targets"
+        )
 
     train = torch.utils.data.DataLoader(
         train_set, **cfg.loader, shuffle=True, drop_last=True, generator=rnd_gen

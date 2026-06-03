@@ -9,8 +9,8 @@ perturbed-target checkpoints:
 
 The default path only reads released JSON artifacts and writes a compact branch
 table.  The optional ``--plot-3d`` path loads checkpoints and dataset windows to
-render real encoder/predictor feature clouds with PCA-to-3D, so it is eval-only
-but not artifact-only.
+render real encoder/predictor feature clouds, so it is eval-only but not
+artifact-only.
 """
 
 from __future__ import annotations
@@ -31,6 +31,8 @@ TASKS = ("TwoRoom", "PushT", "Reacher", "Cube")
 DEFAULT_DATA_DIR = ROOT / "assets" / "paper1_data"
 DEFAULT_FIG_DIR = ROOT / "assets" / "paper1_figs" / "selective_contraction_3d"
 DEFAULT_FIG2D_DIR = ROOT / "assets" / "paper1_figs" / "selective_contraction_2d"
+DEFAULT_CLUSTER_DIR = ROOT / "assets" / "paper1_figs" / "selective_contraction_clusters"
+DEFAULT_ATLAS_DIR = ROOT / "assets" / "paper1_figs" / "selective_contraction_atlas"
 DEFAULT_OUT_JSON = DEFAULT_DATA_DIR / "selective_contraction_fullseq_branch.json"
 DEFAULT_OUT_MD = DEFAULT_DATA_DIR / "selective_contraction_fullseq_branch.md"
 TASK_DATASETS = {
@@ -383,6 +385,10 @@ def _axis_limits_2d(arrays: Sequence[np.ndarray]) -> tuple[tuple[float, float], 
     return limits[0], limits[1]
 
 
+def _axis_limits_2d_single(array: np.ndarray) -> tuple[tuple[float, float], tuple[float, float]]:
+    return _axis_limits_2d([array])
+
+
 def _axis_limits(arrays: Sequence[np.ndarray]) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
     flat = np.concatenate([a.reshape(-1, 3) for a in arrays], axis=0)
     limits = []
@@ -392,6 +398,184 @@ def _axis_limits(arrays: Sequence[np.ndarray]) -> tuple[tuple[float, float], tup
         pad = 0.08 * max(hi - lo, 1e-6)
         limits.append((lo - pad, hi + pad))
     return limits[0], limits[1], limits[2]
+
+
+def _pca_reduce_for_embedding(points: np.ndarray, max_dim: int = 50) -> np.ndarray:
+    centered = points - points.mean(axis=0, keepdims=True)
+    if centered.shape[1] <= max_dim or centered.shape[0] <= max_dim:
+        return centered
+    _, _, vt = np.linalg.svd(centered, full_matrices=False)
+    return centered @ vt[:max_dim].T
+
+
+def _tsne_fit_transform_2d(
+    array: np.ndarray,
+    *,
+    seed: int,
+    perplexity: float,
+    max_iter: int,
+) -> np.ndarray:
+    from sklearn.manifold import TSNE
+
+    flat = array.reshape(-1, array.shape[-1])
+    reduced = _pca_reduce_for_embedding(flat)
+    max_perplexity = max(5.0, (reduced.shape[0] - 1) / 3.0)
+    px = min(float(perplexity), max_perplexity)
+    px = max(5.0, min(px, reduced.shape[0] - 1.0))
+    tsne = TSNE(
+        n_components=2,
+        perplexity=px,
+        init="pca",
+        learning_rate="auto",
+        max_iter=max_iter,
+        metric="euclidean",
+        random_state=seed,
+    )
+    out = tsne.fit_transform(reduced)
+    return out.reshape(array.shape[:-1] + (2,))
+
+
+def _select_spread_anchors(origin_features: np.ndarray, count: int) -> np.ndarray:
+    count = min(int(count), int(origin_features.shape[0]))
+    if count <= 0:
+        return np.zeros((0,), dtype=int)
+    dists = np.linalg.norm(
+        origin_features[:, None, :] - origin_features[None, :, :],
+        axis=-1,
+    )
+    center = origin_features.mean(axis=0, keepdims=True)
+    selected = [int(np.argmin(np.linalg.norm(origin_features - center, axis=-1)))]
+    min_dist = dists[selected[0]].copy()
+    while len(selected) < count:
+        min_dist[selected] = -np.inf
+        idx = int(np.argmax(min_dist))
+        if not np.isfinite(min_dist[idx]):
+            break
+        selected.append(idx)
+        min_dist = np.minimum(min_dist, dists[idx])
+    return np.asarray(selected, dtype=int)
+
+
+def _cluster_isolation_stats(array: np.ndarray) -> dict[str, float]:
+    origin = array[0]
+    same_view_dist = np.linalg.norm(array[1:] - origin[None, :, :], axis=-1)
+    radius = np.nanmax(same_view_dist, axis=0)
+    origin_dists = np.linalg.norm(origin[:, None, :] - origin[None, :, :], axis=-1)
+    np.fill_diagonal(origin_dists, np.inf)
+    nearest_origin = np.nanmin(origin_dists, axis=1)
+    ratio = radius / np.maximum(nearest_origin, 1e-12)
+    pair_ratio = (radius[:, None] + radius[None, :]) / np.maximum(origin_dists, 1e-12)
+    np.fill_diagonal(pair_ratio, -np.inf)
+    max_pair_ratio = np.nanmax(pair_ratio, axis=1)
+    return {
+        "median_radius_over_nn": float(np.nanmedian(ratio)),
+        "frac_radius_lt_nn": float(np.nanmean(ratio < 1.0)),
+        "frac_disjoint_balls": float(np.nanmean(max_pair_ratio < 1.0)),
+        "median_radius": float(np.nanmedian(radius)),
+        "median_nearest_origin": float(np.nanmedian(nearest_origin)),
+    }
+
+
+def _local_cluster_projection(
+    array: np.ndarray,
+    *,
+    state_idx: int,
+    neighbor_count: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    origin = array[0]
+    center = origin[state_idx]
+    dists = np.linalg.norm(origin - center[None, :], axis=-1)
+    neighbor_idx = np.argsort(dists)[1 : neighbor_count + 1]
+    local_points = np.concatenate(
+        [array[:, state_idx, :], origin[neighbor_idx]],
+        axis=0,
+    )
+    centered = local_points - center[None, :]
+    if centered.shape[0] <= 2:
+        coords = np.zeros((centered.shape[0], 2), dtype=np.float64)
+    else:
+        _, _, vt = np.linalg.svd(centered, full_matrices=False)
+        components = vt[:2]
+        if components.shape[0] < 2:
+            components = np.pad(components, ((0, 2 - components.shape[0]), (0, 0)))
+        coords = centered @ components.T
+    nearest_origin = max(float(dists[neighbor_idx[0]]) if len(neighbor_idx) else 0.0, 1e-12)
+    coords = coords / nearest_origin
+    return coords[: array.shape[0]], coords[array.shape[0] :]
+
+
+def _draw_local_atlas_panel(
+    *,
+    plt,
+    ax,
+    array: np.ndarray,
+    anchors: np.ndarray,
+    colors: np.ndarray,
+    title: str,
+    neighbor_count: int,
+) -> None:
+    stats = _cluster_isolation_stats(array)
+    cols = min(6, max(1, int(math.ceil(math.sqrt(max(1, len(anchors)) * 1.4)))))
+    rows = int(math.ceil(max(1, len(anchors)) / cols))
+    span = 5.0
+    cell_radius = 2.15
+    for slot, state_idx in enumerate(anchors):
+        row = slot // cols
+        col = slot % cols
+        offset = np.asarray([col * span, -row * span], dtype=np.float64)
+        color = colors[slot % len(colors)]
+        view_coords, neighbor_coords = _local_cluster_projection(
+            array,
+            state_idx=int(state_idx),
+            neighbor_count=neighbor_count,
+        )
+        ax.add_patch(
+            plt.Circle(
+                offset,
+                1.0,
+                fill=False,
+                edgecolor="#666666",
+                linewidth=0.55,
+                alpha=0.38,
+            )
+        )
+        ax.add_patch(
+            plt.Rectangle(
+                offset - cell_radius,
+                2 * cell_radius,
+                2 * cell_radius,
+                fill=False,
+                edgecolor="#E2E2E2",
+                linewidth=0.45,
+                alpha=0.9,
+            )
+        )
+        if len(neighbor_coords):
+            pts = neighbor_coords + offset[None, :]
+            ax.scatter(pts[:, 0], pts[:, 1], s=8, c="#8A8A8A", marker="x", alpha=0.42, linewidths=0.55)
+        pts = view_coords + offset[None, :]
+        ax.plot(pts[:, 0], pts[:, 1], color=color, linewidth=0.9, alpha=0.8)
+        ax.scatter(pts[0, 0], pts[0, 1], s=30, color=color, marker="o", edgecolor="#222222", linewidth=0.35)
+        ax.scatter(pts[1:, 0], pts[1:, 1], s=18, color=color, marker="^", alpha=0.82, linewidth=0)
+
+    ax.set_title(title)
+    ax.set_xlim(-cell_radius - 0.2, (cols - 1) * span + cell_radius + 0.2)
+    ax.set_ylim(-(rows - 1) * span - cell_radius - 0.2, cell_radius + 0.2)
+    ax.set_aspect("equal", adjustable="box")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.text(
+        0.015,
+        0.985,
+        f"median r/NN = {stats['median_radius_over_nn']:.2f}\n"
+        f"r < NN = {100.0 * stats['frac_radius_lt_nn']:.0f}%\n"
+        f"disjoint balls = {100.0 * stats['frac_disjoint_balls']:.0f}%",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontsize=8.2,
+        bbox={"facecolor": "white", "edgecolor": "#CCCCCC", "alpha": 0.84, "pad": 3},
+    )
 
 
 def _extract_view_features(
@@ -454,22 +638,26 @@ def _load_task_features(
     specs = _checkpoint_specs(task=task, summary=summary, acpc_basin_path=acpc_basin_path)
 
     encoded: dict[str, dict[str, np.ndarray]] = {}
+    batch_cache: dict[tuple[int, int], Mapping[str, Any]] = {}
     for spec in specs:
         with phase0.torch.no_grad():
             model = phase0.load_model(str(spec.model_file), device_value)
             history_size = phase0.infer_history_size(model)
             future_steps = max(rollout_horizon + 1, 9)
-            batch = phase0.load_dataset_samples(
-                dataset_name=TASK_DATASETS[task],
-                state_key=None,
-                n_sequences=n_sequences,
-                history_size=history_size,
-                future_steps=future_steps,
-                frameskip=frameskip,
-                img_size=img_size,
-                seed=seed,
-                device=device_value,
-            )
+            batch_key = (history_size, future_steps)
+            if batch_key not in batch_cache:
+                batch_cache[batch_key] = phase0.load_dataset_samples(
+                    dataset_name=TASK_DATASETS[task],
+                    state_key=None,
+                    n_sequences=n_sequences,
+                    history_size=history_size,
+                    future_steps=future_steps,
+                    frameskip=frameskip,
+                    img_size=img_size,
+                    seed=seed,
+                    device=device_value,
+                )
+            batch = batch_cache[batch_key]
             spaces = phase0.get_model_spaces(model)
             embedding_space = spaces["inference_cost_space"]
             enc, pred = _extract_view_features(
@@ -577,6 +765,222 @@ def render_2d_task(
     fig.tight_layout(rect=(0, 0.055, 1, 0.96))
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{task.lower()}_fullseq_selective_contraction_2d.png"
+    fig.savefig(out, dpi=190)
+    plt.close(fig)
+    return out
+
+
+def render_atlas_task(
+    *,
+    task: str,
+    summary: Mapping[str, Any],
+    acpc_basin_path: Path,
+    out_dir: Path,
+    n_sequences: int,
+    view_stds: Sequence[float],
+    rollout_horizon: int,
+    seed: int,
+    device: str | None,
+    img_size: int,
+    frameskip: int,
+    anchor_count: int,
+    neighbor_count: int,
+) -> Path:
+    plt = _ensure_plot_deps()
+    encoded, specs = _load_task_features(
+        task=task,
+        summary=summary,
+        acpc_basin_path=acpc_basin_path,
+        n_sequences=n_sequences,
+        view_stds=view_stds,
+        rollout_horizon=rollout_horizon,
+        seed=seed,
+        device=device,
+        img_size=img_size,
+        frameskip=frameskip,
+    )
+
+    anchors = _select_spread_anchors(encoded["fullseq_robust"]["predictor"][0], anchor_count)
+    colors = plt.cm.turbo(np.linspace(0.05, 0.95, max(1, len(anchors))))
+    label_by_spec = {
+        "base": "no perturb training",
+        "fullseq_robust": f"full-seq perturb training std={specs[1].std_key}",
+    }
+    feature_by_name = {
+        "encoder": "Encoder",
+        "predictor": "Predictor H8",
+    }
+
+    fig, axes = plt.subplots(2, 2, figsize=(16.4, 13.4))
+    panels = [
+        ("base", "encoder"),
+        ("base", "predictor"),
+        ("fullseq_robust", "encoder"),
+        ("fullseq_robust", "predictor"),
+    ]
+    for ax, (label, feature) in zip(axes.reshape(-1), panels):
+        _draw_local_atlas_panel(
+            plt=plt,
+            ax=ax,
+            array=encoded[label][feature],
+            anchors=anchors,
+            colors=colors,
+            title=f"{label_by_spec[label]}: {feature_by_name[feature]} local clusters",
+            neighbor_count=neighbor_count,
+        )
+
+    fig.suptitle(
+        f"{task}: local cluster atlas normalized by nearest original-state distance "
+        f"(n={n_sequences}, anchors={len(anchors)}, neighbors={neighbor_count})",
+        y=0.985,
+    )
+    fig.text(
+        0.5,
+        0.025,
+        "Each small box is one selected original state. Circle radius = distance to its nearest other original state "
+        "in the original feature space; colored circle/triangles are original/perturbed views; gray x marks nearby "
+        "other original states after local PCA.",
+        ha="center",
+        va="bottom",
+        fontsize=9.0,
+    )
+    fig.tight_layout(rect=(0, 0.055, 1, 0.955), h_pad=3.0, w_pad=1.5)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"{task.lower()}_fullseq_selective_contraction_atlas.png"
+    fig.savefig(out, dpi=190)
+    plt.close(fig)
+    return out
+
+
+def render_cluster_task(
+    *,
+    task: str,
+    summary: Mapping[str, Any],
+    acpc_basin_path: Path,
+    out_dir: Path,
+    n_sequences: int,
+    view_stds: Sequence[float],
+    rollout_horizon: int,
+    seed: int,
+    device: str | None,
+    img_size: int,
+    frameskip: int,
+    anchor_count: int,
+    perplexity: float,
+    tsne_max_iter: int,
+) -> Path:
+    plt = _ensure_plot_deps()
+    encoded, specs = _load_task_features(
+        task=task,
+        summary=summary,
+        acpc_basin_path=acpc_basin_path,
+        n_sequences=n_sequences,
+        view_stds=view_stds,
+        rollout_horizon=rollout_horizon,
+        seed=seed,
+        device=device,
+        img_size=img_size,
+        frameskip=frameskip,
+    )
+
+    anchors = _select_spread_anchors(encoded["fullseq_robust"]["predictor"][0], anchor_count)
+    colors = plt.cm.turbo(np.linspace(0.05, 0.95, max(1, len(anchors))))
+    label_by_spec = {
+        "base": "no perturb training",
+        "fullseq_robust": f"full-seq perturb training std={specs[1].std_key}",
+    }
+    feature_by_name = {
+        "encoder": "Encoder features",
+        "predictor": "Predictor H8 features",
+    }
+
+    fig, axes = plt.subplots(2, 2, figsize=(14.5, 11.0))
+    panels = [
+        ("base", "encoder"),
+        ("base", "predictor"),
+        ("fullseq_robust", "encoder"),
+        ("fullseq_robust", "predictor"),
+    ]
+    for panel_idx, (ax, (label, feature)) in enumerate(zip(axes.reshape(-1), panels)):
+        arr = encoded[label][feature]
+        projected = _tsne_fit_transform_2d(
+            arr,
+            seed=seed + 17 * (panel_idx + 1),
+            perplexity=perplexity,
+            max_iter=tsne_max_iter,
+        )
+        stats = _cluster_isolation_stats(arr)
+        origin = projected[0]
+        perturbed = projected[1:]
+        xlim, ylim = _axis_limits_2d_single(projected)
+
+        ax.scatter(origin[:, 0], origin[:, 1], s=7, c="#A7A7A7", alpha=0.24, linewidths=0)
+        ax.scatter(
+            perturbed.reshape(-1, 2)[:, 0],
+            perturbed.reshape(-1, 2)[:, 1],
+            s=5,
+            c="#C9C9C9",
+            alpha=0.16,
+            linewidths=0,
+        )
+
+        for ci, state_idx in enumerate(anchors):
+            color = colors[ci % len(colors)]
+            pts = projected[:, state_idx, :]
+            center = pts.mean(axis=0)
+            radius_2d = max(float(np.linalg.norm(pts - center[None, :], axis=-1).max()), 1e-6)
+            circle = plt.Circle(
+                center,
+                radius_2d * 1.18,
+                facecolor=color,
+                edgecolor=color,
+                alpha=0.09,
+                linewidth=0.8,
+            )
+            ax.add_patch(circle)
+            ax.plot(pts[:, 0], pts[:, 1], color=color, alpha=0.78, linewidth=1.0)
+            ax.scatter(pts[0, 0], pts[0, 1], s=42, color=color, marker="o", edgecolor="#222222", linewidth=0.35)
+            ax.scatter(pts[1:, 0], pts[1:, 1], s=20, color=color, marker="^", alpha=0.78, linewidth=0)
+
+        ax.set_title(f"{label_by_spec[label]}: {feature_by_name[feature]}")
+        ax.set_xlim(*xlim)
+        ax.set_ylim(*ylim)
+        ax.set_xlabel("t-SNE 1")
+        ax.set_ylabel("t-SNE 2")
+        ax.grid(True, color="#ECECEC", linewidth=0.55)
+        ax.set_aspect("equal", adjustable="box")
+        ax.text(
+            0.02,
+            0.98,
+            "high-D local stats\n"
+            f"median r/NN = {stats['median_radius_over_nn']:.2f}\n"
+            f"r < NN = {100.0 * stats['frac_radius_lt_nn']:.0f}%\n"
+            f"disjoint balls = {100.0 * stats['frac_disjoint_balls']:.0f}%",
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=8.5,
+            bbox={"facecolor": "white", "edgecolor": "#CCCCCC", "alpha": 0.82, "pad": 4},
+        )
+
+    fig.suptitle(
+        f"{task}: local same-state perturbation clusters "
+        f"(n={n_sequences}, anchors={len(anchors)}, view stds={','.join(f'{s:g}' for s in view_stds)})",
+        y=0.985,
+    )
+    fig.text(
+        0.5,
+        0.026,
+        "t-SNE is only for local visualization; panel stats are computed in the original feature space.\n"
+        "Gray points are all sampled original/perturbed views; colored patches connect spread-selected "
+        "original states to their perturbations.",
+        ha="center",
+        va="bottom",
+        fontsize=9.3,
+    )
+    fig.tight_layout(rect=(0, 0.06, 1, 0.96))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"{task.lower()}_fullseq_selective_contraction_clusters.png"
     fig.savefig(out, dpi=190)
     plt.close(fig)
     return out
@@ -728,9 +1132,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out-md", type=Path, default=DEFAULT_OUT_MD)
     p.add_argument("--plot-2d", action="store_true")
     p.add_argument("--plot-3d", action="store_true")
+    p.add_argument("--plot-clusters", action="store_true")
+    p.add_argument("--plot-atlas", action="store_true")
     p.add_argument("--plot-tasks", nargs="+", choices=TASKS, default=["PushT"])
     p.add_argument("--plot-out-dir", type=Path, default=DEFAULT_FIG_DIR)
     p.add_argument("--plot2d-out-dir", type=Path, default=DEFAULT_FIG2D_DIR)
+    p.add_argument("--cluster-out-dir", type=Path, default=DEFAULT_CLUSTER_DIR)
+    p.add_argument("--atlas-out-dir", type=Path, default=DEFAULT_ATLAS_DIR)
     p.add_argument("--n-sequences", type=int, default=160)
     p.add_argument("--view-stds", nargs="+", type=float, default=[0.0, 0.02, 0.04, 0.08])
     p.add_argument("--rollout-horizon", type=int, default=8)
@@ -739,6 +1147,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--img-size", type=int, default=224)
     p.add_argument("--frameskip", type=int, default=5)
     p.add_argument("--anchor-count", type=int, default=8)
+    p.add_argument("--cluster-anchor-count", type=int, default=24)
+    p.add_argument("--cluster-perplexity", type=float, default=35.0)
+    p.add_argument("--cluster-tsne-max-iter", type=int, default=650)
+    p.add_argument("--atlas-anchor-count", type=int, default=24)
+    p.add_argument("--atlas-neighbor-count", type=int, default=8)
     return p
 
 
@@ -769,6 +1182,45 @@ def main() -> None:
                 img_size=args.img_size,
                 frameskip=args.frameskip,
                 anchor_count=args.anchor_count,
+            )
+            print(f"[selective-contraction] wrote {out}")
+
+    if args.plot_atlas:
+        for task in args.plot_tasks:
+            out = render_atlas_task(
+                task=task,
+                summary=summary,
+                acpc_basin_path=args.acpc_basin,
+                out_dir=args.atlas_out_dir,
+                n_sequences=args.n_sequences,
+                view_stds=args.view_stds,
+                rollout_horizon=args.rollout_horizon,
+                seed=args.seed,
+                device=args.device,
+                img_size=args.img_size,
+                frameskip=args.frameskip,
+                anchor_count=args.atlas_anchor_count,
+                neighbor_count=args.atlas_neighbor_count,
+            )
+            print(f"[selective-contraction] wrote {out}")
+
+    if args.plot_clusters:
+        for task in args.plot_tasks:
+            out = render_cluster_task(
+                task=task,
+                summary=summary,
+                acpc_basin_path=args.acpc_basin,
+                out_dir=args.cluster_out_dir,
+                n_sequences=args.n_sequences,
+                view_stds=args.view_stds,
+                rollout_horizon=args.rollout_horizon,
+                seed=args.seed,
+                device=args.device,
+                img_size=args.img_size,
+                frameskip=args.frameskip,
+                anchor_count=args.cluster_anchor_count,
+                perplexity=args.cluster_perplexity,
+                tsne_max_iter=args.cluster_tsne_max_iter,
             )
             print(f"[selective-contraction] wrote {out}")
 

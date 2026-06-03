@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TASKS = ("TwoRoom", "PushT", "Reacher", "Cube")
 DEFAULT_DATA_DIR = ROOT / "assets" / "paper1_data"
 DEFAULT_FIG_DIR = ROOT / "assets" / "paper1_figs" / "selective_contraction_3d"
+DEFAULT_FIG2D_DIR = ROOT / "assets" / "paper1_figs" / "selective_contraction_2d"
 DEFAULT_OUT_JSON = DEFAULT_DATA_DIR / "selective_contraction_fullseq_branch.json"
 DEFAULT_OUT_MD = DEFAULT_DATA_DIR / "selective_contraction_fullseq_branch.md"
 TASK_DATASETS = {
@@ -359,12 +360,27 @@ def _pca_fit_transform(arrays: Sequence[np.ndarray]) -> list[np.ndarray]:
     return out
 
 
+def _pca_fit_transform_2d(arrays: Sequence[np.ndarray]) -> list[np.ndarray]:
+    return [a[..., :2] for a in _pca_fit_transform(arrays)]
+
+
 def _nearest_original_indices(features: np.ndarray, anchors: Sequence[int]) -> dict[int, int]:
     """Nearest other original-state index for each anchor in original feature space."""
     clean = features[0].reshape(features.shape[1], features.shape[2])
     dists = np.linalg.norm(clean[:, None, :] - clean[None, :, :], axis=-1)
     np.fill_diagonal(dists, np.inf)
     return {int(i): int(np.argmin(dists[int(i)])) for i in anchors}
+
+
+def _axis_limits_2d(arrays: Sequence[np.ndarray]) -> tuple[tuple[float, float], tuple[float, float]]:
+    flat = np.concatenate([a.reshape(-1, 2) for a in arrays], axis=0)
+    limits = []
+    for dim in range(2):
+        lo = float(np.nanmin(flat[:, dim]))
+        hi = float(np.nanmax(flat[:, dim]))
+        pad = 0.08 * max(hi - lo, 1e-6)
+        limits.append((lo - pad, hi + pad))
+    return limits[0], limits[1]
 
 
 def _axis_limits(arrays: Sequence[np.ndarray]) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
@@ -420,12 +436,11 @@ def _extract_view_features(
     return np.stack(encoder_views, axis=0), np.stack(predictor_views, axis=0)
 
 
-def render_3d_task(
+def _load_task_features(
     *,
     task: str,
     summary: Mapping[str, Any],
     acpc_basin_path: Path,
-    out_dir: Path,
     n_sequences: int,
     view_stds: Sequence[float],
     rollout_horizon: int,
@@ -433,9 +448,7 @@ def render_3d_task(
     device: str | None,
     img_size: int,
     frameskip: int,
-    anchor_count: int,
-) -> Path:
-    plt = _ensure_plot_deps()
+) -> tuple[dict[str, dict[str, np.ndarray]], list[CkptSpec]]:
     phase0 = _ensure_runtime_deps()
     device_value = device or "cpu"
     specs = _checkpoint_specs(task=task, summary=summary, acpc_basin_path=acpc_basin_path)
@@ -470,6 +483,133 @@ def render_3d_task(
                 embedding_space=embedding_space,
             )
             encoded[spec.label] = {"encoder": enc, "predictor": pred}
+    return encoded, specs
+
+
+def render_2d_task(
+    *,
+    task: str,
+    summary: Mapping[str, Any],
+    acpc_basin_path: Path,
+    out_dir: Path,
+    n_sequences: int,
+    view_stds: Sequence[float],
+    rollout_horizon: int,
+    seed: int,
+    device: str | None,
+    img_size: int,
+    frameskip: int,
+    anchor_count: int,
+) -> Path:
+    plt = _ensure_plot_deps()
+    encoded, specs = _load_task_features(
+        task=task,
+        summary=summary,
+        acpc_basin_path=acpc_basin_path,
+        n_sequences=n_sequences,
+        view_stds=view_stds,
+        rollout_horizon=rollout_horizon,
+        seed=seed,
+        device=device,
+        img_size=img_size,
+        frameskip=frameskip,
+    )
+
+    enc_pca = _pca_fit_transform_2d([encoded["base"]["encoder"], encoded["fullseq_robust"]["encoder"]])
+    pred_pca = _pca_fit_transform_2d([encoded["base"]["predictor"], encoded["fullseq_robust"]["predictor"]])
+    encoded["base"]["encoder_2d"], encoded["fullseq_robust"]["encoder_2d"] = enc_pca
+    encoded["base"]["predictor_2d"], encoded["fullseq_robust"]["predictor_2d"] = pred_pca
+    axis_limits = {
+        "encoder_2d": _axis_limits_2d([encoded["base"]["encoder_2d"], encoded["fullseq_robust"]["encoder_2d"]]),
+        "predictor_2d": _axis_limits_2d([encoded["base"]["predictor_2d"], encoded["fullseq_robust"]["predictor_2d"]]),
+    }
+
+    anchor_count = min(anchor_count, n_sequences)
+    anchors = np.linspace(0, n_sequences - 1, anchor_count, dtype=int)
+    if anchor_count > 0:
+        anchors = np.unique(anchors)
+    colors = plt.cm.tab20(np.linspace(0, 1, max(1, len(anchors))))
+    label_by_spec = {
+        "base": "no perturb training",
+        "fullseq_robust": f"full-seq perturb training std={specs[1].std_key}",
+    }
+
+    fig, axes = plt.subplots(2, 2, figsize=(13.5, 10.5), sharex="col", sharey="col")
+    panels = [
+        ("base", "encoder_2d", "Encoder features"),
+        ("base", "predictor_2d", "Predictor H8 features"),
+        ("fullseq_robust", "encoder_2d", "Encoder features"),
+        ("fullseq_robust", "predictor_2d", "Predictor H8 features"),
+    ]
+    for ax, (label, feature, title) in zip(axes.reshape(-1), panels):
+        arr = encoded[label][feature]
+        clean = arr[0]
+        xlim, ylim = axis_limits[feature]
+        ax.scatter(clean[:, 0], clean[:, 1], s=9, c="#C7C7C7", alpha=0.38, linewidths=0)
+        for ci, state_idx in enumerate(anchors):
+            color = colors[ci % len(colors)]
+            pts = arr[:, state_idx, :]
+            ax.plot(pts[:, 0], pts[:, 1], color=color, alpha=0.75, linewidth=1.0)
+            ax.scatter(pts[0, 0], pts[0, 1], s=46, color=color, marker="o", edgecolor="#222222", linewidth=0.45)
+            ax.scatter(pts[1:, 0], pts[1:, 1], s=24, color=color, marker="^", alpha=0.78, linewidth=0)
+        ax.set_title(f"{label_by_spec[label]}: {title}")
+        ax.set_xlim(*xlim)
+        ax.set_ylim(*ylim)
+        ax.set_xlabel("PC1")
+        ax.set_ylabel("PC2")
+        ax.grid(True, color="#E7E7E7", linewidth=0.6)
+        ax.set_aspect("equal", adjustable="box")
+
+    fig.suptitle(
+        f"{task}: original states and same-state perturbation clusters "
+        f"(n={n_sequences}, anchors={len(anchors)}, view stds={','.join(f'{s:g}' for s in view_stds)})",
+        y=0.98,
+    )
+    fig.text(
+        0.5,
+        0.025,
+        "Gray points: many original states. Colored circle: selected original state. "
+        "Same-color triangles/lines: its perturbed views. Shorter colored clusters mean stronger same-state contraction.",
+        ha="center",
+        va="bottom",
+        fontsize=9.5,
+    )
+    fig.tight_layout(rect=(0, 0.055, 1, 0.96))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"{task.lower()}_fullseq_selective_contraction_2d.png"
+    fig.savefig(out, dpi=190)
+    plt.close(fig)
+    return out
+
+
+def render_3d_task(
+    *,
+    task: str,
+    summary: Mapping[str, Any],
+    acpc_basin_path: Path,
+    out_dir: Path,
+    n_sequences: int,
+    view_stds: Sequence[float],
+    rollout_horizon: int,
+    seed: int,
+    device: str | None,
+    img_size: int,
+    frameskip: int,
+    anchor_count: int,
+) -> Path:
+    plt = _ensure_plot_deps()
+    encoded, specs = _load_task_features(
+        task=task,
+        summary=summary,
+        acpc_basin_path=acpc_basin_path,
+        n_sequences=n_sequences,
+        view_stds=view_stds,
+        rollout_horizon=rollout_horizon,
+        seed=seed,
+        device=device,
+        img_size=img_size,
+        frameskip=frameskip,
+    )
 
     enc_pca = _pca_fit_transform([encoded["base"]["encoder"], encoded["fullseq_robust"]["encoder"]])
     pred_pca = _pca_fit_transform([encoded["base"]["predictor"], encoded["fullseq_robust"]["predictor"]])
@@ -586,10 +726,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--robust-metric", default="pixels_std0.08_success")
     p.add_argument("--out-json", type=Path, default=DEFAULT_OUT_JSON)
     p.add_argument("--out-md", type=Path, default=DEFAULT_OUT_MD)
+    p.add_argument("--plot-2d", action="store_true")
     p.add_argument("--plot-3d", action="store_true")
     p.add_argument("--plot-tasks", nargs="+", choices=TASKS, default=["PushT"])
     p.add_argument("--plot-out-dir", type=Path, default=DEFAULT_FIG_DIR)
-    p.add_argument("--n-sequences", type=int, default=48)
+    p.add_argument("--plot2d-out-dir", type=Path, default=DEFAULT_FIG2D_DIR)
+    p.add_argument("--n-sequences", type=int, default=160)
     p.add_argument("--view-stds", nargs="+", type=float, default=[0.0, 0.02, 0.04, 0.08])
     p.add_argument("--rollout-horizon", type=int, default=8)
     p.add_argument("--seed", type=int, default=3072)
@@ -611,6 +753,24 @@ def main() -> None:
     write_markdown(args.out_md, summary)
     print(f"[selective-contraction] wrote {args.out_json}")
     print(f"[selective-contraction] wrote {args.out_md}")
+
+    if args.plot_2d:
+        for task in args.plot_tasks:
+            out = render_2d_task(
+                task=task,
+                summary=summary,
+                acpc_basin_path=args.acpc_basin,
+                out_dir=args.plot2d_out_dir,
+                n_sequences=args.n_sequences,
+                view_stds=args.view_stds,
+                rollout_horizon=args.rollout_horizon,
+                seed=args.seed,
+                device=args.device,
+                img_size=args.img_size,
+                frameskip=args.frameskip,
+                anchor_count=args.anchor_count,
+            )
+            print(f"[selective-contraction] wrote {out}")
 
     if args.plot_3d:
         for task in args.plot_tasks:

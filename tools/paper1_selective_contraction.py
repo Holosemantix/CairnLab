@@ -257,7 +257,7 @@ def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
         "",
         "Scope: existing LeWM full-sequence perturbed-target sweep. This is a branch diagnostic, not a new main claim.",
         "",
-        "| Task | best std | px0.08 success | encoder radius R_E | prediction radius R_F | clean NN L2 | transition L2 | aux ADM | aux SPRR | read |",
+        "| Task | best std | px0.08 success | encoder radius R_E | prediction radius R_F | origin NN L2 | transition L2 | aux ADM | aux SPRR | read |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     metric = payload["metadata"]["robust_metric"]
@@ -366,8 +366,8 @@ def _pca_fit_transform_2d(arrays: Sequence[np.ndarray]) -> list[np.ndarray]:
 
 def _nearest_original_indices(features: np.ndarray, anchors: Sequence[int]) -> dict[int, int]:
     """Nearest other original-state index for each anchor in original feature space."""
-    clean = features[0].reshape(features.shape[1], features.shape[2])
-    dists = np.linalg.norm(clean[:, None, :] - clean[None, :, :], axis=-1)
+    origin = features[0].reshape(features.shape[1], features.shape[2])
+    dists = np.linalg.norm(origin[:, None, :] - origin[None, :, :], axis=-1)
     np.fill_diagonal(dists, np.inf)
     return {int(i): int(np.argmin(dists[int(i)])) for i in anchors}
 
@@ -543,9 +543,9 @@ def render_2d_task(
     ]
     for ax, (label, feature, title) in zip(axes.reshape(-1), panels):
         arr = encoded[label][feature]
-        clean = arr[0]
+        origin = arr[0]
         xlim, ylim = axis_limits[feature]
-        ax.scatter(clean[:, 0], clean[:, 1], s=9, c="#C7C7C7", alpha=0.38, linewidths=0)
+        ax.scatter(origin[:, 0], origin[:, 1], s=9, c="#C7C7C7", alpha=0.38, linewidths=0)
         for ci, state_idx in enumerate(anchors):
             color = colors[ci % len(colors)]
             pts = arr[:, state_idx, :]
@@ -658,13 +658,13 @@ def render_3d_task(
     for i, (label, feature, title) in enumerate(panels, start=1):
         ax = fig.add_subplot(2, 2, i, projection="3d")
         arr = encoded[label][feature]
-        clean = arr[0]
-        ax.scatter(clean[:, 0], clean[:, 1], clean[:, 2], s=8, c="#999999", alpha=0.22, depthshade=False)
+        origin = arr[0]
+        ax.scatter(origin[:, 0], origin[:, 1], origin[:, 2], s=8, c="#999999", alpha=0.22, depthshade=False)
         for ci, state_idx in enumerate(anchors):
             color = colors[ci % len(colors)]
             pts = arr[:, state_idx, :]
             nn_idx = nearest_indices[label][feature][int(state_idx)]
-            nn_pt = clean[nn_idx]
+            nn_pt = origin[nn_idx]
             origin_pt = pts[0]
             ax.plot(
                 [origin_pt[0], nn_pt[0]],

@@ -2,7 +2,7 @@
 
 Scope: existing LeWM full-sequence perturbed-target sweep. This is a branch diagnostic, not a new main claim.
 
-| Task | best std | px0.08 success | encoder radius R_E | prediction radius R_F | clean NN L2 | transition L2 | aux ADM | aux SPRR | read |
+| Task | best std | px0.08 success | encoder radius R_E | prediction radius R_F | origin NN L2 | transition L2 | aux ADM | aux SPRR | read |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---|
 | TwoRoom | 0.08 | 65.7 -> 97.7 | 3.54 -> 0.235 | 0.785 -> 0.0284 | 3.66 -> 3.35 | 13.8 -> 12.6 | 19.8 -> 19.6 | 1.14 -> 36.8 | same-state encoder/predictor basins shrink; auxiliary ADM is preserved. |
 | PushT | 0.08 | 4.33 -> 89 | 1.73 -> 0.137 | 1.54 -> 0.0878 | 4.17 -> 4.07 | 5.89 -> 5.72 | 19.9 -> 19.8 | 1.23 -> 28.3 | same-state encoder/predictor basins shrink; auxiliary ADM is preserved. |

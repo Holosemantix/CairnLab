@@ -359,6 +359,14 @@ def _pca_fit_transform(arrays: Sequence[np.ndarray]) -> list[np.ndarray]:
     return out
 
 
+def _nearest_original_indices(features: np.ndarray, anchors: Sequence[int]) -> dict[int, int]:
+    """Nearest other original-state index for each anchor in original feature space."""
+    clean = features[0].reshape(features.shape[1], features.shape[2])
+    dists = np.linalg.norm(clean[:, None, :] - clean[None, :, :], axis=-1)
+    np.fill_diagonal(dists, np.inf)
+    return {int(i): int(np.argmin(dists[int(i)])) for i in anchors}
+
+
 def _axis_limits(arrays: Sequence[np.ndarray]) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
     flat = np.concatenate([a.reshape(-1, 3) for a in arrays], axis=0)
     limits = []
@@ -467,6 +475,16 @@ def render_3d_task(
     pred_pca = _pca_fit_transform([encoded["base"]["predictor"], encoded["fullseq_robust"]["predictor"]])
     encoded["base"]["encoder_3d"], encoded["fullseq_robust"]["encoder_3d"] = enc_pca
     encoded["base"]["predictor_3d"], encoded["fullseq_robust"]["predictor_3d"] = pred_pca
+    nearest_indices = {
+        "base": {
+            "encoder_3d": _nearest_original_indices(encoded["base"]["encoder"], []),
+            "predictor_3d": _nearest_original_indices(encoded["base"]["predictor"], []),
+        },
+        "fullseq_robust": {
+            "encoder_3d": _nearest_original_indices(encoded["fullseq_robust"]["encoder"], []),
+            "predictor_3d": _nearest_original_indices(encoded["fullseq_robust"]["predictor"], []),
+        },
+    }
     axis_limits = {
         "encoder_3d": _axis_limits([encoded["base"]["encoder_3d"], encoded["fullseq_robust"]["encoder_3d"]]),
         "predictor_3d": _axis_limits([encoded["base"]["predictor_3d"], encoded["fullseq_robust"]["predictor_3d"]]),
@@ -477,6 +495,13 @@ def render_3d_task(
     anchors = np.linspace(0, n_sequences - 1, anchor_count, dtype=int)
     if anchor_count > 0:
         anchors = np.unique(anchors)
+    for label in ("base", "fullseq_robust"):
+        nearest_indices[label]["encoder_3d"] = _nearest_original_indices(
+            encoded[label]["encoder"], anchors
+        )
+        nearest_indices[label]["predictor_3d"] = _nearest_original_indices(
+            encoded[label]["predictor"], anchors
+        )
     colors = plt.cm.tab10(np.linspace(0, 1, max(1, len(anchors))))
     label_by_spec = {
         "base": f"base std=0.0",
@@ -498,6 +523,28 @@ def render_3d_task(
         for ci, state_idx in enumerate(anchors):
             color = colors[ci % len(colors)]
             pts = arr[:, state_idx, :]
+            nn_idx = nearest_indices[label][feature][int(state_idx)]
+            nn_pt = clean[nn_idx]
+            origin_pt = pts[0]
+            ax.plot(
+                [origin_pt[0], nn_pt[0]],
+                [origin_pt[1], nn_pt[1]],
+                [origin_pt[2], nn_pt[2]],
+                color="#222222",
+                alpha=0.35,
+                linewidth=0.9,
+                linestyle="--",
+            )
+            ax.scatter(
+                nn_pt[0:1],
+                nn_pt[1:2],
+                nn_pt[2:3],
+                s=34,
+                color="#222222",
+                marker="x",
+                alpha=0.72,
+                depthshade=False,
+            )
             ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], color=color, alpha=0.7, linewidth=1.0)
             ax.scatter(pts[0:1, 0], pts[0:1, 1], pts[0:1, 2], s=42, color=[color], marker="o", depthshade=False)
             ax.scatter(pts[1:, 0], pts[1:, 1], pts[1:, 2], s=24, color=[color], marker="^", alpha=0.78, depthshade=False)
@@ -518,8 +565,8 @@ def render_3d_task(
     fig.text(
         0.5,
         0.02,
-        "Gray dots: original-view states. Colored circles: selected original states. "
-        "Colored triangles/lines: same-state perturbed views.",
+        "Gray dots: original-view states. Colored circles: selected originals. "
+        "Colored triangles/lines: same-state perturbed views. Black x/dashed line: nearest other original state.",
         ha="center",
         va="bottom",
         fontsize=9,

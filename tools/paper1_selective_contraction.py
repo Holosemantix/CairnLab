@@ -1023,7 +1023,9 @@ def render_cluster_task(
 
     fig.suptitle(
         f"{task}: hybrid t-SNE view of same-state perturbation clusters "
-        f"(n={n_sequences}, anchors={len(anchors)}, perturb repeats={max(1, int(perturb_repeats))})",
+        f"(n={n_sequences}, anchors={len(anchors)}, "
+        f"view stds={','.join(f'{s:g}' for s in view_stds)}, "
+        f"perturb repeats={max(1, int(perturb_repeats))})",
         y=0.985,
     )
     fig.text(

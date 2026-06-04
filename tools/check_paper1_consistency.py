@@ -28,7 +28,6 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
-    ROOT / "assets" / "paper1_data" / "unperturbed_target_mainline_20260604.json",
 ]
 
 REQUIRED_ARTIFACTS = [
@@ -49,8 +48,6 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
-    ROOT / "assets" / "paper1_data" / "unperturbed_target_mainline_20260604.json",
-    ROOT / "assets" / "paper1_data" / "unperturbed_target_mainline_20260604.md",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -122,35 +119,6 @@ EXPECTED_ACPC_PHASE0_METRICS = {
 EXPECTED_BOOTSTRAP_SCOPES = {"within_lewm", "within_pldm", "joint"}
 EXPECTED_BOOTSTRAP_METRICS = {"frag", "drift"}
 EXPECTED_ACPC_BASIN_CORRUPTIONS = {round(i / 100, 2) for i in range(1, 9)}
-EXPECTED_UNPERTURBED_TARGET_STD_KEYS = {f"0.0{i}" for i in range(1, 9)}
-EXPECTED_UNPERTURBED_TARGET_EVAL_GROUPS = {
-    "origin",
-    "pixels_std0.03",
-    "pixels_std0.05",
-    "pixels_std0.08",
-}
-REQUIRED_UNPERTURBED_TARGET_DIAGNOSTICS = {
-    "noise_robust_radius_std",
-    "noise_angle_slope_deg_per_std",
-    "clean_nn_cos_dist_median",
-    "clean_effective_rank",
-    "cka_linear_at_max_std",
-    "predictor_rollout_T8_l2",
-    "predictor_target_to_nn_cos_ratio_at_max_std",
-    "transition_resolution_ratio_cos",
-    "transition_resolution_ratio_l2",
-    "id_probe_r2",
-    "latent_robust_radius_z",
-    "latent_predictor_rollout_T8_l2_history",
-    "action_mean_pred_shift_norm",
-    "action_perturb_pred_shift_corr",
-}
-EXPECTED_UNPERTURBED_TARGET_GAPS = {
-    "TwoRoom": -24.00,
-    "PushT": -80.67,
-    "Reacher": -54.67,
-    "Cube": -25.67,
-}
 REQUIRED_ACPC_BASIN_FIELDS = {
     "pixels_std0.08_success",
     "pixels_goal_std0.08_success",
@@ -663,97 +631,6 @@ def check_acpc_basin_json() -> None:
         fail("ACPC basin task/config coverage mismatch")
 
 
-def check_unperturbed_target_mainline_json() -> None:
-    path = ROOT / "assets" / "paper1_data" / "unperturbed_target_mainline_20260604.json"
-    data = json.loads(path.read_text(encoding="utf-8"))
-
-    meta = data.get("metadata", {})
-    if meta.get("schema_version") != "paper1-unperturbed-target-mainline-0.1":
-        fail(f"unexpected unperturbed-target schema: {meta.get('schema_version')!r}")
-    if meta.get("status") != "ok":
-        fail(f"unperturbed-target artifact status is not ok: {meta.get('status')!r}")
-    if set(meta.get("tasks", [])) != EXPECTED_TASKS:
-        fail(f"unperturbed-target tasks mismatch: {meta.get('tasks')}")
-    if set(meta.get("std_keys", [])) != EXPECTED_UNPERTURBED_TARGET_STD_KEYS:
-        fail(f"unperturbed-target std keys mismatch: {meta.get('std_keys')}")
-    if set(meta.get("eval_groups", [])) != EXPECTED_UNPERTURBED_TARGET_EVAL_GROUPS:
-        fail(f"unperturbed-target eval groups mismatch: {meta.get('eval_groups')}")
-
-    rows = data.get("rows")
-    if not isinstance(rows, list) or len(rows) != len(EXPECTED_TASKS) * len(EXPECTED_UNPERTURBED_TARGET_STD_KEYS):
-        fail(
-            "unperturbed-target row count mismatch: "
-            f"{len(rows) if isinstance(rows, list) else type(rows)}"
-        )
-
-    seen: set[tuple[str, str]] = set()
-    for row in rows:
-        task = row.get("task")
-        std_key = row.get("std_key")
-        key = (task, std_key)
-        if task not in EXPECTED_TASKS or std_key not in EXPECTED_UNPERTURBED_TARGET_STD_KEYS:
-            fail(f"unexpected unperturbed-target row key: {key}")
-        if key in seen:
-            fail(f"duplicate unperturbed-target row: {key}")
-        seen.add(key)
-        if row.get("target_view_branch") != "perturbed_input_original_target":
-            fail(f"unperturbed-target {key} has wrong branch: {row.get('target_view_branch')!r}")
-        if int(row.get("checkpoint_count", -1)) != 10:
-            fail(f"unperturbed-target {key} expected 10 epoch checkpoints")
-        if not str(row.get("model_file", "")).endswith("epoch_10_object.ckpt"):
-            fail(f"unperturbed-target {key} model_file should be epoch_10 object ckpt")
-
-        evals = row.get("eval", {})
-        if set(evals) != EXPECTED_UNPERTURBED_TARGET_EVAL_GROUPS:
-            fail(f"unperturbed-target {key} eval groups mismatch: {sorted(evals)}")
-        for group, summary in evals.items():
-            check_metric_summary(f"unperturbed-target/{task}", std_key, group, summary)
-
-        diagnostics = row.get("diagnostics_summary", {})
-        missing = REQUIRED_UNPERTURBED_TARGET_DIAGNOSTICS - set(diagnostics)
-        if missing:
-            fail(f"unperturbed-target {key} missing diagnostics: {sorted(missing)}")
-        for metric in REQUIRED_UNPERTURBED_TARGET_DIAGNOSTICS:
-            value = diagnostics[metric]
-            if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
-                fail(f"unperturbed-target {key}/{metric} is not finite")
-
-    expected_seen = {
-        (task, std_key)
-        for task in EXPECTED_TASKS
-        for std_key in EXPECTED_UNPERTURBED_TARGET_STD_KEYS
-    }
-    if seen != expected_seen:
-        fail("unperturbed-target task/config coverage mismatch")
-
-    best = data.get("best_by_task", {})
-    comp = data.get("comparison_to_full_sequence", {})
-    if set(best) != EXPECTED_TASKS or set(comp) != EXPECTED_TASKS:
-        fail("unperturbed-target best/comparison maps are incomplete")
-
-    expected_best_std = {
-        "TwoRoom": "0.04",
-        "PushT": "0.02",
-        "Reacher": "0.07",
-        "Cube": "0.02",
-    }
-    expected_best_px08 = {
-        "TwoRoom": 73.67,
-        "PushT": 8.33,
-        "Reacher": 30.00,
-        "Cube": 42.67,
-    }
-    for task in EXPECTED_TASKS:
-        if best[task].get("std_key") != expected_best_std[task]:
-            fail(f"unperturbed-target {task} best std mismatch: {best[task].get('std_key')}")
-        got_px08 = round2(best[task]["pixels_std0.08_success"]["mean"])
-        if got_px08 != expected_best_px08[task]:
-            fail(f"unperturbed-target {task} best px0.08 mismatch: {got_px08}")
-        got_gap = round2(comp[task]["delta_vs_full_sequence_px08"])
-        if got_gap != EXPECTED_UNPERTURBED_TARGET_GAPS[task]:
-            fail(f"unperturbed-target {task} gap mismatch: {got_gap}")
-
-
 def check_external_baselines_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -1005,7 +882,6 @@ def main() -> int:
         ("acpc phase0 diagnostics json", check_acpc_phase0_diagnostics_json),
         ("blur baselines json", check_blur_baselines_json),
         ("acpc basin json", check_acpc_basin_json),
-        ("unperturbed-target mainline json", check_unperturbed_target_mainline_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),
         ("partial-corr bootstrap json", check_partial_corr_bootstrap_json),

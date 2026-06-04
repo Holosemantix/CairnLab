@@ -2,6 +2,7 @@ import os
 
 os.environ["MUJOCO_GL"] = "osmesa"
 
+from collections import deque
 import json
 import time
 from pathlib import Path
@@ -10,7 +11,7 @@ import hydra
 import numpy as np
 import stable_pretraining as spt
 import torch
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, open_dict
 from sklearn import preprocessing
 from torchvision.transforms import v2 as transforms
 import stable_worldmodel as swm
@@ -20,6 +21,115 @@ from utils import (
     AddResize,
     resolve_h5_dataset_path,
 )
+
+
+def infer_model_history_size(model) -> int | None:
+    value = getattr(model, "history_size", None)
+    if value is not None:
+        return int(value)
+    predictor = getattr(model, "predictor", None)
+    pos_embedding = getattr(predictor, "pos_embedding", None)
+    if pos_embedding is not None and pos_embedding.ndim >= 2:
+        return int(pos_embedding.shape[1])
+    return None
+
+
+def infer_model_action_block(model, world) -> int | None:
+    action_encoder = getattr(model, "action_encoder", None)
+    patch_embed = getattr(action_encoder, "patch_embed", None)
+    in_channels = getattr(patch_embed, "in_channels", None)
+    action_space = getattr(world.envs, "single_action_space", None)
+    if in_channels is None or action_space is None:
+        return None
+    action_dim = int(np.prod(action_space.shape))
+    if action_dim <= 0 or int(in_channels) % action_dim != 0:
+        return None
+    return int(in_channels) // action_dim
+
+
+class HistoryWorldModelPolicy(swm.policy.WorldModelPolicy):
+    """Keep observation history consistent with the trained world model.
+
+    Source-version stable-worldmodel emits only the latest frame as
+    ``(num_envs, 1, ...)``. LeWM/SWM checkpoints are trained with
+    ``wm.history_size`` frames, so we locally maintain that short history before
+    the standard preprocessing path runs.
+    """
+
+    def __init__(self, *args, history_len: int = 1, history_keys=("pixels",), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.history_len = max(int(history_len), 1)
+        self.history_keys = tuple(history_keys)
+        self._history = {}
+
+    def set_env(self, env):
+        super().set_env(env)
+        self._history = {}
+
+    def reset_history(self):
+        self._history = {}
+
+    @staticmethod
+    def _clone_frame(frame):
+        return frame.detach().clone() if torch.is_tensor(frame) else np.array(frame, copy=True)
+
+    def _flush_mask(self, info_dict, n_envs: int):
+        needs_flush = info_dict.get("_needs_flush")
+        if needs_flush is None:
+            return np.zeros(n_envs, dtype=bool)
+        arr = needs_flush.detach().cpu().numpy() if torch.is_tensor(needs_flush) else np.asarray(needs_flush)
+        return arr.reshape(n_envs, -1).any(axis=1).astype(bool)
+
+    def _stack_history_value(self, key, value, flush):
+        if not (torch.is_tensor(value) or isinstance(value, np.ndarray)):
+            return value
+        if value.ndim < 2:
+            return value
+
+        n_envs = value.shape[0]
+        if value.shape[1] >= self.history_len:
+            return value[:, -self.history_len :]
+
+        queues = self._history.get(key)
+        if queues is None or len(queues) != n_envs:
+            queues = [deque(maxlen=self.history_len) for _ in range(n_envs)]
+            self._history[key] = queues
+
+        latest = value[:, -1]
+        for env_i in range(n_envs):
+            frame = self._clone_frame(latest[env_i])
+            if flush[env_i] or len(queues[env_i]) == 0:
+                queues[env_i].clear()
+                for _ in range(self.history_len):
+                    queues[env_i].append(self._clone_frame(frame))
+            else:
+                queues[env_i].append(frame)
+
+        if torch.is_tensor(value):
+            return torch.stack(
+                [torch.stack(list(q), dim=0) for q in queues],
+                dim=0,
+            )
+        return np.stack([np.stack(list(q), axis=0) for q in queues], axis=0)
+
+    def _with_history(self, info_dict):
+        if self.history_len <= 1:
+            return info_dict
+        out = dict(info_dict)
+        sample = next(
+            (out[k] for k in self.history_keys if k in out and hasattr(out[k], "shape")),
+            None,
+        )
+        if sample is None:
+            return out
+        flush = self._flush_mask(out, int(sample.shape[0]))
+        for key in self.history_keys:
+            if key in out:
+                out[key] = self._stack_history_value(key, out[key], flush)
+        return out
+
+    def get_action(self, info_dict: dict, **kwargs):
+        return super().get_action(self._with_history(info_dict), **kwargs)
 
 
 def _corruption_magnitude(cfg) -> float:
@@ -126,6 +236,9 @@ def _world_evaluate_compat(world, dataset, start_steps, goal_offset, eval_budget
     Same args in / same dict out either way, so neither LeWM nor PLDM
     eval paths need to know which swm is installed.
     """
+    if hasattr(getattr(world, "policy", None), "reset_history"):
+        world.policy.reset_history()
+
     if hasattr(world, "evaluate_from_dataset"):
         return world.evaluate_from_dataset(
             dataset,
@@ -164,10 +277,6 @@ def apply_inference_overrides(model, cfg):
 @hydra.main(version_base=None, config_path="./config/eval", config_name="pusht")
 def run(cfg: DictConfig):
     """Run evaluation of dinowm vs random policy."""
-    assert (
-        cfg.plan_config.horizon * cfg.plan_config.action_block <= cfg.eval.eval_budget
-    ), "Planning horizon must be smaller than or equal to eval_budget"
-
     # create world environment
     cfg.world.max_episode_steps = 2 * cfg.eval.eval_budget
     world = swm.World(**cfg.world, image_shape=(224, 224))
@@ -207,14 +316,31 @@ def run(cfg: DictConfig):
         eval_cache_dir = cfg.cache_dir or str(swm.data.utils.get_cache_dir())
         model = swm.policy.AutoCostModel(cfg.policy, cache_dir=eval_cache_dir)
         apply_inference_overrides(model, cfg)
+
+        model_history_len = infer_model_history_size(model)
+        model_action_block = infer_model_action_block(model, world)
+        with open_dict(cfg):
+            if model_history_len is not None:
+                cfg.plan_config.history_len = model_history_len
+            if model_action_block is not None:
+                cfg.plan_config.action_block = model_action_block
+
+        assert (
+            cfg.plan_config.horizon * cfg.plan_config.action_block <= cfg.eval.eval_budget
+        ), "Planning horizon must be smaller than or equal to eval_budget"
+
         model = model.to("cuda")
         model = model.eval()
         model.requires_grad_(False)
         model.interpolate_pos_encoding = True
         config = swm.PlanConfig(**cfg.plan_config)
         solver = hydra.utils.instantiate(cfg.solver, model=model)
-        policy = swm.policy.WorldModelPolicy(
-            solver=solver, config=config, process=process, transform=transform
+        policy = HistoryWorldModelPolicy(
+            solver=solver,
+            config=config,
+            process=process,
+            transform=transform,
+            history_len=config.history_len,
         )
 
     else:

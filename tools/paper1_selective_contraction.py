@@ -400,30 +400,6 @@ def _axis_limits(arrays: Sequence[np.ndarray]) -> tuple[tuple[float, float], tup
     return limits[0], limits[1], limits[2]
 
 
-def _convex_hull_2d(points: np.ndarray) -> np.ndarray:
-    """Return hull vertices for small 2D point sets using Andrew's monotone chain."""
-    unique = np.unique(np.asarray(points, dtype=np.float64), axis=0)
-    if len(unique) <= 2:
-        return unique
-    order = np.lexsort((unique[:, 1], unique[:, 0]))
-    pts = unique[order]
-
-    def cross(o: np.ndarray, a: np.ndarray, b: np.ndarray) -> float:
-        return float((a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]))
-
-    lower: list[np.ndarray] = []
-    for p in pts:
-        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
-            lower.pop()
-        lower.append(p)
-    upper: list[np.ndarray] = []
-    for p in pts[::-1]:
-        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
-            upper.pop()
-        upper.append(p)
-    return np.asarray(lower[:-1] + upper[:-1])
-
-
 def _pca_reduce_for_embedding(points: np.ndarray, max_dim: int = 50) -> np.ndarray:
     centered = points - points.mean(axis=0, keepdims=True)
     if centered.shape[1] <= max_dim or centered.shape[0] <= max_dim:
@@ -956,6 +932,7 @@ def render_cluster_task(
         origin = projected[0]
         perturbed = projected[1:]
         xlim, ylim = _axis_limits_2d_single(projected)
+        min_circle_radius = 0.018 * max(xlim[1] - xlim[0], ylim[1] - ylim[0])
 
         ax.scatter(origin[:, 0], origin[:, 1], s=8, c="#7F7F7F", alpha=0.24, linewidths=0)
         ax.scatter(
@@ -970,16 +947,30 @@ def render_cluster_task(
         for ci, state_idx in enumerate(anchors):
             color = colors[ci % len(colors)]
             pts = projected[:, state_idx, :]
-            hull = _convex_hull_2d(pts)
-            if len(hull) >= 3:
-                ax.fill(hull[:, 0], hull[:, 1], color=color, alpha=0.105, linewidth=0)
-                ax.plot(
-                    np.r_[hull[:, 0], hull[0, 0]],
-                    np.r_[hull[:, 1], hull[0, 1]],
-                    color=color,
-                    alpha=0.38,
-                    linewidth=0.75,
+            center = pts.mean(axis=0)
+            radius_2d = max(float(np.linalg.norm(pts - center[None, :], axis=-1).max()), 1e-6)
+            radius_2d = max(radius_2d * 1.22, min_circle_radius)
+            ax.add_patch(
+                plt.Circle(
+                    center,
+                    radius_2d,
+                    facecolor=color,
+                    edgecolor="none",
+                    alpha=0.105,
+                    zorder=1,
                 )
+            )
+            ax.add_patch(
+                plt.Circle(
+                    center,
+                    radius_2d,
+                    fill=False,
+                    edgecolor=color,
+                    alpha=0.55,
+                    linewidth=0.95,
+                    zorder=2,
+                )
+            )
             for p in pts[1:]:
                 ax.plot(
                     [pts[0, 0], p[0]],
@@ -1039,7 +1030,7 @@ def render_cluster_task(
         0.5,
         0.026,
         "t-SNE is only for visualization; panel stats are computed in the original feature space. "
-        "Gray dots show all sampled original/perturbed views; colored hulls show selected original states "
+        "Gray dots show all sampled original/perturbed views; colored circles show selected original states "
         "and their perturbation views.",
         ha="center",
         va="bottom",

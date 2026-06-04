@@ -83,7 +83,7 @@
 \maketitle
 
 \begin{abstract}
-Latent predictive world models such as JEPAs predict future representations rather than pixels, but this alone does not define visual robustness for control. We argue that robustness should be measured as \emph{action-conditioned predictive consistency}: unperturbed and corrupted views of the same state may encode differently, but under the same history and action sequence they should induce consistent task-relevant future predictions, while genuinely action-relevant state differences remain discriminable. We study this requirement on LeWorldModel (LeWM) across PushT, TwoRoom, Reacher, and Cube using 36 checkpoints and a unified 3-seed $\times$ 100-trajectory protocol. Under primary observation-only Gaussian noise with an unperturbed goal, a no-noise LeWM checkpoint drops from $86.33\%$ to $4.33\%$ on PushT and from $58.67\%$ to $18.33\%$ on Reacher. Input-side noise augmentation recovers much of this performance, but behaves as a coarse global pressure with broad, task-dependent plateaus. A paired Gaussian-noise ACPC-basin diagnostic shows that robust checkpoints produce much tighter same-action prediction basins (PushT $R_F$: $1.543 \to 0.088$), while cross-checkpoint analysis shows that pointwise fragility does not isolate the corruption gap after conditioning on train-time noise. PLDM replication preserves the task-level signature, and a negative heteroscedastic-reweighting result shows why ``hard'' transitions cannot be treated as nuisance. The paper contributes a reframing and diagnostics, not a new training algorithm; the immediate method ablation is perturbed-history $\to$ original-future prediction versus full-sequence perturbed targets.
+Latent predictive world models such as JEPAs predict future representations rather than pixels, but this alone does not define visual robustness for control. We argue that robustness should be measured as \emph{action-conditioned predictive consistency}: unperturbed and corrupted views of the same state may encode differently, but under the same history and action sequence they should induce consistent task-relevant future predictions, while genuinely action-relevant state differences remain discriminable. We study this requirement on LeWorldModel (LeWM) across PushT, TwoRoom, Reacher, and Cube using 36 checkpoints and a unified 3-seed $\times$ 100-trajectory protocol. Under primary observation-only Gaussian noise with an unperturbed goal, a no-noise LeWM checkpoint drops from $86.33\%$ to $4.33\%$ on PushT and from $58.67\%$ to $18.33\%$ on Reacher. Input-side noise augmentation recovers much of this performance, but behaves as a coarse global pressure with broad, task-dependent plateaus. A paired Gaussian-noise ACPC-basin diagnostic shows that robust checkpoints produce much tighter same-action prediction basins (PushT $R_F$: $1.543 \to 0.088$), while cross-checkpoint analysis shows that pointwise fragility does not isolate the corruption gap after conditioning on train-time noise. A natural target-view ablation is negative: perturbed-history $\to$ original-future prediction reaches only $8.33\%$ on PushT pixels 0.08 versus $89.00\%$ for full-sequence perturbed targets. PLDM replication preserves the task-level signature, and heteroscedastic reweighting shows why ``hard'' transitions cannot be treated as nuisance. The paper contributes a reframing and diagnostics, not a new training algorithm.
 
 \smallskip
 \noindent\textbf{Keywords:} visual world models; JEPA; action-conditioned predictive consistency; visual robustness; predictive-dynamics diagnostics.
@@ -111,7 +111,7 @@ This reframing changes what counts as a robustness measurement. Encoder-level la
 
 \subsection{Existing corruption results as a controlled probe}\label{sec:intro-tension}
 
-A natural remedy is input-side noise augmentation. We sweep \stdmax{} $\in \{0.01,\dots,0.08\}$ across four tasks and find recovery, but not a single optimal setting: TwoRoom benefits from heavy noise, PushT's unperturbed and noisy-eval optima dissociate, Reacher has a broad plateau, and Cube responds weakly. This is the signature of a coarse global pressure, not a selective objective that knows which visual variation is nuisance and which controls future dynamics. We therefore use the sweep and diagnostics to motivate prediction-target-view and consistency-objective ablations; we do not present a new training algorithm.
+A natural remedy is input-side noise augmentation. We sweep \stdmax{} $\in \{0.01,\dots,0.08\}$ across four tasks and find recovery, but not a single optimal setting: TwoRoom benefits from heavy noise, PushT's unperturbed and noisy-eval optima dissociate, Reacher has a broad plateau, and Cube responds weakly. This is the signature of a coarse global pressure, not a selective objective that knows which visual variation is nuisance and which controls future dynamics. We then run the natural target-view ablation, perturbing the input/history while keeping the predictive target at the original future view. It does not reproduce the robust recovery of full-sequence augmentation, so the method implication is narrower: target-view replacement alone is insufficient; paired predictive-dynamics consistency is the next training object. We do not present a new training algorithm.
 
 \subsection{Contributions}\label{sec:intro-contributions}
 
@@ -121,7 +121,7 @@ A natural remedy is input-side noise augmentation. We sweep \stdmax{} $\in \{0.0
 
 \paragraph{C3 --- Paired consistency probes.} We report a dense Gaussian-noise ACPC basin diagnostic on all 36 LeWM checkpoints and keep the broader Phase-0 ACPC/PCC/CRA/MAF/ADM/SPRR sweep in Appendix~\ref{sec:appendix-H} as exploratory evidence, not as a universal robustness predictor.
 
-\paragraph{C4 --- Method-design implication.} The next method step is a target-view ablation: full-sequence perturbed targets versus perturbed-history $\to$ original-future prediction. Adaptive predictive-dynamics consistency should come after that baseline and must be gated by action/transition sensitivity rather than prediction error.
+\paragraph{C4 --- Method-design implication.} We report the target-view ablation that the ACPC framing makes natural: full-sequence perturbed targets versus perturbed-history $\to$ original-future prediction. The latter is a negative ablation, sharply underperforming the full-sequence branch on robust evaluation. This rules out a naive target-view-only implementation and motivates paired predictive-dynamics consistency gated by action/transition sensitivity rather than prediction error.
 
 %% ===========================================================================
 \section{Related Work}\label{sec:related}
@@ -225,7 +225,7 @@ where $\mathcal{L}_{\text{pred}}$ is the latent-space mean-squared error (MSE) b
 
 \subsection{Input-side noise augmentation}\label{sec:bg-noise}
 
-We add per-frame Gaussian noise to the LeWM input pipeline via \codebrk{utils.py::AddNormalizedGaussianNoise} (\Cref{sec:appendix-A}). Each frame is independently noised: $\mathrm{Bernoulli}(p)$ decides whether the frame is corrupted, and if so the standard deviation is drawn from $\mathrm{Uniform}(0, \text{std\_max})$. The training transform is applied to the whole \code{pixels} sequence, so the predictive target latent is also encoded from a noised future frame; this is a full-sequence augmentation pressure, \emph{not} an original-target denoising objective. We fix $p = 1.0$ and sweep \stdmax{} $\in \{0.01, \dots, 0.08\}$ (eight levels). Our primary noised evaluation applies Gaussian noise only to the observation pixels while leaving the goal image unperturbed; pixels+goal evaluation is retained as a stronger full-visual-stream stress test.
+We add per-frame Gaussian noise to the LeWM input pipeline via \codebrk{utils.py::AddNormalizedGaussianNoise} (\Cref{sec:appendix-A}). Each frame is independently noised: $\mathrm{Bernoulli}(p)$ decides whether the frame is corrupted, and if so the standard deviation is drawn from $\mathrm{Uniform}(0, \text{std\_max})$. The main sweep applies the training transform to the whole \code{pixels} sequence, so the predictive target latent is also encoded from a perturbed future frame; this is a full-sequence augmentation pressure, \emph{not} an original-target objective. We fix $p = 1.0$ and sweep \stdmax{} $\in \{0.01, \dots, 0.08\}$ (eight levels). We also train a target-view ablation with the same perturbed input/history but an original, unperturbed future target. Our primary noised evaluation applies Gaussian noise only to the observation pixels while leaving the goal image unperturbed; pixels+goal evaluation is retained as a stronger full-visual-stream stress test.
 
 \subsection{Five-layer diagnostic framework}\label{sec:bg-five-layers}
 
@@ -283,13 +283,13 @@ For each task we compute Spearman $\rho$ across the 9 LeWM checkpoints (base + \
 
 \paragraph{Tasks.} PushT (2D pushing), TwoRoom (2D navigation), Reacher (2D arm), and Cube (3D manipulation) form a heterogeneous stress panel spanning different nuisance/discriminability regimes; it is not intended as an average benchmark over all control tasks.
 
-\paragraph{Baselines.} LeWM-base (no noise) and LeWM+noise (8-level sweep).
+\paragraph{Baselines.} LeWM-base (no noise), LeWM+noise with full-sequence perturbed targets (8-level sweep), and a target-view ablation with perturbed input/history but original future targets (8-level sweep).
 
-\paragraph{Checkpoints.} The 36 checkpoints in this paper correspond to one trained model per $(\text{task}, \text{configuration})$: one no-noise baseline plus eight \stdmax{} values for each of the four tasks.
+\paragraph{Checkpoints.} The primary sweep contains 36 checkpoints: one no-noise baseline plus eight \stdmax{} values for each of the four tasks. The target-view ablation adds 32 nonzero-\stdmax{} checkpoints. The paired ACPC basin diagnostic is run on the 36 primary LeWM checkpoints.
 
 \paragraph{Evaluation seeds.} Each checkpoint is evaluated with 3 evaluation seeds (42 / 43 / 44), with 100 trajectories per seed.
 
-\paragraph{Evaluation protocol.} All 36 LeWM checkpoints use $n = 3$ eval seeds (42/43/44) and \code{num\_eval = 100} trajectories per seed. Tables~\ref{tab:corruption-cliff},~\ref{tab:sweep-unperturbed},~\ref{tab:sweep-px08} report across-seed population mean $\pm$ std from \dataset{canonical\_evals\_20260517.json}. Some artifacts use \emph{clean} as the condition name; the claims use \emph{unperturbed} or \emph{original view}. Diagnostic source-of-truth is \dataset{canonical\_diagnostics\_20260517.json}.
+\paragraph{Evaluation protocol.} All LeWM rows use $n = 3$ eval seeds (42/43/44) and \code{num\_eval = 100} trajectories per seed. Tables~\ref{tab:corruption-cliff},~\ref{tab:sweep-unperturbed},~\ref{tab:sweep-px08} report across-seed population mean $\pm$ std from \dataset{canonical\_evals\_20260517.json}; \Cref{tab:target-view-ablation} uses \dataset{unperturbed\_target\_mainline\_20260604.json}. Some artifacts use \emph{clean} as the condition name; the claims use \emph{unperturbed} or \emph{original view}. Diagnostic source-of-truth for the primary sweep is \dataset{canonical\_diagnostics\_20260517.json}.
 
 \paragraph{Hardware.} Single NVIDIA H800 (80\,GB).
 
@@ -377,7 +377,33 @@ The same direction of failure is visible on PLDM but with task-dependent strengt
 
 The sweep has two readings. First, input-side noise is effective: PushT recovers from $4.33\%$ to $89.00\%$ at pixels 0.08, and Reacher from $18.33\%$ to $84.67\%$. Second, the pressure is coarse and task-dependent. TwoRoom favours heavy noise, PushT's unperturbed and noisy-eval optima dissociate ($0.03$ vs $0.08$), Reacher has a broad plateau, and Cube responds weakly. Several optima are plateau regions rather than isolated points, so the claim is not that exact per-task tuning is always necessary; it is that one scalar perturbation strength cannot express the selective-consistency tradeoff by itself.
 
-The behavioural evidence for this selective-consistency tension is summarised by the sweep tables and \Cref{fig:sweep}. Before turning to the broader five-layer diagnostic suite, we first report a paired Gaussian-noise ACPC basin diagnostic that directly checks whether the same-state noisy views occupy a smaller action-conditioned predictive region after noise training.
+\subsection{Target-view ablation: original future targets are not enough}\label{sec:exp-target-view}
+
+The ACPC framing suggests a simple first training ablation: keep the input/history perturbed but encode the prediction target from the original future frame. This branch changes only the prediction-target view; it does not add a paired rollout-consistency term or a discriminability guard. We trained this perturbed-input $\to$ original-target branch for all four tasks and all nonzero \stdmax{} values, yielding 32 additional LeWM checkpoints. Every row has the same three-seed evaluation protocol and a completed diagnostics summary; the released aggregate is \dataset{unperturbed\_target\_mainline\_20260604.json}.
+
+\begin{table}[H]
+\centering
+\caption{Target-view ablation on LeWM. Each entry is the checkpoint that maximises pixels 0.08 success within the branch. Full-sequence perturbed targets remain much stronger on the primary robust endpoint than the perturbed-input $\to$ original-target branch.}
+\label{tab:target-view-ablation}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrr}
+\toprule
+Task & \multicolumn{3}{c}{Full-sequence perturbed target} & \multicolumn{3}{c}{Perturbed input $\to$ original target} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+& best \stdmax{} & origin & pixels 0.08 & best \stdmax{} & origin & pixels 0.08 \\
+\midrule
+TwoRoom & 0.08 & $98.33 \pm 0.47$ & $97.67 \pm 0.94$ & 0.04 & $93.00 \pm 2.94$ & $73.67 \pm 3.40$ \\
+PushT   & 0.08 & $88.33 \pm 2.87$ & $89.00 \pm 4.32$ & 0.02 & $88.33 \pm 2.05$ & $\phantom{0}8.33 \pm 1.70$ \\
+Reacher & 0.07 & $83.67 \pm 3.30$ & $84.67 \pm 5.19$ & 0.07 & $59.67 \pm 5.31$ & $30.00 \pm 3.56$ \\
+Cube    & 0.03 & $65.00 \pm 1.63$ & $68.33 \pm 2.49$ & 0.02 & $66.67 \pm 1.25$ & $42.67 \pm 5.44$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This is a negative ablation, and it matters for the story. The original-target branch slightly improves over no-perturbation training on TwoRoom, PushT, and Reacher, but it does not approach the full-sequence branch: the pixels 0.08 gap is $24.00$ points on TwoRoom, $80.67$ on PushT, $54.67$ on Reacher, and $25.67$ on Cube. Thus the natural denoising-style target policy is not a sufficient implementation of ACPC. The result keeps full-sequence perturbation as the stronger empirical baseline while narrowing the method implication: future training should regularise paired action-conditioned predictions directly, with a discriminability guard, instead of assuming that changing only the prediction-target view will make nuisance perturbations collapse in the right place.
+
+The behavioural evidence for this selective-consistency tension is summarised by the sweep tables, \Cref{fig:sweep}, and the target-view ablation in \Cref{tab:target-view-ablation}. Before turning to the broader five-layer diagnostic suite, we first report a paired Gaussian-noise ACPC basin diagnostic that directly checks whether the same-state noisy views occupy a smaller action-conditioned predictive region after noise training.
 
 \subsection{Paired Gaussian-noise ACPC basin diagnostic}\label{sec:exp-acpc-basin}
 
@@ -653,7 +679,7 @@ Use the diagnostics as a screening tool, then run direct eval at both unperturbe
 
 \subsection{Implications for target-view and predictive-dynamics objectives}\label{sec:disc-method}
 
-The immediate method ablation is prediction-target view: compare full-sequence perturbed-target prediction with perturbed-history $\to$ original-future prediction. This directly tests whether treating corruption as observation-channel variation better matches the ACPC story. Only after that baseline is measured should one add adaptive predictive-dynamics consistency, regularising paired rollouts after the action-conditioned predictor and gating by action/transition sensitivity. The negative heteroscedastic result below is the warning: high prediction error can mark action-critical contact transitions, so prediction difficulty alone is the wrong gate.
+The measured target-view ablation in \Cref{tab:target-view-ablation} rules out a tempting shortcut: perturbed-history $\to$ original-future prediction is not enough to recover robust control. This does not invalidate the ACPC definition, because the branch changes only the target view of the one-step prediction loss; it does not explicitly align paired action-conditioned rollouts or protect action-relevant distinctions. The next method objective should therefore regularise paired predictive dynamics after the action-conditioned predictor and gate that pressure by action/transition sensitivity. The negative heteroscedastic result below is the warning: high prediction error can mark action-critical contact transitions, so prediction difficulty alone is the wrong gate.
 
 \subsection{Limitations and future directions}\label{sec:disc-limit}
 
@@ -663,11 +689,11 @@ The immediate method ablation is prediction-target view: compare full-sequence p
 
 \paragraph{Limitation 3 --- diagnostic scope.} The framework is empirical. Reacher and TwoRoom fail the partial-correlation criterion for all metrics, and we do not yet have a theory predicting which tasks support cross-checkpoint diagnostics.
 
-\paragraph{Limitation 4 --- method scope.} The main paired ACPC basin diagnostic is LeWM/Gaussian-noise only. Appendix~\ref{sec:appendix-H} broadens the probes under auxiliary pixels+goal stress, but those rows are post-hoc, small-sample, and exploratory. A method paper still needs the target-view ablation and a trained consistency objective.
+\paragraph{Limitation 4 --- method scope.} The main paired ACPC basin diagnostic is LeWM/Gaussian-noise only. Appendix~\ref{sec:appendix-H} broadens the probes under auxiliary pixels+goal stress, but those rows are post-hoc, small-sample, and exploratory. The target-view ablation is now measured and negative; a method paper still needs a trained paired predictive-dynamics consistency objective.
 
 \paragraph{Additional ablation --- hard $\ne$ nuisance.} A heteroscedastic NLL probe with a learned per-transition $\sigma$-head confirms that error-based downweighting is unsafe: TwoRoom remains strong, but PushT unperturbed success collapses from $86.33\%$ to $13.33\%$ because contact-control transitions are high-error and action-critical. Full data are in \Cref{sec:appendix-D}.
 
-\paragraph{Future direction 1 --- original-target and adaptive predictive-dynamics training.} The immediate training ablation is perturbed-history $\to$ unperturbed-future prediction versus full-sequence perturbed targets. If it supports the ACPC reading, the next objective is paired $\mathrm{ACPC}_H$ regularisation gated by action sensitivity with a discriminability guard.
+\paragraph{Future direction 1 --- paired predictive-dynamics training.} Since the original-target branch underperforms full-sequence perturbation, the next objective is not another target-view-only loss. It is paired $\mathrm{ACPC}_H$ regularisation after the action-conditioned predictor, gated by action sensitivity and protected by a discriminability guard.
 
 \paragraph{Future direction 2 --- broader replication.} Frozen/pretrained visual-feature models, EMA-target JEPAs, and non-Gaussian training corruptions remain the next checks.
 
@@ -678,7 +704,7 @@ The immediate method ablation is prediction-target view: compare full-sequence p
 
 This paper reframes visual robustness for JEPA world-model control as action-conditioned predictive consistency with an explicit discriminability countercondition. Controlled Gaussian corruptions show that latent prediction alone does not confer robustness; input-side noise augmentation recovers much of the lost control performance, but only as a coarse pressure with task-dependent plateaus. The paired ACPC basin diagnostic gives the control-facing reading: robust checkpoints induce tighter same-action prediction basins under same-state perturbations, while pointwise fragility does not isolate the corruption gap after conditioning on train-time noise.
 
-We do not propose a new training algorithm. The evidence motivates a staged method path: first compare full-sequence perturbed targets with perturbed-history $\to$ original-future targets; then, if supported, train paired predictive-dynamics consistency after the action-conditioned predictor, gated by action sensitivity and protected by discriminability.
+We do not propose a new training algorithm. The evidence now rules out a naive target-view-only implementation: perturbed-history $\to$ original-future targets underperform full-sequence perturbed targets on all four robust endpoints. The staged method path is therefore narrower and clearer: train paired predictive-dynamics consistency after the action-conditioned predictor, gated by action sensitivity and protected by discriminability.
 
 %% ===========================================================================
 \section*{Acknowledgements}

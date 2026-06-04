@@ -400,6 +400,30 @@ def _axis_limits(arrays: Sequence[np.ndarray]) -> tuple[tuple[float, float], tup
     return limits[0], limits[1], limits[2]
 
 
+def _convex_hull_2d(points: np.ndarray) -> np.ndarray:
+    """Return hull vertices for small 2D point sets using Andrew's monotone chain."""
+    unique = np.unique(np.asarray(points, dtype=np.float64), axis=0)
+    if len(unique) <= 2:
+        return unique
+    order = np.lexsort((unique[:, 1], unique[:, 0]))
+    pts = unique[order]
+
+    def cross(o: np.ndarray, a: np.ndarray, b: np.ndarray) -> float:
+        return float((a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]))
+
+    lower: list[np.ndarray] = []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+    upper: list[np.ndarray] = []
+    for p in pts[::-1]:
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+    return np.asarray(lower[:-1] + upper[:-1])
+
+
 def _pca_reduce_for_embedding(points: np.ndarray, max_dim: int = 50) -> np.ndarray:
     centered = points - points.mean(axis=0, keepdims=True)
     if centered.shape[1] <= max_dim or centered.shape[0] <= max_dim:
@@ -474,6 +498,23 @@ def _cluster_isolation_stats(array: np.ndarray) -> dict[str, float]:
         "median_radius": float(np.nanmedian(radius)),
         "median_nearest_origin": float(np.nanmedian(nearest_origin)),
     }
+
+
+def _expanded_view_stds(view_stds: Sequence[float], perturb_repeats: int) -> list[float]:
+    out = []
+    repeats = max(1, int(perturb_repeats))
+    saw_origin = False
+    for std in view_stds:
+        value = float(std)
+        if value == 0.0:
+            if not saw_origin:
+                out.append(0.0)
+                saw_origin = True
+            continue
+        out.extend([value] * repeats)
+    if not saw_origin:
+        out.insert(0, 0.0)
+    return out
 
 
 def _local_cluster_projection(
@@ -868,14 +909,16 @@ def render_cluster_task(
     anchor_count: int,
     perplexity: float,
     tsne_max_iter: int,
+    perturb_repeats: int,
 ) -> Path:
     plt = _ensure_plot_deps()
+    cluster_view_stds = _expanded_view_stds(view_stds, perturb_repeats)
     encoded, specs = _load_task_features(
         task=task,
         summary=summary,
         acpc_basin_path=acpc_basin_path,
         n_sequences=n_sequences,
-        view_stds=view_stds,
+        view_stds=cluster_view_stds,
         rollout_horizon=rollout_horizon,
         seed=seed,
         device=device,
@@ -894,7 +937,7 @@ def render_cluster_task(
         "predictor": "Predictor H8 features",
     }
 
-    fig, axes = plt.subplots(2, 2, figsize=(14.5, 11.0))
+    fig, axes = plt.subplots(2, 2, figsize=(15.2, 11.8))
     panels = [
         ("base", "encoder"),
         ("base", "predictor"),
@@ -914,40 +957,64 @@ def render_cluster_task(
         perturbed = projected[1:]
         xlim, ylim = _axis_limits_2d_single(projected)
 
-        ax.scatter(origin[:, 0], origin[:, 1], s=7, c="#A7A7A7", alpha=0.24, linewidths=0)
+        ax.scatter(origin[:, 0], origin[:, 1], s=8, c="#7F7F7F", alpha=0.24, linewidths=0)
         ax.scatter(
             perturbed.reshape(-1, 2)[:, 0],
             perturbed.reshape(-1, 2)[:, 1],
             s=5,
-            c="#C9C9C9",
-            alpha=0.16,
+            c="#BFBFBF",
+            alpha=0.11,
             linewidths=0,
         )
 
         for ci, state_idx in enumerate(anchors):
             color = colors[ci % len(colors)]
             pts = projected[:, state_idx, :]
-            center = pts.mean(axis=0)
-            radius_2d = max(float(np.linalg.norm(pts - center[None, :], axis=-1).max()), 1e-6)
-            circle = plt.Circle(
-                center,
-                radius_2d * 1.18,
-                facecolor=color,
-                edgecolor=color,
-                alpha=0.09,
-                linewidth=0.8,
+            hull = _convex_hull_2d(pts)
+            if len(hull) >= 3:
+                ax.fill(hull[:, 0], hull[:, 1], color=color, alpha=0.105, linewidth=0)
+                ax.plot(
+                    np.r_[hull[:, 0], hull[0, 0]],
+                    np.r_[hull[:, 1], hull[0, 1]],
+                    color=color,
+                    alpha=0.38,
+                    linewidth=0.75,
+                )
+            for p in pts[1:]:
+                ax.plot(
+                    [pts[0, 0], p[0]],
+                    [pts[0, 1], p[1]],
+                    color=color,
+                    alpha=0.38,
+                    linewidth=0.55,
+                )
+            ax.scatter(
+                pts[1:, 0],
+                pts[1:, 1],
+                s=18,
+                color=color,
+                marker="o",
+                alpha=0.78,
+                edgecolor="white",
+                linewidth=0.18,
             )
-            ax.add_patch(circle)
-            ax.plot(pts[:, 0], pts[:, 1], color=color, alpha=0.78, linewidth=1.0)
-            ax.scatter(pts[0, 0], pts[0, 1], s=42, color=color, marker="o", edgecolor="#222222", linewidth=0.35)
-            ax.scatter(pts[1:, 0], pts[1:, 1], s=20, color=color, marker="^", alpha=0.78, linewidth=0)
+            ax.scatter(
+                pts[0, 0],
+                pts[0, 1],
+                s=54,
+                color=color,
+                marker="o",
+                edgecolor="#111111",
+                linewidth=0.52,
+                zorder=4,
+            )
 
         ax.set_title(f"{label_by_spec[label]}: {feature_by_name[feature]}")
         ax.set_xlim(*xlim)
         ax.set_ylim(*ylim)
         ax.set_xlabel("t-SNE 1")
         ax.set_ylabel("t-SNE 2")
-        ax.grid(True, color="#ECECEC", linewidth=0.55)
+        ax.grid(True, color="#EEEEEE", linewidth=0.45)
         ax.set_aspect("equal", adjustable="box")
         ax.text(
             0.02,
@@ -964,21 +1031,21 @@ def render_cluster_task(
         )
 
     fig.suptitle(
-        f"{task}: local same-state perturbation clusters "
-        f"(n={n_sequences}, anchors={len(anchors)}, view stds={','.join(f'{s:g}' for s in view_stds)})",
+        f"{task}: hybrid t-SNE view of same-state perturbation clusters "
+        f"(n={n_sequences}, anchors={len(anchors)}, perturb repeats={max(1, int(perturb_repeats))})",
         y=0.985,
     )
     fig.text(
         0.5,
         0.026,
-        "t-SNE is only for local visualization; panel stats are computed in the original feature space.\n"
-        "Gray points are all sampled original/perturbed views; colored patches connect spread-selected "
-        "original states to their perturbations.",
+        "t-SNE is only for visualization; panel stats are computed in the original feature space. "
+        "Gray dots show all sampled original/perturbed views; colored hulls show selected original states "
+        "and their perturbation views.",
         ha="center",
         va="bottom",
         fontsize=9.3,
     )
-    fig.tight_layout(rect=(0, 0.06, 1, 0.96))
+    fig.tight_layout(rect=(0, 0.055, 1, 0.955), h_pad=2.4, w_pad=1.4)
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{task.lower()}_fullseq_selective_contraction_clusters.png"
     fig.savefig(out, dpi=190)
@@ -1150,6 +1217,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--cluster-anchor-count", type=int, default=24)
     p.add_argument("--cluster-perplexity", type=float, default=35.0)
     p.add_argument("--cluster-tsne-max-iter", type=int, default=650)
+    p.add_argument("--cluster-perturb-repeats", type=int, default=1)
     p.add_argument("--atlas-anchor-count", type=int, default=24)
     p.add_argument("--atlas-neighbor-count", type=int, default=8)
     return p
@@ -1221,6 +1289,7 @@ def main() -> None:
                 anchor_count=args.cluster_anchor_count,
                 perplexity=args.cluster_perplexity,
                 tsne_max_iter=args.cluster_tsne_max_iter,
+                perturb_repeats=args.cluster_perturb_repeats,
             )
             print(f"[selective-contraction] wrote {out}")
 

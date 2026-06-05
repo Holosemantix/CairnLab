@@ -590,6 +590,7 @@ def lejepa_forward(self, batch, stage, cfg):
 
     emb = output["emb"]  # (B, T, D)
     act_emb = output["act_emb"]
+    sigreg_emb = emb
 
     if target_view == "perturbed":
         ctx_emb = emb[:, :ctx_len]
@@ -601,7 +602,9 @@ def lejepa_forward(self, batch, stage, cfg):
             perturbed_batch = dict(batch)
             perturbed_batch["pixels"] = perturbed_pixels
             perturbed_output = self.model.encode(perturbed_batch)
-        ctx_emb = perturbed_output["emb"][:, :ctx_len]
+        perturbed_emb = perturbed_output["emb"]
+        ctx_emb = perturbed_emb[:, :ctx_len]
+        sigreg_emb = perturbed_emb
         with torch.no_grad():
             origin_ctx = emb[:, :ctx_len]
             output["target_view_origin_future"] = emb.new_tensor(1.0)
@@ -819,7 +822,10 @@ def lejepa_forward(self, batch, stage, cfg):
         else:
             wass_scale = 0.0
 
-    emb_tbd = emb.transpose(0, 1)
+    # Shape anti-collapse on the predictor input view. For origin-target
+    # training this is the perturbed/noisy input branch, while the target stays
+    # the original future embedding for pred_loss.
+    emb_tbd = sigreg_emb.transpose(0, 1)
 
     # SIGReg: detached forward when not active so the curve stays visible.
     if sigreg_scale > 0:

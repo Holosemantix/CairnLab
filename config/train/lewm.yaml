@@ -86,9 +86,10 @@ loss:
     #   perturbed = full-stream augmentation behavior; configured image perturbation
     #               is applied to the whole pixels sequence, so context and future
     #               target are both encoded from the perturbed view.
-    #   origin = keep the dataset at its original view and apply image_noise inside
-    #            the forward pass only to predictor history/context, while target
-    #            latents come from unperturbed future frames.
+    #   origin = keep pred_loss targets on the original future latents while
+    #            predictor history/context comes from the perturbed input view.
+    #            SIGReg also uses that perturbed input view so anti-collapse
+    #            regularizes the representation actually consumed by predictor.
     target_view: perturbed
   # SimSiam-style stop-grad on the target branch (Chen & He, CVPR 2021).
   # Default false preserves classic LeWM behavior. Setting true is the

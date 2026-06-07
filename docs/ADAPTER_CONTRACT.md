@@ -24,7 +24,7 @@ They must not decide whether a claim is released, downgraded, or retracted. That
 
 ```python
 from cairnlab import CairnRuntime
-from cairnlab.adapters import AutoResearchAdapter
+from cairnlab.adapters import AutoResearchAdapter, export_case
 
 adapter: AutoResearchAdapter = ...
 export = adapter.export_case(project_path)
@@ -38,6 +38,18 @@ events = runtime.events_from_plan(plan)
 ```
 
 This flow does not touch the filesystem after the adapter returns its `ClaimCase`.
+
+For built-in manifest adapters, deterministic auto-selection is available:
+
+```python
+from cairnlab.adapters import detect_adapters, export_case
+
+matches = detect_adapters(project_path)
+export = export_case(project_path, adapter_name="auto")
+```
+
+`adapter_name="auto"` succeeds only when exactly one adapter matches. If none
+or multiple adapters match, the caller must pass an explicit adapter name.
 
 ## Protocol
 
@@ -63,6 +75,37 @@ class AdapterExportResult(BaseModel):
 ```
 
 Diagnostics should report missing or ambiguous source metadata without blocking export unless the case would be structurally invalid.
+
+## Registry API
+
+The in-tree registry is intentionally static and dependency-free:
+
+```python
+from cairnlab.adapters import (
+    adapter_names,
+    detect_adapters,
+    select_adapter,
+    export_case,
+)
+```
+
+It provides:
+
+- `adapter_names()` for available built-in adapter names;
+- `detect_adapters(path)` for conservative manifest detection;
+- `select_adapter(path, adapter_name="auto")` for deterministic selection;
+- `export_case(path, adapter_name="auto")` for one-step export.
+
+The registry does not load external plugins, import host project packages, mutate
+host state, write to `.cairn/`, or decide claim transitions. It only selects a
+translator that emits a `ClaimCase`.
+
+CLI equivalents:
+
+```bash
+cairnlab adapter detect path/to/project --json
+cairnlab import-external path/to/project --adapter auto --path path/to/cairn-project
+```
 
 ## Builder API
 

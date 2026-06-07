@@ -1,17 +1,21 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
 
 from . import __version__
+from .adapters import AdapterSelectionError, adapter_names, detect_adapters, select_adapter
 from .engine import CairnProject
 from .models import Actor, ClaimState
 from .utils import actor_from_string
 
 app = typer.Typer(help="CairnLab Research Claim Kernel CLI")
 transition_app = typer.Typer(help="Claim lifecycle transition commands")
+adapter_app = typer.Typer(help="AutoResearch manifest adapter commands")
 app.add_typer(transition_app, name="transition")
+app.add_typer(adapter_app, name="adapter")
 
 
 @app.command()
@@ -34,6 +38,46 @@ def import_case(case_path: Path, path: Path = typer.Option(Path("."), "--path"))
         f"Imported {result.case_id}: {result.claims} claims, "
         f"{result.evidence} evidence objects, {result.relations} relations"
     )
+
+
+@app.command("import-external")
+def import_external(
+    source_path: Path,
+    adapter: str = typer.Option("auto", "--adapter", help="Adapter name, or auto for deterministic detection."),
+    path: Path = typer.Option(Path("."), "--path"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    try:
+        selected_adapter = select_adapter(source_path, adapter_name=adapter)
+        export = selected_adapter.export_case(source_path)
+    except AdapterSelectionError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+
+    project = CairnProject.open(path)
+    result = project.import_claim_case(export.case)
+    if json_output:
+        typer.echo(
+            json.dumps(
+                {
+                    "adapter": selected_adapter.name,
+                    "case_id": result.case_id,
+                    "claims": result.claims,
+                    "evidence": result.evidence,
+                    "relations": result.relations,
+                    "diagnostics": [item.model_dump(mode="json") for item in export.diagnostics],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+    typer.echo(
+        f"Imported {result.case_id}: {result.claims} claims, "
+        f"{result.evidence} evidence objects, {result.relations} relations"
+    )
+    for diagnostic in export.diagnostics:
+        typer.echo(f"{diagnostic.level}: {diagnostic.message}")
 
 
 @app.command()
@@ -141,6 +185,27 @@ def transition_request(
         typer.echo(f"Decision: {decision.decision}")
         for reason_item in decision.blocking_reasons:
             typer.echo(f"- {reason_item}")
+
+
+@adapter_app.command("detect")
+def adapter_detect(
+    source_path: Path,
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    matches = detect_adapters(source_path)
+    payload = {
+        "path": str(source_path),
+        "matches": [adapter.name for adapter in matches],
+        "available": list(adapter_names()),
+    }
+    if json_output:
+        typer.echo(json.dumps(payload, indent=2, sort_keys=True))
+        return
+    if matches:
+        for adapter in matches:
+            typer.echo(adapter.name)
+    else:
+        typer.echo("No adapter detected.")
 
 
 if __name__ == "__main__":

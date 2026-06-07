@@ -12,6 +12,20 @@ Humans approve.
 
 **No artifact, no claim.**
 
+## AutoResearch Adapters
+
+Built-in manifest adapters can translate external project metadata into CairnLab
+claim cases without importing those projects:
+
+```bash
+cairnlab adapter detect path/to/project --json
+cairnlab import-external path/to/project --adapter auto --path .
+```
+
+Auto-selection succeeds only when exactly one adapter matches. The adapter layer
+does not decide claim release, downgrade, or retraction; it only emits portable
+`ClaimCase` objects for the kernel runtime.
+
 ## Why this repository exists
 
 The AutoResearch ecosystem is now crowded: ARIS, AutoResearchClaw, ScientistOne, EviBound, DeepScientist, Claw AI Lab, AI Scientist, Paper2Agent, Paper2Code, MLflow/DVC/PROV-based infrastructure, and many benchmarks all cover important parts of autonomous research. CairnLab must therefore **not** become another idea-to-paper agent, research dashboard, or thin integration layer.

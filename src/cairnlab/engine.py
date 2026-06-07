@@ -5,6 +5,7 @@ from pathlib import Path
 from .graph import RelationGraph
 from .models import (
     Actor,
+    ClaimCase,
     ClaimState,
     EventType,
     ImportResult,
@@ -35,6 +36,9 @@ class CairnProject:
 
     def import_case(self, path: str | Path) -> ImportResult:
         return self.store.import_case(Path(path))
+
+    def import_claim_case(self, case: ClaimCase) -> ImportResult:
+        return self.store.import_claim_case(case)
 
     def plan_revert(
         self,

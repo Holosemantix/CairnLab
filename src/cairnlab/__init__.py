@@ -1,9 +1,16 @@
 from .adapters import (
     AdapterDiagnostic,
     AdapterExportResult,
+    AdapterSelectionError,
     ArisManifestAdapter,
     AutoResearchAdapter,
     AutoResearchClawManifestAdapter,
+    adapter_by_name,
+    adapter_names,
+    available_adapters,
+    detect_adapters,
+    export_case,
+    select_adapter,
 )
 from .builder import ClaimCaseBuilder
 from .engine import CairnProject
@@ -15,6 +22,7 @@ __version__ = "0.3.0"
 __all__ = [
     "AdapterDiagnostic",
     "AdapterExportResult",
+    "AdapterSelectionError",
     "Actor",
     "AutoResearchAdapter",
     "AutoResearchClawManifestAdapter",
@@ -25,5 +33,11 @@ __all__ = [
     "ClaimCase",
     "RevertPlan",
     "TransitionEvent",
+    "adapter_by_name",
+    "adapter_names",
+    "available_adapters",
+    "detect_adapters",
+    "export_case",
+    "select_adapter",
     "__version__",
 ]

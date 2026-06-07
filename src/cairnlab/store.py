@@ -53,8 +53,10 @@ class CairnProjectStore:
         return ClaimCase.model_validate(data)
 
     def import_case(self, path: Path) -> ImportResult:
+        return self.import_claim_case(self.load_case_file(path))
+
+    def import_claim_case(self, case: ClaimCase) -> ImportResult:
         self.init()
-        case = self.load_case_file(path)
         self._write_yaml(self.cases_dir / safe_id_filename(case.case_id), case.model_dump(mode="json", exclude_none=True))
         for claim in case.claims:
             self._write_yaml(self.claims_dir / safe_id_filename(claim.id), claim.model_dump(mode="json", exclude_none=True))

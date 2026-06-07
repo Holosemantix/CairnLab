@@ -103,8 +103,8 @@ translator that emits a `ClaimCase`.
 CLI equivalents:
 
 ```bash
-cairnlab adapter detect path/to/project --json
-cairnlab import-external path/to/project --adapter auto --path path/to/cairn-project
+cairn adapter detect path/to/project --json
+cairn import-external path/to/project --adapter auto --path path/to/cairn-project
 ```
 
 ## Builder API

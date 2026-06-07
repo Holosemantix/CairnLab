@@ -2,6 +2,10 @@
 
 This document describes the candidate Research Claim Kernel architecture.
 
+The current implemented software design is maintained under `docs/design/`.
+Start with `docs/design/SYSTEM_DESIGN.md` for active module boundaries and
+`docs/design/modules/` for module-level design notes.
+
 The architecture should be implemented only if validation-first failure sampling shows a repeated cross-system need for an independent claim lifecycle control layer.
 
 It integrates with agent systems, experiment trackers, code runners, and provenance tools, but it must not become a thin wrapper around them. Its responsibility is enforcing claim lifecycle transitions.

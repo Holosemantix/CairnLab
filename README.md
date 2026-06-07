@@ -18,8 +18,8 @@ Built-in manifest adapters can translate external project metadata into CairnLab
 claim cases without importing those projects:
 
 ```bash
-cairnlab adapter detect path/to/project --json
-cairnlab import-external path/to/project --adapter auto --path .
+cairn adapter detect path/to/project --json
+cairn import-external path/to/project --adapter auto --path .
 ```
 
 Auto-selection succeeds only when exactly one adapter matches. The adapter layer
@@ -91,6 +91,15 @@ This repository contains three connected parts:
 1. **Validation-first execution plan** under `docs/`.
 2. **Candidate CairnLab kernel design documents** under `docs/`.
 3. **AutoResearch landscape survey skill** under `skills/autoresearch-landscape-survey/`, preserved and upgraded from v0.2 to support the Claim Kernel positioning.
+
+Current implementation design lives under `docs/design/`:
+
+- `docs/design/SYSTEM_DESIGN.md` for system architecture and dependency direction;
+- `docs/design/modules/` for module-level ownership, extension rules, and tests.
+
+Any code change that modifies public APIs, CLI commands, storage layout, adapter
+contracts, model fields, or transition semantics should update the matching
+design document in the same change.
 
 ## Key documents
 

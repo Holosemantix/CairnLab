@@ -89,6 +89,28 @@ Acceptance criteria:
 - State is projected from append-only events.
 - Governance fields are preserved as structured objects or metadata and are not collapsed into prose.
 
+## Phase 0.7: Minimal transition authority seed
+
+Add a small deterministic authority module before the full kernel MVP, so the
+project's core difference is exercised early without introducing a policy DSL or
+verifier plugin system.
+
+Core module:
+
+- `authority`: request-time transition gate for `verified` and `released` claim states.
+
+Acceptance criteria:
+
+- The module is storage-free and can be reused outside the CLI.
+- `verified` requires machine-addressable evidence and a passing verifier certificate.
+- `released` rechecks evidence and verifier certificates instead of trusting imported status.
+- `released` requires a human gate with actor, authority, scope, and rationale.
+- `released` requires `ResponsibilityAssignment` with an accountable party.
+- Consequential transitions require `RiskAssessment`.
+- High-impact releases require `DecisionTracePackage`.
+- Unresolved material dissent blocks release unless explicitly overridden.
+- `engine` remains a thin facade over the authority module.
+
 ## Phase 1: Kernel MVP
 
 This phase is gated by Phase 0.5 evidence and informed by Phase 0.6 counterfactual results.

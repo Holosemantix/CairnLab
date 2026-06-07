@@ -12,6 +12,7 @@ from .adapters import (
     export_case,
     select_adapter,
 )
+from .authority import TransitionAuthority
 from .builder import ClaimCaseBuilder
 from .engine import CairnProject
 from .models import Actor, ClaimCase, RevertPlan, TransitionEvent
@@ -33,6 +34,7 @@ __all__ = [
     "ClaimCase",
     "RevertPlan",
     "TransitionEvent",
+    "TransitionAuthority",
     "adapter_by_name",
     "adapter_names",
     "available_adapters",

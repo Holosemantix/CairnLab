@@ -71,7 +71,7 @@ new `TransitionEvent` records rather than rewriting imported object YAML.
 import `planner`, `graph`, adapters, or CLI.
 
 `engine.py` may compose store, graph, projection, planner, validation, and
-transition request logic for local project use. It should remain a thin facade.
+transition authority for local project use. It should remain a thin facade.
 
 ## Extension Rules
 

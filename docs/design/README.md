@@ -10,6 +10,7 @@ boundary sits, and what must be updated when code changes.
 
 - [System Design](SYSTEM_DESIGN.md): current implemented architecture and dependency boundaries.
 - [Domain Model](modules/domain_model.md): portable claim, evidence, relation, event, and case models.
+- [Transition Authority](modules/transition_authority.md): deterministic claim lifecycle transition gate.
 - [Semantic Invalidation Runtime](modules/semantic_invalidation_runtime.md): graph, projection, planner, and in-memory runtime.
 - [Adapter System](modules/adapter_system.md): external manifest adapters and deterministic registry.
 - [Local Project Store](modules/local_project_store.md): `.cairn/` persistence and append-only event storage.

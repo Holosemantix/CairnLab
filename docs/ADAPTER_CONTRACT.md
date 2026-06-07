@@ -18,7 +18,7 @@ They may read host artifacts and emit:
 - typed relations between those objects;
 - diagnostics about missing metadata.
 
-They must not decide whether a claim is released, downgraded, or retracted. That decision remains in the runtime and planner.
+They must not decide whether a claim is released, downgraded, or retracted. That decision remains in the transition authority and invalidation runtime.
 
 ## Minimal Python Flow
 

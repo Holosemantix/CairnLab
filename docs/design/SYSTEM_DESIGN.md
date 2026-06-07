@@ -11,12 +11,14 @@ which claim lifecycle states must change, and what append-only events record it?
 
 ## Current Scope
 
-The implemented system covers Phase 0.6:
+The implemented system covers Phase 0.6 plus a minimal Phase 0.7 transition
+authority seed:
 
 - portable `ClaimCase` import;
 - in-memory runtime for claim invalidation planning;
 - local `.cairn/` project storage;
 - append-only transition event projection;
+- deterministic transition authority for verification and release requests;
 - deterministic adapter detection for external manifest exports;
 - thin CLI commands over reusable Python APIs.
 
@@ -45,11 +47,13 @@ in memory         local .cairn/ store
             v
   RelationGraph + EventProjection
             |
-            v
-   InvalidationPlanner
-            |
-            v
- RevertPlan + TransitionEvents + TraceResult
+            +------------------------+
+            |                        |
+            v                        v
+   InvalidationPlanner      TransitionAuthority
+            |                        |
+            v                        v
+ RevertPlan + Events        TransitionDecision + Event
 ```
 
 ## Dependency Direction
@@ -59,7 +63,7 @@ Allowed dependency direction:
 ```text
 models
   <- builder
-  <- graph / projection / planner / validation
+  <- graph / projection / planner / authority / validation
   <- runtime
   <- store
   <- engine
@@ -74,6 +78,7 @@ Key rules:
 
 - `models` must remain portable and must not depend on storage, CLI, or adapters.
 - `planner` must not write events directly.
+- `authority` must not write events directly or call external reviewers.
 - `store` must not decide transition semantics.
 - `engine` is a composition facade, not a policy layer.
 - `cli` is a command facade, not a kernel logic layer.
@@ -115,7 +120,22 @@ plan = runtime.plan_revert("run:exp_007", reason="wrong metric split")
 events = runtime.events_from_plan(plan)
 ```
 
-2. Local project CLI:
+2. Transition authority API through the local project facade:
+
+```python
+from cairnlab import Actor, CairnProject
+from cairnlab.models import ClaimState
+
+project = CairnProject.open(".")
+decision = project.request_transition(
+    "claim:C1",
+    ClaimState.RELEASED,
+    Actor(id="human:pi", role="principal_investigator"),
+    reason="release review",
+)
+```
+
+3. Local project CLI:
 
 ```bash
 cairn adapter detect path/to/project --json
@@ -147,6 +167,7 @@ Preferred extension points:
 - add new model fields in `models.py` with schema and design doc updates;
 - add new relation semantics in `graph.py` and planner tests;
 - add new affected-object actions or event mappings in `planner.py`;
+- add new deterministic transition gates in `authority.py`;
 - add new manifest adapters under `src/cairnlab/adapters/`;
 - add storage backends by replacing `CairnProjectStore`, not planner logic;
 - add new CLI commands as wrappers over `engine` or library APIs.

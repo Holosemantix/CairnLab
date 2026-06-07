@@ -21,7 +21,8 @@ This module owns:
 - governance primitives such as `RiskAssessment`, `ResponsibilityAssignment`,
   `GovernancePolicy`, `HumanGate` metadata, and `DecisionTracePackage`;
 - `ClaimCase`, the portable import/export unit;
-- `ClaimCaseBuilder`, a convenience API for adapters and tests.
+- `ClaimCaseBuilder`, a convenience API for adapters and tests, including
+  governance helper methods for risk, accountability, and decision trace data.
 
 ## Does Not Own
 

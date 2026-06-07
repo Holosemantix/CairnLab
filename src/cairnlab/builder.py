@@ -7,11 +7,15 @@ from .models import (
     Claim,
     ClaimCase,
     Criticality,
+    DecisionTracePackage,
     EvidenceItem,
     EvidenceStatus,
     EvidenceType,
     Relation,
     RelationType,
+    ResponsibilityAssignment,
+    ResponsibilityEntry,
+    RiskAssessment,
 )
 
 
@@ -32,6 +36,9 @@ class ClaimCaseBuilder:
         self.claims: list[Claim] = []
         self.evidence: list[EvidenceItem] = []
         self.relations: list[Relation] = []
+        self.risk_assessments: list[RiskAssessment] = []
+        self.responsibility_assignments: list[ResponsibilityAssignment] = []
+        self.decision_trace_packages: list[DecisionTracePackage] = []
         self.native_system_behavior: dict[str, Any] = {}
         self.expected_cairnlab_behavior: dict[str, Any] = {}
         self.failure_classes: list[str] = []
@@ -167,6 +174,68 @@ class ClaimCaseBuilder:
             criticality=Criticality.CRITICAL.value,
         )
 
+    def add_risk_assessment(
+        self,
+        object_id: str,
+        *,
+        risk_tier: str = "medium",
+        dimensions: dict[str, Any] | None = None,
+        controls: list[str] | None = None,
+        identified_risks: list[str] | None = None,
+    ) -> "ClaimCaseBuilder":
+        self.risk_assessments.append(
+            RiskAssessment(
+                object=object_id,
+                risk_tier=risk_tier,
+                dimensions=dimensions or {},
+                controls=controls or [],
+                identified_risks=identified_risks or [],
+            )
+        )
+        return self
+
+    def add_responsibility_assignment(
+        self,
+        object_id: str,
+        *,
+        action: str = "release_claim",
+        responsible: list[ResponsibilityEntry | dict[str, str] | tuple[str, str]] | None = None,
+        accountable: list[ResponsibilityEntry | dict[str, str] | tuple[str, str]] | None = None,
+        consulted: list[ResponsibilityEntry | dict[str, str] | tuple[str, str]] | None = None,
+        informed: list[ResponsibilityEntry | dict[str, str] | tuple[str, str]] | None = None,
+    ) -> "ClaimCaseBuilder":
+        self.responsibility_assignments.append(
+            ResponsibilityAssignment(
+                object=object_id,
+                action=action,
+                responsible=self._responsibility_entries(responsible or []),
+                accountable=self._responsibility_entries(accountable or []),
+                consulted=self._responsibility_entries(consulted or []),
+                informed=self._responsibility_entries(informed or []),
+            )
+        )
+        return self
+
+    def add_decision_trace_package(
+        self,
+        package_id: str,
+        claim_id: str,
+        *,
+        transition: str | None = None,
+        includes: list[str] | None = None,
+        export_hash: str | None = None,
+    ) -> "ClaimCaseBuilder":
+        self.decision_trace_packages.append(
+            DecisionTracePackage(
+                id=package_id,
+                claim=claim_id,
+                transition=transition,
+                includes=includes or [],
+                export_hash=export_hash,
+            )
+        )
+        return self
+
     def set_native_behavior(self, **values: Any) -> "ClaimCaseBuilder":
         self.native_system_behavior.update(values)
         return self
@@ -188,4 +257,22 @@ class ClaimCaseBuilder:
             native_system_behavior=self.native_system_behavior,
             expected_cairnlab_behavior=self.expected_cairnlab_behavior,
             failure_classes=self.failure_classes,
+            risk_assessments=self.risk_assessments,
+            responsibility_assignments=self.responsibility_assignments,
+            decision_trace_packages=self.decision_trace_packages,
         )
+
+    def _responsibility_entries(
+        self,
+        values: list[ResponsibilityEntry | dict[str, str] | tuple[str, str]],
+    ) -> list[ResponsibilityEntry]:
+        entries: list[ResponsibilityEntry] = []
+        for value in values:
+            if isinstance(value, ResponsibilityEntry):
+                entries.append(value)
+            elif isinstance(value, dict):
+                entries.append(ResponsibilityEntry.model_validate(value))
+            else:
+                role, actor = value
+                entries.append(ResponsibilityEntry(role=role, actor=actor))
+        return entries

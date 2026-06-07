@@ -62,7 +62,7 @@ cairn revert run:exp_007 --reason "wrong split" --plan-only
 cairn revert run:exp_007 --reason "wrong split" --apply --actor user:alice
 ```
 
-Transition preview:
+Transition authority:
 
 ```bash
 cairn transition request claim:C1 --to released --reason "release review"

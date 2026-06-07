@@ -140,6 +140,8 @@ def get_img_noise_transform(cfg, source: str = "pixels", target: str = "pixels")
     now includes ``gaussian_blur`` and ``resize`` as sibling families).
     """
     noise_type = _cfg_get(cfg, "type", "gaussian_noise")
+    if noise_type == "gaussian":
+        noise_type = "gaussian_noise"
     std_min = _cfg_get(cfg, "std_min", 0.0)
     std_max = _cfg_get(cfg, "std_max", 0.0)
     noise_prob = _cfg_get(cfg, "noise_prob", 1.0)

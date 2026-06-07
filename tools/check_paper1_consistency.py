@@ -28,6 +28,7 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
+    ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json",
 ]
 
 REQUIRED_ARTIFACTS = [
@@ -48,6 +49,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
+    ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -795,6 +797,41 @@ def check_partial_corr_bootstrap_json() -> None:
     )
 
 
+def check_target_view_closed_loop_summary_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    rows = data.get("closed_loop_pixels_std0.08_across_eight_checkpoints")
+    expected = {
+        "tworoom": (96.0, 61.75, 34.25),
+        "pusht": (74.75, 6.749999875, 68.000000125),
+        "reacher": (76.0, 19.624999875, 56.375000125),
+        "cube": (62.125, 39.625, 22.5),
+    }
+    if not isinstance(rows, dict) or set(rows) != set(expected):
+        fail(
+            "target-view summary tasks mismatch: "
+            f"expected {sorted(expected)}, got {sorted(rows or {})}"
+        )
+
+    for task, want in expected.items():
+        row = rows[task]
+        got = (
+            float(row["full_sequence_mean"]),
+            float(row["origin_target_mean"]),
+            float(row["full_sequence_advantage"]),
+        )
+        if any(not approx_equal(g, w) for g, w in zip(got, want)):
+            fail(f"target-view closed-loop summary mismatch for {task}: got {got}, want {want}")
+
+    probe = data.get("representative_pusht_0to008", {})
+    canonical = probe.get("canonical_seeds_42_43_44", {})
+    if canonical.get("full_sequence_pixels_std0.08_raw") != [87.0, 85.0, 95.0]:
+        fail("target-view PushT full-sequence canonical raw values changed")
+    if canonical.get("origin_target_pixels_std0.08_raw") != [12.0, 4.0, 10.0]:
+        fail("target-view PushT origin-target canonical raw values changed")
+
+
 def check_published_correlations() -> None:
     evals = json.loads((ROOT / "assets" / "paper1_data" / "canonical_evals_20260517.json").read_text(encoding="utf-8"))
     diag = json.loads((ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json").read_text(encoding="utf-8"))
@@ -882,6 +919,7 @@ def main() -> int:
         ("acpc phase0 diagnostics json", check_acpc_phase0_diagnostics_json),
         ("blur baselines json", check_blur_baselines_json),
         ("acpc basin json", check_acpc_basin_json),
+        ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),
         ("partial-corr bootstrap json", check_partial_corr_bootstrap_json),

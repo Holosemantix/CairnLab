@@ -35,6 +35,27 @@ def infer_model_action_block(model, world) -> int | None:
     return int(in_channels) // action_dim
 
 
+def infer_model_history_size(model, policy: str, cache_dir: str | Path) -> int | None:
+    for attr in ("history_size", "history_len"):
+        value = getattr(model, attr, None)
+        if value is not None:
+            return int(value)
+
+    predictor = getattr(model, "predictor", None)
+    pos_embedding = getattr(predictor, "pos_embedding", None)
+    if torch.is_tensor(pos_embedding) and pos_embedding.ndim >= 2:
+        return int(pos_embedding.shape[1])
+
+    cfg_path = Path(cache_dir, policy).parent / "config.yaml"
+    if cfg_path.exists():
+        train_cfg = OmegaConf.load(cfg_path)
+        value = OmegaConf.select(train_cfg, "wm.history_size")
+        if value is not None:
+            return int(value)
+
+    return None
+
+
 def _corruption_magnitude(cfg) -> float:
     """Return a non-negative scalar summarising how much corruption the
     config asks for (zero == no-op), so callers can short-circuit no-op
@@ -221,9 +242,14 @@ def run(cfg: DictConfig):
         apply_inference_overrides(model, cfg)
 
         model_action_block = infer_model_action_block(model, world)
+        model_history_len = infer_model_history_size(model, cfg.policy, eval_cache_dir)
+        if model_history_len is not None:
+            setattr(model, "history_size", model_history_len)
         with open_dict(cfg):
             if model_action_block is not None:
                 cfg.plan_config.action_block = model_action_block
+            if model_history_len is not None:
+                cfg.plan_config.history_len = model_history_len
 
         assert (
             cfg.plan_config.horizon * cfg.plan_config.action_block <= cfg.eval.eval_budget

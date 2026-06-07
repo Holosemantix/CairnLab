@@ -102,7 +102,21 @@ class JEPA(nn.Module):
             )
         return goal_emb[..., -1:, :].expand_as(pred_emb)
 
-    def rollout(self, info, action_sequence, history_size: int = 3):
+    def _inference_history_size(
+        self, observed_history: int, history_size: int | None = None
+    ) -> int:
+        if history_size is not None:
+            return int(history_size)
+        for attr in ("history_size", "history_len"):
+            value = getattr(self, attr, None)
+            if value is not None:
+                return int(value)
+        pos_embedding = getattr(getattr(self, "predictor", None), "pos_embedding", None)
+        if torch.is_tensor(pos_embedding) and pos_embedding.ndim >= 2:
+            return int(pos_embedding.shape[1])
+        return int(observed_history)
+
+    def rollout(self, info, action_sequence, history_size: int | None = None):
         """Rollout the model given an initial info dict and action sequence.
         pixels: (B, S, T, C, H, W)
         action_sequence: (B, S, T, action_dim)
@@ -129,7 +143,7 @@ class JEPA(nn.Module):
         act_future = rearrange(act_future, "b s ... -> (b s) ...")
 
         # rollout predictor autoregressively for n_steps
-        HS = history_size
+        HS = self._inference_history_size(H, history_size)
         for t in range(n_steps):
             act_emb = self.action_encoder(act)
             emb_trunc = emb[:, -HS:]  # (BS, HS, D)
@@ -186,7 +200,7 @@ class JEPA(nn.Module):
             if k.startswith("goal_"):
                 goal[k[len("goal_") :]] = goal.pop(k)
 
-        goal.pop("action")
+        goal.pop("action", None)
         goal = self.encode(goal)
 
         info_dict["goal_emb"] = goal["emb"]
@@ -284,7 +298,7 @@ class SphericalJEPA(JEPA):
         preds = self.predict_raw(emb, act_emb)
         return self.normalize_embeddings(preds)
 
-    def rollout(self, info, action_sequence, history_size: int = 3):
+    def rollout(self, info, action_sequence, history_size: int | None = None):
         """Rollout while keeping raw and normalized trajectories side by side.
 
         `inference_rollout_state_space` decides what the predictor consumes
@@ -316,7 +330,7 @@ class SphericalJEPA(JEPA):
         act_full = rearrange(action_sequence, "b s ... -> (b s) ...")
         act_emb_full = self.action_encoder(act_full)
 
-        HS = history_size
+        HS = self._inference_history_size(H, history_size)
         for step in range(n_steps + 1):
             action_end = H + step
             # Match the original "take up to the last HS steps" behavior even
@@ -358,7 +372,7 @@ class SphericalJEPA(JEPA):
             if k.startswith("goal_"):
                 goal[k[len("goal_") :]] = goal.pop(k)
 
-        goal.pop("action")
+        goal.pop("action", None)
         goal = self.encode(goal)
 
         info_dict["goal_emb"] = goal["emb"]

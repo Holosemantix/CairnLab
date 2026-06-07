@@ -20,6 +20,11 @@
 #   dataset_name=tworoom trainer_file=train_swm.py config=swm \
 #   output_model_name=sweep_stdmax num_eval=50 \
 #   bash run_trainer_batch.sh
+#
+# eval_corruption_apply_to 在云平台上建议传数字，避免 '+' 或逗号被平台解析：
+#   1=pixels, 2=goal, 3=pixels+goal, 4=pixels 和 pixels+goal, 5=all。
+# 例如旧写法 eval_corruption_apply_to="pixels,pixels+goal" 在 batch 入口应写成
+#   eval_corruption_apply_to=4
 # ==========================================
 
 set -u
@@ -73,6 +78,28 @@ SWEEP_VARS=(
     run_cross_check_correlations
 )
 
+split_values_for_var() {
+    local var_name="$1"
+    local raw_value="$2"
+
+    # Back-compat: eval_corruption_apply_to historically allowed comma-separated
+    # mode lists (for example "pixels,pixels+goal"). That comma conflicts with
+    # this batch wrapper's per-node sweep syntax, so string mode lists are kept
+    # as one value. Numeric codes can still be swept across nodes, e.g. "1,3".
+    if [ "${var_name}" = "eval_corruption_apply_to" ]; then
+        case "${raw_value}" in
+            *[A-Za-z+_-]*)
+                printf '%s\n' "${raw_value}"
+                return 0
+                ;;
+        esac
+    fi
+
+    local values=()
+    IFS=',' read -ra values <<< "${raw_value}"
+    printf '%s\n' "${values[@]}"
+}
+
 # 1) 第一遍扫描：解析每个变量的 split values，记录最大长度。
 declare -A var_values_csv  # 保存原始 csv，便于后面 split
 max_len=1
@@ -83,7 +110,7 @@ for v in "${SWEEP_VARS[@]}"; do
     fi
     var_values_csv[$v]="${raw}"
     # 计算 split 后的元素数量
-    IFS=',' read -ra arr <<< "${raw}"
+    mapfile -t arr < <(split_values_for_var "${v}" "${raw}")
     n=${#arr[@]}
     if [ "$n" -gt "$max_len" ]; then
         max_len=$n
@@ -130,7 +157,7 @@ fi
 
 # 3) 校验每个变量的值数量必须是 1 或 NNODES。
 for v in "${!var_values_csv[@]}"; do
-    IFS=',' read -ra arr <<< "${var_values_csv[$v]}"
+    mapfile -t arr < <(split_values_for_var "${v}" "${var_values_csv[$v]}")
     n=${#arr[@]}
     if [ "$n" -ne 1 ] && [ "$n" -ne "$NNODES" ]; then
         echo "[batch][error] env var '${v}' has ${n} values; must be 1 or ${NNODES}."
@@ -142,7 +169,7 @@ done
 # 4) 按 NODE_RANK 选本节点要用的值，覆盖 env var。
 echo "[batch] resolved per-node overrides for rank=${NODE_RANK}:"
 for v in "${!var_values_csv[@]}"; do
-    IFS=',' read -ra arr <<< "${var_values_csv[$v]}"
+    mapfile -t arr < <(split_values_for_var "${v}" "${var_values_csv[$v]}")
     n=${#arr[@]}
     if [ "$n" -eq 1 ]; then
         picked="${arr[0]}"

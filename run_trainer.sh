@@ -84,11 +84,16 @@
 #                              默认 "1 3 7 15"（1 = unperturbed / no-op；偶数会向上取奇）
 #   eval_resize_factors       eval sweep resize factor 列表（resize 时使用）
 #                              默认 "1.0 0.75 0.5 0.25"（1.0 = unperturbed）
-#   eval_corruption_apply_to  eval sweep 加噪目标，逗号分隔；'+' 表示同一组里多目标
-#                              默认 "pixels"（paper primary: observation-only,
-#                              unperturbed goal）。设为 "pixels,pixels+goal" 可同时跑
-#                              primary 和 auxiliary stress；"pixels+goal" 表示
-#                              同时加噪 observation 与 goal。
+#   eval_corruption_apply_to  eval sweep 加噪目标。推荐在训练平台上传数字，避免 '+'
+#                              或逗号被平台解析错误：
+#                                1 = pixels（paper primary: observation-only,
+#                                    unperturbed goal；默认）
+#                                2 = goal
+#                                3 = pixels+goal（同一 eval 同时加噪 observation 与 goal）
+#                                4 = pixels,pixels+goal（同时跑 primary 和 auxiliary stress）
+#                                5 = pixels,goal,pixels+goal（全模式）
+#                              旧字符串仍兼容：pixels / goal / pixels+goal /
+#                              pixels_goal / "pixels,pixels+goal"。
 #   frameskip                 数据加载 frameskip；默认 5（与训练 data config 一致）
 #   eval_gpus                 GPU id 列表，空格分隔；默认自动探测全部
 #   noise_table_stds          诊断扫的 std；默认 0.0~0.10 一组（仍由本字段控制）
@@ -148,6 +153,67 @@ add_override() {
     if [ -n "$value" ]; then
         CMD_ARGS+=("$key=$value")
     fi
+}
+
+normalize_eval_corruption_apply_to() {
+    local raw="${1:-1}"
+    local compact="${raw//[[:space:]]/}"
+    local token
+    local out=()
+
+    normalize_one_apply_mode() {
+        case "$1" in
+            1|pixel|pixels|obs|observation)
+                echo "pixels"
+                ;;
+            2|goal)
+                echo "goal"
+                ;;
+            3|both|pixels+goal|pixels_goal|pixels-goal|pixelsgoal|all_streams)
+                echo "pixels+goal"
+                ;;
+            *)
+                return 1
+                ;;
+        esac
+    }
+
+    case "$compact" in
+        ""|1|pixel|pixels|obs|observation)
+            echo "pixels"
+            return 0
+            ;;
+        2|goal)
+            echo "goal"
+            return 0
+            ;;
+        3|both|pixels+goal|pixels_goal|pixels-goal|pixelsgoal|all_streams)
+            echo "pixels+goal"
+            return 0
+            ;;
+        4|primary_aux|primary+aux|primary_auxiliary|pixels,pixels+goal|pixels,pixels_goal)
+            echo "pixels,pixels+goal"
+            return 0
+            ;;
+        5|all)
+            echo "pixels,goal,pixels+goal"
+            return 0
+            ;;
+    esac
+
+    IFS=',' read -ra _apply_tokens <<< "$compact"
+    for token in "${_apply_tokens[@]}"; do
+        local mode
+        if ! mode="$(normalize_one_apply_mode "$token")"; then
+            echo "[eval] invalid eval_corruption_apply_to token '${token}' in '${raw}'" >&2
+            echo "[eval] use numeric codes: 1=pixels, 2=goal, 3=pixels+goal, 4=pixels plus pixels+goal, 5=all" >&2
+            return 1
+        fi
+        out+=("$mode")
+    done
+
+    local IFS=','
+    echo "${out[*]}"
 }
 
 # Backward-compatible Hydra config name. Older callers may pass `lewm.yaml`;
@@ -482,7 +548,11 @@ if [ "${run_eval_sweep}" = "1" ]; then
     # alternative corruption family on the same checkpoint; the output
     # filenames are tagged so they do not collide with the noise sweep.
     eval_corruption_type="${eval_corruption_type:-gaussian_noise}"
-    eval_corruption_apply_to="${eval_corruption_apply_to:-pixels}"
+    eval_corruption_apply_to_raw="${eval_corruption_apply_to:-1}"
+    if ! eval_corruption_apply_to="$(normalize_eval_corruption_apply_to "${eval_corruption_apply_to_raw}")"; then
+        exit 1
+    fi
+    echo "[eval] eval_corruption_apply_to=${eval_corruption_apply_to} (raw=${eval_corruption_apply_to_raw})"
 
     # Per-type magnitude lists (only the one matching eval_corruption_type
     # is consumed; the others are ignored). For `gaussian_noise` we keep

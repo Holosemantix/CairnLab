@@ -1,0 +1,36 @@
+id: hypothetical-claim-kernel
+name: Hypothetical Claim Kernel
+repo_url: https://example.org/claim-kernel
+observed_domain_categories:
+  - evidence_provenance_accountability
+observed_mechanism_tags:
+  - claim_state_machine
+  - evidence_policy
+  - verifier_certificate
+  - append_only_ledger
+facets:
+  research_fields:
+    - metascience_integrity_review
+    - ai_agent_systems
+  workflow_scopes:
+    - experiment_to_claim
+    - claim_to_review_issue
+  verification_models:
+    - claim_evidence_mapping
+    - deterministic_verifier
+    - attestation_protocol
+  accountability_features:
+    - claim_ledger
+    - decision_log
+    - provenance_graph
+    - release_bundle
+  kernel_primitives:
+    - claim_state_machine
+    - evidence_policy_dsl
+    - verifier_certificate
+    - append_only_transition_log
+    - human_liability_gate
+  governance_controls:
+    - role_contract
+    - material_dissent_block
+    - responsibility_assignment

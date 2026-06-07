@@ -1,0 +1,11 @@
+{
+  "id": "human_gate:H1",
+  "actor": "human:alice",
+  "authority": "project_owner",
+  "scope": {
+    "claim": "claim:C1",
+    "run": "run:exp_007",
+    "metric": "metric:exp_007.accuracy"
+  },
+  "rationale": "Approved after reviewing AutoResearchClaw experiment summary."
+}

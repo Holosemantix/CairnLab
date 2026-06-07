@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VerifierCertificate",
+  "type": "object",
+  "required": [
+    "id",
+    "verifier",
+    "result",
+    "evidence_refs"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "verifier": {
+      "type": "string"
+    },
+    "result": {
+      "enum": [
+        "pass",
+        "fail",
+        "blocked",
+        "needs_more_evidence"
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

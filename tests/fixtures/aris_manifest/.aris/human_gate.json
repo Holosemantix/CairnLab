@@ -1,0 +1,11 @@
+{
+  "id": "human_gate:aris_release",
+  "claim": "claim:C1",
+  "actor": "human:pi@example.org",
+  "authority": "human_pi",
+  "scope": {
+    "claim": "claim:C1",
+    "audit": "verifier:paper_claim_audit"
+  },
+  "rationale": "Imported release gate after ARIS audit chain passed."
+}

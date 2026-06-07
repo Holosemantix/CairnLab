@@ -1,0 +1,279 @@
+version: 0.3.0
+last_updated: '2026-06-03'
+purpose: CairnLab Research Claim Kernel 调研地图的多维属性体系：用于识别现有项目是否威胁 claim lifecycle enforcement、evidence policy、verifier certificate、append-only
+  transition log、governance/human liability gate 等核心抽象。
+principles:
+- 不要强迫项目进入唯一类别。所有分类都是可叠加的 facet。
+- 如果新项目带来新机制或新领域，先写入 custom_facets / proposed_new_facets，再维护 taxonomy。
+- 先描述项目实际具有的特征，再判断它和我们的 CairnLab Research Claim Kernel 目标的关系。
+- 把“文本报告生成”“实验执行”“run-level 证据”“审稿 issue 闭环”分开记录，避免把不同成熟度混为一谈。
+- 核心差异不是是否有 evidence chain，而是是否有可执行的 claim state transition semantics。
+- 如果一个能力不能改变 claim 状态迁移规则，它不是 CairnLab kernel 核心。
+- 治理、风险、责任与人类审批必须建模为内核对象，而不是报告附录。
+facet_axes:
+  research_fields:
+    description: 项目主要面向的科研/工程领域，可多选，可新增。
+    values:
+      ai_ml_algorithm_research: AI/ML 算法研究、模型训练、benchmark、ablation。
+      ai_agent_systems: Agent、multi-agent、tool-use、workflow/scaffold 研究。
+      biomedicine_drug_discovery: 生物医学、药物发现、疾病假设、组学数据分析。
+      wetlab_lab_automation: 湿实验、机器人实验、lab-in-the-loop 自动化。
+      materials_chemistry_physics: 材料、化学、物理、高能物理、DFT/仿真。
+      mathematical_scientific_discovery: 数学、形式科学、理论发现、符号推理。
+      social_science_reproducibility: 社会科学、统计表格、R/Stata replication package。
+      software_engineering: 通用代码 agent、repo 修复、CI、开发工作流。
+      scientific_infrastructure: MLflow/DVC/W&B/Snakemake/ReproZip/RO-Crate 等基础设施。
+      metascience_integrity_review: 科研诚信、审稿、claim audit、反幻觉 benchmark。
+      general_literature_research: Deep research、系统综述、文献检索和报告。
+  starting_points:
+    description: 系统通常从什么输入开始。
+    values:
+      topic_or_idea: 用户给一个研究方向或想法。
+      research_question: 用户给一个问题，系统做调研/综述。
+      paper_pdf_or_preprint: 输入一篇现有论文或预印本。
+      draft_paper: 输入待修改/待审稿论文草稿。
+      existing_code_repo: 输入作者代码仓或已有实验仓。
+      dataset_or_benchmark: 输入任务、数据集或 benchmark。
+      experiment_plan: 输入已经写好的实验计划。
+      disease_or_candidate: 输入疾病、靶点、候选分子或科学对象。
+      workflow_task: 输入一个工程/科研子任务。
+  primary_outputs:
+    description: 项目主要产出物。
+    values:
+      literature_report: 带引用的综述或研究报告。
+      hypothesis_or_idea: 研究假设、候选方法、候选药物/材料。
+      experiment_plan: 实验设计、baseline、ablation、metric、资源计划。
+      code_repo_or_patch: 代码仓、patch、adapter、tool wrapper。
+      training_run_results: 训练日志、评估指标、plots/checkpoints。
+      paper_draft_or_tex: 论文草稿、LaTeX、最终 paper。
+      review_or_rebuttal: 审稿意见、修订建议、rebuttal。
+      verified_claims: claim 状态、证据映射、验证报告。
+      reproduction_bundle: 可重放 bundle、capsule、release packet。
+      dashboard_or_lab_ui: 可视化实验室、artifact inspector、rollback/resume UI。
+      benchmark_scores: agent benchmark 评分、rubric、leaderboard。
+  workflow_scopes:
+    description: 流程覆盖范围，非层级，可多选。
+    values:
+      literature_to_report: 文献检索到长报告。
+      idea_to_paper: 研究想法到论文。
+      idea_to_experiment: 想法/假设到实验计划与运行。
+      paper_to_code: 论文到代码实现或仓库蓝图。
+      paper_to_reproduction: 现有论文到复现实验/复现报告。
+      repo_to_experiment: 已有 repo 到可运行实验。
+      experiment_to_claim: 实验结果映射回 claim。
+      claim_to_review_issue: claim/证据问题映射成审稿 issue、patch、rerun、closure。
+      lab_discovery_loop: 科学发现闭环，含人类湿实验或专用数据分析。
+      agent_runtime: 通用 agent 执行底座。
+      tracking_infrastructure: 数据、run、artifact、环境与 workflow tracking。
+  execution_depth:
+    description: 项目对真实执行的深入程度。
+    values:
+      text_only: 只做文本/RAG/报告，不执行实验代码。
+      code_generation_only: 生成代码但不保证训练复现。
+      smoke_test: 执行最小测试或 sanity run。
+      full_training_or_simulation: 运行完整训练/仿真/实验 sweep。
+      fresh_container_reproduction: 在干净容器中重跑验证。
+      wetlab_human_in_loop: AI 设计/分析，人类执行湿实验。
+      benchmark_grading: 作为 benchmark/评测执行器。
+      tracking_only: 记录和管理实验，不主动执行。
+  verification_models:
+    description: 项目如何判断结论可信。
+    values:
+      citation_grounding: 引用/文献证据校验。
+      claim_evidence_mapping: claim 映射到证据、实验或文献来源。
+      deterministic_verifier: 脚本、测试、schema、exit code、指标校验。
+      llm_reviewer: LLM 模拟 reviewer 或 critic。
+      cross_model_review: 不同模型族交叉审查。
+      adversarial_reviewer: 专门寻找反例/漏洞/不公平 baseline 的异议 agent。
+      human_gate: 人工批准、拒绝或裁决。
+      fresh_container_reproduction: 独立干净环境重跑。
+      artifact_hashing: artifact、数据、环境、commit 哈希。
+      attestation_protocol: typed attestation / ClaimAttestation。
+      rubric_grading: 可评分 rubric 或 benchmark 子任务。
+  accountability_features:
+    description: 可追责能力。
+    values:
+      claim_ledger: 主张账本，记录来源、证据需求、状态。
+      method_spec: 方法/算法/实验条件结构化。
+      experiment_spec: 实验契约，含数据、metric、seed、baseline、预算。
+      run_ledger: commit、env、data、seed、hardware、cmd、metric、artifact 的运行账本。
+      artifact_lineage: artifact 版本、哈希、输入输出关系。
+      provenance_graph: prompt、tool call、decision、artifact、下游影响图。
+      agent_trace: agent 决策、上下文、工具调用记录。
+      decision_log: 人类/AI 决策和理由记录。
+      review_issue_loop: review finding → issue/patch/rerun/closure。
+      release_bundle: 可公开审计或重放包。
+      failure_registry: 失败案例、root cause、修复和回归测试记录。
+  agent_topologies:
+    description: AI 角色/协作结构。
+    values:
+      single_agent: 单 agent 或单主模型。
+      orchestrator_workers: orchestrator 分配 worker。
+      specialist_agents: 文献、代码、统计、领域、审稿等专用 agent。
+      multi_agent_debate: debate/tournament/critique。
+      producer_verifier_split: 生产者与验证者分权。
+      judge_panel: 独立裁决者或 judge panel。
+      inspector_agent: 过程/协议检查者。
+      dynamic_roles: 根据任务和模型能力动态分配角色。
+      human_ai_team: 人类 PI/实验员与 AI 共同协作。
+  integration_styles:
+    description: 项目形态与接入方式。
+    values:
+      markdown_skills: SKILL.md / Markdown skill。
+      python_package: Python 包或 SDK。
+      cli: 命令行工具。
+      web_dashboard: Web UI / dashboard。
+      mcp_or_tool_protocol: MCP、tools、external agents。
+      github_native: GitHub repo / issues / actions / PR 流程。
+      notebook_or_script: notebook/script 原型。
+      external_platform_dependency: 依赖外部平台/API/闭源服务。
+      container_runtime: Docker/Apptainer/沙箱执行。
+      mlops_tracking_stack: MLflow/DVC/W&B 等 tracking stack。
+  maturity_signals:
+    description: 成熟度和可信度信号。
+    values:
+      popular_github: 较高 star/fork 或社区关注。
+      peer_reviewed_paper: 已有论文或正式出版。
+      benchmark_or_leaderboard: 有 benchmark/rubric/leaderboard。
+      reproducible_examples: 有可运行示例、tests、demo data。
+      active_development: 近期仍在维护。
+      external_evaluation: 有独立评估或第三方复现。
+      early_research_prototype: 早期研究原型。
+      closed_or_gated_dependency: 关键能力依赖 gated API/平台。
+      security_sensitive: 会执行 LLM 代码、接触密钥/外网/大算力。
+  risk_flags:
+    description: 调研时必须记录的风险。
+    values:
+      llm_generated_code_execution: 执行 LLM 生成代码。
+      unrestricted_network: 执行时网络未受限或需要外网。
+      secret_or_api_key_required: 需要 API key、token、私有平台。
+      unverified_claim_generation: 可能生成未绑定证据的 claim。
+      data_license_or_privacy: 数据许可、隐私或 PII 风险。
+      expensive_compute: GPU/集群/长时间训练成本高。
+      supply_chain_risk: 自动安装依赖/拉取代码/运行 remote code。
+      common_mode_model_failure: 多 agent 仍使用同源模型，可能共同幻觉。
+  fit_to_our_target:
+    description: 和 Accountable Research CI 的关系。
+    values:
+      core_competitor: 直接竞争，覆盖 claim/run/review/provenance 核心。
+      adjacent_competitor: 相邻竞争，覆盖 idea-to-paper 或 auto-research 主流程。
+      plugin_layer: 可作为 skill/tool/agent 插件层。
+      runtime_component: 可作为代码执行或实验运行底座。
+      benchmark_reference: 作为评测/回归测试参考。
+      infrastructure_component: 作为 tracking、provenance、bundle、workflow 基础设施。
+      risk_model: 提供风险分类、幻觉归因或审计模式。
+      domain_inspiration: 特定领域的 multi-agent 科学发现样板。
+      watch_only: 记录观察，暂不深入。
+      kernel_competitor: 直接触及 claim-state-kernel 核心抽象。
+      protocol_competitor: 提供 claim/provenance/attestation 协议层，可能与内核接口竞争。
+      governance_reference: 提供可借鉴治理模型。
+      claim_kernel_reference: 直接启发 claim lifecycle / verifier / evidence policy 设计。
+      research_os_competitor: 占据 research OS/workspace/dashboard 叙事。
+  kernel_primitives:
+    description: 是否触及 CairnLab 核心内核原语。
+    values:
+      claim_state_machine: 定义 claim 生命周期状态机。
+      evidence_policy_dsl: 定义每类 claim 所需证据策略。
+      verifier_certificate: verifier 输出可机器检查证书。
+      transition_authority: verifier/gate 证书是状态迁移授权者。
+      append_only_transition_log: 状态迁移以追加日志为真相来源。
+      decision_trace_package: 能导出完整决策追踪包。
+      human_liability_gate: 人类审批携带责任范围与理由。
+  claim_state_semantics:
+    description: claim 生命周期状态语义。
+    values:
+      draft: 草稿状态。
+      scoped: 已界定范围。
+      evidence_required: 需要证据。
+      evidence_attached: 已附证据。
+      verification_pending: 等待验证。
+      verified: 验证通过。
+      blocked: 被阻断。
+      challenged: 被质疑。
+      human_accepted: 人类承担责任后接受。
+      released: 发布。
+      downgraded: 降级。
+      retracted: 撤回。
+  lifecycle_stages:
+    description: AI/research lifecycle 阶段。
+    values:
+      design: 设计阶段。
+      development: 开发阶段。
+      evaluation: 评估阶段。
+      deployment_use: 部署/使用阶段。
+      publication: 发布阶段。
+      monitoring: 监控阶段。
+      downgrade_retraction: 降级/撤回阶段。
+  governance_controls:
+    description: 治理与责任控制。
+    values:
+      role_contract: 角色契约。
+      producer_verifier_isolation: 生产者和验证者隔离。
+      sealed_initial_judgment: 独立密封初判。
+      dissent_persistence: 异议保留。
+      material_dissent_block: 实质性异议阻断状态推进。
+      social_consensus_block: 社会共识不得覆盖 verifier。
+      risk_tiered_controls: 风险分级控制。
+      responsibility_assignment: 责任分配/RACI。
+      human_oversight_gate: 人类监督/审批闸门。
+      liability_scope: 责任范围记录。
+  risk_tiers:
+    description: claim 或 transition 的风险分层。
+    values:
+      low: 低风险。
+      medium: 中风险。
+      high: 高风险。
+      critical: 关键风险。
+  governance_alignment:
+    description: 与公共治理实践的结构性对齐，不代表合规声明。
+    values:
+      eu_ai_act_logging: EU AI Act 风格生命周期事件日志。
+      eu_ai_act_human_oversight: EU AI Act 风格按风险/自治程度/上下文配置人类监督。
+      nist_lifecycle_rmf: NIST AI RMF 风格 lifecycle risk management。
+      iso42001_aims: ISO/IEC 42001 风格 AI management system、角色责任、风险机会、持续改进。
+      aicat_machine_readable_registry: AICat 风格机器可读 AI system metadata/catalog。
+legacy_compatibility:
+  domain_categories: 旧版单列表分类，继续保留但不再作为唯一分类。
+  mechanism_tags: 旧版机制标签，映射到 facets 的 workflow/verification/accountability/agent/integration 多个轴。
+  center_object: 旧版中心对象，映射到 starting_points / primary_outputs / workflow_scopes。
+open_vocabulary_protocol:
+  when_to_add_new_facet:
+  - 项目提出了当前 taxonomy 没有覆盖的科学领域、流程范围、验证方式或组织形态。
+  - 该属性会影响我们如何比较项目或设计 Accountable Research CI。
+  - 至少两个项目可能共享这个属性，或者它对一个关键 deep dive 项目非常重要。
+  how_to_record_before_taxonomy_update: 在项目条目的 facets.custom_facets 中记录 {axis, value, rationale, source}，并在 reports/project_overview.md
+    的 Open Facets 部分列出。
+our_target:
+  name: CairnLab Research Claim Kernel
+  positioning: 不是 idea-to-paper、不是普通 CI、不是 provenance glue；是 claim lifecycle state machine + evidence policy + verifier certificate
+    + append-only transition log + governance/risk/responsibility + human liability gate。
+  must_have_facets:
+    kernel_primitives:
+    - claim_state_machine
+    - evidence_policy_dsl
+    - verifier_certificate
+    - transition_authority
+    - append_only_transition_log
+    - decision_trace_package
+    - human_liability_gate
+    verification_models:
+    - claim_evidence_mapping
+    - deterministic_verifier
+    - artifact_hashing
+    - attestation_protocol
+    accountability_features:
+    - claim_ledger
+    - experiment_spec
+    - run_ledger
+    - artifact_lineage
+    - provenance_graph
+    - decision_log
+    - release_bundle
+    governance_controls:
+    - role_contract
+    - producer_verifier_isolation
+    - dissent_persistence
+    - risk_tiered_controls
+    - responsibility_assignment
+    - human_oversight_gate
+    - liability_scope

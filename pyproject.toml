@@ -1,0 +1,13 @@
+[project]
+name = "cairnlab"
+version = "0.3.0"
+description = "Research Claim Kernel and AutoResearch landscape survey tools for accountable AI-assisted research"
+requires-python = ">=3.10"
+dependencies = ["PyYAML>=6.0", "pydantic>=2.0", "typer>=0.12", "rich>=13.0"]
+
+[project.scripts]
+cairn = "cairnlab.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["skills/autoresearch-landscape-survey/tests", "tests"]
+pythonpath = ["skills/autoresearch-landscape-survey/scripts", "src"]

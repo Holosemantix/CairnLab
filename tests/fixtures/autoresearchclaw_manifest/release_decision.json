@@ -1,0 +1,5 @@
+{
+  "id": "release_decision:R1",
+  "actor": "human:alice",
+  "decision": "allow"
+}

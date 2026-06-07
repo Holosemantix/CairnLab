@@ -1,0 +1,20 @@
+id: robin-new-check
+name: Robin
+aliases:
+  - Future-House/robin
+  - Robin multi-agent scientific discovery
+repo_url: https://github.com/Future-House/robin
+paper_url: https://www.nature.com/articles/s41586-026-10652-y
+summary: >-
+  A multi-agent scientific discovery system that integrates literature search agents and data analysis agents to generate hypotheses, propose experiments, interpret results, and update hypotheses in a lab-in-the-loop biomedical workflow.
+type: open_source_project_and_nature_paper
+observed_domain_categories:
+  - multi_agent_scientific_discovery
+  - lab_automation_wetlab
+observed_mechanism_tags:
+  - multi_agent_debate
+  - hitl_gate
+center_object: hypothesis_or_candidate
+notes: >-
+  Check if already in registry; likely close to Robin entry, not an external paper reproduction system.
+last_reviewed: 2026-06-01

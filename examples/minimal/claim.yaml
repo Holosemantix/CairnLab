@@ -1,0 +1,65 @@
+claim:
+  id: C1
+  text: "The demo script produces accuracy >= 0.90."
+  type: empirical_score
+  status: draft
+  metric:
+    name: accuracy
+    expected_min: 0.90
+
+policy:
+  id: empirical-score-v1
+  required_evidence:
+    - metric_artifact
+    - run_log
+  required_verifiers:
+    - artifact_exists
+    - metric_threshold
+  governance:
+    require_human_gate_for:
+      - release
+    block_if:
+      - material_dissent_unresolved
+      - verifier_failed
+
+
+lifecycle_context:
+  stage: evaluation
+  system_scope: local_research
+  autonomy_level: supervised_agentic
+  affected_parties:
+    - researchers
+
+responsibility_assignment:
+  object: claim:C1
+  action: release_claim
+  responsible:
+    - role: verifier
+      actor: system:metric-threshold@0.1.0
+  accountable:
+    - role: human_pi
+      actor: human:pi@example.org
+  consulted: []
+  informed:
+    - role: maintainer
+      actor: human:maintainer@example.org
+
+risk_assessment:
+  object: claim:C1
+  risk_tier: medium
+  dimensions:
+    scientific_validity: medium
+    reproducibility: medium
+    data_sensitivity: low
+    downstream_impact: low
+    autonomy_level: supervised_agentic
+  controls:
+    - require_human_gate_for_release
+    - block_if_verifier_failed
+
+assessment_records:
+  - id: ASSESS-ALG-1
+    object: claim:C1
+    assessment_type: algorithm
+    result: needs_more_evidence
+    evidence_refs: []

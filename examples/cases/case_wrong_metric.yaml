@@ -1,0 +1,175 @@
+case_id: case_wrong_metric
+source_system: synthetic_mlflow_like
+source_task: small_ml_reproduction
+stress_scenario: wrong_metric_path
+
+claims:
+  - id: claim:C1
+    text: "Method A improves baseline B by 2.3% on Dataset X test accuracy."
+    type: empirical_metric
+    state: released
+    scope:
+      dataset: dataset:dataset_x_test_v1
+      metric: accuracy
+      split: test
+    risk: medium
+    metadata:
+      paper_section: paper_section:results.table_1
+
+evidence:
+  - id: run:exp_007
+    type: run
+    uri: mlflow://runs/exp_007
+    status: valid
+    hash: sha256:run007
+    metadata:
+      framework: mlflow
+      actual_split_used: validation
+      intended_split: test
+  - id: metric:exp_007.accuracy
+    type: metric
+    uri: mlflow://runs/exp_007/metrics/accuracy
+    status: valid
+    hash: sha256:metric007
+    metadata:
+      metric_name: accuracy
+      value: 0.923
+      actual_split_used: validation
+      intended_split: test
+  - id: artifact:metrics_json_exp_007
+    type: artifact
+    uri: file://outputs/exp_007/metrics.json
+    status: valid
+    hash: sha256:metricsjson007
+    metadata:
+      path: outputs/exp_007/metrics.json
+  - id: dataset:dataset_x_test_v1
+    type: dataset
+    uri: s3://datasets/x/test/v1
+    status: valid
+    hash: sha256:datasetxtestv1
+    metadata:
+      split: test
+  - id: code:commit_abc123
+    type: code_commit
+    uri: git://repo@abc123
+    status: valid
+    hash: sha256:abc123
+    metadata:
+      commit: abc123
+  - id: paper_section:results.table_1
+    type: paper_section
+    uri: paper://results/table_1
+    status: valid
+    hash: null
+    metadata:
+      title: "Table 1: Main results"
+  - id: verifier:cert_001
+    type: verifier_certificate
+    uri: cairn://certs/001
+    status: valid
+    hash: sha256:cert001
+    metadata:
+      verifier: synthetic_verifier
+      verdict: pass
+  - id: human_gate:H1
+    type: human_gate
+    uri: cairn://human_gates/H1
+    status: valid
+    hash: null
+    metadata:
+      actor: user:alice
+      authority: project_owner
+      scope:
+        claim: claim:C1
+        run: run:exp_007
+        metric: metric:exp_007.accuracy
+      rationale: "Approved based on reported test accuracy."
+  - id: release_decision:R1
+    type: release_decision
+    uri: cairn://release/R1
+    status: valid
+    hash: null
+    metadata:
+      actor: user:alice
+      decision: allow
+      claim: claim:C1
+
+relations:
+  - id: rel:run_metric
+    source: run:exp_007
+    target: metric:exp_007.accuracy
+    type: computed
+    criticality: critical
+  - id: rel:metric_artifact
+    source: artifact:metrics_json_exp_007
+    target: metric:exp_007.accuracy
+    type: supports
+    criticality: critical
+  - id: rel:metric_claim
+    source: metric:exp_007.accuracy
+    target: claim:C1
+    type: supports
+    criticality: critical
+  - id: rel:dataset_run
+    source: dataset:dataset_x_test_v1
+    target: run:exp_007
+    type: depends_on
+    criticality: critical
+  - id: rel:code_run
+    source: code:commit_abc123
+    target: run:exp_007
+    type: depends_on
+    criticality: critical
+  - id: rel:claim_section
+    source: claim:C1
+    target: paper_section:results.table_1
+    type: contained_in
+    criticality: supporting
+  - id: rel:claim_verifier
+    source: verifier:cert_001
+    target: claim:C1
+    type: verified_by
+    criticality: supporting
+  - id: rel:claim_gate
+    source: human_gate:H1
+    target: claim:C1
+    type: approved_by
+    criticality: critical
+  - id: rel:claim_release
+    source: release_decision:R1
+    target: claim:C1
+    type: released_by
+    criticality: critical
+
+native_system_behavior:
+  can_restore_workspace_state: true
+  can_replay_or_fork_agent_state: unknown
+  can_identify_downstream_claims: false
+  can_invalidate_claims: false
+  can_downgrade_or_retract_released_claims: false
+  can_preserve_old_history_append_only: unknown
+  can_require_reapproval: false
+  can_export_machine_readable_revert_trace: false
+
+expected_cairnlab_behavior:
+  root: run:exp_007
+  affected_objects:
+    - metric:exp_007.accuracy
+    - claim:C1
+    - paper_section:results.table_1
+    - human_gate:H1
+    - release_decision:R1
+  proposed_transitions:
+    - EvidenceInvalidated:run:exp_007
+    - MetricInvalidated:metric:exp_007.accuracy
+    - ClaimDowngraded:claim:C1
+    - PaperSectionMarkedStale:paper_section:results.table_1
+    - HumanReapprovalRequired:human_gate:H1
+    - ReleaseDecisionReopened:release_decision:R1
+
+failure_classes:
+  - downstream_claim_not_invalidated
+  - paper_section_not_marked_stale
+  - release_decision_not_reopened
+  - human_scope_not_reopened

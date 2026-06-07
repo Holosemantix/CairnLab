@@ -1,0 +1,23 @@
+id: arc-new-check
+name: AutoResearchClaw
+aliases:
+  - aiming-lab/AutoResearchClaw
+  - ResearchClaw
+repo_url: https://github.com/aiming-lab/AutoResearchClaw
+paper_url: https://arxiv.org/abs/2605.20025
+summary: >-
+  A self-evolving autonomous research pipeline from idea to paper with 23 stages, skills, sandbox experiments, HITL, peer review, and anti-fabrication mechanisms.
+type: open_source_project_and_paper
+observed_domain_categories:
+  - idea_to_paper_pipeline
+  - skill_library
+observed_mechanism_tags:
+  - stage_pipeline
+  - runtime_skill_matcher
+  - self_healing
+  - hitl_gate
+  - claim_ledger
+center_object: topic_or_idea
+notes: >-
+  Should be detected as already surveyed.
+last_reviewed: 2026-06-01

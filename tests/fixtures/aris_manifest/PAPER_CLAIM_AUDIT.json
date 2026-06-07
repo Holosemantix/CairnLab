@@ -1,0 +1,8 @@
+{
+  "id": "verifier:paper_claim_audit",
+  "verdict": "PASS",
+  "inputs": [
+    "claim:C1",
+    "paper_section:results.table_1"
+  ]
+}

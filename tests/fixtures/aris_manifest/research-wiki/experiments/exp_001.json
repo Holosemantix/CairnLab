@@ -1,0 +1,16 @@
+{
+  "id": "exp_001",
+  "status": "completed",
+  "verdict": "supports",
+  "metrics": {
+    "accuracy": 0.923,
+    "loss": 0.211
+  },
+  "artifacts": [
+    {
+      "id": "artifact:experiment_log",
+      "uri": "file://EXPERIMENT_LOG.md",
+      "sha256": "sha256:experimentlog"
+    }
+  ]
+}

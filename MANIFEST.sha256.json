@@ -1,0 +1,352 @@
+[
+  {
+    "path": ".pytest_cache/.gitignore",
+    "sha256": "3ed731b65d06150c138e2dadb0be0697550888a6b47eb8c45ecc9adba8b8e9bd",
+    "bytes": 37
+  },
+  {
+    "path": ".pytest_cache/CACHEDIR.TAG",
+    "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4",
+    "bytes": 191
+  },
+  {
+    "path": ".pytest_cache/README.md",
+    "sha256": "73fd6fccdd802c419a6b2d983d6c3173b7da97558ac4b589edec2dfe443db9ad",
+    "bytes": 302
+  },
+  {
+    "path": ".pytest_cache/v/cache/lastfailed",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "bytes": 2
+  },
+  {
+    "path": ".pytest_cache/v/cache/nodeids",
+    "sha256": "1b348a54a269d0d8ecf5b7b91585949d3a973577ff2f8945c5b649314e6de89b",
+    "bytes": 448
+  },
+  {
+    "path": "AGENTS.md",
+    "sha256": "26d639d993303d00261ae22dadf8a539ed1816c302c09fe75572ce21e8663228",
+    "bytes": 2607
+  },
+  {
+    "path": "README.md",
+    "sha256": "1854ac2d53125cc096cdfffc281f56b6b5ee97f7f43d65fb67b92258f678bdd8",
+    "bytes": 4873
+  },
+  {
+    "path": "THIRD_PARTY_LICENSES.md",
+    "sha256": "10c0454f69f3bd77725737b80623ea61520f2e1f88cddf817084389e0a7bb6d3",
+    "bytes": 278
+  },
+  {
+    "path": "data/project_registry.json",
+    "sha256": "13197a120f1a38615e1b1439e8e068095100bd30b1d799a85383855d94744ab5",
+    "bytes": 140527
+  },
+  {
+    "path": "data/project_registry.yaml",
+    "sha256": "3004f67d6565a5192cb26c9b1bb2ba1c061cc80005bccd28be5a1ca3b5dd3ed3",
+    "bytes": 102007
+  },
+  {
+    "path": "data/taxonomy.yaml",
+    "sha256": "950c3999453760cc2681821a61f630c233183f9903368611be0f9c8fbd835ca7",
+    "bytes": 15484
+  },
+  {
+    "path": "docs/ARCHITECTURE.md",
+    "sha256": "08a08707d1344ab3dbf43ee3fb4ad16a1a713eb6836de8cef8bb868a82be722e",
+    "bytes": 4474
+  },
+  {
+    "path": "docs/CODEX_BOOTSTRAP_PROMPT.md",
+    "sha256": "596b86ad5a2bb659993d7f1d2933fa4ed2a361869f461957dd5a2e3ba4039f88",
+    "bytes": 2995
+  },
+  {
+    "path": "docs/EU_AI_ACT_PRACTICE_NOTES.md",
+    "sha256": "9dca5a08c98abe5d2a02203a0b089518a1777353facf584ec6d662685d26943b",
+    "bytes": 2692
+  },
+  {
+    "path": "docs/FILE_UPGRADE_AUDIT.md",
+    "sha256": "9ea14beb489f6ec01b8f9fe038dc9ce61d3c40236f08188fb2d2eee7d5063606",
+    "bytes": 4857
+  },
+  {
+    "path": "docs/GOVERNANCE_ALIGNMENT.md",
+    "sha256": "bc784e78048fba355600ac4640227a25cb3903a18002ae3d4e36fc4985be67dd",
+    "bytes": 8327
+  },
+  {
+    "path": "docs/KERNEL_SPEC.md",
+    "sha256": "ed183a3de02c571c69d720986cb3842ad1928419022c94fe6c2ad1b69626191d",
+    "bytes": 7668
+  },
+  {
+    "path": "docs/LANDSCAPE_IMPLICATIONS.md",
+    "sha256": "bd75a23ddf98ab1adcba88986b7af47cf36cc142ca757649734e4744eac11bfb",
+    "bytes": 2449
+  },
+  {
+    "path": "docs/PROJECT_POSITIONING.md",
+    "sha256": "92fc2c60fab350c735cc429d953772ca261d17257aba5d15ea534dd2e5628b80",
+    "bytes": 4350
+  },
+  {
+    "path": "docs/ROADMAP.md",
+    "sha256": "901e735ef6154454ec04eaf2b70fab0feb7deaaf84afc7f837cf365a39f2f90d",
+    "bytes": 4130
+  },
+  {
+    "path": "docs/source-summaries/governance_sources.md",
+    "sha256": "be4de7942794347940b0e520c8af5df26bdfed91a7473ef1915a89f46c18e566",
+    "bytes": 1243
+  },
+  {
+    "path": "docs/source-summaries/summary.md",
+    "sha256": "b3e9c7a8a467cbcc7ff152cb96b504458fdcc65427161047b50537ae90ad4632",
+    "bytes": 1172
+  },
+  {
+    "path": "examples/minimal/claim.yaml",
+    "sha256": "187bff0a56643220c8dbb72cfa479ab2cb55911b2420857c86450741b711dbd1",
+    "bytes": 1362
+  },
+  {
+    "path": "pyproject.toml",
+    "sha256": "3f6134f59b95bfd2df95d87867f99d310815bb840217db6f3c7dc0f2d3644283",
+    "bytes": 475
+  },
+  {
+    "path": "reports/ai_landscape_report_prompt.md",
+    "sha256": "ac482abda7ff7b68ec51530148848bb798ee5abaca6595082e21154a906aa06b",
+    "bytes": 75346
+  },
+  {
+    "path": "reports/intake/hypothetical-evidence-court_ai_review_prompt.md",
+    "sha256": "d97b39317c5ccc8a4fe52f4759ca5a9599d7ec9d48cb548ae476ae6712f8e3da",
+    "bytes": 22001
+  },
+  {
+    "path": "reports/landscape_report.md",
+    "sha256": "7f5e72805ae0c0d646943d36b06fb5b9958f1fe8d5e04524ecb7e1b0739b1df2",
+    "bytes": 59308
+  },
+  {
+    "path": "reports/project_overview.md",
+    "sha256": "84b3efe94f18c494d71bf5130651e5de20403fa06b1337717a35a6c57a1c5a7b",
+    "bytes": 86799
+  },
+  {
+    "path": "schemas/claim.schema.json",
+    "sha256": "24102657454cee25fb9ced1f93166cf7fce7b26c507eb723e84c39dba5c62157",
+    "bytes": 369
+  },
+  {
+    "path": "schemas/evidence_policy.schema.json",
+    "sha256": "2699964838ae104d5b63c2c84095c764cc9004894b624f4f4fa00a296ec2fdbf",
+    "bytes": 472
+  },
+  {
+    "path": "schemas/responsibility_assignment.schema.json",
+    "sha256": "f6d76024e226e753c185f63e9083a5ce84639333b589cdfef8475ccb0b2d5db3",
+    "bytes": 422
+  },
+  {
+    "path": "schemas/risk_assessment.schema.json",
+    "sha256": "67ff04e9101416df13743a797e7a53fd61caf37fed8f74dc1b707fe2ea312506",
+    "bytes": 531
+  },
+  {
+    "path": "schemas/state_transition.schema.json",
+    "sha256": "2dcf6d6cdf4877b953ddee140f85623608e81074e8d950be989744fcc12a2a62",
+    "bytes": 497
+  },
+  {
+    "path": "schemas/verifier_certificate.schema.json",
+    "sha256": "6d7bf1372a7e4194810af673db66e5f3114b2d80d96a164db5f630547567523d",
+    "bytes": 541
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/SKILL.md",
+    "sha256": "674ab6ce624c5dc78bd417747e6a4f2f082a24caebb0fa0f708fdc59516b74e2",
+    "bytes": 6088
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/assets/templates/comparison_report.md",
+    "sha256": "0a433afc338ec021a429eef51cd6d3ff8927ff7a68d55291a7ca57d141ee7ce0",
+    "bytes": 239
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/assets/templates/deep_dive_report.md",
+    "sha256": "bb3c6b796c9421f07217b25dea0501587ee6e8cbebfd7253a99faf0d0c21485d",
+    "bytes": 352
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/assets/templates/new_project_intake.yaml",
+    "sha256": "7fec559fabdc4560ee6b6063f160865593b22bcc43663a70c38fd61836d9ae9c",
+    "bytes": 1285
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/assets/templates/project_card.md",
+    "sha256": "897173a0b4c49343917948ea5a8eb00f55ba8eaa7a314952142f515778a96d6c",
+    "bytes": 336
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/examples/new_project_autoresearchclaw.yaml",
+    "sha256": "2360bba625b4272a86a069e3a532c2b7409fb9342806784ebce0ad540febd215",
+    "bytes": 709
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/examples/new_project_cairnlab_claim_kernel.yaml",
+    "sha256": "754ba3fadb15a73239a6daf8af893351e5400cfe959c9ed86c06276ea3a7769b",
+    "bytes": 928
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/examples/new_project_hypothetical_evidence_court.yaml",
+    "sha256": "6150d6a2faef0a6ad088575d7a982bd2a29dcb52d7e4ac3bdfa59f85d6ca35df",
+    "bytes": 1670
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/examples/new_project_robin.yaml",
+    "sha256": "462e3dcd571147e25a31a4e455e3a9e587dd60fe77f3d2c90e93824c7b602808",
+    "bytes": 842
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/prompts/ai_deep_dive_prompt.md",
+    "sha256": "b839b74c7881635860265cb4ce6525a1446c28c6740383e3759edd927c5c3b40",
+    "bytes": 878
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/prompts/ai_new_project_analysis_prompt.md",
+    "sha256": "211d7989dfa63f690af3ea43c574de44613040446ec4cc6e342ca5fba3f9d5f1",
+    "bytes": 2717
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/prompts/ai_overview_update_prompt.md",
+    "sha256": "27402bbda34636a4370d9946acb3c3cce9cd8366ea5c34704de4d8d0cae51be9",
+    "bytes": 634
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/prompts/ai_project_attribute_extraction_prompt.md",
+    "sha256": "0d5a196db9ee76fbf4c2c8654458ee88823d51686c74b5b5269a5d8fefde02d0",
+    "bytes": 936
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/prompts/ai_report_synthesis_prompt.md",
+    "sha256": "c3e52eddb0d533f9b9555596c08af2f80c1e398a185b24912952de698761d0fc",
+    "bytes": 1336
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/ai-assisted-update-workflow.md",
+    "sha256": "990c34857a370049715151baa8b75aef7ed51491e0e98027286272425bbe746d",
+    "bytes": 2878
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/comparison-axes.md",
+    "sha256": "9c8fc87e323ad7691feae441bcadf54ab1f91fe1292af5e36a9c3e9856c19020",
+    "bytes": 2702
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/deep-dive-protocol.md",
+    "sha256": "79075148b77701ab1a0d4e353beb54ed68d08e3dc250d4ec21dcdc39464a1aa3",
+    "bytes": 1253
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/deep-dives/accountability-layer.md",
+    "sha256": "e6ef68c0e5b82f868215d5d431447bd2c3dd52ed3ea5efa42043917fe5c5c828",
+    "bytes": 2319
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/deep-dives/aris.md",
+    "sha256": "c5a1622d77e807e8aab8474fb199523ba77aa5557cdcc125eb0d2564f8e66d25",
+    "bytes": 2479
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/deep-dives/autoresearchclaw.md",
+    "sha256": "958bfd50b5150842a27fc48491edbca82a476e979a77e967a4edabb32dc66cf1",
+    "bytes": 2648
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/deep-dives/paperbench-and-reproduction-benchmarks.md",
+    "sha256": "308bf1c3e3feca5ef5966fe5972daa4cff34d098a056502d24a80529d76a3daa",
+    "bytes": 1602
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/deep-dives/robin.md",
+    "sha256": "e5ce14ce76f7bd506c890717a19ba061b050f43376ecd653f5e369f32cdc5148",
+    "bytes": 1963
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/deep-dives/scientific-agent-skills-ml-ai.md",
+    "sha256": "e0fc3380049a6ef3bd4506c308a4da1a36d8532a6e5287a5d0ced11a2d05cdc7",
+    "bytes": 1961
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/new-project-checklist.md",
+    "sha256": "a0f3d3998829f38985ee991fb084f25b42b06bf6d42b5b1a9598af40bd4514f5",
+    "bytes": 2634
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/our-positioning.md",
+    "sha256": "a284bd974ff64d400ffe5e3ed9fece4faeee6d0cf0f75a2dacf9116a09b2323d",
+    "bytes": 1188
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/project-map.md",
+    "sha256": "649fa0bcd8b41a15fb01ed5fc4921421ca21e9d935909cf445ae4b18b7618967",
+    "bytes": 2884
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/references/taxonomy.md",
+    "sha256": "943c90cc9831bef60c2965436f57a49ac256d7ad9ef74b5816f18dd2f06c183b",
+    "bytes": 3931
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/scripts/check_new_project.py",
+    "sha256": "0ce02c13929daa4f9577f457664076c335e526e285c861d57bb5203c717d6b74",
+    "bytes": 11597
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/scripts/classify_project_from_yaml.py",
+    "sha256": "469b27f2b8096d38f436a815073d3056e17548226d9f5f4ee4c6df42b91ea950",
+    "bytes": 15035
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/scripts/prepare_ai_project_review.py",
+    "sha256": "713ac271497185f5aea19933266e5a8a800b3fc14955a2c800e361324775dee0",
+    "bytes": 5248
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/scripts/prepare_ai_report_prompt.py",
+    "sha256": "2a066d607ef27c3f2592545b72e219c7b7eb7e556b34c118e13f02e7086336c7",
+    "bytes": 2654
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/scripts/render_landscape_report.py",
+    "sha256": "e95fa90bbd261c3eebd2adef123597f38100ae458d7a4a4ff33502f4914d5e89",
+    "bytes": 5269
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/scripts/render_project_overview.py",
+    "sha256": "81974ac1c087e9dd2dfb9b9d2985ac470e1166b8f9503dc7059f8b2352d0de19",
+    "bytes": 5716
+  },
+  {
+    "path": "skills/autoresearch-landscape-survey/tests/test_check_new_project.py",
+    "sha256": "e185fedd5045ad25be504636b0871c6e0238d0603511a4d361dc440c5c5b32e7",
+    "bytes": 2311
+  },
+  {
+    "path": "src/cairnlab/__init__.py",
+    "sha256": "56b5e91c3bb77ab933c25fd65eba883419bdc5691cc94cb9dc840e8f4e3674eb",
+    "bytes": 22
+  },
+  {
+    "path": "src/cairnlab/cli.py",
+    "sha256": "d477a0583dd2e8ea4449544e015acf23ab01a603e552cfa9b46ed9a786965e65",
+    "bytes": 331
+  }
+]

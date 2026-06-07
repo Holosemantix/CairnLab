@@ -1,0 +1,36 @@
+{
+  "case_id": "arc-manifest-wrong-metric",
+  "run_id": "exp_007",
+  "task_id": "arc_bench_ml03",
+  "stress_scenario": "wrong_metric_path",
+  "metric_key": "accuracy",
+  "metric_direction": "maximize",
+  "claim": {
+    "id": "claim:C1",
+    "text": "Method A improves baseline B by 2.3% on Dataset X test accuracy.",
+    "type": "empirical_metric",
+    "state": "released",
+    "risk": "medium",
+    "scope": {
+      "dataset": "dataset:dataset_x_test_v1",
+      "metric": "accuracy",
+      "split": "test"
+    },
+    "metadata": {
+      "paper_section": "paper_section:results.table_1"
+    }
+  },
+  "best_run": {
+    "id": "exp_007",
+    "metrics": {
+      "accuracy": 0.923,
+      "loss": 0.211
+    }
+  },
+  "artifacts": [
+    {
+      "id": "artifact:metrics_json_exp_007",
+      "path": "metrics.json"
+    }
+  ]
+}

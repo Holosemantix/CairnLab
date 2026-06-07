@@ -1,0 +1,59 @@
+id: hypothetical-evidence-court
+name: Evidence Court Agent
+aliases:
+  - EvidenceCourt
+repo_url: https://github.com/example/evidence-court-agent
+short_description: Hypothetical multi-agent court that turns paper claims into evidence objects, assigns prosecutors/defenders/judges, runs experiments, and closes review findings only after reruns pass.
+claimed_capabilities:
+  - claim ledger
+  - run ledger
+  - judge panel
+  - review finding to issue and rerun closure
+facets:
+  research_fields:
+    - metascience_integrity_review
+    - ai_agent_systems
+  starting_points:
+    - paper_pdf_or_preprint
+    - existing_code_repo
+  primary_outputs:
+    - verified_claims
+    - review_or_rebuttal
+    - reproduction_bundle
+  workflow_scopes:
+    - paper_to_reproduction
+    - experiment_to_claim
+    - claim_to_review_issue
+  execution_depth:
+    - fresh_container_reproduction
+  verification_models:
+    - claim_evidence_mapping
+    - deterministic_verifier
+    - adversarial_reviewer
+    - artifact_hashing
+  accountability_features:
+    - claim_ledger
+    - experiment_spec
+    - run_ledger
+    - artifact_lineage
+    - provenance_graph
+    - review_issue_loop
+  agent_topologies:
+    - producer_verifier_split
+    - judge_panel
+    - inspector_agent
+  integration_styles:
+    - cli
+    - container_runtime
+  maturity_signals:
+    - early_research_prototype
+  risk_flags:
+    - llm_generated_code_execution
+    - expensive_compute
+  fit_to_our_target:
+    - core_competitor
+  custom_facets:
+    - axis: agent_topologies
+      value: prosecutor_defender_judge_court
+      rationale: Uses legal-style adversarial roles beyond ordinary reviewer panels.
+center_object: paper_claim

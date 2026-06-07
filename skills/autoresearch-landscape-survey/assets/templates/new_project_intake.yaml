@@ -1,0 +1,51 @@
+# Copy this file when investigating a new project.
+id: new-project-id
+name: New Project Name
+aliases: []
+repo_url: https://github.com/org/repo
+paper_url:
+project_url:
+urls: []
+short_description:
+claimed_capabilities: []
+notes_from_initial_scan: []
+
+# Optional legacy fields for backward compatibility.
+observed_domain_categories: []
+observed_mechanism_tags: []
+center_object:
+
+# Preferred multi-facet fields. Fill what you know; scripts and AI analyst can infer the rest.
+facets:
+  research_fields: []
+  starting_points: []
+  primary_outputs: []
+  workflow_scopes: []
+  execution_depth: []
+  verification_models: []
+  accountability_features: []
+  agent_topologies: []
+  integration_styles: []
+  maturity_signals: []
+  risk_flags: []
+  fit_to_our_target: []
+  custom_facets: []
+
+# What should the AI analyst read?
+source_reading_plan:
+  priority_files:
+    - README.md
+    - docs/
+    - skills/
+    - prompts/
+    - agents/
+    - examples/
+    - tests/
+    - pyproject.toml
+    - Dockerfile
+  questions:
+    - What is advertised vs demonstrated?
+    - Does the project execute code/training or only produce text?
+    - Does it have claim/run/artifact/provenance/review issue objects?
+    - What are the closest existing projects in our registry?
+    - Does it introduce any new facet?

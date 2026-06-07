@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TransitionEvent",
+  "type": "object",
+  "required": ["id", "type", "target", "actor", "reason", "created_at"],
+  "properties": {
+    "id": { "type": "string" },
+    "type": { "type": "string" },
+    "target": { "type": "string" },
+    "actor": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "role": { "type": "string" },
+        "authority": { "type": ["string", "null"] }
+      }
+    },
+    "reason": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "previous_state": { "type": ["string", "null"] },
+    "new_state": { "type": ["string", "null"] },
+    "caused_by": { "type": ["string", "null"] },
+    "input_hash": { "type": ["string", "null"] },
+    "payload": { "type": "object" }
+  }
+}

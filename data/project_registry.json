@@ -1,0 +1,4976 @@
+{
+  "version": "0.3.0",
+  "last_updated": "2026-06-03",
+  "projects": [
+    {
+      "id": "autoresearchclaw",
+      "name": "AutoResearchClaw",
+      "aliases": [
+        "ARC",
+        "ResearchClaw",
+        "aiming-lab/AutoResearchClaw",
+        "Holosemantix/AutoResearchClaw"
+      ],
+      "depth": "deep",
+      "type": "open_source_project",
+      "domain_categories": [
+        "idea_to_paper_pipeline",
+        "skill_library",
+        "review_integrity_audit"
+      ],
+      "mechanism_tags": [
+        "stage_pipeline",
+        "runtime_skill_matcher",
+        "sandbox_runner",
+        "self_healing",
+        "pivot_refine",
+        "hitl_gate",
+        "cross_model_review",
+        "artifact_lineage",
+        "claim_ledger"
+      ],
+      "center_object": "topic_or_idea",
+      "coverage": {
+        "literature_grounding": 5,
+        "claim_method_extraction": 3,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 4,
+        "training_execution": 4,
+        "result_analysis": 4,
+        "review_feedback": 4,
+        "evidence_binding": 3,
+        "provenance_traceability": 3,
+        "human_in_the_loop": 4,
+        "external_paper_reproduction": 2
+      },
+      "our_relevance": 5,
+      "summary": "万星级 idea-to-paper 自动科研流水线；23-stage pipeline、skills、sandbox experiments、multi-agent review、VerifiedRegistry/HITL/self-healing 是重要对标。",
+      "differentiators": [
+        "stage/context skill matcher",
+        "6 类 HITL 模式",
+        "PIVOT/REFINE 决策",
+        "多领域 execution agents 与 ARC-Bench"
+      ],
+      "gaps_vs_our_target": [
+        "中心对象仍是 topic/idea 到 paper，不是外部论文 claim-by-claim 复现审计",
+        "claim verification 更偏防生成文本幻觉，不等同于 run-level evidence ledger",
+        "review finding 尚未系统化为 issue/patch/rerun/closure"
+      ],
+      "sources": [
+        "https://github.com/aiming-lab/AutoResearchClaw",
+        "https://github.com/Holosemantix/AutoResearchClaw/blob/lyr_ar_devi/docs/skills/README_CN.md"
+      ],
+      "detailed_analysis": "skills/autoresearch-landscape-survey/references/deep-dives/autoresearchclaw.md",
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research",
+          "metascience_integrity_review",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "topic_or_idea"
+        ],
+        "primary_outputs": [
+          "hypothesis_or_idea",
+          "paper_draft_or_tex",
+          "review_or_rebuttal",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "claim_to_review_issue",
+          "idea_to_experiment",
+          "idea_to_paper",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "full_training_or_simulation",
+          "smoke_test"
+        ],
+        "verification_models": [
+          "artifact_hashing",
+          "citation_grounding",
+          "claim_evidence_mapping",
+          "cross_model_review",
+          "human_gate"
+        ],
+        "accountability_features": [
+          "artifact_lineage",
+          "claim_ledger",
+          "failure_registry"
+        ],
+        "agent_topologies": [
+          "human_ai_team",
+          "orchestrator_workers"
+        ],
+        "integration_styles": [
+          "cli",
+          "container_runtime",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development",
+          "reproducible_examples"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution",
+          "unverified_claim_generation"
+        ],
+        "fit_to_our_target": [
+          "adjacent_competitor"
+        ],
+        "custom_facets": [],
+        "governance_controls": [
+          "producer_verifier_isolation",
+          "dissent_persistence"
+        ]
+      }
+    },
+    {
+      "id": "aris",
+      "name": "ARIS / Auto-claude-code-research-in-sleep",
+      "aliases": [
+        "Auto-Research-In-Sleep",
+        "Auto-claude-code-research-in-sleep",
+        "wanshuiyin/Auto-claude-code-research-in-sleep",
+        "ARIS"
+      ],
+      "depth": "deep",
+      "type": "open_source_project",
+      "domain_categories": [
+        "skill_native_research_harness",
+        "skill_library",
+        "idea_to_paper_pipeline"
+      ],
+      "mechanism_tags": [
+        "markdown_skill",
+        "orchestrator_skill",
+        "research_wiki",
+        "result_to_claim",
+        "cross_model_review",
+        "experiment_bridge",
+        "evidence_gate",
+        "adversarial_review"
+      ],
+      "center_object": "research_workflow",
+      "coverage": {
+        "literature_grounding": 5,
+        "claim_method_extraction": 4,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 4,
+        "training_execution": 4,
+        "result_analysis": 4,
+        "review_feedback": 5,
+        "evidence_binding": 4,
+        "provenance_traceability": 3,
+        "human_in_the_loop": 4,
+        "external_paper_reproduction": 2
+      },
+      "our_relevance": 5,
+      "summary": "Markdown-only skill harness，强调 cross-model review、experiment bridge、research wiki、result-to-claim、paper claim audit。",
+      "differentiators": [
+        "轻量可移植，无固定 runtime stage engine",
+        "Research Wiki 记录 Paper/Idea/Experiment/Claim 图",
+        "reviewer 和 verifier 与 executor 分权"
+      ],
+      "gaps_vs_our_target": [
+        "更偏自己的研究推进和 paper improvement",
+        "claim/evidence/provenance 多依赖 Markdown/wiki 约定，强类型 ledger 还不够硬",
+        "外部 paper-to-reproduction 不是核心入口"
+      ],
+      "sources": [
+        "https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep",
+        "https://github.com/Holosemantix/Auto-claude-code-research-in-sleep/blob/lyr_ai_dev/docs/skills/README_CN.md"
+      ],
+      "detailed_analysis": "skills/autoresearch-landscape-survey/references/deep-dives/aris.md",
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "workflow_task"
+        ],
+        "primary_outputs": [
+          "code_repo_or_patch",
+          "experiment_plan",
+          "review_or_rebuttal",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "experiment_to_claim",
+          "idea_to_experiment",
+          "idea_to_paper",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "full_training_or_simulation"
+        ],
+        "verification_models": [
+          "adversarial_reviewer",
+          "citation_grounding",
+          "claim_evidence_mapping",
+          "cross_model_review",
+          "deterministic_verifier"
+        ],
+        "accountability_features": [
+          "agent_trace"
+        ],
+        "agent_topologies": [
+          "judge_panel",
+          "orchestrator_workers"
+        ],
+        "integration_styles": [
+          "cli",
+          "markdown_skills",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development",
+          "reproducible_examples"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "adjacent_competitor"
+        ],
+        "custom_facets": [],
+        "governance_controls": [
+          "producer_verifier_isolation",
+          "dissent_persistence"
+        ]
+      }
+    },
+    {
+      "id": "scientific-agent-skills",
+      "name": "scientific-agent-skills / ML-AI skill authoring",
+      "aliases": [
+        "K-Dense-AI/scientific-agent-skills",
+        "Holosemantix/scientific-agent-skills",
+        "ML AI Skill Authoring"
+      ],
+      "depth": "deep",
+      "type": "skill_guide",
+      "domain_categories": [
+        "skill_library"
+      ],
+      "mechanism_tags": [
+        "markdown_skill",
+        "sandbox_runner"
+      ],
+      "center_object": "research_workflow",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 1,
+        "experiment_design": 2,
+        "code_generation_or_adaptation": 3,
+        "training_execution": 3,
+        "result_analysis": 2,
+        "review_feedback": 1,
+        "evidence_binding": 1,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 4,
+      "summary": "高质量 skill 编写范式：SKILL.md 做路由，references 放长决策，scripts 放稳定 scaffold，tests 放验证。适合作为我们调查 skill 仓库的结构样板。",
+      "differentiators": [
+        "强调工具级 SOP 与可验证模板",
+        "防 agent 猜 API/数据格式/版本约束",
+        "适合作为局部专家层，不是研究操作系统"
+      ],
+      "gaps_vs_our_target": [
+        "没有 claim ledger、run ledger、review issue loop",
+        "不负责端到端 paper-to-run-to-review"
+      ],
+      "sources": [
+        "https://github.com/Holosemantix/scientific-agent-skills/tree/lyr_ai_dev/docs/ml-ai-skill-authoring"
+      ],
+      "detailed_analysis": "skills/autoresearch-landscape-survey/references/deep-dives/scientific-agent-skills-ml-ai.md",
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "workflow_task"
+        ],
+        "primary_outputs": [
+          "experiment_plan",
+          "review_or_rebuttal"
+        ],
+        "workflow_scopes": [
+          "agent_runtime"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [],
+        "accountability_features": [],
+        "agent_topologies": [],
+        "integration_styles": [
+          "container_runtime",
+          "markdown_skills"
+        ],
+        "maturity_signals": [
+          "reproducible_examples"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "plugin_layer"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "robin",
+      "name": "Robin / Future House",
+      "aliases": [
+        "Future-House/robin",
+        "Robin multi-agent scientific discovery"
+      ],
+      "depth": "deep",
+      "type": "open_source_project_and_nature_paper",
+      "domain_categories": [
+        "multi_agent_scientific_discovery",
+        "lab_automation_wetlab"
+      ],
+      "mechanism_tags": [
+        "multi_agent_debate",
+        "inspector_agent",
+        "hitl_gate"
+      ],
+      "center_object": "hypothesis_or_candidate",
+      "coverage": {
+        "literature_grounding": 5,
+        "claim_method_extraction": 2,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 2,
+        "training_execution": 2,
+        "result_analysis": 4,
+        "review_feedback": 2,
+        "evidence_binding": 3,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 5,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 4,
+      "summary": "多 agent 生物医学发现系统，编排文献 agent 与数据分析 agent，提出假设、实验、结果解释与 follow-up；证明 lab-in-the-loop 科学发现可行。",
+      "differentiators": [
+        "Crow/Falcon/Finch 等专用 agent 编排",
+        "湿实验由人执行，AI 负责 intellectual loop",
+        "GitHub 依赖 Edison 平台 key，完整本地复现受限"
+      ],
+      "gaps_vs_our_target": [
+        "中心是疾病候选发现，不是论文复现 CI",
+        "没有通用 paper claim/run/review ledger",
+        "开源 repo 依赖外部平台访问"
+      ],
+      "sources": [
+        "https://www.nature.com/articles/s41586-026-10652-y",
+        "https://github.com/Future-House/robin"
+      ],
+      "detailed_analysis": "skills/autoresearch-landscape-survey/references/deep-dives/robin.md",
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "biomedicine_drug_discovery",
+          "general_literature_research",
+          "wetlab_lab_automation"
+        ],
+        "starting_points": [
+          "disease_or_candidate",
+          "topic_or_idea"
+        ],
+        "primary_outputs": [
+          "hypothesis_or_idea"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "lab_discovery_loop"
+        ],
+        "execution_depth": [
+          "smoke_test",
+          "wetlab_human_in_loop"
+        ],
+        "verification_models": [
+          "citation_grounding",
+          "deterministic_verifier",
+          "human_gate"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "human_ai_team",
+          "inspector_agent",
+          "multi_agent_debate"
+        ],
+        "integration_styles": [
+          "cli",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development",
+          "peer_reviewed_paper",
+          "reproducible_examples"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "domain_inspiration"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "ai-scientist-v2",
+      "name": "The AI Scientist v2",
+      "aliases": [
+        "SakanaAI/AI-Scientist-v2",
+        "AI Scientist v2"
+      ],
+      "depth": "medium",
+      "type": "open_source_project_and_paper",
+      "domain_categories": [
+        "idea_to_paper_pipeline"
+      ],
+      "mechanism_tags": [
+        "stage_pipeline",
+        "sandbox_runner",
+        "self_healing",
+        "multi_agent_debate"
+      ],
+      "center_object": "topic_or_idea",
+      "coverage": {
+        "literature_grounding": 4,
+        "claim_method_extraction": 2,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 4,
+        "training_execution": 4,
+        "result_analysis": 4,
+        "review_feedback": 3,
+        "evidence_binding": 2,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 4,
+      "summary": "自动科学发现代表项目，v2 减少模板依赖，强调 agentic tree search；需要重点关注安全和可验证性不足。",
+      "differentiators": [
+        "假设/实验/论文全链条",
+        "强调去模板化"
+      ],
+      "gaps_vs_our_target": [
+        "不是 paper-first reproduction",
+        "缺强 claim/run/evidence/review issue ledger"
+      ],
+      "sources": [
+        "https://github.com/SakanaAI/AI-Scientist-v2"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research"
+        ],
+        "starting_points": [
+          "topic_or_idea"
+        ],
+        "primary_outputs": [
+          "hypothesis_or_idea",
+          "paper_draft_or_tex",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "idea_to_paper",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "full_training_or_simulation",
+          "smoke_test"
+        ],
+        "verification_models": [
+          "citation_grounding"
+        ],
+        "accountability_features": [
+          "failure_registry"
+        ],
+        "agent_topologies": [
+          "multi_agent_debate",
+          "orchestrator_workers"
+        ],
+        "integration_styles": [
+          "cli",
+          "container_runtime",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development",
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "adjacent_competitor"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "ai-scientist-v1",
+      "name": "The AI Scientist",
+      "aliases": [
+        "SakanaAI/AI-Scientist",
+        "AI Scientist v1"
+      ],
+      "depth": "medium",
+      "type": "open_source_project_and_paper",
+      "domain_categories": [
+        "idea_to_paper_pipeline"
+      ],
+      "mechanism_tags": [
+        "stage_pipeline",
+        "sandbox_runner",
+        "reviewer_panel"
+      ],
+      "center_object": "topic_or_idea",
+      "coverage": {
+        "literature_grounding": 4,
+        "claim_method_extraction": 2,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 4,
+        "training_execution": 4,
+        "result_analysis": 3,
+        "review_feedback": 3,
+        "evidence_binding": 1,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 3,
+      "summary": "早期端到端自动科研标志项目，强依赖模板和领域约束，是 idea-to-paper 叙事起点。",
+      "differentiators": [
+        "开放式科研 loop",
+        "模拟评审"
+      ],
+      "gaps_vs_our_target": [
+        "独立评估显示 coding/novelty/manuscript 问题",
+        "证据链薄弱"
+      ],
+      "sources": [
+        "https://github.com/SakanaAI/AI-Scientist"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research"
+        ],
+        "starting_points": [
+          "topic_or_idea"
+        ],
+        "primary_outputs": [
+          "hypothesis_or_idea",
+          "paper_draft_or_tex",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "idea_to_paper"
+        ],
+        "execution_depth": [
+          "full_training_or_simulation",
+          "smoke_test"
+        ],
+        "verification_models": [
+          "citation_grounding",
+          "llm_reviewer"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "judge_panel",
+          "orchestrator_workers"
+        ],
+        "integration_styles": [
+          "cli",
+          "container_runtime",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development",
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "adjacent_competitor"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "claw-ai-lab",
+      "name": "Claw AI Lab",
+      "aliases": [
+        "Claw-AI-Lab/Claw-AI-Lab"
+      ],
+      "depth": "medium",
+      "type": "open_source_project_and_paper",
+      "domain_categories": [
+        "interactive_ai_lab",
+        "idea_to_paper_pipeline"
+      ],
+      "mechanism_tags": [
+        "hitl_gate",
+        "artifact_lineage",
+        "sandbox_runner",
+        "multi_agent_debate"
+      ],
+      "center_object": "research_workflow",
+      "coverage": {
+        "literature_grounding": 4,
+        "claim_method_extraction": 2,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 4,
+        "training_execution": 4,
+        "result_analysis": 4,
+        "review_feedback": 3,
+        "evidence_binding": 3,
+        "provenance_traceability": 3,
+        "human_in_the_loop": 5,
+        "external_paper_reproduction": 3
+      },
+      "our_relevance": 4,
+      "summary": "把自动科研变成 dashboard 化 AI lab，突出 artifact inspector、rollback/resume、reproduce mode。",
+      "differentiators": [
+        "交互式实验室",
+        "Claw-Code Harness",
+        "可视化监控"
+      ],
+      "gaps_vs_our_target": [
+        "UI/协作强，claim-level accountability 不够硬"
+      ],
+      "sources": [
+        "https://github.com/Claw-AI-Lab/Claw-AI-Lab",
+        "https://arxiv.org/abs/2605.22662"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research"
+        ],
+        "starting_points": [
+          "workflow_task"
+        ],
+        "primary_outputs": [
+          "experiment_plan",
+          "review_or_rebuttal",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "idea_to_paper",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "full_training_or_simulation",
+          "smoke_test"
+        ],
+        "verification_models": [
+          "artifact_hashing",
+          "citation_grounding",
+          "human_gate"
+        ],
+        "accountability_features": [
+          "artifact_lineage"
+        ],
+        "agent_topologies": [
+          "human_ai_team",
+          "multi_agent_debate"
+        ],
+        "integration_styles": [
+          "cli",
+          "container_runtime",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development",
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "adjacent_competitor"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "agent-laboratory",
+      "name": "Agent Laboratory",
+      "aliases": [
+        "AgentLab",
+        "Agent Laboratory"
+      ],
+      "depth": "brief",
+      "type": "paper_and_code",
+      "domain_categories": [
+        "idea_to_paper_pipeline"
+      ],
+      "mechanism_tags": [
+        "stage_pipeline",
+        "hitl_gate"
+      ],
+      "center_object": "topic_or_idea",
+      "coverage": {
+        "literature_grounding": 4,
+        "claim_method_extraction": 2,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 3,
+        "training_execution": 3,
+        "result_analysis": 3,
+        "review_feedback": 2,
+        "evidence_binding": 1,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 4,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 3,
+      "summary": "human-in-the-loop 自动科研：literature review、experimentation、report writing。",
+      "differentiators": [
+        "强调人类反馈提升质量"
+      ],
+      "gaps_vs_our_target": [
+        "未聚焦 claim/run ledger"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2501.04227"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research"
+        ],
+        "starting_points": [
+          "topic_or_idea"
+        ],
+        "primary_outputs": [
+          "hypothesis_or_idea",
+          "paper_draft_or_tex"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "idea_to_paper"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "citation_grounding",
+          "human_gate"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "human_ai_team",
+          "orchestrator_workers"
+        ],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "denario",
+      "name": "Denario",
+      "aliases": [
+        "AstroPilot-AI/Denario"
+      ],
+      "depth": "brief",
+      "type": "open_source_project_and_paper",
+      "domain_categories": [
+        "idea_to_paper_pipeline"
+      ],
+      "mechanism_tags": [
+        "multi_agent_debate",
+        "stage_pipeline"
+      ],
+      "center_object": "topic_or_idea",
+      "coverage": {
+        "literature_grounding": 4,
+        "claim_method_extraction": 2,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 3,
+        "training_execution": 3,
+        "result_analysis": 4,
+        "review_feedback": 2,
+        "evidence_binding": 1,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 2,
+      "summary": "multi-agent scientific assistant，偏数据分析和 LaTeX article 生成。",
+      "differentiators": [
+        "科学数据分析闭环"
+      ],
+      "gaps_vs_our_target": [
+        "缺外部 paper reproduction/audit ledger"
+      ],
+      "sources": [
+        "https://github.com/AstroPilot-AI/Denario"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research"
+        ],
+        "starting_points": [
+          "topic_or_idea"
+        ],
+        "primary_outputs": [
+          "hypothesis_or_idea",
+          "paper_draft_or_tex"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "idea_to_paper"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "citation_grounding"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "multi_agent_debate",
+          "orchestrator_workers"
+        ],
+        "integration_styles": [
+          "cli",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development",
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "paperbench",
+      "name": "PaperBench",
+      "aliases": [
+        "openai frontier-evals paperbench"
+      ],
+      "depth": "deep",
+      "type": "benchmark",
+      "domain_categories": [
+        "paper_to_code_reproduction",
+        "ml_experiment_agent_benchmark"
+      ],
+      "mechanism_tags": [
+        "benchmark_rubric",
+        "sandbox_runner",
+        "release_bundle"
+      ],
+      "center_object": "paper_or_draft",
+      "coverage": {
+        "literature_grounding": 2,
+        "claim_method_extraction": 4,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 4,
+        "training_execution": 4,
+        "result_analysis": 4,
+        "review_feedback": 1,
+        "evidence_binding": 3,
+        "provenance_traceability": 3,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 5
+      },
+      "our_relevance": 5,
+      "summary": "评估 agent 复现 ICML 论文的关键 benchmark；证明 paper reproduction 仍很难。",
+      "differentiators": [
+        "author co-developed rubrics",
+        "fresh container reproduction",
+        "细粒度评分"
+      ],
+      "gaps_vs_our_target": [
+        "是 benchmark，不是平台",
+        "不提供 reviewer-to-issue loop"
+      ],
+      "sources": [
+        "https://github.com/openai/frontier-evals/tree/main/project/paperbench",
+        "https://arxiv.org/abs/2504.01848"
+      ],
+      "detailed_analysis": "skills/autoresearch-landscape-survey/references/deep-dives/paperbench-and-reproduction-benchmarks.md",
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "draft_paper",
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "benchmark_scores",
+          "literature_report",
+          "paper_draft_or_tex",
+          "reproduction_bundle",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "paper_to_code",
+          "paper_to_reproduction",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "benchmark_grading",
+          "fresh_container_reproduction",
+          "full_training_or_simulation",
+          "smoke_test"
+        ],
+        "verification_models": [
+          "rubric_grading"
+        ],
+        "accountability_features": [
+          "release_bundle"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [
+          "container_runtime"
+        ],
+        "maturity_signals": [
+          "benchmark_or_leaderboard",
+          "reproducible_examples"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "benchmark_reference"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "autop2c",
+      "name": "AutoP2C",
+      "aliases": [
+        "Auto Paper-to-Code",
+        "AutoP2C paper-to-code"
+      ],
+      "depth": "medium",
+      "type": "paper",
+      "domain_categories": [
+        "paper_to_code_reproduction"
+      ],
+      "mechanism_tags": [
+        "paper_to_code_blueprint",
+        "self_healing",
+        "experiment_bridge"
+      ],
+      "center_object": "paper_or_draft",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 4,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 5,
+        "training_execution": 3,
+        "result_analysis": 2,
+        "review_feedback": 1,
+        "evidence_binding": 2,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 4
+      },
+      "our_relevance": 4,
+      "summary": "从多模态论文内容生成可执行代码仓库的 paper-to-code 原型。",
+      "differentiators": [
+        "blueprint extraction",
+        "hierarchical decomposition",
+        "iterative debugging"
+      ],
+      "gaps_vs_our_target": [
+        "可运行 repo 不等于 claim-level verified reproduction"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2504.20115"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "draft_paper",
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "code_repo_or_patch",
+          "experiment_plan",
+          "literature_report",
+          "paper_draft_or_tex"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "paper_to_code",
+          "paper_to_reproduction",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [],
+        "accountability_features": [
+          "failure_registry"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "papercoder-paper2code",
+      "name": "PaperCoder / Paper2Code",
+      "aliases": [
+        "PaperCoder",
+        "Paper2Code"
+      ],
+      "depth": "brief",
+      "type": "paper",
+      "domain_categories": [
+        "paper_to_code_reproduction"
+      ],
+      "mechanism_tags": [
+        "paper_to_code_blueprint"
+      ],
+      "center_object": "paper_or_draft",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 3,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 5,
+        "training_execution": 3,
+        "result_analysis": 2,
+        "review_feedback": 1,
+        "evidence_binding": 1,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 3
+      },
+      "our_relevance": 3,
+      "summary": "把 ML paper 转成 functional code repository 的研究原型。",
+      "differentiators": [
+        "planning-analysis-generation pipeline"
+      ],
+      "gaps_vs_our_target": [
+        "不覆盖审稿反馈和 run provenance"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2504.17192"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "draft_paper",
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "code_repo_or_patch",
+          "literature_report",
+          "paper_draft_or_tex"
+        ],
+        "workflow_scopes": [
+          "paper_to_code",
+          "paper_to_reproduction"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [],
+        "accountability_features": [],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "hiras",
+      "name": "HiRAS",
+      "aliases": [
+        "Hierarchical Research Agent System",
+        "HiRAS Paper-to-Code"
+      ],
+      "depth": "brief",
+      "type": "paper",
+      "domain_categories": [
+        "paper_to_code_reproduction"
+      ],
+      "mechanism_tags": [
+        "paper_to_code_blueprint",
+        "multi_agent_debate"
+      ],
+      "center_object": "paper_or_draft",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 4,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 5,
+        "training_execution": 3,
+        "result_analysis": 2,
+        "review_feedback": 1,
+        "evidence_binding": 2,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 4
+      },
+      "our_relevance": 3,
+      "summary": "层级多 agent paper-to-code/execution framework。",
+      "differentiators": [
+        "manager agents 协调 specialized agents"
+      ],
+      "gaps_vs_our_target": [
+        "仍偏 code generation/execution，未形成 review issue ledger"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2604.17745"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "draft_paper",
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "code_repo_or_patch",
+          "literature_report",
+          "paper_draft_or_tex"
+        ],
+        "workflow_scopes": [
+          "paper_to_code",
+          "paper_to_reproduction"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [],
+        "accountability_features": [],
+        "agent_topologies": [
+          "multi_agent_debate"
+        ],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "researchcodebench",
+      "name": "ResearchCodeBench",
+      "aliases": [
+        "Research Code Bench"
+      ],
+      "depth": "brief",
+      "type": "benchmark",
+      "domain_categories": [
+        "ml_experiment_agent_benchmark",
+        "paper_to_code_reproduction"
+      ],
+      "mechanism_tags": [
+        "benchmark_rubric"
+      ],
+      "center_object": "method_spec",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 3,
+        "experiment_design": 2,
+        "code_generation_or_adaptation": 5,
+        "training_execution": 2,
+        "result_analysis": 1,
+        "review_feedback": 1,
+        "evidence_binding": 1,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 2
+      },
+      "our_relevance": 3,
+      "summary": "测试 LLM 实现 ML 论文中新研究 idea 的 coding benchmark。",
+      "differentiators": [
+        "来自 2024-2025 ML papers 的 coding challenges"
+      ],
+      "gaps_vs_our_target": [
+        "不跑完整训练复现"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2506.02314"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "benchmark_scores",
+          "code_repo_or_patch"
+        ],
+        "workflow_scopes": [
+          "paper_to_code",
+          "paper_to_reproduction",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "rubric_grading"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [
+          "benchmark_or_leaderboard"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "benchmark_reference"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "autoexperiment",
+      "name": "AutoExperiment",
+      "aliases": [
+        "From Reproduction to Replication",
+        "AutoExperiment benchmark"
+      ],
+      "depth": "medium",
+      "type": "benchmark",
+      "domain_categories": [
+        "paper_to_code_reproduction",
+        "ml_experiment_agent_benchmark"
+      ],
+      "mechanism_tags": [
+        "benchmark_rubric",
+        "self_healing",
+        "sandbox_runner"
+      ],
+      "center_object": "experiment_spec",
+      "coverage": {
+        "literature_grounding": 2,
+        "claim_method_extraction": 3,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 4,
+        "training_execution": 4,
+        "result_analysis": 3,
+        "review_feedback": 1,
+        "evidence_binding": 2,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 4
+      },
+      "our_relevance": 4,
+      "summary": "通过 progressive code masking 测 agent 从 paper + masked codebase 中补全代码、执行实验、复现结果。",
+      "differentiators": [
+        "动态交互/debugging agent 明显优于固定 harness"
+      ],
+      "gaps_vs_our_target": [
+        "benchmark 而非系统，缺 review/accountability layer"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2506.19724"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "experiment_plan"
+        ],
+        "primary_outputs": [
+          "benchmark_scores",
+          "experiment_plan",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "paper_to_code",
+          "paper_to_reproduction",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "benchmark_grading",
+          "full_training_or_simulation",
+          "smoke_test"
+        ],
+        "verification_models": [
+          "rubric_grading"
+        ],
+        "accountability_features": [
+          "failure_registry"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [
+          "container_runtime"
+        ],
+        "maturity_signals": [
+          "benchmark_or_leaderboard"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "benchmark_reference"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "mle-bench",
+      "name": "MLE-bench",
+      "aliases": [
+        "openai/mle-bench"
+      ],
+      "depth": "brief",
+      "type": "benchmark",
+      "domain_categories": [
+        "ml_experiment_agent_benchmark",
+        "coding_agent_runtime"
+      ],
+      "mechanism_tags": [
+        "benchmark_rubric",
+        "sandbox_runner"
+      ],
+      "center_object": "experiment_task",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 1,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 4,
+        "training_execution": 4,
+        "result_analysis": 3,
+        "review_feedback": 1,
+        "evidence_binding": 2,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 3,
+      "summary": "Kaggle-style ML engineering benchmark，可作为训练/调参能力测量参考。",
+      "differentiators": [
+        "ML engineering 能力评估"
+      ],
+      "gaps_vs_our_target": [
+        "非 paper-faithful reproduction"
+      ],
+      "sources": [
+        "https://github.com/openai/mle-bench"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "dataset_or_benchmark"
+        ],
+        "primary_outputs": [
+          "benchmark_scores",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "full_training_or_simulation",
+          "smoke_test"
+        ],
+        "verification_models": [
+          "rubric_grading"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [],
+        "integration_styles": [
+          "container_runtime"
+        ],
+        "maturity_signals": [
+          "benchmark_or_leaderboard"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "benchmark_reference"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "mlagentbench",
+      "name": "MLAgentBench",
+      "aliases": [
+        "ML Agent Bench"
+      ],
+      "depth": "brief",
+      "type": "benchmark",
+      "domain_categories": [
+        "ml_experiment_agent_benchmark"
+      ],
+      "mechanism_tags": [
+        "benchmark_rubric",
+        "sandbox_runner"
+      ],
+      "center_object": "experiment_task",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 1,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 4,
+        "training_execution": 4,
+        "result_analysis": 3,
+        "review_feedback": 1,
+        "evidence_binding": 1,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 2,
+      "summary": "评估 ML experimentation agent 的早期 benchmark。",
+      "differentiators": [
+        "端到端 ML 任务"
+      ],
+      "gaps_vs_our_target": [
+        "不绑定 paper claim"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2310.03302"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "dataset_or_benchmark"
+        ],
+        "primary_outputs": [
+          "benchmark_scores",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "full_training_or_simulation",
+          "smoke_test"
+        ],
+        "verification_models": [
+          "rubric_grading"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [],
+        "integration_styles": [
+          "container_runtime"
+        ],
+        "maturity_signals": [
+          "benchmark_or_leaderboard"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "benchmark_reference"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "aide-ml",
+      "name": "AIDE ML",
+      "aliases": [
+        "WecoAI/aideml",
+        "AIDE"
+      ],
+      "depth": "brief",
+      "type": "open_source_project",
+      "domain_categories": [
+        "coding_agent_runtime",
+        "ml_experiment_agent_benchmark"
+      ],
+      "mechanism_tags": [
+        "self_healing",
+        "sandbox_runner",
+        "experiment_bridge"
+      ],
+      "center_object": "code_repo",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 1,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 5,
+        "training_execution": 4,
+        "result_analysis": 3,
+        "review_feedback": 1,
+        "evidence_binding": 1,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 3,
+      "summary": "面向 ML 代码、debug、benchmark、metric optimization 的 agent，可作为 Experiment Implementer 参考。",
+      "differentiators": [
+        "tree-search coding + metric loop"
+      ],
+      "gaps_vs_our_target": [
+        "不做 paper claim audit"
+      ],
+      "sources": [
+        "https://github.com/WecoAI/aideml"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "existing_code_repo"
+        ],
+        "primary_outputs": [
+          "code_repo_or_patch",
+          "experiment_plan",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "idea_to_experiment",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "full_training_or_simulation",
+          "smoke_test"
+        ],
+        "verification_models": [],
+        "accountability_features": [
+          "failure_registry"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [
+          "cli",
+          "container_runtime",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "runtime_component"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "openhands",
+      "name": "OpenHands",
+      "aliases": [
+        "All-Hands-AI/OpenHands"
+      ],
+      "depth": "brief",
+      "type": "open_source_project",
+      "domain_categories": [
+        "coding_agent_runtime",
+        "skill_library"
+      ],
+      "mechanism_tags": [
+        "sandbox_runner",
+        "markdown_skill",
+        "self_healing"
+      ],
+      "center_object": "code_repo",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 1,
+        "experiment_design": 2,
+        "code_generation_or_adaptation": 5,
+        "training_execution": 3,
+        "result_analysis": 2,
+        "review_feedback": 2,
+        "evidence_binding": 1,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 3,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 3,
+      "summary": "通用 coding agent/agent runtime，可作为代码修复和 repo patch 执行底座。",
+      "differentiators": [
+        "SDK/CLI/GUI",
+        "大生态"
+      ],
+      "gaps_vs_our_target": [
+        "无研究语义/claim ledger"
+      ],
+      "sources": [
+        "https://github.com/All-Hands-AI/OpenHands"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "existing_code_repo"
+        ],
+        "primary_outputs": [
+          "code_repo_or_patch"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [],
+        "accountability_features": [
+          "failure_registry"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [
+          "cli",
+          "container_runtime",
+          "markdown_skills",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "plugin_layer",
+          "runtime_component"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "toolmaker",
+      "name": "ToolMaker",
+      "aliases": [
+        "ToolMaker paper to tool"
+      ],
+      "depth": "brief",
+      "type": "paper",
+      "domain_categories": [
+        "coding_agent_runtime",
+        "paper_to_code_reproduction"
+      ],
+      "mechanism_tags": [
+        "paper_to_code_blueprint",
+        "self_healing"
+      ],
+      "center_object": "code_repo",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 2,
+        "experiment_design": 2,
+        "code_generation_or_adaptation": 4,
+        "training_execution": 2,
+        "result_analysis": 1,
+        "review_feedback": 1,
+        "evidence_binding": 1,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 2
+      },
+      "our_relevance": 3,
+      "summary": "把 papers-with-code repo 适配为 agent 可调用 tool 的思路，可作为 repo adapter 层参考。",
+      "differentiators": [
+        "自动安装依赖、生成工具使用代码、自修复"
+      ],
+      "gaps_vs_our_target": [
+        "不覆盖训练复现和审稿追责"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2502.14645"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "existing_code_repo"
+        ],
+        "primary_outputs": [
+          "code_repo_or_patch"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "paper_to_code",
+          "paper_to_reproduction",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [],
+        "accountability_features": [
+          "failure_registry"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "plugin_layer",
+          "runtime_component"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "gpt-researcher",
+      "name": "GPT Researcher",
+      "aliases": [
+        "assafelovic/gpt-researcher"
+      ],
+      "depth": "brief",
+      "type": "open_source_project",
+      "domain_categories": [
+        "deep_research_literature_synthesis"
+      ],
+      "mechanism_tags": [
+        "stage_pipeline"
+      ],
+      "center_object": "paper_or_draft",
+      "coverage": {
+        "literature_grounding": 5,
+        "claim_method_extraction": 1,
+        "experiment_design": 1,
+        "code_generation_or_adaptation": 1,
+        "training_execution": 0,
+        "result_analysis": 1,
+        "review_feedback": 1,
+        "evidence_binding": 2,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 2,
+      "summary": "web/local research report agent，适合 literature/source aggregation。",
+      "differentiators": [
+        "带 citation 的研究报告"
+      ],
+      "gaps_vs_our_target": [
+        "不执行实验"
+      ],
+      "sources": [
+        "https://github.com/assafelovic/gpt-researcher"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "general_literature_research"
+        ],
+        "starting_points": [
+          "draft_paper",
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "literature_report",
+          "paper_draft_or_tex"
+        ],
+        "workflow_scopes": [
+          "idea_to_paper",
+          "literature_to_report"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "citation_grounding"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "orchestrator_workers"
+        ],
+        "integration_styles": [
+          "cli",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "plugin_layer"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "storm",
+      "name": "STORM / Co-STORM",
+      "aliases": [
+        "stanford-oval/storm",
+        "Co-STORM"
+      ],
+      "depth": "brief",
+      "type": "open_source_project_and_paper",
+      "domain_categories": [
+        "deep_research_literature_synthesis"
+      ],
+      "mechanism_tags": [
+        "multi_agent_debate"
+      ],
+      "center_object": "paper_or_draft",
+      "coverage": {
+        "literature_grounding": 5,
+        "claim_method_extraction": 1,
+        "experiment_design": 0,
+        "code_generation_or_adaptation": 0,
+        "training_execution": 0,
+        "result_analysis": 1,
+        "review_feedback": 1,
+        "evidence_binding": 2,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 2,
+      "summary": "多视角提问和 outline 生成的知识整理系统，适合 related work/landscape synthesis。",
+      "differentiators": [
+        "wiki-like report",
+        "perspective-driven querying"
+      ],
+      "gaps_vs_our_target": [
+        "不跑实验"
+      ],
+      "sources": [
+        "https://github.com/stanford-oval/storm"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "general_literature_research"
+        ],
+        "starting_points": [
+          "draft_paper",
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "literature_report",
+          "paper_draft_or_tex"
+        ],
+        "workflow_scopes": [
+          "literature_to_report"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "citation_grounding"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "multi_agent_debate"
+        ],
+        "integration_styles": [
+          "cli",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development",
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "plugin_layer"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "open-deep-research",
+      "name": "Open Deep Research",
+      "aliases": [
+        "langchain-ai/open_deep_research"
+      ],
+      "depth": "brief",
+      "type": "open_source_project",
+      "domain_categories": [
+        "deep_research_literature_synthesis"
+      ],
+      "mechanism_tags": [
+        "stage_pipeline"
+      ],
+      "center_object": "paper_or_draft",
+      "coverage": {
+        "literature_grounding": 5,
+        "claim_method_extraction": 1,
+        "experiment_design": 0,
+        "code_generation_or_adaptation": 0,
+        "training_execution": 0,
+        "result_analysis": 1,
+        "review_feedback": 1,
+        "evidence_binding": 2,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 2,
+      "summary": "开源 deep research agent，可参考 research graph 和 MCP/tool 接入。",
+      "differentiators": [
+        "多模型/多搜索工具"
+      ],
+      "gaps_vs_our_target": [
+        "不做训练复现"
+      ],
+      "sources": [
+        "https://github.com/langchain-ai/open_deep_research"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "general_literature_research"
+        ],
+        "starting_points": [
+          "draft_paper",
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "literature_report",
+          "paper_draft_or_tex"
+        ],
+        "workflow_scopes": [
+          "idea_to_paper",
+          "literature_to_report"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "citation_grounding"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "orchestrator_workers"
+        ],
+        "integration_styles": [
+          "cli",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "plugin_layer"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "paperqa2",
+      "name": "PaperQA2",
+      "aliases": [
+        "Future-House/paper-qa",
+        "PaperQA"
+      ],
+      "depth": "brief",
+      "type": "open_source_project",
+      "domain_categories": [
+        "scientific_rag_review"
+      ],
+      "mechanism_tags": [
+        "evidence_gate"
+      ],
+      "center_object": "paper_or_draft",
+      "coverage": {
+        "literature_grounding": 5,
+        "claim_method_extraction": 3,
+        "experiment_design": 0,
+        "code_generation_or_adaptation": 0,
+        "training_execution": 0,
+        "result_analysis": 1,
+        "review_feedback": 2,
+        "evidence_binding": 3,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 3,
+      "summary": "科学文献 RAG / QA / contradiction detection，可作为 paper understanding 与 evidence retrieval 层。",
+      "differentiators": [
+        "scientific QA",
+        "PDF/文档/代码文档 RAG"
+      ],
+      "gaps_vs_our_target": [
+        "不执行实验"
+      ],
+      "sources": [
+        "https://github.com/Future-House/paper-qa"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "general_literature_research",
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "draft_paper",
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "literature_report",
+          "paper_draft_or_tex"
+        ],
+        "workflow_scopes": [
+          "literature_to_report"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "citation_grounding",
+          "claim_evidence_mapping",
+          "deterministic_verifier"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [],
+        "integration_styles": [
+          "cli",
+          "python_package"
+        ],
+        "maturity_signals": [
+          "active_development"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "plugin_layer"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "openscholar",
+      "name": "OpenScholar",
+      "aliases": [
+        "OpenScholar AI",
+        "ScholarQABench"
+      ],
+      "depth": "brief",
+      "type": "paper_and_system",
+      "domain_categories": [
+        "scientific_rag_review",
+        "deep_research_literature_synthesis"
+      ],
+      "mechanism_tags": [
+        "evidence_gate",
+        "benchmark_rubric"
+      ],
+      "center_object": "paper_or_draft",
+      "coverage": {
+        "literature_grounding": 5,
+        "claim_method_extraction": 2,
+        "experiment_design": 0,
+        "code_generation_or_adaptation": 0,
+        "training_execution": 0,
+        "result_analysis": 1,
+        "review_feedback": 2,
+        "evidence_binding": 3,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 2,
+      "summary": "科学文献 synthesis，citation-backed responses 和 ScholarQABench。",
+      "differentiators": [
+        "大规模 open-access paper 检索"
+      ],
+      "gaps_vs_our_target": [
+        "不做代码/训练"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2411.14199"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "general_literature_research",
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "draft_paper",
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "benchmark_scores",
+          "literature_report",
+          "paper_draft_or_tex"
+        ],
+        "workflow_scopes": [
+          "literature_to_report"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "citation_grounding",
+          "claim_evidence_mapping",
+          "deterministic_verifier",
+          "rubric_grading"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "plugin_layer"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "openreviewer",
+      "name": "OpenReviewer",
+      "aliases": [
+        "OpenReviewer scientific review"
+      ],
+      "depth": "brief",
+      "type": "paper_and_model",
+      "domain_categories": [
+        "scientific_rag_review",
+        "review_integrity_audit"
+      ],
+      "mechanism_tags": [
+        "adversarial_review",
+        "benchmark_rubric"
+      ],
+      "center_object": "review_finding",
+      "coverage": {
+        "literature_grounding": 2,
+        "claim_method_extraction": 3,
+        "experiment_design": 2,
+        "code_generation_or_adaptation": 0,
+        "training_execution": 0,
+        "result_analysis": 2,
+        "review_feedback": 5,
+        "evidence_binding": 1,
+        "provenance_traceability": 0,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 2,
+      "summary": "面向 ML/AI 论文评审的模型/系统，适合 reviewer text style 和 rubric。",
+      "differentiators": [
+        "使用专家 review 数据微调"
+      ],
+      "gaps_vs_our_target": [
+        "review 不绑定 run evidence"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2412.11948"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "general_literature_research",
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "draft_paper"
+        ],
+        "primary_outputs": [
+          "benchmark_scores",
+          "review_or_rebuttal"
+        ],
+        "workflow_scopes": [
+          "claim_to_review_issue",
+          "literature_to_report"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "adversarial_reviewer",
+          "rubric_grading"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "judge_panel"
+        ],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "plugin_layer",
+          "risk_model"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "evibound",
+      "name": "EviBound",
+      "aliases": [
+        "Evidence-Bound Autonomous Research"
+      ],
+      "depth": "deep",
+      "type": "paper",
+      "domain_categories": [
+        "evidence_provenance_accountability"
+      ],
+      "mechanism_tags": [
+        "evidence_gate",
+        "claim_ledger",
+        "run_ledger",
+        "artifact_lineage"
+      ],
+      "center_object": "paper_claim",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 3,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 1,
+        "training_execution": 3,
+        "result_analysis": 3,
+        "review_feedback": 1,
+        "evidence_binding": 5,
+        "provenance_traceability": 4,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 5,
+      "summary": "通过 pre-execution approval gate 和 post-execution MLflow verification gate 阻止 unsupported claim 传播。",
+      "differentiators": [
+        "research integrity as architecture",
+        "claim 必须有 queryable run/artifact/status"
+      ],
+      "gaps_vs_our_target": [
+        "不是完整 paper-to-code-to-review pipeline",
+        "没有 reviewer-to-issue/rerun loop"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2511.05524"
+      ],
+      "detailed_analysis": "skills/autoresearch-landscape-survey/references/deep-dives/accountability-layer.md",
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "verified_claims"
+        ],
+        "workflow_scopes": [
+          "claim_to_review_issue",
+          "experiment_to_claim"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "artifact_hashing",
+          "claim_evidence_mapping",
+          "deterministic_verifier"
+        ],
+        "accountability_features": [
+          "artifact_lineage",
+          "claim_ledger",
+          "run_ledger"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper",
+          "reproducible_examples"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "core_competitor",
+          "risk_model",
+          "kernel_competitor",
+          "claim_kernel_reference"
+        ],
+        "custom_facets": [],
+        "kernel_primitives": [
+          "evidence_policy_dsl",
+          "verifier_certificate",
+          "decision_trace_package"
+        ]
+      }
+    },
+    {
+      "id": "scientistone",
+      "name": "ScientistOne / Chain-of-Evidence",
+      "aliases": [
+        "Chain-of-Evidence",
+        "CoE Audit",
+        "ScientistOne"
+      ],
+      "depth": "deep",
+      "type": "paper",
+      "domain_categories": [
+        "evidence_provenance_accountability",
+        "review_integrity_audit"
+      ],
+      "mechanism_tags": [
+        "claim_ledger",
+        "evidence_gate",
+        "attestation_protocol",
+        "provenance_graph"
+      ],
+      "center_object": "paper_claim",
+      "coverage": {
+        "literature_grounding": 3,
+        "claim_method_extraction": 5,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 3,
+        "training_execution": 2,
+        "result_analysis": 3,
+        "review_feedback": 2,
+        "evidence_binding": 5,
+        "provenance_traceability": 4,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 2
+      },
+      "our_relevance": 5,
+      "summary": "Chain-of-Evidence 和 CoE Audit：score verification、spec violation、reference verification、method-code alignment。",
+      "differentiators": [
+        "最接近 claim-level evidence 的新竞品/研究方向"
+      ],
+      "gaps_vs_our_target": [
+        "仍需扩到 run ledger、training reproduction 和 reviewer issue closure"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2605.26340"
+      ],
+      "detailed_analysis": "skills/autoresearch-landscape-survey/references/deep-dives/accountability-layer.md",
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "verified_claims"
+        ],
+        "workflow_scopes": [
+          "claim_to_review_issue",
+          "experiment_to_claim"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "attestation_protocol",
+          "claim_evidence_mapping",
+          "deterministic_verifier"
+        ],
+        "accountability_features": [
+          "agent_trace",
+          "claim_ledger",
+          "decision_log",
+          "provenance_graph"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper",
+          "reproducible_examples"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "core_competitor",
+          "risk_model",
+          "kernel_competitor",
+          "claim_kernel_reference"
+        ],
+        "custom_facets": [],
+        "kernel_primitives": [
+          "evidence_policy_dsl",
+          "verifier_certificate",
+          "decision_trace_package"
+        ]
+      }
+    },
+    {
+      "id": "pramana",
+      "name": "Pramana / ClaimAttestation",
+      "aliases": [
+        "Pramana",
+        "ClaimAttestation"
+      ],
+      "depth": "medium",
+      "type": "paper",
+      "domain_categories": [
+        "evidence_provenance_accountability"
+      ],
+      "mechanism_tags": [
+        "attestation_protocol",
+        "evidence_gate",
+        "provenance_graph"
+      ],
+      "center_object": "paper_claim",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 4,
+        "experiment_design": 2,
+        "code_generation_or_adaptation": 1,
+        "training_execution": 1,
+        "result_analysis": 2,
+        "review_feedback": 1,
+        "evidence_binding": 5,
+        "provenance_traceability": 5,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 4,
+      "summary": "协议层：每个 consequential agent output 包装为 typed ClaimAttestation，并提供 verify()。",
+      "differentiators": [
+        "measurement/inference/analogy/citation attestation"
+      ],
+      "gaps_vs_our_target": [
+        "不是完整自动科研系统"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2605.20312"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "verified_claims"
+        ],
+        "workflow_scopes": [
+          "claim_to_review_issue",
+          "experiment_to_claim"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "attestation_protocol",
+          "claim_evidence_mapping",
+          "deterministic_verifier"
+        ],
+        "accountability_features": [
+          "agent_trace",
+          "decision_log",
+          "provenance_graph"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "risk_model",
+          "protocol_competitor"
+        ],
+        "custom_facets": [],
+        "kernel_primitives": [
+          "evidence_policy_dsl",
+          "verifier_certificate"
+        ]
+      }
+    },
+    {
+      "id": "prov-agent",
+      "name": "PROV-AGENT",
+      "aliases": [
+        "PROV AGENT",
+        "agentic workflow provenance"
+      ],
+      "depth": "medium",
+      "type": "paper",
+      "domain_categories": [
+        "evidence_provenance_accountability"
+      ],
+      "mechanism_tags": [
+        "provenance_graph",
+        "attestation_protocol"
+      ],
+      "center_object": "provenance_trace",
+      "coverage": {
+        "literature_grounding": 0,
+        "claim_method_extraction": 1,
+        "experiment_design": 1,
+        "code_generation_or_adaptation": 1,
+        "training_execution": 1,
+        "result_analysis": 1,
+        "review_feedback": 1,
+        "evidence_binding": 3,
+        "provenance_traceability": 5,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 4,
+      "summary": "扩展 W3C PROV 以记录 prompts、responses、decisions、tool calls 与 downstream impact。",
+      "differentiators": [
+        "agent decision-level provenance"
+      ],
+      "gaps_vs_our_target": [
+        "provenance 标准层，不含研究执行语义"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2508.02866"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "workflow_task"
+        ],
+        "primary_outputs": [
+          "reproduction_bundle"
+        ],
+        "workflow_scopes": [
+          "claim_to_review_issue",
+          "experiment_to_claim"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "attestation_protocol"
+        ],
+        "accountability_features": [
+          "agent_trace",
+          "decision_log",
+          "provenance_graph"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "infrastructure_component",
+          "risk_model",
+          "protocol_competitor"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "march",
+      "name": "MARCH",
+      "aliases": [
+        "Solver Proposer Checker",
+        "information asymmetry checker"
+      ],
+      "depth": "brief",
+      "type": "paper",
+      "domain_categories": [
+        "evidence_provenance_accountability",
+        "review_integrity_audit"
+      ],
+      "mechanism_tags": [
+        "judge_agent",
+        "evidence_gate",
+        "adversarial_review"
+      ],
+      "center_object": "paper_claim",
+      "coverage": {
+        "literature_grounding": 2,
+        "claim_method_extraction": 4,
+        "experiment_design": 0,
+        "code_generation_or_adaptation": 0,
+        "training_execution": 0,
+        "result_analysis": 0,
+        "review_feedback": 2,
+        "evidence_binding": 4,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 4,
+      "summary": "Solver/Proposer/Checker 信息隔离，可减少 verifier 重复 generator 错误的自我确认偏差。",
+      "differentiators": [
+        "checker 不读 solver 叙事，只验证 atomic propositions"
+      ],
+      "gaps_vs_our_target": [
+        "不执行实验"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2603.24579"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "paper_pdf_or_preprint"
+        ],
+        "primary_outputs": [
+          "verified_claims"
+        ],
+        "workflow_scopes": [
+          "claim_to_review_issue",
+          "experiment_to_claim"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "adversarial_reviewer",
+          "claim_evidence_mapping",
+          "deterministic_verifier",
+          "llm_reviewer"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "judge_panel"
+        ],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "risk_model"
+        ],
+        "custom_facets": [],
+        "governance_controls": [
+          "producer_verifier_isolation",
+          "dissent_persistence"
+        ]
+      }
+    },
+    {
+      "id": "agenthallu",
+      "name": "AgentHallu",
+      "aliases": [
+        "Agent Hallucination",
+        "step-level hallucination"
+      ],
+      "depth": "brief",
+      "type": "benchmark_paper",
+      "domain_categories": [
+        "evidence_provenance_accountability",
+        "review_integrity_audit"
+      ],
+      "mechanism_tags": [
+        "provenance_graph",
+        "benchmark_rubric"
+      ],
+      "center_object": "provenance_trace",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 1,
+        "experiment_design": 1,
+        "code_generation_or_adaptation": 1,
+        "training_execution": 1,
+        "result_analysis": 1,
+        "review_feedback": 1,
+        "evidence_binding": 2,
+        "provenance_traceability": 4,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 3,
+      "summary": "评估多步 agent hallucination 及 step localization，适合设计错误归因机制。",
+      "differentiators": [
+        "Planning/Retrieval/Reasoning/Tool-use 等 hallucination 分类"
+      ],
+      "gaps_vs_our_target": [
+        "benchmark 而非系统"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2601.06818"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "workflow_task"
+        ],
+        "primary_outputs": [
+          "benchmark_scores",
+          "reproduction_bundle"
+        ],
+        "workflow_scopes": [
+          "claim_to_review_issue",
+          "experiment_to_claim"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "rubric_grading"
+        ],
+        "accountability_features": [
+          "agent_trace",
+          "provenance_graph"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [
+          "benchmark_or_leaderboard",
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "unverified_claim_generation"
+        ],
+        "fit_to_our_target": [
+          "risk_model"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "catfish-agent",
+      "name": "Catfish Agent",
+      "aliases": [
+        "Catfish Agent",
+        "Silent Agreement"
+      ],
+      "depth": "brief",
+      "type": "paper",
+      "domain_categories": [
+        "review_integrity_audit",
+        "evidence_provenance_accountability"
+      ],
+      "mechanism_tags": [
+        "adversarial_review",
+        "judge_agent"
+      ],
+      "center_object": "review_finding",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 1,
+        "experiment_design": 1,
+        "code_generation_or_adaptation": 0,
+        "training_execution": 0,
+        "result_analysis": 1,
+        "review_feedback": 4,
+        "evidence_binding": 2,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 3,
+      "summary": "通过故意注入结构化异议缓解多 agent silent agreement。",
+      "differentiators": [
+        "Dissent / Refutation agent"
+      ],
+      "gaps_vs_our_target": [
+        "不做研究执行"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2505.21503"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "draft_paper"
+        ],
+        "primary_outputs": [
+          "review_or_rebuttal"
+        ],
+        "workflow_scopes": [
+          "claim_to_review_issue",
+          "experiment_to_claim"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "adversarial_reviewer",
+          "llm_reviewer"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "judge_panel"
+        ],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "risk_model"
+        ],
+        "custom_facets": [],
+        "governance_controls": [
+          "producer_verifier_isolation",
+          "dissent_persistence"
+        ]
+      }
+    },
+    {
+      "id": "google-co-scientist",
+      "name": "Google Co-Scientist",
+      "aliases": [
+        "AI co-scientist",
+        "co-scientist"
+      ],
+      "depth": "medium",
+      "type": "nature_paper_and_system",
+      "domain_categories": [
+        "multi_agent_scientific_discovery"
+      ],
+      "mechanism_tags": [
+        "multi_agent_debate",
+        "dynamic_role_assignment",
+        "judge_agent"
+      ],
+      "center_object": "hypothesis_or_candidate",
+      "coverage": {
+        "literature_grounding": 4,
+        "claim_method_extraction": 2,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 1,
+        "training_execution": 1,
+        "result_analysis": 3,
+        "review_feedback": 3,
+        "evidence_binding": 3,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 4,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 3,
+      "summary": "基于 Gemini 的多 agent hypothesis generation，使用 tournament evolution 和 test-time compute。",
+      "differentiators": [
+        "hypothesis tournament/evolution",
+        "biomedical validation"
+      ],
+      "gaps_vs_our_target": [
+        "不是 paper reproduction CI"
+      ],
+      "sources": [
+        "https://www.nature.com/articles/s41586-026-10644-y"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "biomedicine_drug_discovery",
+          "general_literature_research"
+        ],
+        "starting_points": [
+          "disease_or_candidate",
+          "topic_or_idea"
+        ],
+        "primary_outputs": [
+          "hypothesis_or_idea"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "lab_discovery_loop"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "citation_grounding",
+          "llm_reviewer"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "dynamic_roles",
+          "judge_panel",
+          "multi_agent_debate"
+        ],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "domain_inspiration"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "virtual-lab",
+      "name": "Virtual Lab",
+      "aliases": [
+        "Stanford Virtual Lab",
+        "AI virtual lab"
+      ],
+      "depth": "brief",
+      "type": "paper/system",
+      "domain_categories": [
+        "multi_agent_scientific_discovery",
+        "lab_automation_wetlab"
+      ],
+      "mechanism_tags": [
+        "multi_agent_debate",
+        "hitl_gate"
+      ],
+      "center_object": "hypothesis_or_candidate",
+      "coverage": {
+        "literature_grounding": 4,
+        "claim_method_extraction": 1,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 1,
+        "training_execution": 1,
+        "result_analysis": 3,
+        "review_feedback": 3,
+        "evidence_binding": 2,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 5,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 2,
+      "summary": "模拟 PI/senior scientist 角色的 virtual lab，适合研究多角色组织。",
+      "differentiators": [
+        "实验室组织仿真"
+      ],
+      "gaps_vs_our_target": [
+        "实验室角色不等于可追责证据链"
+      ],
+      "sources": [
+        "https://www.reuters.com/business/healthcare-pharmaceuticals/health-rounds-virtual-labs-with-ai-scientists-produce-promising-result-stanford-2025-07-30/"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "biomedicine_drug_discovery",
+          "general_literature_research",
+          "wetlab_lab_automation"
+        ],
+        "starting_points": [
+          "disease_or_candidate",
+          "topic_or_idea"
+        ],
+        "primary_outputs": [
+          "hypothesis_or_idea"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "lab_discovery_loop"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "citation_grounding",
+          "human_gate"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "human_ai_team",
+          "multi_agent_debate"
+        ],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "domain_inspiration"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "biomars",
+      "name": "BioMARS",
+      "aliases": [
+        "BioMARS Biologist Technician Inspector"
+      ],
+      "depth": "brief",
+      "type": "paper",
+      "domain_categories": [
+        "lab_automation_wetlab",
+        "multi_agent_scientific_discovery"
+      ],
+      "mechanism_tags": [
+        "inspector_agent",
+        "hitl_gate",
+        "sandbox_runner"
+      ],
+      "center_object": "experiment_spec",
+      "coverage": {
+        "literature_grounding": 3,
+        "claim_method_extraction": 1,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 2,
+        "training_execution": 1,
+        "result_analysis": 3,
+        "review_feedback": 2,
+        "evidence_binding": 3,
+        "provenance_traceability": 3,
+        "human_in_the_loop": 4,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 3,
+      "summary": "Biologist/Technician/Inspector 三层结构，Inspector role 对我们很有启发。",
+      "differentiators": [
+        "procedural integrity inspector"
+      ],
+      "gaps_vs_our_target": [
+        "湿实验/机器人域，不是通用 research CI"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2507.01485"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "biomedicine_drug_discovery",
+          "general_literature_research",
+          "wetlab_lab_automation"
+        ],
+        "starting_points": [
+          "experiment_plan"
+        ],
+        "primary_outputs": [
+          "experiment_plan",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "lab_discovery_loop"
+        ],
+        "execution_depth": [
+          "smoke_test",
+          "wetlab_human_in_loop"
+        ],
+        "verification_models": [
+          "deterministic_verifier",
+          "human_gate"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "human_ai_team",
+          "inspector_agent"
+        ],
+        "integration_styles": [
+          "container_runtime"
+        ],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "domain_inspiration"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "autoscientists",
+      "name": "AutoScientists",
+      "aliases": [
+        "decentralized team of AI agents for experimentation"
+      ],
+      "depth": "brief",
+      "type": "paper",
+      "domain_categories": [
+        "multi_agent_scientific_discovery",
+        "idea_to_paper_pipeline"
+      ],
+      "mechanism_tags": [
+        "multi_agent_debate",
+        "research_wiki",
+        "dynamic_role_assignment"
+      ],
+      "center_object": "experiment_spec",
+      "coverage": {
+        "literature_grounding": 2,
+        "claim_method_extraction": 2,
+        "experiment_design": 5,
+        "code_generation_or_adaptation": 3,
+        "training_execution": 4,
+        "result_analysis": 4,
+        "review_feedback": 3,
+        "evidence_binding": 3,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 3,
+      "summary": "去中心化实验团队，共享 experimental state 和成功/失败记忆。",
+      "differentiators": [
+        "算力使用前 critique proposals",
+        "失败共享减少重复探索"
+      ],
+      "gaps_vs_our_target": [
+        "更偏长期实验探索，不是 paper audit"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2605.28655"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research",
+          "general_literature_research"
+        ],
+        "starting_points": [
+          "experiment_plan"
+        ],
+        "primary_outputs": [
+          "experiment_plan",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "experiment_to_claim",
+          "idea_to_experiment",
+          "idea_to_paper",
+          "lab_discovery_loop"
+        ],
+        "execution_depth": [
+          "full_training_or_simulation"
+        ],
+        "verification_models": [],
+        "accountability_features": [
+          "agent_trace"
+        ],
+        "agent_topologies": [
+          "dynamic_roles",
+          "multi_agent_debate"
+        ],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [],
+        "custom_facets": [],
+        "governance_controls": [
+          "producer_verifier_isolation",
+          "dissent_persistence"
+        ]
+      }
+    },
+    {
+      "id": "stella",
+      "name": "STELLA",
+      "aliases": [
+        "self-evolving biomedical agent"
+      ],
+      "depth": "brief",
+      "type": "paper",
+      "domain_categories": [
+        "multi_agent_scientific_discovery",
+        "scientific_rag_review"
+      ],
+      "mechanism_tags": [
+        "self_healing",
+        "research_wiki",
+        "dynamic_role_assignment"
+      ],
+      "center_object": "research_workflow",
+      "coverage": {
+        "literature_grounding": 4,
+        "claim_method_extraction": 2,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 2,
+        "training_execution": 2,
+        "result_analysis": 3,
+        "review_feedback": 2,
+        "evidence_binding": 2,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 2,
+      "summary": "self-evolving biomedical agent，Template Library + Tool Ocean。",
+      "differentiators": [
+        "工具发现与模板进化"
+      ],
+      "gaps_vs_our_target": [
+        "自进化记忆需可审计，否则会放大错误"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2507.02004"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "general_literature_research",
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "workflow_task"
+        ],
+        "primary_outputs": [
+          "experiment_plan",
+          "review_or_rebuttal"
+        ],
+        "workflow_scopes": [
+          "experiment_to_claim",
+          "idea_to_experiment",
+          "lab_discovery_loop",
+          "literature_to_report",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "citation_grounding"
+        ],
+        "accountability_features": [
+          "agent_trace",
+          "failure_registry"
+        ],
+        "agent_topologies": [
+          "dynamic_roles"
+        ],
+        "integration_styles": [],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "era",
+      "name": "ERA / Empirical Research Assistance",
+      "aliases": [
+        "ERA scientific software",
+        "Empirical Research Assistance"
+      ],
+      "depth": "brief",
+      "type": "nature_paper",
+      "domain_categories": [
+        "coding_agent_runtime",
+        "multi_agent_scientific_discovery"
+      ],
+      "mechanism_tags": [
+        "self_healing",
+        "benchmark_rubric",
+        "sandbox_runner"
+      ],
+      "center_object": "code_repo",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 1,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 5,
+        "training_execution": 3,
+        "result_analysis": 3,
+        "review_feedback": 1,
+        "evidence_binding": 2,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 3,
+      "summary": "LLM + tree search 生成 expert-level scientific software；说明程序化 objective 比自然语言 judge 更可靠。",
+      "differentiators": [
+        "tree search over scientific software"
+      ],
+      "gaps_vs_our_target": [
+        "不做 paper claim/review ledger"
+      ],
+      "sources": [
+        "https://www.nature.com/articles/s41586-026-10658-6"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "general_literature_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "existing_code_repo"
+        ],
+        "primary_outputs": [
+          "benchmark_scores",
+          "code_repo_or_patch"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "idea_to_experiment",
+          "lab_discovery_loop",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "rubric_grading"
+        ],
+        "accountability_features": [
+          "failure_registry"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [
+          "container_runtime"
+        ],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "scientific-skills-skillfoundry",
+      "name": "SkillFoundry",
+      "aliases": [
+        "SKILLFOUNDRY",
+        "self-evolving agent skill libraries"
+      ],
+      "depth": "brief",
+      "type": "paper",
+      "domain_categories": [
+        "skill_library"
+      ],
+      "mechanism_tags": [
+        "markdown_skill",
+        "self_healing",
+        "attestation_protocol"
+      ],
+      "center_object": "research_workflow",
+      "coverage": {
+        "literature_grounding": 2,
+        "claim_method_extraction": 1,
+        "experiment_design": 2,
+        "code_generation_or_adaptation": 3,
+        "training_execution": 2,
+        "result_analysis": 2,
+        "review_feedback": 1,
+        "evidence_binding": 2,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 3,
+      "summary": "从异构科学资源挖掘并验证 skill 的 self-evolving framework；可作为未来扩展调查 skill 的方法参考。",
+      "differentiators": [
+        "domain knowledge tree",
+        "skill mining/repair/merge/prune"
+      ],
+      "gaps_vs_our_target": [
+        "skill 生成，不是研究流水线"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2604.03964"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "workflow_task"
+        ],
+        "primary_outputs": [
+          "experiment_plan",
+          "review_or_rebuttal"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "attestation_protocol"
+        ],
+        "accountability_features": [
+          "decision_log",
+          "failure_registry"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [
+          "markdown_skills"
+        ],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "cascade-skills",
+      "name": "CASCADE",
+      "aliases": [
+        "Cumulative Agentic Skill Creation"
+      ],
+      "depth": "brief",
+      "type": "paper",
+      "domain_categories": [
+        "skill_library",
+        "multi_agent_scientific_discovery"
+      ],
+      "mechanism_tags": [
+        "markdown_skill",
+        "self_healing",
+        "research_wiki"
+      ],
+      "center_object": "research_workflow",
+      "coverage": {
+        "literature_grounding": 3,
+        "claim_method_extraction": 1,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 3,
+        "training_execution": 2,
+        "result_analysis": 2,
+        "review_feedback": 1,
+        "evidence_binding": 2,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 2,
+        "external_paper_reproduction": 2
+      },
+      "our_relevance": 2,
+      "summary": "自主演化 skill acquisition，从 LLM+tool use 走向 LLM+skill acquisition。",
+      "differentiators": [
+        "continuous learning + self-reflection meta-skills"
+      ],
+      "gaps_vs_our_target": [
+        "不以 claim ledger 为中心"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2512.23880"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "general_literature_research",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "workflow_task"
+        ],
+        "primary_outputs": [
+          "experiment_plan",
+          "review_or_rebuttal"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "experiment_to_claim",
+          "idea_to_experiment",
+          "lab_discovery_loop",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [],
+        "accountability_features": [
+          "agent_trace",
+          "failure_registry"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [
+          "markdown_skills"
+        ],
+        "maturity_signals": [
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "sciintegrity-bench",
+      "name": "SciIntegrity-Bench",
+      "aliases": [
+        "Scientific Integrity Benchmark"
+      ],
+      "depth": "medium",
+      "type": "benchmark_paper",
+      "domain_categories": [
+        "review_integrity_audit"
+      ],
+      "mechanism_tags": [
+        "benchmark_rubric",
+        "adversarial_review"
+      ],
+      "center_object": "review_finding",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 3,
+        "experiment_design": 2,
+        "code_generation_or_adaptation": 1,
+        "training_execution": 1,
+        "result_analysis": 3,
+        "review_feedback": 4,
+        "evidence_binding": 4,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 4,
+      "summary": "科研诚信 benchmark，强调缺失数据、伪造结果、数据合成等问题。",
+      "differentiators": [
+        "integrity problem rate 评估"
+      ],
+      "gaps_vs_our_target": [
+        "benchmark，不提供流水线"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2605.10246",
+        "https://github.com/liuxingtong/Sci-Integrity-Bench"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "metascience_integrity_review"
+        ],
+        "starting_points": [
+          "draft_paper"
+        ],
+        "primary_outputs": [
+          "benchmark_scores",
+          "review_or_rebuttal"
+        ],
+        "workflow_scopes": [
+          "claim_to_review_issue"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "adversarial_reviewer",
+          "claim_evidence_mapping",
+          "rubric_grading"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "judge_panel"
+        ],
+        "integration_styles": [],
+        "maturity_signals": [
+          "benchmark_or_leaderboard",
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "ablationbench",
+      "name": "AblationBench",
+      "aliases": [
+        "Ablation Bench"
+      ],
+      "depth": "brief",
+      "type": "benchmark_paper",
+      "domain_categories": [
+        "review_integrity_audit",
+        "ml_experiment_agent_benchmark"
+      ],
+      "mechanism_tags": [
+        "benchmark_rubric",
+        "adversarial_review"
+      ],
+      "center_object": "experiment_spec",
+      "coverage": {
+        "literature_grounding": 1,
+        "claim_method_extraction": 3,
+        "experiment_design": 4,
+        "code_generation_or_adaptation": 1,
+        "training_execution": 1,
+        "result_analysis": 2,
+        "review_feedback": 4,
+        "evidence_binding": 2,
+        "provenance_traceability": 1,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 4,
+      "summary": "评估 LM 系统找回/规划 ablation 的能力，可作为 reviewer-to-experiment 机制参考。",
+      "differentiators": [
+        "ablation planning benchmark"
+      ],
+      "gaps_vs_our_target": [
+        "没有 execution/provenance 层"
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2507.08038",
+        "https://github.com/ai-scientist-bench/ablation-bench",
+        "https://huggingface.co/collections/ai-coscientist/ablationbench"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_ml_algorithm_research",
+          "metascience_integrity_review",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "experiment_plan"
+        ],
+        "primary_outputs": [
+          "benchmark_scores",
+          "experiment_plan",
+          "review_or_rebuttal",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "claim_to_review_issue",
+          "repo_to_experiment"
+        ],
+        "execution_depth": [],
+        "verification_models": [
+          "adversarial_reviewer",
+          "rubric_grading"
+        ],
+        "accountability_features": [],
+        "agent_topologies": [
+          "judge_panel"
+        ],
+        "integration_styles": [],
+        "maturity_signals": [
+          "benchmark_or_leaderboard",
+          "peer_reviewed_paper"
+        ],
+        "risk_flags": [],
+        "fit_to_our_target": [],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "mlflow",
+      "name": "MLflow",
+      "aliases": [
+        "MLflow Tracking"
+      ],
+      "depth": "brief",
+      "type": "infrastructure",
+      "domain_categories": [
+        "execution_tracking_infrastructure"
+      ],
+      "mechanism_tags": [
+        "run_ledger",
+        "artifact_lineage"
+      ],
+      "center_object": "training_run",
+      "coverage": {
+        "literature_grounding": 0,
+        "claim_method_extraction": 0,
+        "experiment_design": 1,
+        "code_generation_or_adaptation": 0,
+        "training_execution": 3,
+        "result_analysis": 3,
+        "review_feedback": 0,
+        "evidence_binding": 3,
+        "provenance_traceability": 4,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 4,
+      "summary": "run tracking、params/metrics/artifacts、model registry；适合作为 Run Ledger 后端。",
+      "differentiators": [
+        "实验 tracking 成熟"
+      ],
+      "gaps_vs_our_target": [
+        "无 paper/claim/review 语义"
+      ],
+      "sources": [
+        "https://mlflow.org/docs/latest/index.html"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "scientific_infrastructure",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "experiment_plan"
+        ],
+        "primary_outputs": [
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "tracking_infrastructure"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "artifact_hashing"
+        ],
+        "accountability_features": [
+          "artifact_lineage",
+          "run_ledger"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [
+          "mlops_tracking_stack"
+        ],
+        "maturity_signals": [],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "infrastructure_component"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "dvc",
+      "name": "DVC",
+      "aliases": [
+        "Data Version Control"
+      ],
+      "depth": "brief",
+      "type": "infrastructure",
+      "domain_categories": [
+        "execution_tracking_infrastructure"
+      ],
+      "mechanism_tags": [
+        "artifact_lineage",
+        "run_ledger",
+        "release_bundle"
+      ],
+      "center_object": "artifact_metric",
+      "coverage": {
+        "literature_grounding": 0,
+        "claim_method_extraction": 0,
+        "experiment_design": 2,
+        "code_generation_or_adaptation": 0,
+        "training_execution": 3,
+        "result_analysis": 3,
+        "review_feedback": 0,
+        "evidence_binding": 3,
+        "provenance_traceability": 4,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 4,
+      "summary": "数据/模型/管线版本化，适合作为数据和大 artifact 版本层。",
+      "differentiators": [
+        "Git-like data/model versioning"
+      ],
+      "gaps_vs_our_target": [
+        "不理解 paper claim"
+      ],
+      "sources": [
+        "https://dvc.org/doc"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "scientific_infrastructure",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "experiment_plan"
+        ],
+        "primary_outputs": [
+          "reproduction_bundle",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "tracking_infrastructure"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "artifact_hashing"
+        ],
+        "accountability_features": [
+          "artifact_lineage",
+          "release_bundle",
+          "run_ledger"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [
+          "mlops_tracking_stack"
+        ],
+        "maturity_signals": [],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "infrastructure_component"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "hydra",
+      "name": "Hydra",
+      "aliases": [
+        "Hydra Config"
+      ],
+      "depth": "brief",
+      "type": "infrastructure",
+      "domain_categories": [
+        "execution_tracking_infrastructure"
+      ],
+      "mechanism_tags": [
+        "experiment_bridge"
+      ],
+      "center_object": "experiment_spec",
+      "coverage": {
+        "literature_grounding": 0,
+        "claim_method_extraction": 0,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 1,
+        "training_execution": 2,
+        "result_analysis": 1,
+        "review_feedback": 0,
+        "evidence_binding": 1,
+        "provenance_traceability": 2,
+        "human_in_the_loop": 0,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 3,
+      "summary": "配置组合、CLI override、multirun/sweeps，适合 Experiment Spec 编译。",
+      "differentiators": [
+        "配置层成熟"
+      ],
+      "gaps_vs_our_target": [
+        "无 artifact/provenance/claim"
+      ],
+      "sources": [
+        "https://hydra.cc/docs/intro/"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "scientific_infrastructure",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "experiment_plan"
+        ],
+        "primary_outputs": [
+          "code_repo_or_patch",
+          "experiment_plan",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "repo_to_experiment",
+          "tracking_infrastructure"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [],
+        "accountability_features": [],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "infrastructure_component"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "wandb",
+      "name": "Weights & Biases",
+      "aliases": [
+        "W&B",
+        "Weights and Biases"
+      ],
+      "depth": "brief",
+      "type": "infrastructure_product",
+      "domain_categories": [
+        "execution_tracking_infrastructure"
+      ],
+      "mechanism_tags": [
+        "artifact_lineage",
+        "run_ledger"
+      ],
+      "center_object": "training_run",
+      "coverage": {
+        "literature_grounding": 0,
+        "claim_method_extraction": 0,
+        "experiment_design": 1,
+        "code_generation_or_adaptation": 0,
+        "training_execution": 3,
+        "result_analysis": 4,
+        "review_feedback": 0,
+        "evidence_binding": 3,
+        "provenance_traceability": 4,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 0
+      },
+      "our_relevance": 3,
+      "summary": "实验 dashboard 和 artifact lineage，可作为可视化/协作层。",
+      "differentiators": [
+        "artifact graph + dashboard"
+      ],
+      "gaps_vs_our_target": [
+        "在线平台依赖，不负责科研语义"
+      ],
+      "sources": [
+        "https://docs.wandb.ai/"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "scientific_infrastructure",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "experiment_plan"
+        ],
+        "primary_outputs": [
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "tracking_infrastructure"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "artifact_hashing"
+        ],
+        "accountability_features": [
+          "artifact_lineage",
+          "run_ledger"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [
+          "mlops_tracking_stack"
+        ],
+        "maturity_signals": [],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "infrastructure_component"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "snakemake-nextflow",
+      "name": "Snakemake / Nextflow",
+      "aliases": [
+        "Snakemake",
+        "Nextflow"
+      ],
+      "depth": "brief",
+      "type": "infrastructure",
+      "domain_categories": [
+        "execution_tracking_infrastructure"
+      ],
+      "mechanism_tags": [
+        "run_ledger",
+        "release_bundle",
+        "sandbox_runner"
+      ],
+      "center_object": "experiment_spec",
+      "coverage": {
+        "literature_grounding": 0,
+        "claim_method_extraction": 0,
+        "experiment_design": 3,
+        "code_generation_or_adaptation": 1,
+        "training_execution": 4,
+        "result_analysis": 3,
+        "review_feedback": 0,
+        "evidence_binding": 3,
+        "provenance_traceability": 4,
+        "human_in_the_loop": 0,
+        "external_paper_reproduction": 1
+      },
+      "our_relevance": 3,
+      "summary": "可复现 workflow DAG，适合复杂数据分析 pipeline。",
+      "differentiators": [
+        "HPC/cloud/local workflow portability"
+      ],
+      "gaps_vs_our_target": [
+        "无 paper claim/reviewer 语义"
+      ],
+      "sources": [
+        "https://snakemake.readthedocs.io/en/stable/",
+        "https://www.nextflow.io/docs/latest/index.html"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "scientific_infrastructure",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "experiment_plan"
+        ],
+        "primary_outputs": [
+          "experiment_plan",
+          "reproduction_bundle",
+          "training_run_results"
+        ],
+        "workflow_scopes": [
+          "tracking_infrastructure"
+        ],
+        "execution_depth": [
+          "full_training_or_simulation",
+          "smoke_test"
+        ],
+        "verification_models": [],
+        "accountability_features": [
+          "release_bundle",
+          "run_ledger"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [
+          "container_runtime"
+        ],
+        "maturity_signals": [],
+        "risk_flags": [
+          "llm_generated_code_execution"
+        ],
+        "fit_to_our_target": [
+          "infrastructure_component"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "reprozip-rocrate-prov",
+      "name": "ReproZip / RO-Crate / W3C PROV",
+      "aliases": [
+        "ReproZip",
+        "RO-Crate",
+        "W3C PROV",
+        "Workflow Run RO-Crate"
+      ],
+      "depth": "medium",
+      "type": "infrastructure_standard",
+      "domain_categories": [
+        "execution_tracking_infrastructure",
+        "evidence_provenance_accountability"
+      ],
+      "mechanism_tags": [
+        "provenance_graph",
+        "release_bundle",
+        "artifact_lineage"
+      ],
+      "center_object": "provenance_trace",
+      "coverage": {
+        "literature_grounding": 0,
+        "claim_method_extraction": 0,
+        "experiment_design": 1,
+        "code_generation_or_adaptation": 0,
+        "training_execution": 3,
+        "result_analysis": 2,
+        "review_feedback": 0,
+        "evidence_binding": 4,
+        "provenance_traceability": 5,
+        "human_in_the_loop": 1,
+        "external_paper_reproduction": 3
+      },
+      "our_relevance": 4,
+      "summary": "环境捕获、研究对象打包与通用 provenance 标准，适合 release/replay 层。",
+      "differentiators": [
+        "自包含复现包",
+        "W3C PROV semantics"
+      ],
+      "gaps_vs_our_target": [
+        "标准/工具层，不自动理解 paper/review"
+      ],
+      "sources": [
+        "https://www.reprozip.org/",
+        "https://www.researchobject.org/ro-crate/",
+        "https://www.w3.org/TR/prov-overview/"
+      ],
+      "last_reviewed": "2026-06-01",
+      "facets": {
+        "research_fields": [
+          "ai_agent_systems",
+          "metascience_integrity_review",
+          "scientific_infrastructure",
+          "software_engineering"
+        ],
+        "starting_points": [
+          "workflow_task"
+        ],
+        "primary_outputs": [
+          "reproduction_bundle"
+        ],
+        "workflow_scopes": [
+          "claim_to_review_issue",
+          "experiment_to_claim",
+          "tracking_infrastructure"
+        ],
+        "execution_depth": [
+          "smoke_test"
+        ],
+        "verification_models": [
+          "artifact_hashing",
+          "claim_evidence_mapping"
+        ],
+        "accountability_features": [
+          "agent_trace",
+          "artifact_lineage",
+          "provenance_graph",
+          "release_bundle"
+        ],
+        "agent_topologies": [],
+        "integration_styles": [],
+        "maturity_signals": [],
+        "risk_flags": [],
+        "fit_to_our_target": [
+          "infrastructure_component"
+        ],
+        "custom_facets": []
+      }
+    },
+    {
+      "id": "deep-scientist",
+      "name": "DeepScientist",
+      "aliases": [],
+      "depth": "deep",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 5,
+      "summary": "Local-first research operating system / workspace; strong research-map, memory, takeover, and artifact workflow, but not a claim-state transition kernel.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Occupies Research OS/workspace narrative; claim-state semantics and verifier certificates are not the core object."
+      ],
+      "sources": [
+        "https://github.com/ResearAI/DeepScientist"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "research_os_competitor",
+          "adjacent_competitor"
+        ],
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "idea_to_experiment",
+          "idea_to_paper",
+          "repo_to_experiment"
+        ],
+        "accountability_features": [
+          "agent_trace",
+          "artifact_lineage",
+          "decision_log"
+        ],
+        "verification_models": [
+          "human_gate"
+        ]
+      }
+    },
+    {
+      "id": "data-to-paper",
+      "name": "data-to-paper",
+      "aliases": [],
+      "depth": "deep",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 5,
+      "summary": "Backward-traceable AI-driven scientific manuscript pipeline; very relevant for data-to-claim traceability and human-verifiable manuscripts.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Strong backward traceability, but not a reusable claim lifecycle kernel."
+      ],
+      "sources": [
+        "https://github.com/Technion-Kishony-lab/data-to-paper",
+        "https://arxiv.org/abs/2404.17605"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "claim_kernel_reference",
+          "governance_reference"
+        ],
+        "research_fields": [
+          "metascience_integrity_review",
+          "scientific_infrastructure"
+        ],
+        "workflow_scopes": [
+          "experiment_to_claim",
+          "claim_to_review_issue"
+        ],
+        "accountability_features": [
+          "provenance_graph",
+          "artifact_lineage",
+          "release_bundle",
+          "decision_log"
+        ],
+        "verification_models": [
+          "claim_evidence_mapping",
+          "human_gate"
+        ],
+        "kernel_primitives": [
+          "decision_trace_package"
+        ]
+      }
+    },
+    {
+      "id": "paper2agent",
+      "name": "Paper2Agent",
+      "aliases": [],
+      "depth": "medium",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 4,
+      "summary": "Converts papers and codebases into interactive MCP agents; useful paper-to-agent direction but not claim-state governance.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Paper agents can reproduce and answer queries, but kernel-level release authority is not the core abstraction."
+      ],
+      "sources": [
+        "https://github.com/jmiao24/Paper2Agent",
+        "https://arxiv.org/abs/2509.06917"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "adjacent_competitor",
+          "plugin_layer"
+        ],
+        "research_fields": [
+          "ai_agent_systems",
+          "software_engineering"
+        ],
+        "workflow_scopes": [
+          "paper_to_code",
+          "paper_to_reproduction",
+          "agent_runtime"
+        ],
+        "accountability_features": [
+          "artifact_lineage"
+        ],
+        "verification_models": [
+          "deterministic_verifier",
+          "claim_evidence_mapping"
+        ]
+      }
+    },
+    {
+      "id": "autoreproduce",
+      "name": "AutoReproduce",
+      "aliases": [],
+      "depth": "medium",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 4,
+      "summary": "Paper-lineage-based automated experimental reproduction; important for implicit knowledge extraction and reproduction benchmarks.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Strong paper lineage for reproduction, not a general accountable claim state runtime."
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2505.20662",
+        "https://github.com/AI9Stars/AutoReproduce"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "benchmark_reference",
+          "adjacent_competitor"
+        ],
+        "research_fields": [
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "workflow_scopes": [
+          "paper_to_reproduction",
+          "paper_to_code",
+          "repo_to_experiment"
+        ],
+        "accountability_features": [
+          "artifact_lineage",
+          "provenance_graph"
+        ],
+        "verification_models": [
+          "claim_evidence_mapping",
+          "deterministic_verifier"
+        ]
+      }
+    },
+    {
+      "id": "repro-refp2c",
+      "name": "RePro / RefP2C",
+      "aliases": [],
+      "depth": "medium",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 5,
+      "summary": "Fine-grained paper fingerprint extraction and iterative verification/refinement for paper-to-code; important verifier-design reference.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Fine-grained criteria are close to evidence policy, but system scope is paper-to-code rather than lifecycle kernel."
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2508.16671"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "claim_kernel_reference",
+          "benchmark_reference"
+        ],
+        "research_fields": [
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "workflow_scopes": [
+          "paper_to_code",
+          "paper_to_reproduction"
+        ],
+        "accountability_features": [
+          "method_spec",
+          "experiment_spec"
+        ],
+        "verification_models": [
+          "claim_evidence_mapping",
+          "deterministic_verifier"
+        ],
+        "kernel_primitives": [
+          "evidence_policy_dsl",
+          "verifier_certificate"
+        ]
+      }
+    },
+    {
+      "id": "openags",
+      "name": "OpenAGS",
+      "aliases": [],
+      "depth": "brief",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 3,
+      "summary": "Open Autonomous Generalist Scientist / auto-research framework; adjacent broad autonomous research project.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Broad research framework, accountability kernel not central."
+      ],
+      "sources": [
+        "https://github.com/openags/Auto-Research"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "adjacent_competitor"
+        ],
+        "research_fields": [
+          "ai_agent_systems"
+        ],
+        "workflow_scopes": [
+          "idea_to_paper",
+          "idea_to_experiment",
+          "agent_runtime"
+        ],
+        "accountability_features": [
+          "agent_trace"
+        ],
+        "verification_models": [
+          "llm_reviewer"
+        ]
+      }
+    },
+    {
+      "id": "hyperspace-agi",
+      "name": "Hyperspace AGI",
+      "aliases": [],
+      "depth": "brief",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 4,
+      "summary": "Distributed P2P autonomous research/swarm system with shared state and paper output.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Strong distributed execution, weak claim-state accountability."
+      ],
+      "sources": [
+        "https://github.com/hyperspaceai/agi"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "adjacent_competitor",
+          "runtime_component"
+        ],
+        "research_fields": [
+          "ai_agent_systems",
+          "scientific_infrastructure"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "idea_to_experiment",
+          "idea_to_paper"
+        ],
+        "accountability_features": [
+          "agent_trace",
+          "failure_registry"
+        ],
+        "verification_models": [
+          "llm_reviewer"
+        ]
+      }
+    },
+    {
+      "id": "agentrxiv",
+      "name": "AgentRxiv",
+      "aliases": [],
+      "depth": "brief",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 3,
+      "summary": "Shared preprint / report server for autonomous research agents; useful collaboration bus but not accountability kernel.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Collaboration/publication infrastructure rather than claim transition authority."
+      ],
+      "sources": [
+        "https://agentrxiv.github.io/",
+        "https://arxiv.org/abs/2503.18102"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "infrastructure_component",
+          "plugin_layer"
+        ],
+        "research_fields": [
+          "ai_agent_systems",
+          "general_literature_research"
+        ],
+        "workflow_scopes": [
+          "literature_to_report",
+          "agent_runtime"
+        ],
+        "accountability_features": [
+          "release_bundle"
+        ],
+        "verification_models": [
+          "citation_grounding"
+        ]
+      }
+    },
+    {
+      "id": "deepxiv-sdk",
+      "name": "DeepXiv-SDK",
+      "aliases": [],
+      "depth": "brief",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 3,
+      "summary": "Scientific literature data interface / SDK / MCP layer for agents.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Useful retrieval/data layer, not claim governance."
+      ],
+      "sources": [
+        "https://github.com/DeepXiv/deepxiv_sdk",
+        "https://arxiv.org/abs/2603.00084"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "plugin_layer",
+          "infrastructure_component"
+        ],
+        "research_fields": [
+          "general_literature_research",
+          "scientific_infrastructure"
+        ],
+        "workflow_scopes": [
+          "literature_to_report",
+          "agent_runtime"
+        ],
+        "verification_models": [
+          "citation_grounding"
+        ]
+      }
+    },
+    {
+      "id": "evoscientist",
+      "name": "EvoScientist",
+      "aliases": [],
+      "depth": "brief",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 3,
+      "summary": "Self-evolving AI scientist with persistent memory and long-term improvement.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Strong self-evolution; accountability kernel not central."
+      ],
+      "sources": [
+        "https://github.com/EvoScientist/EvoScientist",
+        "https://arxiv.org/abs/2603.08127"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "adjacent_competitor"
+        ],
+        "research_fields": [
+          "ai_agent_systems"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "idea_to_paper",
+          "agent_runtime"
+        ],
+        "accountability_features": [
+          "agent_trace",
+          "failure_registry"
+        ],
+        "verification_models": [
+          "llm_reviewer"
+        ]
+      }
+    },
+    {
+      "id": "bilevel-autoresearch",
+      "name": "Bilevel Autoresearch",
+      "aliases": [],
+      "depth": "brief",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 3,
+      "summary": "Meta-autoresearch loop where outer loop modifies inner autoresearch mechanism.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Meta-optimization rather than claim lifecycle governance."
+      ],
+      "sources": [
+        "https://github.com/EdwardOptimization/Bilevel-Autoresearch",
+        "https://arxiv.org/abs/2603.23420"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "watch_only",
+          "runtime_component"
+        ],
+        "research_fields": [
+          "ai_agent_systems",
+          "software_engineering"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "repo_to_experiment"
+        ],
+        "accountability_features": [
+          "agent_trace"
+        ],
+        "verification_models": [
+          "deterministic_verifier"
+        ]
+      }
+    },
+    {
+      "id": "sibyl-autoresearch",
+      "name": "Sibyl-AutoResearch",
+      "aliases": [],
+      "depth": "deep",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 5,
+      "summary": "Scientific trial-and-error harness emphasizing bounded trials, failure registry, artifact traces, roles, memory, and gates.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Very close process-governance work; still not a reusable claim lifecycle transition kernel."
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2605.22343"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "adjacent_competitor",
+          "governance_reference",
+          "risk_model"
+        ],
+        "research_fields": [
+          "ai_agent_systems",
+          "metascience_integrity_review"
+        ],
+        "workflow_scopes": [
+          "idea_to_experiment",
+          "experiment_to_claim",
+          "agent_runtime"
+        ],
+        "accountability_features": [
+          "failure_registry",
+          "artifact_lineage",
+          "decision_log",
+          "agent_trace"
+        ],
+        "verification_models": [
+          "human_gate",
+          "deterministic_verifier"
+        ],
+        "kernel_primitives": [
+          "append_only_transition_log"
+        ]
+      }
+    },
+    {
+      "id": "aar-claim-level-auditability",
+      "name": "AAR / Claim-Level Auditability",
+      "aliases": [],
+      "depth": "deep",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 5,
+      "summary": "Auditable Autonomous Research proposal emphasizing persistent queryable provenance graphs, provenance coverage/soundness, contradiction transparency, and audit effort.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Strong auditability theory; does not implement a reusable claim-state runtime."
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2602.13855"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "claim_kernel_reference",
+          "protocol_competitor",
+          "risk_model"
+        ],
+        "research_fields": [
+          "metascience_integrity_review",
+          "general_literature_research"
+        ],
+        "workflow_scopes": [
+          "literature_to_report",
+          "claim_to_review_issue"
+        ],
+        "accountability_features": [
+          "provenance_graph",
+          "claim_ledger",
+          "decision_log"
+        ],
+        "verification_models": [
+          "claim_evidence_mapping",
+          "citation_grounding"
+        ],
+        "kernel_primitives": [
+          "decision_trace_package"
+        ]
+      }
+    },
+    {
+      "id": "kaiju",
+      "name": "KAIJU",
+      "aliases": [],
+      "depth": "medium",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 4,
+      "summary": "Execution kernel for LLM agents separating reasoning from tool execution with scheduling/tool dispatch/security gates.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Kernel concept exists for tool execution; CairnLab must remain claim-state kernel, not generic agent runtime."
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2604.02375"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "runtime_component",
+          "governance_reference"
+        ],
+        "research_fields": [
+          "ai_agent_systems",
+          "software_engineering"
+        ],
+        "workflow_scopes": [
+          "agent_runtime"
+        ],
+        "accountability_features": [
+          "agent_trace",
+          "decision_log"
+        ],
+        "verification_models": [
+          "human_gate",
+          "deterministic_verifier"
+        ],
+        "kernel_primitives": [
+          "transition_authority"
+        ]
+      }
+    },
+    {
+      "id": "aagate",
+      "name": "AAGATE",
+      "aliases": [],
+      "depth": "medium",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 4,
+      "summary": "NIST AI RMF-aligned Kubernetes-native governance control plane for agentic AI; useful governance practice reference.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Governance control plane, not scientific claim lifecycle kernel."
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2510.25863"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "governance_reference",
+          "infrastructure_component"
+        ],
+        "research_fields": [
+          "ai_agent_systems",
+          "scientific_infrastructure"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "tracking_infrastructure"
+        ],
+        "accountability_features": [
+          "provenance_graph",
+          "decision_log",
+          "agent_trace"
+        ],
+        "verification_models": [
+          "human_gate",
+          "deterministic_verifier"
+        ]
+      }
+    },
+    {
+      "id": "aicat",
+      "name": "AICat",
+      "aliases": [],
+      "depth": "brief",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 3,
+      "summary": "AI catalogue vocabulary/approach for machine-readable AI system metadata to support EU AI Act-style registration and transparency.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Useful for registry/export metadata; not claim-state runtime."
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2501.04014",
+        "https://w3id.org/aicat"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "governance_reference",
+          "infrastructure_component"
+        ],
+        "research_fields": [
+          "scientific_infrastructure",
+          "metascience_integrity_review"
+        ],
+        "workflow_scopes": [
+          "tracking_infrastructure"
+        ],
+        "accountability_features": [
+          "release_bundle",
+          "provenance_graph"
+        ],
+        "kernel_primitives": [
+          "decision_trace_package"
+        ]
+      }
+    },
+    {
+      "id": "fm-agent",
+      "name": "FM Agent",
+      "aliases": [],
+      "depth": "brief",
+      "type": "research_or_infrastructure_project",
+      "domain_categories": [],
+      "mechanism_tags": [],
+      "center_object": "claim_or_research_workflow",
+      "coverage": {},
+      "our_relevance": 3,
+      "summary": "Distributed multi-agent/evolutionary R&D execution framework across OR/ML/GPU/mathematics; relevant execution competitor.",
+      "differentiators": [],
+      "gaps_vs_our_target": [
+        "Strong execution/evaluation runtime; accountability semantics not core."
+      ],
+      "sources": [
+        "https://arxiv.org/abs/2510.26144"
+      ],
+      "last_reviewed": "2026-06-03",
+      "facets": {
+        "fit_to_our_target": [
+          "runtime_component",
+          "adjacent_competitor"
+        ],
+        "research_fields": [
+          "ai_agent_systems",
+          "ai_ml_algorithm_research",
+          "software_engineering"
+        ],
+        "workflow_scopes": [
+          "agent_runtime",
+          "idea_to_experiment",
+          "repo_to_experiment"
+        ],
+        "accountability_features": [
+          "agent_trace",
+          "artifact_lineage"
+        ],
+        "verification_models": [
+          "deterministic_verifier"
+        ]
+      }
+    }
+  ],
+  "schema_note": "domain_categories/mechanism_tags/center_object are retained for backward compatibility. facets is the primary multi-attribute representation."
+}

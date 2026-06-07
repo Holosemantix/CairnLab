@@ -1,0 +1,6 @@
+{
+  "accuracy": 0.923,
+  "loss": 0.211,
+  "actual_split_used": "validation",
+  "intended_split": "test"
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RiskAssessment",
+  "type": "object",
+  "required": [
+    "object",
+    "risk_tier",
+    "dimensions",
+    "controls"
+  ],
+  "properties": {
+    "object": {
+      "type": "string"
+    },
+    "risk_tier": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "dimensions": {
+      "type": "object"
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

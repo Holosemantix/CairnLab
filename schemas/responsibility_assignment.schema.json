@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ResponsibilityAssignment",
+  "type": "object",
+  "required": [
+    "object",
+    "action",
+    "responsible",
+    "accountable"
+  ],
+  "properties": {
+    "object": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string"
+    },
+    "responsible": {
+      "type": "array"
+    },
+    "accountable": {
+      "type": "array"
+    }
+  }
+}

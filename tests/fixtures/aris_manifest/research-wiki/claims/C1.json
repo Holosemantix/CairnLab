@@ -1,0 +1,14 @@
+{
+  "id": "claim:C1",
+  "text": "Method A improves baseline B on Dataset X.",
+  "type": "empirical_metric",
+  "status": "released",
+  "risk": "medium",
+  "scope": {
+    "dataset": "dataset:x",
+    "metric": "accuracy"
+  },
+  "metadata": {
+    "paper_section": "paper_section:results.table_1"
+  }
+}

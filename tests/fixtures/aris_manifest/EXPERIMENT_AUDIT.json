@@ -1,0 +1,8 @@
+{
+  "id": "verifier:experiment_audit",
+  "verdict": "PASS",
+  "inputs": [
+    "run:exp_001",
+    "metric:exp_001.accuracy"
+  ]
+}

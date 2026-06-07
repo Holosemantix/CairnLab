@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EvidencePolicy",
+  "type": "object",
+  "required": [
+    "id",
+    "required_evidence",
+    "required_verifiers"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "required_evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "required_verifiers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

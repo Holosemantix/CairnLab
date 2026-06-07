@@ -1,0 +1,137 @@
+case_id: case_human_scope_drift
+source_system: synthetic_agent_workflow
+source_task: report_revision
+stress_scenario: human_approval_scope_drift
+
+claims:
+  - id: claim:C2
+    text: "The proposed method consistently outperforms the baseline across all evaluated datasets."
+    type: empirical_comparison
+    state: released
+    scope:
+      draft_version: draft:v2
+      datasets:
+        - dataset:dataset_x_test_v1
+        - dataset:dataset_y_test_v1
+      metric: accuracy
+    risk: high
+    metadata:
+      paper_section: paper_section:abstract.sentence_3
+
+evidence:
+  - id: run:exp_010
+    type: run
+    uri: mlflow://runs/exp_010
+    status: valid
+    hash: sha256:run010
+    metadata:
+      datasets:
+        - dataset_x
+      seeds:
+        - 1
+  - id: metric:exp_010.mean_accuracy
+    type: metric
+    uri: mlflow://runs/exp_010/metrics/mean_accuracy
+    status: valid
+    hash: sha256:metric010
+    metadata:
+      value: 0.884
+      seeds:
+        - 1
+  - id: paper_section:abstract.sentence_3
+    type: paper_section
+    uri: paper://abstract/sentence_3
+    status: valid
+    hash: null
+    metadata:
+      text: "Our method consistently outperforms the baseline across datasets."
+  - id: human_gate:H2
+    type: human_gate
+    uri: cairn://human_gates/H2
+    status: valid
+    hash: null
+    metadata:
+      actor: user:bob
+      authority: project_owner
+      scope:
+        draft_version: draft:v1
+        claim_text: "The proposed method improves the baseline on Dataset X."
+      rationale: "Approved narrow Dataset X claim in draft v1."
+  - id: release_decision:R2
+    type: release_decision
+    uri: cairn://release/R2
+    status: valid
+    hash: null
+    metadata:
+      actor: user:bob
+      decision: allow
+      claim: claim:C2
+  - id: dissent:D2
+    type: material_dissent
+    uri: cairn://dissent/D2
+    status: valid
+    hash: null
+    metadata:
+      severity: material
+      text: "The broadened claim says across all datasets, but only Dataset X with one seed is available."
+      resolved: false
+
+relations:
+  - id: rel:c2_run_metric
+    source: run:exp_010
+    target: metric:exp_010.mean_accuracy
+    type: computed
+    criticality: supporting
+  - id: rel:c2_metric_claim
+    source: metric:exp_010.mean_accuracy
+    target: claim:C2
+    type: supports
+    criticality: weak
+  - id: rel:c2_section
+    source: claim:C2
+    target: paper_section:abstract.sentence_3
+    type: contained_in
+    criticality: critical
+  - id: rel:c2_gate
+    source: human_gate:H2
+    target: claim:C2
+    type: approved_by
+    criticality: critical
+  - id: rel:c2_release
+    source: release_decision:R2
+    target: claim:C2
+    type: released_by
+    criticality: critical
+  - id: rel:dissent_c2
+    source: dissent:D2
+    target: claim:C2
+    type: challenges
+    criticality: critical
+
+native_system_behavior:
+  can_restore_workspace_state: unknown
+  can_replay_or_fork_agent_state: true
+  can_identify_downstream_claims: partial
+  can_invalidate_claims: false
+  can_downgrade_or_retract_released_claims: false
+  can_preserve_old_history_append_only: unknown
+  can_require_reapproval: false
+  can_export_machine_readable_revert_trace: false
+
+expected_cairnlab_behavior:
+  root: human_gate:H2
+  affected_objects:
+    - claim:C2
+    - paper_section:abstract.sentence_3
+    - release_decision:R2
+  proposed_transitions:
+    - HumanReapprovalRequired:human_gate:H2
+    - ClaimChallenged:claim:C2
+    - PaperSectionMarkedStale:paper_section:abstract.sentence_3
+    - ReleaseDecisionReopened:release_decision:R2
+
+failure_classes:
+  - human_scope_not_reopened
+  - material_dissent_not_blocking
+  - verdict_non_operationality
+  - paper_section_not_marked_stale

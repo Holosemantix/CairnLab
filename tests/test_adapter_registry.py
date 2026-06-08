@@ -18,11 +18,12 @@ from cairnlab.engine import CairnProject
 
 ROOT = Path(__file__).resolve().parents[1]
 ARC_FIXTURE = ROOT / "tests" / "fixtures" / "autoresearchclaw_manifest"
+ARC_E2E_FIXTURE = ROOT / "tests" / "fixtures" / "autoresearchclaw_e2e_run"
 ARIS_FIXTURE = ROOT / "tests" / "fixtures" / "aris_manifest"
 
 
 def test_registry_lists_builtin_manifest_adapters() -> None:
-    assert adapter_names() == ("autoresearchclaw-manifest", "aris-manifest")
+    assert adapter_names() == ("autoresearchclaw-e2e-run", "autoresearchclaw-manifest", "aris-manifest")
 
 
 def test_registry_detects_autoresearchclaw_fixture() -> None:
@@ -30,6 +31,13 @@ def test_registry_detects_autoresearchclaw_fixture() -> None:
 
     assert [adapter.name for adapter in matches] == ["autoresearchclaw-manifest"]
     assert select_adapter(ARC_FIXTURE).name == "autoresearchclaw-manifest"
+
+
+def test_registry_detects_autoresearchclaw_e2e_fixture() -> None:
+    matches = detect_adapters(ARC_E2E_FIXTURE)
+
+    assert [adapter.name for adapter in matches] == ["autoresearchclaw-e2e-run"]
+    assert select_adapter(ARC_E2E_FIXTURE).name == "autoresearchclaw-e2e-run"
 
 
 def test_registry_detects_aris_fixture() -> None:

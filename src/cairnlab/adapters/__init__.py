@@ -1,4 +1,5 @@
 from .base import AdapterDiagnostic, AdapterExportResult, AutoResearchAdapter
+from .autoresearchclaw_e2e_run import AutoResearchClawE2ERunAdapter
 from .autoresearchclaw_manifest import AutoResearchClawManifestAdapter
 from .aris_manifest import ArisManifestAdapter
 from .registry import (
@@ -16,6 +17,7 @@ __all__ = [
     "AdapterExportResult",
     "AdapterSelectionError",
     "AutoResearchAdapter",
+    "AutoResearchClawE2ERunAdapter",
     "AutoResearchClawManifestAdapter",
     "ArisManifestAdapter",
     "adapter_by_name",

@@ -1,0 +1,7 @@
+{
+  "decision": null,
+  "raw_text_excerpt": "{\"type\":\"error\",\"status\":400,\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The 'gpt-5.3-codex' model is not supported when using Codex with a ChatGPT account.\"}}",
+  "decision_parse_failed": true,
+  "note": "No PROCEED/PIVOT/REFINE keyword found in model response. Pipeline paused; review decision.md and resume with --from-stage RESEARCH_DECISION after refining inputs.",
+  "generated": "2026-06-08T08:04:52+00:00"
+}

@@ -87,11 +87,37 @@ host runtime, mutate host state, run experiments, or decide lifecycle authority.
 
 Current built-ins:
 
+- `autoresearchclaw-e2e-run`
 - `autoresearchclaw-manifest`
 - `aris-manifest`
 
-Both read structured JSON or JSONL manifests only. They do not import
+All built-ins read structured JSON or JSONL metadata only. They do not import
 AutoResearchClaw, ARIS, or any host runtime.
+
+`autoresearchclaw-e2e-run` is a resolver layer for the real AutoResearchClaw
+e2e directory shape observed in validation:
+
+```text
+topic_manifest.json
+pipeline_summary.json
+stage-14/experiment_summary.json
+stage-14/stage_health.json
+stage-14/decision.json
+stage-15/stage_health.json
+stage-15/decision.json
+stage-15/decision_structured.json
+stage-20/quality_report.json
+stage-22/paper_verification.json
+stage-22/sanitization_report.json
+```
+
+It selects `stage-14/experiment_summary.json` as the result-analysis manifest,
+delegates base run/metric/claim mapping to `autoresearchclaw-manifest`, and then
+adds condition-level metric claims plus pipeline, stage health, decision,
+quality, paper-verification, and sanitization artifacts. Downstream pauses such
+as `stage-15` research-decision failures, pipeline degradation, quality-gate
+failures, paper verifier rejection, and sanitized numerical claims are
+diagnostics and evidence context only. They never authorize a claim release.
 
 ## CLI Surface
 
@@ -137,6 +163,7 @@ repository and needs packaging support.
 
 Current coverage:
 
+- AutoResearchClaw e2e run detection, export, diagnostics, and revert planning;
 - AutoResearchClaw manifest detection and export;
 - ARIS manifest detection and export;
 - registry name listing;

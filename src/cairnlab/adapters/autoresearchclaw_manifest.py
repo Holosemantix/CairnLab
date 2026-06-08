@@ -20,7 +20,8 @@ class AutoResearchClawManifestAdapter:
     name = "autoresearchclaw-manifest"
 
     def detect(self, path: Path) -> bool:
-        return self._summary_path(path) is not None
+        root = Path(path)
+        return not self._looks_like_e2e_root(root) and self._summary_path(root) is not None
 
     def export_case(self, path: Path) -> AdapterExportResult:
         root = Path(path)
@@ -148,6 +149,12 @@ class AutoResearchClawManifestAdapter:
         ]
         return next((path for path in candidates if path.exists()), None)
 
+    def _looks_like_e2e_root(self, root: Path) -> bool:
+        return (
+            (root / "stage-14" / "experiment_summary.json").exists()
+            and ((root / "topic_manifest.json").exists() or (root / "pipeline_summary.json").exists())
+        )
+
     def _claim_payload(self, summary: dict[str, Any]) -> dict[str, Any]:
         if isinstance(summary.get("claim"), dict):
             return summary["claim"]
@@ -157,19 +164,26 @@ class AutoResearchClawManifestAdapter:
         return {}
 
     def _primary_metric(self, summary: dict[str, Any]) -> tuple[str, Any]:
-        metric_key = str(summary.get("metric_key") or "primary_metric")
+        metric_key = summary.get("metric_key")
         metrics = {}
         best_run = summary.get("best_run")
         if isinstance(best_run, dict) and isinstance(best_run.get("metrics"), dict):
             metrics = best_run["metrics"]
-        if metric_key in metrics:
-            return metric_key, metrics[metric_key]
-        if metric_key in summary:
-            return metric_key, summary[metric_key]
+        if metric_key is not None:
+            key = str(metric_key)
+            if key in metrics:
+                return key, metrics[key]
+            if key in summary:
+                return key, summary[key]
+        for preferred_key in ("test_accuracy", "accuracy", "primary_metric"):
+            if preferred_key in metrics:
+                return preferred_key, metrics[preferred_key]
+            if preferred_key in summary:
+                return preferred_key, summary[preferred_key]
         if metrics:
             first_key = next(iter(metrics))
             return str(first_key), metrics[first_key]
-        return metric_key, None
+        return "primary_metric", None
 
     def _artifact_payloads(self, summary: dict[str, Any], root: Path) -> list[dict[str, Any]]:
         artifacts = summary.get("artifacts")

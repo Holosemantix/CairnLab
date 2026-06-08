@@ -32,6 +32,20 @@ prove that a live upstream framework emits complete metadata under real load.
 
 Real-framework validation should be a separate integration layer:
 
+For AutoResearchClaw ACP/Codex runs, pin the Codex model with
+`scripts/acpx-codex-gpt55-medium.sh` so recreated sessions do not fall back to a
+local default before CairnLab imports evidence. See
+`docs/AUTORESEARCHCLAW_CODEX_PINNING.md`.
+
+On 2026-06-08, the AutoResearchClaw ML01 e2e run was resumed from Stage 15 with
+`gpt-5.5[medium]` pinned through that wrapper. The run advanced through Stage 23
+and exited with `Pipeline complete: 9/9 stages done, 0 failed`. Its final
+`pipeline_summary.json` still reported `degraded=true`; Stage 20 reported
+quality verdict `FAIL`; Stage 22 reported paper verification severity `REJECT`
+and sanitization replaced 79 numbers. The e2e adapter now imports those signals
+as evidence diagnostics and validation `failure_classes`, not as release
+authority.
+
 ```mermaid
 flowchart TD
     run["Run real AutoResearch task"]

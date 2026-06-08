@@ -21,7 +21,7 @@ and verifier seeds:
 - deterministic transition authority for verification and release requests;
 - deterministic verifier certificate execution for selected evidence checks;
 - decision trace package generation for reviewable consequential claims;
-- deterministic adapter detection for external manifest exports;
+- deterministic adapter detection for external manifest and e2e run exports;
 - thin CLI commands over reusable Python APIs.
 
 It does not yet implement the full EvidencePolicy engine or plugin-based
@@ -31,7 +31,7 @@ verifier system described in `docs/KERNEL_SPEC.md`.
 
 ```mermaid
 flowchart TD
-    external["External AutoResearch metadata"]
+    external["External AutoResearch metadata<br/>manifest or e2e run"]
     registry["Adapter registry"]
     adapter["AutoResearchAdapter.export_case()"]
     case["ClaimCase"]

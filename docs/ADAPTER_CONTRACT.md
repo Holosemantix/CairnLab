@@ -213,6 +213,50 @@ It maps:
 
 It does not import AutoResearchClaw, run its pipeline, repair experiments, parse papers, or infer human approval when approval metadata is missing.
 
+### Current E2E Run Adapter
+
+The in-tree `AutoResearchClawE2ERunAdapter` handles the real e2e run directory
+shape produced by AutoResearchClaw validation. It detects a run root containing
+`stage-14/experiment_summary.json` plus root-level e2e markers such as
+`topic_manifest.json` or `pipeline_summary.json`.
+
+It reads:
+
+```text
+topic_manifest.json             optional source task context
+pipeline_summary.json           optional pipeline status context
+stage-14/experiment_summary.json
+stage-14/stage_health.json      optional stage evidence
+stage-14/decision.json          optional stage evidence
+stage-15/stage_health.json      optional downstream diagnostic evidence
+stage-15/decision.json          optional downstream diagnostic evidence
+stage-15/decision_structured.json optional model/parse diagnostic evidence
+stage-20/quality_report.json    optional quality-gate evidence
+stage-22/paper_verification.json optional paper verifier evidence
+stage-22/sanitization_report.json optional sanitization evidence
+```
+
+It maps:
+
+- `stage-14/experiment_summary.json` through the manifest adapter;
+- `condition_summaries[*].metrics[*]` to condition-level metric evidence and
+  verified observation claims;
+- `pipeline_summary.json`, stage health, decision, quality, verification, and
+  sanitization files to contextual `artifact` evidence;
+- structured decision parse failures and model API errors to diagnostics;
+- pipeline `degraded`, paused, failed, or blocked status to adapter diagnostics;
+- quality-gate `FAIL`, paper-verifier `REJECT` or `FAIL`, and claim-number
+  sanitization to adapter diagnostics;
+- paused, failed, or blocked downstream stages to `failure_classes` for
+  validation reporting.
+- pipeline degradation and verifier rejection signals to `failure_classes` for
+  validation reporting.
+
+The e2e adapter is not a release gate. For example, a paused
+`stage-15/research_decision` is imported as evidence and warning diagnostics, not
+as a CairnLab release decision. Release still requires CairnLab transition
+authority, verifier certificates, human gates, and accountable responsibility.
+
 ## ARIS Mapping
 
 The first ARIS adapter should treat these sources as metadata:

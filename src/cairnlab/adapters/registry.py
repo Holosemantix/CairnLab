@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .aris_manifest import ArisManifestAdapter
+from .autoresearchclaw_e2e_run import AutoResearchClawE2ERunAdapter
 from .autoresearchclaw_manifest import AutoResearchClawManifestAdapter
 from .base import AdapterExportResult, AutoResearchAdapter
 
@@ -14,6 +15,7 @@ class AdapterSelectionError(ValueError):
 
 def builtin_adapters() -> tuple[AutoResearchAdapter, ...]:
     return (
+        AutoResearchClawE2ERunAdapter(),
         AutoResearchClawManifestAdapter(),
         ArisManifestAdapter(),
     )

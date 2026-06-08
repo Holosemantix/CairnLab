@@ -1,0 +1,8 @@
+{
+  "run_id": "packaged-copy",
+  "best_run": {
+    "metrics": {
+      "test_accuracy": 0.1
+    }
+  }
+}

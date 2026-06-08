@@ -1,0 +1,49 @@
+{
+  "generated": "2026-06-08T04:19:10+00:00",
+  "best_run": {
+    "run_id": "run-1",
+    "task_id": "sandbox-main",
+    "status": "completed",
+    "metrics": {
+      "no_dropout/0/test_accuracy": 0.975,
+      "test_accuracy": 0.9777777777777777,
+      "no_dropout/0/ece": 0.009359,
+      "ece": 0.05163899320695135
+    },
+    "elapsed_sec": 26.474366693757474,
+    "stderr": "",
+    "timed_out": false,
+    "completed_at": "2026-06-08T04:16:30+00:00"
+  },
+  "metrics_summary": {
+    "test_accuracy": {
+      "min": 0.977778,
+      "max": 0.977778,
+      "mean": 0.977778,
+      "count": 1
+    },
+    "ece": {
+      "min": 0.051639,
+      "max": 0.051639,
+      "mean": 0.051639,
+      "count": 1
+    }
+  },
+  "condition_summaries": {
+    "no_dropout": {
+      "metrics": {
+        "test_accuracy": 0.975,
+        "ece": 0.019764
+      }
+    },
+    "spatial_dropout_p30": {
+      "metrics": {
+        "test_accuracy": 0.977778,
+        "ece": 0.020555
+      }
+    }
+  },
+  "total_runs": 1,
+  "total_conditions": 2,
+  "total_metric_keys": 4
+}

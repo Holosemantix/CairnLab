@@ -1,0 +1,5 @@
+{
+  "id": "ML01",
+  "title": "Dropout regularization strategies on shallow tabular MLPs",
+  "research_question": "Does the choice of dropout variant matter more for probability calibration than for test accuracy on tabular classification with shallow MLPs?"
+}

@@ -7,11 +7,14 @@ from cairnlab import AutoResearchClawManifestAdapter, CairnRuntime
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "autoresearchclaw_manifest"
+E2E_FIXTURE = ROOT / "tests" / "fixtures" / "autoresearchclaw_e2e_run"
 
 
 def test_autoresearchclaw_manifest_adapter_detects_fixture() -> None:
     adapter = AutoResearchClawManifestAdapter()
     assert adapter.detect(FIXTURE)
+    assert not adapter.detect(E2E_FIXTURE)
+    assert adapter.detect(E2E_FIXTURE / "stage-14")
 
 
 def test_autoresearchclaw_manifest_adapter_exports_claim_case() -> None:

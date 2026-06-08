@@ -15,6 +15,7 @@ from .models import (
 from .planner import InvalidationPlanner
 from .projection import EventProjection
 from .store import CairnProjectStore
+from .trace_package import DecisionTracePackager
 from .validation import build_validation_report, validation_report_markdown
 
 
@@ -76,6 +77,16 @@ class CairnProject:
             validation_report_markdown(report),
         )
         return report
+
+    def decision_trace_package(self, claim_id: str, transition: str | None = None):
+        packager = DecisionTracePackager(
+            claims=self.store.load_claims(),
+            evidence=self.store.load_evidence(),
+            relations=self.store.load_relations(),
+            events=self.store.load_events(),
+            cases=self.store.load_cases(),
+        )
+        return packager.build(claim_id=claim_id, transition=transition)
 
     def request_transition(
         self,

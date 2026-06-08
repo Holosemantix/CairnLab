@@ -45,6 +45,8 @@ The most important contracts are:
 - `TransitionEvent`
 - `VerifierCertificate`
 - `VerificationRequest`
+- `DecisionTracePackage`
+- `DecisionTracePackageExport`
 - `RevertPlan`
 - `TraceResult`
 - `ClaimCase`
@@ -56,6 +58,10 @@ nodes, event targets, trace anchors, and adapter interoperability keys.
 `VerifierCertificate` is the structured output of deterministic verifier
 execution. For current storage compatibility, certificates are attached to claim
 cases as `EvidenceItem(type=verifier_certificate)` through the builder helper.
+
+`DecisionTracePackageExport` is the structured review bundle emitted by
+`DecisionTracePackager`. It is not transition authority; it packages the evidence
+and governance context needed to inspect a consequential decision.
 
 ## Dependency Rules
 

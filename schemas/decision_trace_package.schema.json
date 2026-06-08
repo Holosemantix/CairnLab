@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DecisionTracePackageExport",
+  "type": "object",
+  "required": [
+    "package",
+    "claim",
+    "evidence",
+    "relations",
+    "events",
+    "governance"
+  ],
+  "properties": {
+    "package": {
+      "type": "object",
+      "required": [
+        "id",
+        "claim",
+        "export_hash"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "claim": {
+          "type": "string"
+        },
+        "transition": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "includes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "export_hash": {
+          "type": "string"
+        }
+      }
+    },
+    "claim": {
+      "type": "object"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "governance": {
+      "type": "object"
+    }
+  }
+}

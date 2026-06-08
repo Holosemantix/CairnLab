@@ -131,6 +131,24 @@ Acceptance criteria:
 - Passing certificates can authorize `verified` through `TransitionAuthority`.
 - Failed certificates do not authorize stronger claim states.
 
+## Phase 0.9: Minimal decision trace package export
+
+Add a deterministic package builder for consequential claim decisions.
+
+Core module:
+
+- `trace_package`: packages claims, evidence, verifier certificates, gates,
+  dissent, governance records, relations, and transition events.
+
+Acceptance criteria:
+
+- Package generation is storage-free and reusable outside the CLI.
+- Package generation does not decide claim transitions.
+- Export includes a stable hash.
+- Local `.cairn/` projects can export a package through a thin CLI command.
+- The package makes release/high-impact claim review possible without relying on
+  upstream AutoResearch prose.
+
 ## Phase 1: Kernel MVP
 
 This phase is gated by Phase 0.5 evidence and informed by Phase 0.6 counterfactual results.

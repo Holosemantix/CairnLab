@@ -101,6 +101,8 @@ Any code change that modifies public APIs, CLI commands, storage layout, adapter
 contracts, model fields, or transition semantics should update the matching
 design document in the same change.
 
+Current verification scope is tracked in `docs/VERIFICATION_SCOPE.md`.
+
 ## Key documents
 
 | Path | Purpose |
@@ -171,6 +173,7 @@ cairn validate
 cairn trace claim:C1
 cairn revert run:exp_007 --reason "metric computed on wrong split" --plan-only
 cairn revert run:exp_007 --reason "metric computed on wrong split" --apply --actor user:alice
+cairn decision-trace claim:C1 --transition release --json
 ```
 
 Candidate full-kernel direction:
@@ -181,7 +184,7 @@ cairn claim add "Method A improves baseline B by 2.3% on Dataset X"
 cairn evidence attach C1 --run runs/exp-001 --artifact metrics.json
 cairn verify C1 --policy empirical-score-v1
 cairn gate request C1 --type human-release
-cairn report C1 --decision-trace
+cairn report C1
 ```
 
 ## Landscape survey maintenance

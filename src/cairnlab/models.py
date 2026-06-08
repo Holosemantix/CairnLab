@@ -179,6 +179,15 @@ class DecisionTracePackage(CairnModel):
     export_hash: str | None = None
 
 
+class DecisionTracePackageExport(CairnModel):
+    package: DecisionTracePackage
+    claim: dict[str, Any]
+    evidence: list[dict[str, Any]] = Field(default_factory=list)
+    relations: list[dict[str, Any]] = Field(default_factory=list)
+    events: list[dict[str, Any]] = Field(default_factory=list)
+    governance: dict[str, Any] = Field(default_factory=dict)
+
+
 class VerifierCertificate(CairnModel):
     id: str
     verifier: str

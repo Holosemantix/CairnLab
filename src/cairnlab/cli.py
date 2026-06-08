@@ -116,6 +116,26 @@ def trace(
         typer.echo(f"- {event.type}: {event.reason}")
 
 
+@app.command("decision-trace")
+def decision_trace(
+    claim_id: str,
+    transition: str | None = typer.Option(None, "--transition"),
+    path: Path = typer.Option(Path("."), "--path"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    project = CairnProject.open(path)
+    package = project.decision_trace_package(claim_id, transition=transition)
+    if json_output:
+        typer.echo(package.model_dump_json(indent=2))
+        return
+    typer.echo(f"Package: {package.package.id}")
+    typer.echo(f"Claim: {package.package.claim}")
+    typer.echo(f"Export hash: {package.package.export_hash}")
+    typer.echo(f"Evidence: {len(package.evidence)}")
+    typer.echo(f"Relations: {len(package.relations)}")
+    typer.echo(f"Events: {len(package.events)}")
+
+
 @app.command()
 def affected(
     object_id: str,

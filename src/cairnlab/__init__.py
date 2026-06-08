@@ -15,8 +15,17 @@ from .adapters import (
 from .authority import TransitionAuthority
 from .builder import ClaimCaseBuilder
 from .engine import CairnProject
-from .models import Actor, ClaimCase, RevertPlan, TransitionEvent, VerificationRequest, VerifierCertificate
+from .models import (
+    Actor,
+    ClaimCase,
+    DecisionTracePackageExport,
+    RevertPlan,
+    TransitionEvent,
+    VerificationRequest,
+    VerifierCertificate,
+)
 from .runtime import CairnRuntime
+from .trace_package import DecisionTracePackager
 from .verifiers import ArtifactHashVerifier, MetricThresholdVerifier, Verifier
 
 __version__ = "0.3.0"
@@ -34,6 +43,8 @@ __all__ = [
     "CairnProject",
     "ClaimCaseBuilder",
     "ClaimCase",
+    "DecisionTracePackageExport",
+    "DecisionTracePackager",
     "RevertPlan",
     "TransitionEvent",
     "TransitionAuthority",

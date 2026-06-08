@@ -20,6 +20,7 @@ and verifier seeds:
 - append-only transition event projection;
 - deterministic transition authority for verification and release requests;
 - deterministic verifier certificate execution for selected evidence checks;
+- decision trace package generation for reviewable consequential claims;
 - deterministic adapter detection for external manifest exports;
 - thin CLI commands over reusable Python APIs.
 
@@ -39,12 +40,15 @@ flowchart TD
     store["CairnProjectStore<br/>.cairn/"]
     graph["RelationGraph"]
     projection["EventProjection"]
+    events["TransitionEvents"]
     planner["InvalidationPlanner"]
     verifiers["VerifierExecution"]
     certificate["VerifierCertificate evidence"]
     authority["TransitionAuthority"]
+    tracepkg["DecisionTracePackager"]
     revert["RevertPlan + TransitionEvents"]
     decision["TransitionDecision + proposed event"]
+    traceexport["DecisionTracePackageExport"]
 
     external --> registry --> adapter --> case
     case --> runtime
@@ -52,8 +56,10 @@ flowchart TD
     project --> store
     store --> graph
     store --> projection
+    store --> events
     runtime --> graph
     runtime --> projection
+    runtime --> events
     case --> verifiers
     verifiers --> certificate
     certificate --> case
@@ -61,8 +67,11 @@ flowchart TD
     projection --> planner
     graph --> authority
     projection --> authority
+    graph --> tracepkg
+    events --> tracepkg
     planner --> revert
     authority --> decision
+    tracepkg --> traceexport
 ```
 
 This diagram is the implemented data flow. Adapters stop at `ClaimCase`.
@@ -80,6 +89,7 @@ flowchart BT
     validation["validation"]
     verifiers["verifiers"]
     authority["authority"]
+    tracepkg["trace_package"]
     planner["planner"]
     projection["projection"]
     graph["graph"]
@@ -94,6 +104,7 @@ flowchart BT
     engine --> projection
     engine --> planner
     engine --> authority
+    engine --> tracepkg
     engine --> validation
     verifiers --> models
     runtime --> graph
@@ -103,6 +114,8 @@ flowchart BT
     authority --> graph
     authority --> projection
     authority --> models
+    tracepkg --> graph
+    tracepkg --> models
     planner --> graph
     planner --> projection
     planner --> models
@@ -125,7 +138,7 @@ Allowed dependency direction:
 ```text
 models
   <- builder
-  <- graph / projection / planner / authority / verifiers / validation
+  <- graph / projection / planner / authority / trace_package / verifiers / validation
   <- runtime
   <- store
   <- engine
@@ -140,6 +153,7 @@ Key rules:
 
 - `models` must remain portable and must not depend on storage, CLI, or adapters.
 - `verifiers` must emit certificates and must not decide claim transitions.
+- `trace_package` must package review evidence and must not decide transitions.
 - `planner` must not write events directly.
 - `authority` must not write events directly or call external reviewers.
 - `store` must not decide transition semantics.
@@ -219,6 +233,7 @@ cairn adapter detect path/to/project --json
 cairn import-external path/to/project --adapter auto --path .
 cairn affected run:exp_007 --json
 cairn revert run:exp_007 --reason "wrong metric split" --apply
+cairn decision-trace claim:C1 --transition release --json
 ```
 
 The library API is the primary reusable surface. The CLI is optional.
@@ -246,6 +261,7 @@ Preferred extension points:
 - add new relation semantics in `graph.py` and planner tests;
 - add new affected-object actions or event mappings in `planner.py`;
 - add new deterministic transition gates in `authority.py`;
+- add new review-package content in `trace_package.py`;
 - add new manifest adapters under `src/cairnlab/adapters/`;
 - add storage backends by replacing `CairnProjectStore`, not planner logic;
 - add new CLI commands as wrappers over `engine` or library APIs.

@@ -52,6 +52,7 @@ Validation and trace:
 ```bash
 cairn validate --path . --json
 cairn trace claim:C1 --path . --json
+cairn decision-trace claim:C1 --transition release --path . --json
 cairn affected run:exp_007 --path . --json
 ```
 

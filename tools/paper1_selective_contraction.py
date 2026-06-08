@@ -30,10 +30,10 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 TASKS = ("TwoRoom", "PushT", "Reacher", "Cube")
 DEFAULT_DATA_DIR = ROOT / "assets" / "paper1_data"
-DEFAULT_FIG_DIR = ROOT / "assets" / "paper1_figs" / "selective_contraction_3d"
-DEFAULT_FIG2D_DIR = ROOT / "assets" / "paper1_figs" / "selective_contraction_2d"
-DEFAULT_CLUSTER_DIR = ROOT / "assets" / "paper1_figs" / "selective_contraction_clusters"
-DEFAULT_ATLAS_DIR = ROOT / "assets" / "paper1_figs" / "selective_contraction_atlas"
+DEFAULT_FIG_DIR = ROOT / "assets" / "phase1_figs" / "selective_contraction_3d"
+DEFAULT_FIG2D_DIR = ROOT / "assets" / "phase1_figs" / "selective_contraction_2d"
+DEFAULT_CLUSTER_DIR = ROOT / "assets" / "phase1_figs" / "selective_contraction_clusters"
+DEFAULT_ATLAS_DIR = ROOT / "assets" / "phase1_figs" / "selective_contraction_atlas"
 DEFAULT_OUT_JSON = DEFAULT_DATA_DIR / "selective_contraction_fullseq_branch.json"
 DEFAULT_OUT_MD = DEFAULT_DATA_DIR / "selective_contraction_fullseq_branch.md"
 TASK_DATASETS = {
@@ -990,8 +990,8 @@ def render_atlas_task(
     anchors = _select_spread_anchors(encoded["fullseq_robust"]["predictor"][0], anchor_count)
     colors = plt.cm.turbo(np.linspace(0.05, 0.95, max(1, len(anchors))))
     label_by_spec = {
-        "base": "no perturb training",
-        "fullseq_robust": f"full-seq perturb training std={specs[1].std_key}",
+        "base": "clean-trained LeWM",
+        "fullseq_robust": f"full-seq noise-trained LeWM std={specs[1].std_key}",
     }
     feature_by_name = {
         "encoder": "Encoder",
@@ -1077,8 +1077,8 @@ def render_cluster_task(
     anchors = _select_spread_anchors(encoded["fullseq_robust"]["predictor"][0], anchor_count)
     colors = plt.cm.turbo(np.linspace(0.05, 0.95, max(1, len(anchors))))
     label_by_spec = {
-        "base": "no perturb training",
-        "fullseq_robust": f"full-seq perturb training std={specs[1].std_key}",
+        "base": "clean-trained LeWM",
+        "fullseq_robust": f"full-seq noise-trained LeWM std={specs[1].std_key}",
     }
     feature_by_name = {
         "encoder": "Encoder features",
@@ -1172,11 +1172,7 @@ def render_cluster_task(
         )
 
     fig.suptitle(
-        f"{task}: hybrid t-SNE view of same-state perturbation clusters "
-        f"(n={n_sequences}, anchors={len(anchors)}, "
-        f"view stds={','.join(f'{s:g}' for s in view_stds)}, "
-        f"perturb repeats={max(1, int(perturb_repeats))}, "
-        f"envelope={envelope})",
+        f"{task}: same-state perturbation clusters in encoder and H8 predictor spaces",
         y=0.985,
     )
     envelope_note = {
@@ -1190,14 +1186,23 @@ def render_cluster_task(
     }[envelope]
     fig.text(
         0.5,
-        0.026,
-        "t-SNE is only for visualization; panel stats are computed in the original feature space. "
+        0.040,
+        f"n={n_sequences}, anchors={len(anchors)}, view stds={','.join(f'{s:g}' for s in view_stds)}, "
+        f"perturb repeats={max(1, int(perturb_repeats))}.",
+        ha="center",
+        va="bottom",
+        fontsize=9.0,
+    )
+    fig.text(
+        0.5,
+        0.022,
+        "t-SNE is visualization only; panel stats are computed in the original high-D feature space. "
         f"Gray dots show all sampled original/perturbed views; {envelope_note}.",
         ha="center",
         va="bottom",
-        fontsize=9.3,
+        fontsize=8.8,
     )
-    fig.tight_layout(rect=(0, 0.055, 1, 0.955), h_pad=2.4, w_pad=1.4)
+    fig.tight_layout(rect=(0, 0.072, 1, 0.955), h_pad=2.4, w_pad=1.4)
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{task.lower()}_fullseq_selective_contraction_clusters.png"
     fig.savefig(out, dpi=190)

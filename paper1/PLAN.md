@@ -146,7 +146,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - **核心问题**：能否在 controller 端通过 per-token consistency routing，突破 input-side noise training 的 per-task tuning 边界？
 - **由 Paper 1 哪里 motivating**：§5.5 "Additional ablation" 已验证 σ-head 学到了 prediction difficulty，但作为 loss reweighter 在 PushT 上 collapse（86% → 13%）；§5.5 Future direction 1 明示该方向。Paper 1 给出 input-side selective-consistency 诊断图景，Paper 2b 要回答 controller-side 是否能进一步榨出增益。
 - **当前状态**：完整 4 任务 sweep + 4 件套因果干预（constant_w、random_gate、shuffle_σ、shuffle_A）已完成。**关键数据**：PushT 强视觉扰动（px+goal 0.08）C1+C2 联用 = 85.33 vs C1 单独 75.75（**+9.58pt**）；causal claim "per-token routing 本身是主导项"（constant_w −28.67pt）经 ablation 证实。详细 plan 在 `plan_adaptive_resolution.md`；**paper 写作未开始**。
-- **Phase-1 图形边界**：`selective_contraction_clusters` 只作为 phase1 前的 qualitative mechanism visualization。默认应使用 repeated same-state perturbation samples + 90% 2-D covariance ellipse；t-SNE envelope 不是 high-D basin boundary，主读数仍应来自 high-D `median r/NN`, `r < NN`, `disjoint balls` 和 ACPC basin artifact。
+- **Phase-1 图形边界**：`selective_contraction_clusters` 只作为 phase1 前的 qualitative mechanism visualization，正式参考图放在 `assets/phase1_figs/selective_contraction_clusters/`。默认应使用 repeated same-state perturbation samples + 90% 2-D covariance ellipse；t-SNE envelope 不是 high-D basin boundary，主读数仍应来自 high-D `median r/NN`, `r < NN`, `disjoint balls` 和 ACPC basin artifact。
 - **相对 Paper 1 的 delta**：Paper 1 诊断现象 + input-side fix 的边界；Paper 2b 提供 controller-side instantiation，与 input-side noise 正交可叠加。
 
 #### 7.3.c Spherical world model / Field-JEPA

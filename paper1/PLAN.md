@@ -2,7 +2,7 @@
 
 > Source of truth: `paper1/main.tex`. 数值、表格、图和 artifact 以论文正文与 `assets/paper1_data/` 为准。
 > Reframing 执行依据：`paper1/paper1_acpc_rewrite_execution_plan.md`。
-> Last updated: 2026-06-07（synced fixed-eval origin-target rerun, full-sequence mainline, figure pruning, and PDF/check status）。
+> Last updated: 2026-06-08（synced fixed-eval target-view reruns, full-sequence mainline, figure pruning, and PDF/check status）。
 
 ---
 
@@ -12,7 +12,7 @@ JEPA 这类 latent predictive world model 在 latent 空间预测而非重建像
 
 Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchmark）来检验这个性质：在 4 个控制任务（PushT、TwoRoom、Reacher、Cube）上，无噪声训练的 LeWM 在 observation pixels 加噪、goal 保持 clean（std=0.08）后，PushT 从 86% 掉到 4%、TwoRoom 从 94% 掉到 66%；observation+goal 同时加噪作为更强 stress condition 单独报告。给训练加同类噪声能恢复大部分性能，但它是一个 **coarse global scalar pressure**，呈 broad task-dependent plateaus，而非 principled 解（不再写成”无 universal std_max”定理）。
 
-三个负结果限定 claim 边界：(i) 控制掉训练噪声后，single-step encoder/predictor fragility 不能稳定解释 corruption gap（PushT LeWM partial ρ=+0.19，CI 含 0；PLDM −0.05；joint n=18 +0.22），multi-step predictor drift 在 clean-goal observation-noise endpoint 下也只剩弱残差信号（Reacher partial ρ=+0.37，CI 很宽）；(ii) heteroscedastic σ-head 用 prediction error 下采样 hard transitions，让 PushT clean 从 86% 崩到 13%——说明 **hard ≠ nuisance**；(iii) completed target-view ablation 显示 perturbed-history → original-future one-step denoising 并不 closed-loop rollout consistent，fixed eval 后 PushT pixels 0.08 仍只有 6.75%，而 matched full-sequence perturbed-target branch 是 74.75%。诊断工具只做 mechanism localization 与 checkpoint selection，**不预测** robustness。
+三个负结果限定 claim 边界：(i) 控制掉训练噪声后，single-step encoder/predictor fragility 不能稳定解释 corruption gap（PushT LeWM partial ρ=+0.19，CI 含 0；PLDM −0.05；joint n=18 +0.22），multi-step predictor drift 在 clean-goal observation-noise endpoint 下也只剩弱残差信号（Reacher partial ρ=+0.37，CI 很宽）；(ii) heteroscedastic σ-head 用 prediction error 下采样 hard transitions，让 PushT clean 从 86% 崩到 13%——说明 **hard ≠ nuisance**；(iii) completed target-view ablation 显示 perturbed-history → original-future one-step denoising 并不 closed-loop rollout consistent，fixed eval 后 PushT pixels 0.08 仍只有 6.75%，而 matched full-sequence perturbed-target branch 是 72.83%。诊断工具只做 mechanism localization 与 checkpoint selection，**不预测** robustness。
 
 本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，并补充 dense Gaussian-noise ACPC basin diagnostic：在同一 state、同一 action sequence 下比较 clean/noised views 的 encoder radius 与 rollout prediction radius。该诊断是主文 paired evidence，只使用 Gaussian noise eval grid（0.01..0.08），与 noise sweep 训练 family 一致；blur/resize 不混入 ACPC 主证据。Phase 0 full-sweep ACPC artifact 保留为 Appendix H exploratory sanity check，说明 ACPC-H / PCC / CRA / MAF 等 paired probes 可计算且 face-valid，但不写成 universal robustness predictor。target-view ablation 作为 Appendix I negative result，支持把 **full-sequence perturbed-target training** 保留为当前主线。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
 

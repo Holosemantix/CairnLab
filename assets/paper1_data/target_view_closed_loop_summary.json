@@ -1,38 +1,61 @@
 {
-  "description": "LeWM target-view ablation summary for paper1 Appendix I. Canonical values use seeds 42/43/44 with 100 trajectories per seed, aggregated first within each checkpoint and then across the eight training-noise checkpoints 0to001..0to008. The perturbed-history-to-original-future branch was rerun after checkpoint/config-derived eval history-size inference was fixed; full-sequence values will be refreshed after the matching rerun.",
+  "description": "LeWM target-view ablation summary for paper1 Appendix I. Canonical values use seeds 42/43/44 with 100 trajectories per seed, aggregated first within each checkpoint and then across the eight training-noise checkpoints 0to001..0to008. Both target-view branches were rerun after checkpoint/config-derived eval history-size inference was fixed.",
   "families": {
     "full_sequence_perturbed_target": "default full-sequence input-side Gaussian noise training; context and future target latents are encoded from perturbed frames",
     "perturbed_history_to_original_future": "loss.pred.target_view=origin; prediction context is encoded from perturbed history, while the future target latent is encoded from the original frame"
   },
   "closed_loop_pixels_std0.08_across_eight_checkpoints": {
     "tworoom": {
-      "full_sequence_mean": 96.0,
-      "full_sequence_population_std": 1.2247448713915916,
+      "full_sequence_mean": 94.708333125,
+      "full_sequence_population_std": 1.8961767353824408,
       "origin_target_mean": 61.75,
       "origin_target_population_std": 7.6498910231889425,
-      "full_sequence_advantage": 34.25
+      "full_sequence_advantage": 32.958333125
     },
     "pusht": {
-      "full_sequence_mean": 74.75,
-      "full_sequence_population_std": 13.773716919473037,
+      "full_sequence_mean": 72.833333125,
+      "full_sequence_population_std": 12.838743404567804,
       "origin_target_mean": 6.749999875,
       "origin_target_population_std": 4.999305573304943,
-      "full_sequence_advantage": 68.000000125
+      "full_sequence_advantage": 66.08333325
     },
     "reacher": {
-      "full_sequence_mean": 76.0,
-      "full_sequence_population_std": 12.234968101488638,
+      "full_sequence_mean": 76.166666625,
+      "full_sequence_population_std": 10.889597652882623,
       "origin_target_mean": 19.624999875,
       "origin_target_population_std": 3.9701578950723873,
-      "full_sequence_advantage": 56.375000125
+      "full_sequence_advantage": 56.54166675
     },
     "cube": {
-      "full_sequence_mean": 62.125,
-      "full_sequence_population_std": 5.951044492822714,
+      "full_sequence_mean": 59.83333325,
+      "full_sequence_population_std": 5.547772290648647,
       "origin_target_mean": 39.625,
       "origin_target_population_std": 1.218349258901876,
-      "full_sequence_advantage": 22.5
+      "full_sequence_advantage": 20.20833325
     }
+  },
+  "full_sequence_rerun_check_pixels_std0.08_vs_archive": {
+    "tworoom": {
+      "archive_mean": 96.0,
+      "rerun_mean": 94.708333125,
+      "delta": -1.291666875
+    },
+    "pusht": {
+      "archive_mean": 74.75,
+      "rerun_mean": 72.833333125,
+      "delta": -1.916666875
+    },
+    "reacher": {
+      "archive_mean": 76.0,
+      "rerun_mean": 76.166666625,
+      "delta": 0.166666625
+    },
+    "cube": {
+      "archive_mean": 62.125,
+      "rerun_mean": 59.83333325,
+      "delta": -2.29166675
+    },
+    "note": "Archive means were recomputed from canonical seeds 42/43/44 in eval_results_old_code_history1_bug_20260607. The rerun preserves the full-sequence advantage and supports treating previous differences as normal eval variance rather than a code-driven effect."
   },
   "origin_target_all_eval_modes_across_eight_checkpoints": {
     "tworoom": {
@@ -78,8 +101,8 @@
   },
   "representative_pusht_0to008": {
     "canonical_seeds_42_43_44": {
-      "full_sequence_pixels_std0.08_raw": [87.0, 85.0, 95.0],
-      "full_sequence_pixels_std0.08_mean": 89.0,
+      "full_sequence_pixels_std0.08_raw": [88.0, 82.0, 89.0],
+      "full_sequence_pixels_std0.08_mean": 86.33333333333333,
       "origin_target_origin_raw": [83.0, 77.0, 92.0],
       "origin_target_origin_mean": 84.0,
       "origin_target_pixels_std0.08_raw": [12.0, 4.0, 10.0],

@@ -803,10 +803,10 @@ def check_target_view_closed_loop_summary_json() -> None:
 
     rows = data.get("closed_loop_pixels_std0.08_across_eight_checkpoints")
     expected = {
-        "tworoom": (96.0, 61.75, 34.25),
-        "pusht": (74.75, 6.749999875, 68.000000125),
-        "reacher": (76.0, 19.624999875, 56.375000125),
-        "cube": (62.125, 39.625, 22.5),
+        "tworoom": (94.708333125, 61.75, 32.958333125),
+        "pusht": (72.833333125, 6.749999875, 66.08333325),
+        "reacher": (76.166666625, 19.624999875, 56.54166675),
+        "cube": (59.83333325, 39.625, 20.20833325),
     }
     if not isinstance(rows, dict) or set(rows) != set(expected):
         fail(
@@ -826,7 +826,7 @@ def check_target_view_closed_loop_summary_json() -> None:
 
     probe = data.get("representative_pusht_0to008", {})
     canonical = probe.get("canonical_seeds_42_43_44", {})
-    if canonical.get("full_sequence_pixels_std0.08_raw") != [87.0, 85.0, 95.0]:
+    if canonical.get("full_sequence_pixels_std0.08_raw") != [88.0, 82.0, 89.0]:
         fail("target-view PushT full-sequence canonical raw values changed")
     if canonical.get("origin_target_pixels_std0.08_raw") != [12.0, 4.0, 10.0]:
         fail("target-view PushT origin-target canonical raw values changed")

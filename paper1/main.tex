@@ -639,7 +639,7 @@ Use the diagnostics as a screening tool, then run direct eval at both unperturbe
 
 \subsection{Implications for target-view and predictive-dynamics objectives}\label{sec:disc-method}
 
-The completed prediction-target-view ablation compares the retained full-sequence perturbed-target branch with perturbed-history $\to$ original-future prediction. The latter directly tests whether treating corruption as observation-channel variation better matches the ACPC story, but Appendix~\ref{sec:appendix-I} shows that this target change alone does not repair robustness: across the eight target-noise checkpoints, PushT remains at $6.75\%$ at pixels 0.08 and Reacher remains at $19.62\%$, while the matched full-sequence branch reaches $74.75\%$ and $76.00\%$ respectively.
+The completed prediction-target-view ablation compares the retained full-sequence perturbed-target branch with perturbed-history $\to$ original-future prediction. The latter directly tests whether treating corruption as observation-channel variation better matches the ACPC story, but Appendix~\ref{sec:appendix-I} shows that this target change alone does not repair robustness: across the eight target-noise checkpoints, PushT remains at $6.75\%$ at pixels 0.08 and Reacher remains at $19.62\%$, while the matched full-sequence branch reaches $72.83\%$ and $76.17\%$ respectively.
 
 The issue is a closed-loop train/eval consistency mismatch rather than an eval-corruption implementation error. Training is a teacher-forced one-step denoising target (noisy real history $\to$ clean future), whereas CEM evaluation feeds each predicted latent back as the next autoregressive input. Whether the prediction target lives on the original or perturbed latent manifold therefore changes the next-step input distribution at evaluation time. The next method step is not another target-view toggle by itself, but adaptive predictive-dynamics consistency: regularise paired rollouts after the action-conditioned predictor and gate by action/transition sensitivity. The negative heteroscedastic result below is the warning: high prediction error can mark action-critical contact transitions, so prediction difficulty alone is the wrong gate.
 
@@ -1124,16 +1124,16 @@ Cube    & $65.00 \pm 2.01$ & $61.42 \pm 2.06$ & $44.29 \pm 1.32$ & $39.62 \pm 1.
 \toprule
 Task & full-sequence perturbed target & perturbed-history $\to$ original future & full-seq advantage \\
 \midrule
-TwoRoom & $96.00 \pm 1.22$ & $61.75 \pm 7.65$ & $+34.25$ \\
-PushT   & $74.75 \pm 13.77$ & $\phantom{0}6.75 \pm 5.00$ & $+68.00$ \\
-Reacher & $76.00 \pm 12.23$ & $19.62 \pm 3.97$ & $+56.38$ \\
-Cube    & $62.12 \pm 5.95$ & $39.62 \pm 1.22$ & $+22.50$ \\
+TwoRoom & $94.71 \pm 1.90$ & $61.75 \pm 7.65$ & $+32.96$ \\
+PushT   & $72.83 \pm 12.84$ & $\phantom{0}6.75 \pm 5.00$ & $+66.08$ \\
+Reacher & $76.17 \pm 10.89$ & $19.62 \pm 3.97$ & $+56.54$ \\
+Cube    & $59.83 \pm 5.55$ & $39.62 \pm 1.22$ & $+20.21$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Reading.} The ablation is useful as a scope boundary and as support for retaining the full-sequence mainline. Simply changing the prediction target to the original future does not reproduce the recovery from input-side noise augmentation in \Cref{tab:sweep-px08}: PushT and Reacher remain close to their no-noise robustness cliffs, TwoRoom degrades under stronger eval noise despite high unperturbed success, and Cube does not improve over the main sweep.
 
-A matched PushT 0to008 check makes the contrast sharp: canonical pixels 0.08 three-seed means are $89.00\%$ for the full-sequence checkpoint and $8.67\%$ for the origin-target checkpoint. We interpret this as a closed-loop train/eval consistency finding: full-sequence noise augmentation better matches the planner's latent autoregressive feedback, while one-step origin-target denoising does not. This is not evidence that arbitrary history mismatches are harmless; it says the target view alone is not the missing mechanism, and an explicit action-conditioned predictive-consistency objective is still needed.
+A matched PushT 0to008 check makes the contrast sharp: canonical pixels 0.08 three-seed means are $86.33\%$ for the full-sequence checkpoint and $8.67\%$ for the origin-target checkpoint. We interpret this as a closed-loop train/eval consistency finding: full-sequence noise augmentation better matches the planner's latent autoregressive feedback, while one-step origin-target denoising does not. This is not evidence that arbitrary history mismatches are harmless; it says the target view alone is not the missing mechanism, and an explicit action-conditioned predictive-consistency objective is still needed.
 
 \end{document}

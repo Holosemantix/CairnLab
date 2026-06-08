@@ -55,6 +55,34 @@ matches or multiple matches raise `AdapterSelectionError`.
 This avoids silent imports from ambiguous projects and keeps detection behavior
 scriptable for external users.
 
+## Adapter Flow
+
+```mermaid
+flowchart TD
+    host["Host AutoResearch project<br/>manifest files only"]
+    registry["Static adapter registry"]
+    detect{"Exactly one<br/>adapter detected?"}
+    explicit["Explicit --adapter name"]
+    adapter["AutoResearchAdapter"]
+    case["ClaimCase"]
+    diagnostics["Adapter diagnostics"]
+    runtime["CairnRuntime or CairnProject"]
+    authority["TransitionAuthority"]
+    planner["InvalidationPlanner"]
+
+    host --> registry --> detect
+    detect -- yes --> adapter
+    detect -- no or ambiguous --> explicit --> adapter
+    adapter --> case
+    adapter --> diagnostics
+    case --> runtime
+    runtime --> authority
+    runtime --> planner
+```
+
+The adapter boundary ends at `ClaimCase`. Detection and export do not import the
+host runtime, mutate host state, run experiments, or decide lifecycle authority.
+
 ## Built-In Adapters
 
 Current built-ins:

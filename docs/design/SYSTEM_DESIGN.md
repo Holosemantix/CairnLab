@@ -27,34 +27,88 @@ execution engine described in `docs/KERNEL_SPEC.md`.
 
 ## Architecture
 
-```text
-External project metadata
-        |
-        v
-Adapter registry
-        |
-        v
-AutoResearchAdapter.export_case()
-        |
-        v
-ClaimCase
-   |                 |
-   v                 v
-CairnRuntime      CairnProject
-in memory         local .cairn/ store
-   |                 |
-   +--------+--------+
-            v
-  RelationGraph + EventProjection
-            |
-            +------------------------+
-            |                        |
-            v                        v
-   InvalidationPlanner      TransitionAuthority
-            |                        |
-            v                        v
- RevertPlan + Events        TransitionDecision + Event
+```mermaid
+flowchart TD
+    external["External AutoResearch metadata"]
+    registry["Adapter registry"]
+    adapter["AutoResearchAdapter.export_case()"]
+    case["ClaimCase"]
+    runtime["CairnRuntime<br/>in memory"]
+    project["CairnProject<br/>local facade"]
+    store["CairnProjectStore<br/>.cairn/"]
+    graph["RelationGraph"]
+    projection["EventProjection"]
+    planner["InvalidationPlanner"]
+    authority["TransitionAuthority"]
+    revert["RevertPlan + TransitionEvents"]
+    decision["TransitionDecision + proposed event"]
+
+    external --> registry --> adapter --> case
+    case --> runtime
+    case --> project
+    project --> store
+    store --> graph
+    store --> projection
+    runtime --> graph
+    runtime --> projection
+    graph --> planner
+    projection --> planner
+    graph --> authority
+    projection --> authority
+    planner --> revert
+    authority --> decision
 ```
+
+This diagram is the implemented data flow. Adapters stop at `ClaimCase`.
+Transition authority and invalidation planning consume the same graph/projection
+inputs, but they answer different lifecycle questions.
+
+## Module Dependency Diagram
+
+```mermaid
+flowchart BT
+    cli["cli"]
+    engine["engine"]
+    store["store"]
+    runtime["runtime"]
+    validation["validation"]
+    authority["authority"]
+    planner["planner"]
+    projection["projection"]
+    graph["graph"]
+    builder["builder"]
+    models["models"]
+    adapters["adapters"]
+
+    cli --> engine
+    cli --> adapters
+    engine --> store
+    engine --> graph
+    engine --> projection
+    engine --> planner
+    engine --> authority
+    engine --> validation
+    runtime --> graph
+    runtime --> projection
+    runtime --> planner
+    validation --> models
+    authority --> graph
+    authority --> projection
+    authority --> models
+    planner --> graph
+    planner --> projection
+    planner --> models
+    projection --> models
+    graph --> models
+    store --> models
+    builder --> models
+    adapters --> builder
+    adapters --> models
+```
+
+The direction is intentional: lower modules do not import higher modules. In
+particular, adapters do not import `store`, `engine`, `cli`, `planner`, or
+`authority`; they translate metadata only.
 
 ## Dependency Direction
 

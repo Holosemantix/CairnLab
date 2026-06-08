@@ -21,7 +21,7 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 
 | 脚本 | 作用 | 输入 | 输出 / 用途 |
 |---|---|---|---|
-| `tools/paper1_figs.py` | 渲染主文中由脚本生成的图 | `assets/paper1_data/canonical_evals_20260517.json`, `assets/paper1_data/canonical_diagnostics_20260517.json` | `assets/paper1_figs/fig2_sweep.png`, `fig4_radar.png`, `fig5_scatter.png`, `fig6_mechanism.png`；`fig3_pareto.png` 可用 `--only 3` 生成但当前不进正文 |
+| `tools/paper1_figs.py` | 渲染主文中由脚本生成的图 | `assets/paper1_data/canonical_evals_20260517.json`, `assets/paper1_data/canonical_diagnostics_20260517.json` | 默认输出 `assets/paper1_figs/fig2_sweep.png`, `fig5_scatter.png`；已下线的 `fig3_pareto.png`, `fig4_radar.png`, `fig6_mechanism.png` 仍可用 `--only` 生成但当前不进正文 |
 | `tools/build_partial_corr_bootstrap.py` | 为 partial Spearman 相关计算 95% percentile bootstrap CI | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/partial_corr_bootstrap_20260523.json`，用于主文 Table 7 和 Appendix F |
 | `tools/pldm_correlation_analysis.py` | 复算 LeWM/PLDM within-method 与 joint partial correlation | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/cross_method_corr_pldm_20260522.json`，用于 Appendix F 和 consistency checker |
 | `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / prediction radius / contraction | LeWM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；主文 Table~\ref{tab:acpc-basin} 的 source |

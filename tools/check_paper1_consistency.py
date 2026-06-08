@@ -769,7 +769,7 @@ def check_partial_corr_bootstrap_json() -> None:
                     if not isinstance(cell["n_valid"], int) or cell["n_valid"] < 0:
                         fail(f"bootstrap {task}/{scope}/{metric}/{cell_name} invalid n_valid")
 
-    # Values quoted in main.tex C4 / Table 7 / Appendix F. These are rounded
+    # Values quoted in main.tex contributions / Table 7 / Appendix F. These are rounded
     # checks, not a substitute for rerunning the bootstrap.
     _check_bootstrap_cell(
         data, "PushT", "within_lewm", "frag", "partial_metric_clean_on_std",

@@ -1,6 +1,8 @@
 # Reference Audit
 
-Date: 2026-06-03
+Date: 2026-06-08
+
+2026-06-08 final pass: rechecked the temporally unstable 2025/2026 entries against official arXiv, OpenReview, Nature, ICLR, and PMLR pages. No BibTeX changes were required in this pass. The main live checks covered `maes2026lewm`, `maes2026stableworldmodel`, `huang2026vjepa`, `klindt2026lejepaworldmodel`, `usjepa2025`, `njepa2025`, `toso2026bisimjepa`, `assran2025vjepa2`, `vigmo`, `ghaemi2025seqjepa`, `voelcker2025calibratedvalueaware`, `hafner2025dreamerv3`, `dupuis2023vibr`, `gelada2019deepmdp`, `hansen2024tdmpc2`, and `bsmpc`.
 
 Scope: all 41 citation keys used in `paper1/main.tex`. Unused BibTeX entries were removed from `paper1/references.bib`, so every remaining entry is cited.
 
@@ -47,4 +49,3 @@ Scope: all 41 citation keys used in `paper1/main.tex`. Unused BibTeX entries wer
 | `zhang2021dbc` | https://iclr.cc/virtual/2021/poster/2863 | OK: ICLR 2021 metadata and URL match. | OK: cited for bisimulation-based invariant RL representations without reconstruction. |
 | `gelada2019deepmdp` | https://proceedings.mlr.press/v97/gelada19a.html | OK: ICML 2019 PMLR 97:2170--2179 metadata matches. | OK: cited for DeepMDP latent state/model representation learning. |
 | `bsmpc` | https://openreview.net/forum?id=F07ic7huE3 | OK: ICLR 2025 OpenReview metadata and arXiv DOI match. | OK: cited for bisimulation-regularized MPC. |
-

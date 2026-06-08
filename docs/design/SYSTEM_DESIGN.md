@@ -11,19 +11,20 @@ which claim lifecycle states must change, and what append-only events record it?
 
 ## Current Scope
 
-The implemented system covers Phase 0.6 plus a minimal Phase 0.7 transition
-authority seed:
+The implemented system covers Phase 0.6 plus minimal Phase 0.7/0.8 authority
+and verifier seeds:
 
 - portable `ClaimCase` import;
 - in-memory runtime for claim invalidation planning;
 - local `.cairn/` project storage;
 - append-only transition event projection;
 - deterministic transition authority for verification and release requests;
+- deterministic verifier certificate execution for selected evidence checks;
 - deterministic adapter detection for external manifest exports;
 - thin CLI commands over reusable Python APIs.
 
-It does not yet implement the full EvidencePolicy or VerifierCertificate
-execution engine described in `docs/KERNEL_SPEC.md`.
+It does not yet implement the full EvidencePolicy engine or plugin-based
+verifier system described in `docs/KERNEL_SPEC.md`.
 
 ## Architecture
 
@@ -39,6 +40,8 @@ flowchart TD
     graph["RelationGraph"]
     projection["EventProjection"]
     planner["InvalidationPlanner"]
+    verifiers["VerifierExecution"]
+    certificate["VerifierCertificate evidence"]
     authority["TransitionAuthority"]
     revert["RevertPlan + TransitionEvents"]
     decision["TransitionDecision + proposed event"]
@@ -51,6 +54,9 @@ flowchart TD
     store --> projection
     runtime --> graph
     runtime --> projection
+    case --> verifiers
+    verifiers --> certificate
+    certificate --> case
     graph --> planner
     projection --> planner
     graph --> authority
@@ -72,6 +78,7 @@ flowchart BT
     store["store"]
     runtime["runtime"]
     validation["validation"]
+    verifiers["verifiers"]
     authority["authority"]
     planner["planner"]
     projection["projection"]
@@ -88,6 +95,7 @@ flowchart BT
     engine --> planner
     engine --> authority
     engine --> validation
+    verifiers --> models
     runtime --> graph
     runtime --> projection
     runtime --> planner
@@ -117,7 +125,7 @@ Allowed dependency direction:
 ```text
 models
   <- builder
-  <- graph / projection / planner / authority / validation
+  <- graph / projection / planner / authority / verifiers / validation
   <- runtime
   <- store
   <- engine
@@ -131,6 +139,7 @@ adapters/base + adapters/*
 Key rules:
 
 - `models` must remain portable and must not depend on storage, CLI, or adapters.
+- `verifiers` must emit certificates and must not decide claim transitions.
 - `planner` must not write events directly.
 - `authority` must not write events directly or call external reviewers.
 - `store` must not decide transition semantics.
@@ -160,7 +169,7 @@ This preserves auditability and allows later review of why a claim changed state
 
 ## Reusable Surfaces
 
-CairnLab has two public integration surfaces:
+CairnLab has four public integration surfaces:
 
 1. In-memory library API:
 
@@ -174,7 +183,21 @@ plan = runtime.plan_revert("run:exp_007", reason="wrong metric split")
 events = runtime.events_from_plan(plan)
 ```
 
-2. Transition authority API through the local project facade:
+2. Verifier execution API:
+
+```python
+from cairnlab import MetricThresholdVerifier, VerificationRequest
+
+certificate = MetricThresholdVerifier().verify(
+    VerificationRequest(
+        claim_id="claim:C1",
+        evidence=[metric_evidence],
+        parameters={"metric_name": "accuracy", "min_value": 0.90},
+    )
+)
+```
+
+3. Transition authority API through the local project facade:
 
 ```python
 from cairnlab import Actor, CairnProject
@@ -189,7 +212,7 @@ decision = project.request_transition(
 )
 ```
 
-3. Local project CLI:
+4. Local project CLI:
 
 ```bash
 cairn adapter detect path/to/project --json
@@ -219,6 +242,7 @@ or evidence metadata. Full enforcement belongs to later kernel phases.
 Preferred extension points:
 
 - add new model fields in `models.py` with schema and design doc updates;
+- add new deterministic evidence checks in `verifiers.py`;
 - add new relation semantics in `graph.py` and planner tests;
 - add new affected-object actions or event mappings in `planner.py`;
 - add new deterministic transition gates in `authority.py`;

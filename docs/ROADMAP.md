@@ -111,6 +111,26 @@ Acceptance criteria:
 - Unresolved material dissent blocks release unless explicitly overridden.
 - `engine` remains a thin facade over the authority module.
 
+## Phase 0.8: Minimal verifier certificate execution
+
+Add deterministic verifier execution before the full verifier plugin system, so
+CairnLab can produce its own transition-authority inputs instead of only
+consuming imported certificates.
+
+Core module:
+
+- `verifiers`: deterministic checks that emit `VerifierCertificate` objects.
+
+Acceptance criteria:
+
+- Verifiers are storage-free and reusable outside the CLI.
+- Verifiers do not decide claim transitions.
+- `artifact_hash` emits pass/fail/error certificates from supplied evidence.
+- `metric_threshold` emits pass/fail/error certificates from supplied metric evidence.
+- Certificates can be attached as `verifier_certificate` evidence.
+- Passing certificates can authorize `verified` through `TransitionAuthority`.
+- Failed certificates do not authorize stronger claim states.
+
 ## Phase 1: Kernel MVP
 
 This phase is gated by Phase 0.5 evidence and informed by Phase 0.6 counterfactual results.

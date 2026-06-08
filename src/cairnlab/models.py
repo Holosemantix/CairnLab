@@ -179,6 +179,23 @@ class DecisionTracePackage(CairnModel):
     export_hash: str | None = None
 
 
+class VerifierCertificate(CairnModel):
+    id: str
+    verifier: str
+    claim: str
+    status: Literal["pass", "fail", "error"]
+    inputs: list[str] = Field(default_factory=list)
+    result: dict[str, Any] = Field(default_factory=dict)
+    can_authorize: list[str] = Field(default_factory=list)
+    reason: str | None = None
+
+
+class VerificationRequest(CairnModel):
+    claim_id: str
+    evidence: list["EvidenceItem"] = Field(default_factory=list)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+
 class Claim(CairnModel):
     id: str
     text: str

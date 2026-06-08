@@ -5,8 +5,8 @@
   "required": [
     "id",
     "verifier",
-    "result",
-    "evidence_refs"
+    "claim",
+    "status"
   ],
   "properties": {
     "id": {
@@ -15,19 +15,36 @@
     "verifier": {
       "type": "string"
     },
-    "result": {
+    "claim": {
+      "type": "string"
+    },
+    "status": {
       "enum": [
         "pass",
         "fail",
-        "blocked",
-        "needs_more_evidence"
+        "error"
       ]
     },
-    "evidence_refs": {
+    "inputs": {
       "type": "array",
       "items": {
         "type": "string"
       }
+    },
+    "result": {
+      "type": "object"
+    },
+    "can_authorize": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
     }
   }
 }

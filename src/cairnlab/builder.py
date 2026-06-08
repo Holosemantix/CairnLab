@@ -16,7 +16,9 @@ from .models import (
     ResponsibilityAssignment,
     ResponsibilityEntry,
     RiskAssessment,
+    VerifierCertificate,
 )
+from .utils import safe_id_filename, stable_hash
 
 
 class ClaimCaseBuilder:
@@ -172,6 +174,30 @@ class ClaimCaseBuilder:
             claim_id,
             RelationType.RELEASED_BY.value,
             criticality=Criticality.CRITICAL.value,
+        )
+
+    def add_verifier_certificate(
+        self,
+        certificate: VerifierCertificate,
+        *,
+        criticality: str = Criticality.SUPPORTING.value,
+    ) -> "ClaimCaseBuilder":
+        payload = certificate.model_dump(mode="json", exclude_none=True)
+        self.add_evidence(
+            certificate.id,
+            EvidenceType.VERIFIER_CERTIFICATE.value,
+            uri=f"cairn://verifier_certificates/{safe_id_filename(certificate.id).removesuffix('.yaml')}",
+            hash=stable_hash(payload),
+            metadata={
+                "verdict": certificate.status,
+                **payload,
+            },
+        )
+        return self.add_relation(
+            certificate.id,
+            certificate.claim,
+            RelationType.VERIFIED_BY.value,
+            criticality=criticality,
         )
 
     def add_risk_assessment(

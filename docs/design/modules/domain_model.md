@@ -43,6 +43,8 @@ The most important contracts are:
 - `EvidenceItem`
 - `Relation`
 - `TransitionEvent`
+- `VerifierCertificate`
+- `VerificationRequest`
 - `RevertPlan`
 - `TraceResult`
 - `ClaimCase`
@@ -50,6 +52,10 @@ The most important contracts are:
 
 Object IDs must remain stable and meaningful because they are used as graph
 nodes, event targets, trace anchors, and adapter interoperability keys.
+
+`VerifierCertificate` is the structured output of deterministic verifier
+execution. For current storage compatibility, certificates are attached to claim
+cases as `EvidenceItem(type=verifier_certificate)` through the builder helper.
 
 ## Dependency Rules
 

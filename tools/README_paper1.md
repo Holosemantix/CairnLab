@@ -26,6 +26,7 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 | `tools/pldm_correlation_analysis.py` | 复算 LeWM/PLDM within-method 与 joint partial correlation | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/cross_method_corr_pldm_20260522.json`，用于 Appendix F 和 consistency checker |
 | `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / prediction radius / contraction | LeWM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；主文 Table~\ref{tab:acpc-basin} 的 source |
 | `tools/paper1_phase0_acpc.py` | 低频 paired ACPC 诊断 runner：ACPC-1/H、PCC、CRA、MAF、ADM proxy、SPRR | LeWM/PLDM canonical eval manifest + 本地 loadable model checkpoints | `assets/paper1_data/acpc_phase0_diagnostics.json`；保留作后续 PCC/CRA/ADM 扩展，不作为当前主文 ACPC-basin source |
+| `tools/paper1_selective_contraction.py` | Phase-1 前的 selective-contraction branch probe；可选渲染同 state clean/noised cluster 图 | ACPC basin + Phase-0 diagnostics；plot 模式还需要本地 checkpoint/data | `assets/paper1_data/selective_contraction_fullseq_branch.*`；cluster 图默认用 repeated perturbation samples + 90% 2-D covariance ellipse，只作 qualitative visualization |
 
 常用重生成命令：
 
@@ -58,6 +59,14 @@ python -m tools.paper1_phase0_acpc \
   --methods LeWM --tasks PushT --std-keys 0.0 0.03 0.06 \
   --n-sequences 100 --random-action-trials 64 \
   --out assets/paper1_data/acpc_phase0_diagnostics.json
+
+OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/mplconfig \
+python -m tools.paper1_selective_contraction \
+  --plot-clusters --plot-tasks PushT \
+  --n-sequences 128 --cluster-anchor-count 16 \
+  --view-stds 0.0 0.01 0.04 0.08 \
+  --cluster-perturb-repeats 6 \
+  --cluster-envelope ellipse --cluster-envelope-coverage 0.90
 ```
 
 95% CI 的口径：脚本对 checkpoint rows 做 with-replacement bootstrap。within-LeWM 和 within-PLDM 是每个 task 的 9 个 checkpoint rows；joint 分析是 LeWM+PLDM 共 18 个 rows，并在 partial correlation 中同时 conditioning on `std_max` 和 `method`。CI 是 bootstrap 分布的 2.5/97.5 percentile，不是额外 evaluation seed 的置信区间。
@@ -65,6 +74,8 @@ python -m tools.paper1_phase0_acpc \
 ACPC basin runner 默认只接受 Gaussian-noise corruption specs，并使用 dense eval grid `0.01 ... 0.08`，以匹配 Paper 1 的 Gaussian-noise training sweep；它默认只扰动 observation history、保持 goal clean。不要把 blur/resize 混入这个 artifact。`--dry-run` 只解析 manifest 和 epoch-10 checkpoint 路径，不加载模型。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 `/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/<task-root>/ckpt/<subdir>/` 下存在唯一 `*epoch_10_object.ckpt`。
 
 Phase 0 ACPC runner 的 `--dry-run` 只解析 manifest 和 checkpoint 路径，不需要 `torch`。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 canonical eval 里的 `path` 或 `--model-root` 下存在可 `torch.load` 的 model object checkpoint。当前 ADM 是 action-distance latent proxy，不是 oracle state/keypoint ADM。
+
+Selective-contraction cluster plots are not paper-facing proof by themselves. Read the t-SNE envelope as a 2-D visual summary only; the panel annotations (`median r/NN`, `r < NN`, `disjoint balls`) are computed in the original high-D feature space. Use `--cluster-envelope circle` only to reproduce the legacy max-distance circle view; `--cluster-envelope hull` is a sample hull and should not be presented as true basin support.
 
 ## Canonical artifact builders
 

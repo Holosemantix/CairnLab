@@ -10,3 +10,5 @@ Scope: existing LeWM full-sequence perturbed-target sweep. This is a branch diag
 | Cube | 0.03 | 47 -> 68.3 | 1.34 -> 0.238 | 0.957 -> 0.115 | 6.32 -> 6.38 | 9.62 -> 9.41 | 19.5 -> 19.6 | 1.04 -> 5.75 | same-state encoder/predictor basins shrink; auxiliary ADM is preserved. |
 
 Reading: lower R_E/R_F means a smaller same-state perturbation basin. Higher SPRR means the auxiliary action-distance margin is larger relative to paired rollout disagreement. ADM/SPRR come from the exploratory pixels+goal Phase-0 diagnostic, so they are supportive visualization/branch evidence only.
+
+Visualization note: selective-contraction cluster plots should be read through the high-D panel statistics. The 2-D t-SNE envelopes are qualitative summaries of repeated same-state perturbation samples, not estimates of the true high-D basin support.

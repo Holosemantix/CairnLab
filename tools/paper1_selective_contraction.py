@@ -8,9 +8,10 @@ perturbed-target checkpoints:
     state/action discriminability proxies?
 
 The default path only reads released JSON artifacts and writes a compact branch
-table.  The optional ``--plot-3d`` path loads checkpoints and dataset windows to
-render real encoder/predictor feature clouds, so it is eval-only but not
-artifact-only.
+table.  The optional plotting paths load checkpoints and dataset windows to
+render real encoder/predictor feature clouds, so they are eval-only but not
+artifact-only.  Cluster envelopes are visualization summaries in a 2-D
+projection; the printed panel statistics remain the high-D evidence.
 """
 
 from __future__ import annotations
@@ -199,7 +200,7 @@ def build_summary(
 
     return {
         "metadata": {
-            "schema_version": "paper1-selective-contraction-branch-0.1",
+            "schema_version": "paper1-selective-contraction-branch-0.2",
             "source_acpc_basin": str(acpc_basin_path),
             "source_acpc_phase0": str(acpc_phase0_path),
             "robust_metric": robust_metric,
@@ -208,7 +209,9 @@ def build_summary(
                 "RE/RF are same-state perturbation basin radii from the primary "
                 "observation-only ACPC basin diagnostic. ADM/SPRR are auxiliary "
                 "pixels+goal Phase-0 proxies and should be read only as branch "
-                "sanity checks, not paper-facing proof."
+                "sanity checks, not paper-facing proof. Optional cluster plots "
+                "use repeated perturbation samples and 2-D visualization "
+                "envelopes; their envelopes are not high-D basin boundaries."
             ),
         },
         "rows": out_rows,
@@ -293,6 +296,11 @@ def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
             "Higher SPRR means the auxiliary action-distance margin is larger relative "
             "to paired rollout disagreement. ADM/SPRR come from the exploratory pixels+goal "
             "Phase-0 diagnostic, so they are supportive visualization/branch evidence only.",
+            "",
+            "Visualization note: selective-contraction cluster plots should be read through "
+            "the high-D panel statistics. The 2-D t-SNE envelopes are qualitative summaries "
+            "of repeated same-state perturbation samples, not estimates of the true high-D "
+            "basin support.",
             "",
         ]
     )
@@ -387,6 +395,168 @@ def _axis_limits_2d(arrays: Sequence[np.ndarray]) -> tuple[tuple[float, float], 
 
 def _axis_limits_2d_single(array: np.ndarray) -> tuple[tuple[float, float], tuple[float, float]]:
     return _axis_limits_2d([array])
+
+
+def _convex_hull_2d(points: np.ndarray) -> np.ndarray:
+    pts = sorted({(float(x), float(y)) for x, y in np.asarray(points, dtype=np.float64)})
+    if len(pts) <= 1:
+        return np.asarray(pts, dtype=np.float64)
+
+    def cross(o: tuple[float, float], a: tuple[float, float], b: tuple[float, float]) -> float:
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lower: list[tuple[float, float]] = []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0.0:
+            lower.pop()
+        lower.append(p)
+    upper: list[tuple[float, float]] = []
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0.0:
+            upper.pop()
+        upper.append(p)
+    return np.asarray(lower[:-1] + upper[:-1], dtype=np.float64)
+
+
+def _draw_circle_envelope(plt, ax, points: np.ndarray, color: Any, min_radius: float) -> None:
+    center = points.mean(axis=0)
+    radius_2d = max(float(np.linalg.norm(points - center[None, :], axis=-1).max()), 1e-6)
+    radius_2d = max(radius_2d * 1.22, min_radius)
+    ax.add_patch(
+        plt.Circle(
+            center,
+            radius_2d,
+            facecolor=color,
+            edgecolor="none",
+            alpha=0.105,
+            zorder=1,
+        )
+    )
+    ax.add_patch(
+        plt.Circle(
+            center,
+            radius_2d,
+            fill=False,
+            edgecolor=color,
+            alpha=0.55,
+            linewidth=0.95,
+            zorder=2,
+        )
+    )
+
+
+def _draw_cluster_envelope(
+    plt,
+    ax,
+    points: np.ndarray,
+    *,
+    color: Any,
+    mode: str,
+    coverage: float,
+    min_radius: float,
+) -> None:
+    points = np.asarray(points, dtype=np.float64)
+    if mode == "none" or points.size == 0:
+        return
+    if mode == "circle":
+        _draw_circle_envelope(plt, ax, points, color, min_radius)
+        return
+    if mode == "hull":
+        from matplotlib.patches import Polygon
+
+        hull = _convex_hull_2d(points)
+        if hull.shape[0] >= 3:
+            ax.add_patch(
+                Polygon(
+                    hull,
+                    closed=True,
+                    facecolor=color,
+                    edgecolor="none",
+                    alpha=0.105,
+                    zorder=1,
+                )
+            )
+            ax.add_patch(
+                Polygon(
+                    hull,
+                    closed=True,
+                    fill=False,
+                    edgecolor=color,
+                    alpha=0.55,
+                    linewidth=0.95,
+                    zorder=2,
+                )
+            )
+            return
+        _draw_circle_envelope(plt, ax, points, color, min_radius)
+        return
+
+    from matplotlib.patches import Ellipse
+
+    if points.shape[0] < 3:
+        _draw_circle_envelope(plt, ax, points, color, min_radius)
+        return
+    center = points.mean(axis=0)
+    cov = np.cov(points.T)
+    if cov.shape != (2, 2) or not np.all(np.isfinite(cov)):
+        _draw_circle_envelope(plt, ax, points, color, min_radius)
+        return
+    eigvals, eigvecs = np.linalg.eigh(cov)
+    order = np.argsort(eigvals)[::-1]
+    eigvals = np.clip(eigvals[order], 0.0, None)
+    eigvecs = eigvecs[:, order]
+    if float(eigvals[0]) <= 1e-12:
+        _draw_circle_envelope(plt, ax, points, color, min_radius)
+        return
+
+    q = min(max(float(coverage), 0.01), 0.999)
+    scale = math.sqrt(-2.0 * math.log1p(-q))
+    width = max(2.0 * scale * math.sqrt(float(eigvals[0])), 2.0 * min_radius)
+    height = max(2.0 * scale * math.sqrt(float(eigvals[1])), 2.0 * min_radius)
+    angle = math.degrees(math.atan2(float(eigvecs[1, 0]), float(eigvecs[0, 0])))
+    ax.add_patch(
+        Ellipse(
+            xy=center,
+            width=width,
+            height=height,
+            angle=angle,
+            facecolor=color,
+            edgecolor="none",
+            alpha=0.105,
+            zorder=1,
+        )
+    )
+    ax.add_patch(
+        Ellipse(
+            xy=center,
+            width=width,
+            height=height,
+            angle=angle,
+            fill=False,
+            edgecolor=color,
+            alpha=0.62,
+            linewidth=0.95,
+            zorder=2,
+        )
+    )
+
+
+def _draw_cluster_links(ax, points: np.ndarray, view_stds: Sequence[float], color: Any) -> None:
+    stds = np.asarray([float(s) for s in view_stds], dtype=np.float64)
+    for std in sorted({float(s) for s in stds[1:] if float(s) > 0.0}):
+        group = np.flatnonzero(np.isclose(stds, std))
+        group = group[group > 0]
+        if group.size == 0:
+            continue
+        p = points[group].mean(axis=0)
+        ax.plot(
+            [points[0, 0], p[0]],
+            [points[0, 1], p[1]],
+            color=color,
+            alpha=0.34,
+            linewidth=0.68,
+            zorder=2,
+        )
 
 
 def _axis_limits(arrays: Sequence[np.ndarray]) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
@@ -886,6 +1056,8 @@ def render_cluster_task(
     perplexity: float,
     tsne_max_iter: int,
     perturb_repeats: int,
+    envelope: str,
+    envelope_coverage: float,
 ) -> Path:
     plt = _ensure_plot_deps()
     cluster_view_stds = _expanded_view_stds(view_stds, perturb_repeats)
@@ -932,7 +1104,7 @@ def render_cluster_task(
         origin = projected[0]
         perturbed = projected[1:]
         xlim, ylim = _axis_limits_2d_single(projected)
-        min_circle_radius = 0.018 * max(xlim[1] - xlim[0], ylim[1] - ylim[0])
+        min_envelope_radius = 0.018 * max(xlim[1] - xlim[0], ylim[1] - ylim[0])
 
         ax.scatter(origin[:, 0], origin[:, 1], s=8, c="#7F7F7F", alpha=0.24, linewidths=0)
         ax.scatter(
@@ -947,38 +1119,16 @@ def render_cluster_task(
         for ci, state_idx in enumerate(anchors):
             color = colors[ci % len(colors)]
             pts = projected[:, state_idx, :]
-            center = pts.mean(axis=0)
-            radius_2d = max(float(np.linalg.norm(pts - center[None, :], axis=-1).max()), 1e-6)
-            radius_2d = max(radius_2d * 1.22, min_circle_radius)
-            ax.add_patch(
-                plt.Circle(
-                    center,
-                    radius_2d,
-                    facecolor=color,
-                    edgecolor="none",
-                    alpha=0.105,
-                    zorder=1,
-                )
+            _draw_cluster_envelope(
+                plt,
+                ax,
+                pts,
+                color=color,
+                mode=envelope,
+                coverage=envelope_coverage,
+                min_radius=min_envelope_radius,
             )
-            ax.add_patch(
-                plt.Circle(
-                    center,
-                    radius_2d,
-                    fill=False,
-                    edgecolor=color,
-                    alpha=0.55,
-                    linewidth=0.95,
-                    zorder=2,
-                )
-            )
-            for p in pts[1:]:
-                ax.plot(
-                    [pts[0, 0], p[0]],
-                    [pts[0, 1], p[1]],
-                    color=color,
-                    alpha=0.38,
-                    linewidth=0.55,
-                )
+            _draw_cluster_links(ax, pts, cluster_view_stds, color)
             ax.scatter(
                 pts[1:, 0],
                 pts[1:, 1],
@@ -1025,15 +1175,24 @@ def render_cluster_task(
         f"{task}: hybrid t-SNE view of same-state perturbation clusters "
         f"(n={n_sequences}, anchors={len(anchors)}, "
         f"view stds={','.join(f'{s:g}' for s in view_stds)}, "
-        f"perturb repeats={max(1, int(perturb_repeats))})",
+        f"perturb repeats={max(1, int(perturb_repeats))}, "
+        f"envelope={envelope})",
         y=0.985,
     )
+    envelope_note = {
+        "ellipse": (
+            f"colored ellipses are {100.0 * envelope_coverage:.0f}% covariance envelopes "
+            "in the t-SNE plane"
+        ),
+        "hull": "colored hulls are sample convex hulls in the t-SNE plane",
+        "circle": "colored circles use the legacy max-distance envelope in the t-SNE plane",
+        "none": "no colored envelope is drawn",
+    }[envelope]
     fig.text(
         0.5,
         0.026,
         "t-SNE is only for visualization; panel stats are computed in the original feature space. "
-        "Gray dots show all sampled original/perturbed views; colored circles show selected original states "
-        "and their perturbation views.",
+        f"Gray dots show all sampled original/perturbed views; {envelope_note}.",
         ha="center",
         va="bottom",
         fontsize=9.3,
@@ -1210,7 +1369,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--cluster-anchor-count", type=int, default=24)
     p.add_argument("--cluster-perplexity", type=float, default=35.0)
     p.add_argument("--cluster-tsne-max-iter", type=int, default=650)
-    p.add_argument("--cluster-perturb-repeats", type=int, default=1)
+    p.add_argument("--cluster-perturb-repeats", type=int, default=6)
+    p.add_argument("--cluster-envelope", choices=["ellipse", "hull", "circle", "none"], default="ellipse")
+    p.add_argument("--cluster-envelope-coverage", type=float, default=0.90)
     p.add_argument("--atlas-anchor-count", type=int, default=24)
     p.add_argument("--atlas-neighbor-count", type=int, default=8)
     return p
@@ -1283,6 +1444,8 @@ def main() -> None:
                 perplexity=args.cluster_perplexity,
                 tsne_max_iter=args.cluster_tsne_max_iter,
                 perturb_repeats=args.cluster_perturb_repeats,
+                envelope=args.cluster_envelope,
+                envelope_coverage=args.cluster_envelope_coverage,
             )
             print(f"[selective-contraction] wrote {out}")
 

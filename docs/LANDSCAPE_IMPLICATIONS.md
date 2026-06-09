@@ -85,6 +85,12 @@ runtime. This keeps the coupling light and makes the competitive boundary
 observable: external systems provide evidence; CairnLab tests whether a claim is
 allowed to transition.
 
+The generic `cairn.external_run.v1` manifest extends the same boundary beyond
+named competitors. Idea generation, paper-to-code, review, experiment execution,
+paper writing, and verification may all be handled by external frameworks. The
+manifest is only an evidence bridge; it does not turn those frameworks into
+CairnLab dependencies or give them release authority.
+
 ## v0.3 implication from governance practice
 
 EU AI Act-style record keeping and human oversight requirements strengthen CairnLab's direction because they show that logging, interpretability of decisions, competent human oversight, and lifetime monitoring are not optional niceties for consequential AI systems. They should become kernel transition conditions when claims have high impact.

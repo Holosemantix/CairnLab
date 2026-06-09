@@ -7,6 +7,7 @@ from .aris_manifest import ArisManifestAdapter
 from .autoresearchclaw_e2e_run import AutoResearchClawE2ERunAdapter
 from .autoresearchclaw_manifest import AutoResearchClawManifestAdapter
 from .base import AdapterExportResult, AutoResearchAdapter
+from .external_run_manifest import ExternalRunManifestAdapter
 
 
 class AdapterSelectionError(ValueError):
@@ -15,6 +16,7 @@ class AdapterSelectionError(ValueError):
 
 def builtin_adapters() -> tuple[AutoResearchAdapter, ...]:
     return (
+        ExternalRunManifestAdapter(),
         AutoResearchClawE2ERunAdapter(),
         AutoResearchClawManifestAdapter(),
         ArisManifestAdapter(),

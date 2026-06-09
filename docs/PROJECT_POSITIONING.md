@@ -68,6 +68,11 @@ should import those objects as portable evidence, but the claim lifecycle
 transition remains a CairnLab authority decision rather than an upstream agent
 or reviewer conclusion.
 
+This boundary is stage-neutral. Idea generation, paper-to-code, review,
+experiment execution, paper writing, and verification can all be delegated to
+external frameworks. CairnLab's reusable surface is the external evidence
+manifest and transition authority, not ownership of those upstream stages.
+
 ## Competitive boundary
 
 CairnLab should be embedded by systems like ARIS, AutoResearchClaw, ScientistOne-style systems, DeepScientist-style research OSes, and paper-to-code systems.

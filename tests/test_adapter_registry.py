@@ -20,10 +20,16 @@ ROOT = Path(__file__).resolve().parents[1]
 ARC_FIXTURE = ROOT / "tests" / "fixtures" / "autoresearchclaw_manifest"
 ARC_E2E_FIXTURE = ROOT / "tests" / "fixtures" / "autoresearchclaw_e2e_run"
 ARIS_FIXTURE = ROOT / "tests" / "fixtures" / "aris_manifest"
+EXTERNAL_FIXTURE = ROOT / "tests" / "fixtures" / "external_run_manifest"
 
 
 def test_registry_lists_builtin_manifest_adapters() -> None:
-    assert adapter_names() == ("autoresearchclaw-e2e-run", "autoresearchclaw-manifest", "aris-manifest")
+    assert adapter_names() == (
+        "external-run-manifest",
+        "autoresearchclaw-e2e-run",
+        "autoresearchclaw-manifest",
+        "aris-manifest",
+    )
 
 
 def test_registry_detects_autoresearchclaw_fixture() -> None:
@@ -45,6 +51,13 @@ def test_registry_detects_aris_fixture() -> None:
 
     assert [adapter.name for adapter in matches] == ["aris-manifest"]
     assert export_case(ARIS_FIXTURE).case.source_system == "aris"
+
+
+def test_registry_detects_external_run_manifest_fixture() -> None:
+    matches = detect_adapters(EXTERNAL_FIXTURE)
+
+    assert [adapter.name for adapter in matches] == ["external-run-manifest"]
+    assert export_case(EXTERNAL_FIXTURE).case.source_system == "external-paper2code-stack"
 
 
 def test_registry_rejects_no_match(tmp_path: Path) -> None:

@@ -87,12 +87,25 @@ host runtime, mutate host state, run experiments, or decide lifecycle authority.
 
 Current built-ins:
 
+- `external-run-manifest`
 - `autoresearchclaw-e2e-run`
 - `autoresearchclaw-manifest`
 - `aris-manifest`
 
-All built-ins read structured JSON or JSONL metadata only. They do not import
-AutoResearchClaw, ARIS, or any host runtime.
+All built-ins read structured JSON, YAML, or JSONL metadata only. They do not
+import AutoResearchClaw, ARIS, paper-to-code systems, reviewer frameworks, or any
+host runtime.
+
+`external-run-manifest` is the generic integration path for stages produced by
+outside systems. It requires `manifest_type: cairn.external_run.v1` and imports
+stage runs, claims, evidence, verifier certificates, reviewer verdicts, material
+dissent, human gates, release decisions, risk assessments, responsibility
+assignments, decision trace packages, and typed relations. This is how an
+external idea generator, paper-to-code project, review framework, experiment
+runner, or verifier wrapper can feed CairnLab without CairnLab owning that stage.
+Reviewer verdicts are always marked as non-authority evidence; unresolved
+material dissent is imported as a critical challenge and release blocker for the
+transition authority.
 
 `autoresearchclaw-e2e-run` is a resolver layer for the real AutoResearchClaw
 e2e directory shape observed in validation:
@@ -192,6 +205,8 @@ repository and needs packaging support.
 
 Current coverage:
 
+- generic external run manifest detection, export, reviewer non-authority
+  preservation, material-dissent release blocking, and revert planning;
 - AutoResearchClaw e2e run detection, export, diagnostics, and revert planning;
 - AutoResearchClaw manifest detection and export;
 - ARIS manifest, review sidecar, submission verifier, and missing human-gate

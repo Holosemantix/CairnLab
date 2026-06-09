@@ -190,6 +190,119 @@ The runtime propagates both:
 - upstream invalidation to dependent claims;
 - affected claim state back to gates, release decisions, and verifier certificates that must be reopened or invalidated.
 
+## Generic External Run Manifest
+
+The preferred integration path for a new upstream tool is not a new CairnLab
+runtime integration. It is a small manifest that records the artifacts the tool
+already produced. This covers idea generators, paper-to-code projects, external
+reviewers, experiment runners, verifier wrappers, and paper-writing systems.
+
+The built-in `ExternalRunManifestAdapter` detects explicit manifests only:
+
+```text
+cairn_external_run.yaml
+cairn_external_run.yml
+cairn_external_run.json
+external_run_manifest.yaml
+external_run_manifest.yml
+external_run_manifest.json
+.cairn/external_run_manifest.yaml
+.cairn/external_run_manifest.yml
+.cairn/external_run_manifest.json
+```
+
+The manifest must set:
+
+```yaml
+manifest_type: cairn.external_run.v1
+source_system: external-paper2code-stack
+stage: paper_to_code
+```
+
+Supported stage names are intentionally open. Common values include
+`idea_generation`, `literature_review`, `paper_to_code`, `experiment`,
+`result_analysis`, `paper_write`, `review`, `verifier`, and `release_review`.
+They are metadata, not CairnLab workflow states.
+
+Minimal example:
+
+```yaml
+manifest_type: cairn.external_run.v1
+case_id: external-run:paper2code-review-001
+source_system: external-paper2code-stack
+source_task: "Reproduce one scoped paper claim"
+stage: paper_to_code
+
+stages:
+  - id: run:paper_to_code_001
+    phase: paper_to_code
+    tool: external-paper-to-code
+    status: completed
+    path: artifacts/code_patch.diff
+
+claims:
+  - id: claim:C1
+    text: "The external reproduction reaches accuracy >= 0.90."
+    state: verified
+
+evidence:
+  - id: metric:repro.accuracy
+    type: metric
+    metadata: {metric_name: accuracy, value: 0.91}
+
+relations:
+  - source: run:paper_to_code_001
+    target: metric:repro.accuracy
+    type: computed
+    criticality: critical
+  - source: metric:repro.accuracy
+    target: claim:C1
+    type: supports
+    criticality: critical
+
+verifier_certificates:
+  - id: verifier:metric_threshold_accuracy
+    verifier: metric_threshold
+    claim: claim:C1
+    status: pass
+    inputs: [metric:repro.accuracy]
+    result: {observed: 0.91, threshold: 0.90, direction: ">="}
+    can_authorize: [verified]
+
+reviewer_verdicts:
+  - id: reviewer:external_scope_review
+    claim: claim:C1
+    reviewer: external-reviewer
+    verdict: warn
+    path: reviews/scope_review.json
+
+material_dissent:
+  - id: dissent:split_scope
+    claim: claim:C1
+    severity: material
+    resolved: false
+    summary: "The reproduced split may not match the paper's claimed split."
+```
+
+The adapter maps:
+
+- `stages[*]` to `run` evidence by default;
+- `evidence[*]` to typed `EvidenceItem` objects;
+- `relations[*]` to typed dependency edges;
+- `verifier_certificates[*]` to verifier evidence that can support `verified`;
+- `reviewer_verdicts[*]` to `reviewer_verdict` evidence with
+  `not_transition_authority=true`;
+- unresolved `material_dissent[*]` to critical challenge evidence and
+  `external_material_dissent`;
+- `human_gates[*]`, `release_decisions[*]`, `risk_assessments[*]`,
+  `responsibility_assignments[*]`, and `decision_trace_packages[*]` to the
+  matching governance objects.
+
+The generic manifest still does not authorize release. A passing verifier can
+support `verified`; release remains blocked until CairnLab transition authority
+sees the required risk assessment, human gate, accountability, and no unresolved
+material dissent.
+
 ## AutoResearchClaw Mapping
 
 The first AutoResearchClaw adapter should treat the following as metadata sources, not runtime dependencies:

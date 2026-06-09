@@ -1,0 +1,130 @@
+manifest_type: cairn.external_run.v1
+case_id: external-run:paper2code-review-001
+source_system: external-paper2code-stack
+source_task: "Reproduce a paper claim using an external paper-to-code workflow"
+stage: paper_to_code
+can_identify_downstream_claims: partial
+can_invalidate_claims: partial
+can_preserve_old_history_append_only: true
+native_system_behavior:
+  external_tools:
+    - external-idea-agent
+    - paper-to-code-runner
+    - external-reviewer
+expected_cairnlab_behavior:
+  do_not_treat_reviewer_verdict_as_transition_authority: true
+  block_unresolved_material_dissent: true
+
+stages:
+  - id: run:idea_generation_001
+    phase: idea_generation
+    tool: external-idea-agent
+    status: completed
+    path: artifacts/idea.json
+    outputs:
+      - claim:C1
+  - id: run:paper_to_code_001
+    phase: paper_to_code
+    tool: paper-to-code-runner
+    status: completed
+    path: artifacts/code_patch.diff
+    inputs:
+      - claim:C1
+    outputs:
+      - metric:repro.accuracy
+
+claims:
+  - id: claim:C1
+    text: "The external paper-to-code reproduction reaches accuracy >= 0.90 on the stated evaluation split."
+    type: empirical_metric
+    state: verified
+    risk: medium
+    scope:
+      metric: accuracy
+      split: stated_evaluation_split
+
+evidence:
+  - id: artifact:paper_to_code_patch
+    type: artifact
+    path: artifacts/code_patch.diff
+    metadata:
+      artifact_type: code_patch
+  - id: metric:repro.accuracy
+    type: metric
+    uri: memory://external-paper2code-stack/metrics/accuracy
+    metadata:
+      metric_name: accuracy
+      value: 0.91
+
+relations:
+  - source: run:paper_to_code_001
+    target: artifact:paper_to_code_patch
+    type: computed
+    criticality: critical
+  - source: artifact:paper_to_code_patch
+    target: metric:repro.accuracy
+    type: computed
+    criticality: critical
+  - source: metric:repro.accuracy
+    target: claim:C1
+    type: supports
+    criticality: critical
+
+verifier_certificates:
+  - id: verifier:metric_threshold_accuracy
+    verifier: metric_threshold
+    claim: claim:C1
+    status: pass
+    inputs:
+      - metric:repro.accuracy
+    result:
+      observed: 0.91
+      threshold: 0.90
+      direction: ">="
+    can_authorize:
+      - verified
+    criticality: critical
+
+reviewer_verdicts:
+  - id: reviewer:external_scope_review
+    reviewer: external-reviewer
+    claim: claim:C1
+    verdict: warn
+    path: reviews/scope_review.json
+    metadata:
+      not_transition_authority: true
+      finding: "dataset split naming remains ambiguous"
+
+material_dissent:
+  - id: dissent:split_scope
+    claim: claim:C1
+    severity: material
+    resolved: false
+    path: reviews/scope_review.json
+    summary: "Reviewer says the reproduced split may not match the paper's claimed split."
+
+human_gates:
+  - id: human_gate:external_release_owner
+    claim: claim:C1
+    actor: human:pi
+    authority: release_owner
+    scope:
+      claim: claim:C1
+      verifier: verifier:metric_threshold_accuracy
+    rationale: "Imported approval from the external paper-to-code workflow."
+
+risk_assessments:
+  - object: claim:C1
+    risk_tier: medium
+    identified_risks:
+      - split mismatch
+
+responsibility_assignments:
+  - object: claim:C1
+    action: release_claim
+    accountable:
+      - role: owner
+        actor: human:pi
+
+failure_classes:
+  - external_review_split_scope_warning

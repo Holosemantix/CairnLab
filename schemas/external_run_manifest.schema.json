@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cairnlab.local/schemas/external_run_manifest.schema.json",
+  "title": "CairnLab External Run Manifest",
+  "type": "object",
+  "required": ["manifest_type", "source_system"],
+  "properties": {
+    "manifest_type": {
+      "const": "cairn.external_run.v1"
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string"
+    },
+    "source_task": {
+      "type": "string"
+    },
+    "stage": {
+      "type": "string",
+      "description": "External workflow phase, such as idea_generation, paper_to_code, experiment, review, or verifier."
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "text"],
+        "properties": {
+          "id": {"type": "string"},
+          "text": {"type": "string"},
+          "type": {"type": "string"},
+          "state": {"type": "string"},
+          "risk": {"type": "string"},
+          "scope": {"type": "object"},
+          "metadata": {"type": "object"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "phase"],
+        "properties": {
+          "id": {"type": "string"},
+          "phase": {"type": "string"},
+          "tool": {"type": "string"},
+          "status": {"type": "string"},
+          "path": {"type": "string"},
+          "inputs": {"type": "array", "items": {"type": "string"}},
+          "outputs": {"type": "array", "items": {"type": "string"}},
+          "metadata": {"type": "object"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/evidence"}
+    },
+    "relations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/relation"}
+    },
+    "verifier_certificates": {
+      "type": "array",
+      "items": {"$ref": "verifier_certificate.schema.json"}
+    },
+    "reviewer_verdicts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/reviewer_verdict"}
+    },
+    "material_dissent": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/material_dissent"}
+    },
+    "human_gates": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/human_gate"}
+    },
+    "release_decisions": {
+      "type": "array",
+      "items": {"type": "object", "required": ["claim", "actor"], "additionalProperties": true}
+    },
+    "risk_assessments": {
+      "type": "array",
+      "items": {"$ref": "risk_assessment.schema.json"}
+    },
+    "responsibility_assignments": {
+      "type": "array",
+      "items": {"$ref": "responsibility_assignment.schema.json"}
+    },
+    "decision_trace_packages": {
+      "type": "array",
+      "items": {"$ref": "decision_trace_package.schema.json"}
+    },
+    "native_system_behavior": {"type": "object"},
+    "expected_cairnlab_behavior": {"type": "object"},
+    "failure_classes": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {"type": "string"},
+        "type": {"type": "string"},
+        "uri": {"type": "string"},
+        "path": {"type": "string"},
+        "hash": {"type": "string"},
+        "sha256": {"type": "string"},
+        "status": {"type": "string"},
+        "metadata": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "relation": {
+      "type": "object",
+      "required": ["source", "target"],
+      "properties": {
+        "id": {"type": "string"},
+        "source": {"type": "string"},
+        "target": {"type": "string"},
+        "from": {"type": "string"},
+        "to": {"type": "string"},
+        "type": {"type": "string"},
+        "criticality": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "reviewer_verdict": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string"},
+        "claim": {"type": "string"},
+        "reviewer": {"type": "string"},
+        "verdict": {"type": "string"},
+        "path": {"type": "string"},
+        "uri": {"type": "string"},
+        "metadata": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "material_dissent": {
+      "type": "object",
+      "required": ["id", "claim"],
+      "properties": {
+        "id": {"type": "string"},
+        "claim": {"type": "string"},
+        "severity": {"type": "string"},
+        "resolved": {"type": "boolean"},
+        "summary": {"type": "string"},
+        "path": {"type": "string"},
+        "uri": {"type": "string"},
+        "metadata": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "human_gate": {
+      "type": "object",
+      "required": ["claim", "actor", "authority", "rationale"],
+      "properties": {
+        "id": {"type": "string"},
+        "claim": {"type": "string"},
+        "actor": {"type": "string"},
+        "authority": {"type": "string"},
+        "scope": {"type": "object"},
+        "rationale": {"type": "string"}
+      },
+      "additionalProperties": true
+    }
+  }
+}

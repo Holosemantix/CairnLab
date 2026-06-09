@@ -26,6 +26,32 @@ Auto-selection succeeds only when exactly one adapter matches. The adapter layer
 does not decide claim release, downgrade, or retraction; it only emits portable
 `ClaimCase` objects for the kernel runtime.
 
+For tools that do not have a dedicated adapter, emit a generic external run
+manifest instead:
+
+```yaml
+manifest_type: cairn.external_run.v1
+source_system: external-paper2code-stack
+stage: paper_to_code
+claims:
+  - id: claim:C1
+    text: "The external reproduction reaches accuracy >= 0.90."
+    state: verified
+evidence:
+  - id: metric:repro.accuracy
+    type: metric
+    metadata: {metric_name: accuracy, value: 0.91}
+verifier_certificates:
+  - id: verifier:metric_threshold_accuracy
+    verifier: metric_threshold
+    claim: claim:C1
+    status: pass
+```
+
+This keeps idea generation, paper-to-code, review, experiment execution, and
+verification pluggable: external systems produce artifacts; CairnLab controls
+claim lifecycle transitions.
+
 ARIS helper-contract smoke validation is available without adding ARIS as a
 runtime dependency:
 

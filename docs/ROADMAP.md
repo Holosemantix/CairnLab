@@ -76,6 +76,9 @@ Closure note:
 - LLM reviewer sidecars are imported as evidence context; deterministic
   verifier reports are imported as verifier evidence; neither bypasses the
   CairnLab transition authority.
+- Generic external run manifests now let external idea generators,
+  paper-to-code systems, reviewers, experiment runners, and verifier wrappers
+  feed `ClaimCase` objects without becoming CairnLab runtime dependencies.
 
 ## 1. Claim Kernel Track
 
@@ -175,6 +178,7 @@ Initial plugin candidates:
 
 Initial integrations:
 
+- generic `cairn.external_run.v1` manifest import;
 - local command runner metadata;
 - Git commit capture;
 - MLflow run import;

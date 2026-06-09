@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +21,7 @@ class ArisManifestAdapter:
 
     def detect(self, path: Path) -> bool:
         root = Path(path)
-        return (root / "research-wiki" / "claims").exists() or any(
+        has_manifest = (root / "research-wiki" / "claims").exists() or any(
             (root / name).exists()
             for name in (
                 "EXPERIMENT_AUDIT.json",
@@ -28,6 +29,7 @@ class ArisManifestAdapter:
                 "CITATION_AUDIT.json",
             )
         )
+        return has_manifest or (self._has_aris_marker(root) and bool(self._review_sidecar_paths(root)))
 
     def export_case(self, path: Path) -> AdapterExportResult:
         root = Path(path)
@@ -42,6 +44,8 @@ class ArisManifestAdapter:
         experiment_ids = self._add_experiments(root, builder, diagnostics)
         self._add_edges(root, builder, diagnostics)
         self._add_audits(root, builder, claim_ids, diagnostics)
+        self._add_review_sidecars(root, builder, diagnostics)
+        self._add_submission_verifier_reports(root, builder, claim_ids, diagnostics)
         self._add_optional_human_gate(root, builder, claim_ids, diagnostics)
 
         if not claim_ids:
@@ -68,6 +72,12 @@ class ArisManifestAdapter:
             can_preserve_old_history_append_only=True,
             can_require_reapproval="unknown",
             can_export_machine_readable_revert_trace=True,
+        )
+        builder.expected_cairnlab_behavior.update(
+            {
+                "do_not_treat_llm_review_as_transition_authority": True,
+                "require_transition_authority_for_release": True,
+            }
         )
         return AdapterExportResult(case=builder.build(), diagnostics=diagnostics)
 
@@ -238,6 +248,103 @@ class ArisManifestAdapter:
             )
             for claim_id in claim_ids:
                 builder.add_relation(audit_id, claim_id, "verified_by", criticality="supporting")
+            self._record_verdict_diagnostic(
+                builder,
+                diagnostics,
+                path=audit_path,
+                verdict=audit.get("verdict") or audit.get("status"),
+                source=f"ARIS {audit_type}",
+                failure_class=f"aris_{audit_type}_rejected",
+            )
+
+    def _add_review_sidecars(
+        self,
+        root: Path,
+        builder: ClaimCaseBuilder,
+        diagnostics: list[AdapterDiagnostic],
+    ) -> None:
+        for review_path in self._review_sidecar_paths(root):
+            review = self._read_json(review_path, diagnostics)
+            if not review:
+                continue
+            evidence_id = f"reviewer:{self._path_id(root, review_path)}"
+            verdicts = self._verdicts(review)
+            builder.add_evidence(
+                evidence_id,
+                "reviewer_verdict",
+                uri=review_path.resolve().as_uri(),
+                hash=self._file_sha256(review_path),
+                metadata={
+                    "adapter": self.name,
+                    "artifact_type": "aris_review_sidecar",
+                    "source_file": str(review_path),
+                    "skill": review.get("skill"),
+                    "source": review.get("source"),
+                    "output": review.get("output"),
+                    "reviewer": review.get("reviewer"),
+                    "source_sha256": review.get("source_sha256"),
+                    "verdict": self._primary_verdict(review),
+                    "verdicts": verdicts,
+                    "blocking_issues_count": self._len_if_list(review.get("blocking_issues")),
+                    "warnings_count": self._len_if_list(review.get("warnings")),
+                    "rendered_at": review.get("rendered_at"),
+                    "generated_at": review.get("generated_at"),
+                    "not_transition_authority": True,
+                },
+            )
+            self._record_verdict_diagnostic(
+                builder,
+                diagnostics,
+                path=review_path,
+                verdict=self._worst_verdict(verdicts),
+                source="ARIS review sidecar",
+                failure_class="aris_review_sidecar_rejected",
+                llm_review=True,
+            )
+
+    def _add_submission_verifier_reports(
+        self,
+        root: Path,
+        builder: ClaimCaseBuilder,
+        claim_ids: list[str],
+        diagnostics: list[AdapterDiagnostic],
+    ) -> None:
+        for report_path in self._submission_verifier_report_paths(root):
+            report = self._read_json(report_path, diagnostics)
+            if not report:
+                continue
+            evidence_id = f"verifier:{self._path_id(root, report_path)}"
+            verdict = self._primary_verdict(report)
+            exit_code = report.get("exit_code")
+            if verdict == "UNKNOWN" and isinstance(exit_code, int):
+                verdict = "PASS" if exit_code == 0 else "FAIL"
+            builder.add_evidence(
+                evidence_id,
+                "verifier_certificate",
+                uri=report_path.resolve().as_uri(),
+                hash=self._file_sha256(report_path),
+                metadata={
+                    "adapter": self.name,
+                    "artifact_type": "aris_submission_verifier_report",
+                    "source_file": str(report_path),
+                    "verifier": report.get("verifier") or "verify_paper_audits.sh",
+                    "verdict": verdict,
+                    "exit_code": exit_code,
+                    "paper_dir": report.get("paper_dir"),
+                    "audits": report.get("audits") or [],
+                    "generated_at": report.get("generated_at"),
+                },
+            )
+            for claim_id in claim_ids:
+                builder.add_relation(evidence_id, claim_id, "verified_by", criticality="critical")
+            self._record_verdict_diagnostic(
+                builder,
+                diagnostics,
+                path=report_path,
+                verdict=verdict,
+                source="ARIS submission verifier",
+                failure_class="aris_submission_verifier_rejected",
+            )
 
     def _add_optional_human_gate(
         self,
@@ -247,7 +354,16 @@ class ArisManifestAdapter:
         diagnostics: list[AdapterDiagnostic],
     ) -> None:
         gate_path = root / ".aris" / "human_gate.json"
-        if not gate_path.exists() or not claim_ids:
+        if not claim_ids:
+            return
+        if not gate_path.exists():
+            diagnostics.append(
+                AdapterDiagnostic(
+                    level="warning",
+                    message="No .aris/human_gate.json found; released ARIS claims may require a liability-bearing human gate.",
+                    path=str(gate_path),
+                )
+            )
             return
         gate = self._read_json(gate_path, diagnostics)
         if not gate:
@@ -261,6 +377,104 @@ class ArisManifestAdapter:
             scope=gate.get("scope") or {"claim": claim_id},
             rationale=str(gate.get("rationale") or "Imported ARIS human gate."),
         )
+
+    def _has_aris_marker(self, root: Path) -> bool:
+        return any(
+            path.exists()
+            for path in (
+                root / "AGENT_GUIDE.md",
+                root / "skills" / "research-wiki" / "SKILL.md",
+                root / "skills" / "skills-codex" / "shared-references" / "assurance-contract.md",
+                root / ".aris" / "installed-skills-codex.txt",
+            )
+        )
+
+    def _review_sidecar_paths(self, root: Path) -> list[Path]:
+        if not root.exists():
+            return []
+        return sorted(path for path in root.rglob("*.review.json") if path.is_file())
+
+    def _submission_verifier_report_paths(self, root: Path) -> list[Path]:
+        if not root.exists():
+            return []
+        return sorted(path for path in root.rglob("audit-verifier-report.json") if path.is_file())
+
+    def _record_verdict_diagnostic(
+        self,
+        builder: ClaimCaseBuilder,
+        diagnostics: list[AdapterDiagnostic],
+        *,
+        path: Path,
+        verdict: Any,
+        source: str,
+        failure_class: str,
+        llm_review: bool = False,
+    ) -> None:
+        normalized = self._normalize_verdict(verdict)
+        if normalized in {"PASS", "NOT_APPLICABLE", "UNKNOWN"}:
+            return
+        if normalized == "WARN":
+            diagnostics.append(
+                AdapterDiagnostic(
+                    level="warning",
+                    message=f"{source} reports WARN; imported evidence needs review before any stronger claim transition.",
+                    path=str(path),
+                )
+            )
+            return
+        builder.add_failure_class(failure_class)
+        authority_note = " LLM review is evidence context, not transition authority." if llm_review else ""
+        diagnostics.append(
+            AdapterDiagnostic(
+                level="warning",
+                message=f"{source} reports {normalized}; imported claims are not release-authorized.{authority_note}",
+                path=str(path),
+            )
+        )
+
+    def _verdicts(self, value: Any) -> list[str]:
+        verdicts: list[str] = []
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if key == "verdict":
+                    verdicts.append(self._normalize_verdict(child))
+                else:
+                    verdicts.extend(self._verdicts(child))
+        elif isinstance(value, list):
+            for child in value:
+                verdicts.extend(self._verdicts(child))
+        return verdicts
+
+    def _primary_verdict(self, payload: dict[str, Any]) -> str:
+        return self._normalize_verdict(payload.get("verdict") or payload.get("status") or "unknown")
+
+    def _worst_verdict(self, verdicts: list[str]) -> str:
+        order = ["ERROR", "BLOCKED", "FAIL", "WARN", "UNKNOWN", "PASS", "NOT_APPLICABLE"]
+        present = {self._normalize_verdict(verdict) for verdict in verdicts}
+        return next((verdict for verdict in order if verdict in present), "UNKNOWN")
+
+    def _normalize_verdict(self, verdict: Any) -> str:
+        value = str(verdict or "unknown").strip().upper()
+        if "WARN" in value:
+            return "WARN"
+        if value.startswith("PASS"):
+            return "PASS"
+        if value.startswith("FAIL") or value in {"REJECT", "REJECTED"}:
+            return "FAIL"
+        if value in {"BLOCKED", "ERROR", "NOT_APPLICABLE"}:
+            return value
+        return "UNKNOWN"
+
+    def _len_if_list(self, value: Any) -> int | None:
+        return len(value) if isinstance(value, list) else None
+
+    def _path_id(self, root: Path, path: Path) -> str:
+        try:
+            relative = path.relative_to(root)
+        except ValueError:
+            relative = path.name
+        stem = str(relative).removesuffix(".json").removesuffix(".review")
+        return re.sub(r"[^A-Za-z0-9_.-]+", ".", stem).strip(".") or "artifact"
 
     def _relation_type(self, aris_type: str) -> str:
         mapping = {

@@ -61,6 +61,13 @@ A claim cannot move from draft to release just because an agent generated a conv
 
 This candidate contribution should be implemented only after validation shows repeated cross-system failures that cannot be handled by existing in-system gates or public benchmark scores.
 
+The adapter layer is the practical boundary test for this position. Strong
+systems such as ARIS and AutoResearchClaw may produce rich run artifacts,
+review sidecars, audit verdicts, HITL records, and verifier reports. CairnLab
+should import those objects as portable evidence, but the claim lifecycle
+transition remains a CairnLab authority decision rather than an upstream agent
+or reviewer conclusion.
+
 ## Competitive boundary
 
 CairnLab should be embedded by systems like ARIS, AutoResearchClaw, ScientistOne-style systems, DeepScientist-style research OSes, and paper-to-code systems.

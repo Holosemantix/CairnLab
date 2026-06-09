@@ -287,10 +287,12 @@ The first ARIS adapter should treat these sources as metadata:
 | `EXPERIMENT_AUDIT.json` | `verifier_certificate` evidence |
 | `PAPER_CLAIM_AUDIT.json` | `verifier_certificate` evidence |
 | `CITATION_AUDIT.json` | citation verifier evidence |
+| `*.review.json` sidecars | `reviewer_verdict` evidence |
+| `.aris/audit-verifier-report.json` | `verifier_certificate` evidence |
 | `.aris/meta/events.jsonl` | optional source event evidence |
 | human checkpoint metadata | `human_gate` evidence |
 
-The adapter should preserve ARIS audit verdicts as machine-readable metadata and avoid turning them into prose-only notes.
+The adapter should preserve ARIS audit verdicts as machine-readable metadata and avoid turning them into prose-only notes. ARIS LLM review sidecars are reviewer evidence, not deterministic verifier certificates. The submission verifier report is verifier evidence, but it still does not decide CairnLab claim release by itself.
 
 ### Current ARIS Manifest Adapter
 
@@ -306,6 +308,8 @@ EXPERIMENT_AUDIT.json            optional
 PAPER_CLAIM_AUDIT.json           optional
 CITATION_AUDIT.json              optional
 KILL_ARGUMENT.json               optional
+*.review.json                    optional, when ARIS markers are present
+.aris/audit-verifier-report.json optional
 .aris/human_gate.json            optional
 ```
 
@@ -315,9 +319,14 @@ It maps:
 - `research-wiki/experiments/*.json` to `run`, `metric`, and `artifact` evidence;
 - `research-wiki/graph/edges.jsonl` to typed CairnLab relations;
 - ARIS audit JSON files to `verifier_certificate` evidence;
+- ARIS `*.review.json` sidecars to `reviewer_verdict` evidence with
+  `not_transition_authority=true`;
+- ARIS submission verifier reports to `verifier_certificate` evidence;
+- rejected, blocked, failed, or errored verifier reports to diagnostics and
+  `failure_classes`;
 - `.aris/human_gate.json` to a `human_gate`.
 
-It does not parse arbitrary wiki Markdown, run ARIS skills, call reviewers, mutate `.aris/meta/events.jsonl`, infer missing human approvals, or decide claim lifecycle authority.
+It does not parse arbitrary wiki Markdown, run ARIS skills, call reviewers, mutate `.aris/meta/events.jsonl`, infer missing human approvals, treat LLM reviewer agreement as release authority, or decide claim lifecycle authority.
 
 ## Reliability Requirements
 

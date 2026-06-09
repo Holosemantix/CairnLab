@@ -1,0 +1,17 @@
+{
+  "verifier": "verify_paper_audits.sh",
+  "verdict": "PASS",
+  "exit_code": 0,
+  "paper_dir": ".",
+  "audits": [
+    {
+      "path": "EXPERIMENT_AUDIT.json",
+      "verdict": "PASS"
+    },
+    {
+      "path": "PAPER_CLAIM_AUDIT.json",
+      "verdict": "PASS"
+    }
+  ],
+  "generated_at": "2026-06-09T00:00:00Z"
+}

@@ -79,6 +79,11 @@ across system boundaries?
 
 The answer must come from real failure sampling, not positioning language.
 
+The v0.4 adapter work operationalizes that test: AutoResearchClaw e2e artifacts
+and ARIS review/audit artifacts can enter CairnLab without importing either
+runtime. This keeps the coupling light and makes the competitive boundary
+observable: external systems provide evidence; CairnLab tests whether a claim is
+allowed to transition.
 
 ## v0.3 implication from governance practice
 

@@ -119,6 +119,17 @@ as `stage-15` research-decision failures, pipeline degradation, quality-gate
 failures, paper verifier rejection, and sanitized numerical claims are
 diagnostics and evidence context only. They never authorize a claim release.
 
+`aris-manifest` handles both exported ARIS research-wiki manifests and the
+real ARIS repository sidecar pattern observed in validation. When ARIS markers
+are present, it can import `*.review.json` files as `reviewer_verdict` evidence.
+Those sidecars preserve reviewer route, source hashes, nested verdict history,
+warnings, and blocking issues, but they are explicitly marked as non-authority
+evidence. `.aris/audit-verifier-report.json` is imported as
+`verifier_certificate` evidence because it represents the machine-readable
+submission gate result. Rejected, blocked, failed, or errored verifier reports
+become diagnostics and `failure_classes`; they still do not release or retract a
+claim without CairnLab transition authority.
+
 ## CLI Surface
 
 ```bash
@@ -165,7 +176,8 @@ Current coverage:
 
 - AutoResearchClaw e2e run detection, export, diagnostics, and revert planning;
 - AutoResearchClaw manifest detection and export;
-- ARIS manifest detection and export;
+- ARIS manifest, review sidecar, submission verifier, and missing human-gate
+  diagnostics;
 - registry name listing;
 - auto-detection success;
 - no-match failure;

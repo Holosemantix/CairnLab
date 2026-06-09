@@ -64,6 +64,17 @@ Acceptance:
   human-gate signals;
 - adapters remain translators, not transition authorities.
 
+Closure note:
+
+- AutoResearchClaw e2e evidence now covers real stage/pipeline artifacts such
+  as result analysis, downstream pauses, quality reports, paper verification,
+  and sanitization signals.
+- ARIS evidence now covers research-wiki manifests, audit JSON, real
+  `*.review.json` sidecars, and submission verifier reports.
+- LLM reviewer sidecars are imported as evidence context; deterministic
+  verifier reports are imported as verifier evidence; neither bypasses the
+  CairnLab transition authority.
+
 ## 1. Claim Kernel Track
 
 This track turns the validated harness into enforceable claim lifecycle control.

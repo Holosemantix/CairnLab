@@ -1,0 +1,32 @@
+{
+  "skill": "render-html",
+  "source": "docs/ARIS_INTRO.md",
+  "source_sha256": "7757b71ab1b1bacc6a4df7c7dc1909d74acd17542bfe815ee6a25522a908d0eb",
+  "output": "docs/ARIS_INTRO.html",
+  "reviewer": "codex gpt-5.5 xhigh, fresh thread per run",
+  "verdict": "PASS",
+  "checks": {
+    "source_hash_match": "pass",
+    "information_fidelity": "pass",
+    "structure": "pass",
+    "safety_escaping": "pass"
+  },
+  "blocking_issues": [],
+  "warnings": [],
+  "history": [
+    {
+      "run": 1,
+      "verdict": "WARN",
+      "issue": "details block rendered inner markdown as literal text",
+      "fix": "renderer recursively parsed details content"
+    },
+    {
+      "run": 2,
+      "verdict": "PASS",
+      "issue": null,
+      "fix": null
+    }
+  ],
+  "summary": "Real ARIS render-review sidecar shape: iterative LLM review produces a reviewer verdict artifact, not claim transition authority.",
+  "rendered_at": "2026-05-19"
+}

@@ -35,6 +35,38 @@ This module must not own:
 - external project detection;
 - experiment execution.
 
+## Object Relationship
+
+```mermaid
+flowchart TD
+    case["ClaimCase"]
+    claim["Claim"]
+    evidence["EvidenceItem"]
+    relation["Relation"]
+    lifecycle["LifecycleContext"]
+    risk["RiskAssessment"]
+    responsibility["ResponsibilityAssignment"]
+    policy["GovernancePolicy"]
+    trace["DecisionTracePackage"]
+    event["TransitionEvent"]
+    plan["RevertPlan"]
+    certificate["VerifierCertificate"]
+
+    case --> claim
+    case --> evidence
+    case --> relation
+    case --> lifecycle
+    case --> risk
+    case --> responsibility
+    case --> policy
+    case --> trace
+    relation --> claim
+    relation --> evidence
+    certificate --> evidence
+    event --> claim
+    plan --> event
+```
+
 ## Public Contracts
 
 The most important contracts are:

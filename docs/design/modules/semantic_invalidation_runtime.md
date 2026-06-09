@@ -38,32 +38,45 @@ It is semantic rollback, not filesystem rollback.
 
 ## Data Flow
 
-```text
-ClaimCase
-  -> claims / evidence / relations
-  -> RelationGraph
-  -> EventProjection
-  -> InvalidationPlanner.plan_revert()
-  -> RevertPlan
-  -> TransitionEvents
-  -> EventProjection
+```mermaid
+flowchart TD
+    case["ClaimCase"]
+    objects["claims + evidence + relations"]
+    graph["RelationGraph"]
+    projection["EventProjection"]
+    planner["InvalidationPlanner.plan_revert()"]
+    plan["RevertPlan"]
+    events["TransitionEvents"]
+    updated["Updated projected state"]
+
+    case --> objects --> graph --> planner --> plan --> events --> updated
+    objects --> projection --> planner
+    events --> projection
 ```
 
 ## Propagation Semantics
 
 Ordinary relations flow upstream to downstream:
 
-```text
-run -> metric -> claim -> paper_section
+```mermaid
+flowchart LR
+    run["run"]
+    metric["metric"]
+    claim["claim"]
+    section["paper_section"]
+    certificate["verifier_certificate"]
+    gate["human_gate"]
+    release["release_decision"]
+
+    run --> metric --> claim --> section
+    claim --> certificate
+    claim --> gate
+    claim --> release
 ```
 
-Authority objects also react when an affected claim loses authority:
-
-```text
-claim -> verifier_certificate
-claim -> human_gate
-claim -> release_decision
-```
+The first chain is ordinary evidence dependency. The outgoing claim edges show
+authority objects that must be reopened or invalidated when a claim loses
+support.
 
 The planner emits explicit actions rather than mutating objects:
 

@@ -20,6 +20,24 @@ They may read host artifacts and emit:
 
 They must not decide whether a claim is released, downgraded, or retracted. That decision remains in the transition authority and invalidation runtime.
 
+## Boundary Diagram
+
+```mermaid
+flowchart TD
+    host["Host AutoResearch project"]
+    artifacts["Structured metadata<br/>claims, evidence, gates, decisions"]
+    adapter["AutoResearchAdapter"]
+    case["ClaimCase"]
+    runtime["CairnRuntime"]
+    authority["TransitionAuthority"]
+    planner["InvalidationPlanner"]
+
+    host --> artifacts --> adapter --> case
+    case --> runtime
+    runtime --> authority
+    runtime --> planner
+```
+
 ## Minimal Python Flow
 
 ```python

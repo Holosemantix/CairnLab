@@ -30,6 +30,28 @@ This module must not own:
 - adapter export mapping;
 - claim transition authority.
 
+## CLI Boundary
+
+```mermaid
+flowchart TD
+    user["Human or script"]
+    cli["cairn CLI"]
+    adapters["adapter registry"]
+    engine["CairnProject engine"]
+    runtime["CairnRuntime"]
+    authority["TransitionAuthority"]
+    trace["DecisionTracePackager"]
+    json["JSON or text output"]
+
+    user --> cli
+    cli --> adapters
+    cli --> engine
+    engine --> runtime
+    engine --> authority
+    engine --> trace
+    cli --> json
+```
+
 ## Current Commands
 
 Project and import:

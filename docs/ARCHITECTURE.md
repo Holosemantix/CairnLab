@@ -12,46 +12,63 @@ It integrates with agent systems, experiment trackers, code runners, and provena
 
 ## High-level architecture
 
-```text
-External agent / workflow / research OS
-        |
-        v
-Cairn API / CLI
-        |
-        v
-Research Claim Kernel
-  ├── Claim Graph
-  ├── Evidence Policy Engine
-  ├── Verifier Engine
-  ├── Transition Ledger
-  ├── Governance Module
-  └── Human Gate Module
-        |
-        v
-Exports / Reports / Issues / Release Bundles
+```mermaid
+flowchart TD
+    external["External agent / workflow"]
+    api["Cairn API / CLI"]
+    kernel["Research Claim Kernel"]
+    graph["Claim Graph"]
+    policy["Evidence Policy Engine"]
+    verifier["Verifier Engine"]
+    ledger["Transition Ledger"]
+    governance["Governance Module"]
+    human["Human Gate Module"]
+    exports["Exports / reports / issues / release bundles"]
+
+    external --> api --> kernel
+    kernel --> graph
+    kernel --> policy
+    kernel --> verifier
+    kernel --> ledger
+    kernel --> governance
+    kernel --> human
+    graph --> exports
+    policy --> exports
+    verifier --> exports
+    ledger --> exports
+    governance --> exports
+    human --> exports
 ```
 
-## Phase 0.6 Semantic Invalidation Harness
+## 0.3 Semantic Invalidation Harness
 
 Before the full Research Claim Kernel is justified, CairnLab provides a smaller reusable harness for claim-state invalidation propagation.
 
-```text
-External AutoResearch metadata
-        |
-        v
-ClaimCase Import Contract
-        |
-        v
-Portable Modules
-  ├── Store
-  ├── Relation Graph
-  ├── Event Projection
-  ├── Invalidation Planner
-  ├── Validation Reporter
-  └── CLI / Python API facade
-        |
-        v
-RevertPlan / TransitionEvents / TraceResult
+```mermaid
+flowchart TD
+    metadata["External AutoResearch metadata"]
+    contract["ClaimCase import contract"]
+    modules["Portable modules"]
+    store["Store"]
+    graph["RelationGraph"]
+    projection["EventProjection"]
+    planner["InvalidationPlanner"]
+    validation["ValidationReporter"]
+    facade["CLI / Python API facade"]
+    outputs["RevertPlan / TransitionEvents / TraceResult"]
+
+    metadata --> contract --> modules
+    modules --> store
+    modules --> graph
+    modules --> projection
+    modules --> planner
+    modules --> validation
+    modules --> facade
+    graph --> outputs
+    projection --> outputs
+    planner --> outputs
+    validation --> outputs
+    facade --> outputs
 ```
 
 The harness is designed so that another AutoResearch project can import only the modules it needs. The CLI is optional. The local `.cairn/` store is the default adapter, not the core abstraction.

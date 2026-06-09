@@ -11,8 +11,8 @@ which claim lifecycle states must change, and what append-only events record it?
 
 ## Current Scope
 
-The implemented system covers Phase 0.6 plus minimal Phase 0.7/0.8 authority
-and verifier seeds:
+The implemented system covers milestone 0.3 plus kernel seeds from 1.1 through
+1.3:
 
 - portable `ClaimCase` import;
 - in-memory runtime for claim invalidation planning;
@@ -249,7 +249,7 @@ The implementation must preserve these repository-level constraints:
 - material dissent blocks release unless resolved by verifier or explicit human override;
 - state is derived from append-only events, not mutable fields.
 
-The Phase 0.6 harness already preserves these objects as structured model fields
+The 0.3 harness already preserves these objects as structured model fields
 or evidence metadata. Full enforcement belongs to later kernel phases.
 
 ## Extension Points
@@ -273,7 +273,7 @@ claim status fields, or adapter-specific logic inside planner or store modules.
 
 These are known areas to revisit as functionality grows:
 
-- split full verifier policy enforcement from Phase 0.6 validation reports;
+- split full verifier policy enforcement from 0.3 validation reports;
 - keep adapter registry static until there is a real plugin packaging need;
 - move CLI JSON payload shapes into tested response models if commands expand;
 - add schema-driven contract tests when external adapters become separate packages;

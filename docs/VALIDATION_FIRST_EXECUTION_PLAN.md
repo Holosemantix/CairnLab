@@ -19,9 +19,9 @@ cross-system need for an external claim lifecycle transition authority.
 
 The kernel should be built only if real usage shows that in-system evidence chains and governance gates are insufficient for claim release control.
 
-## Two-Stage Route
+## Milestone Route
 
-### Phase A: Failure Sampling
+### 0.2 Failure Sampling
 
 Use existing AutoResearch systems as instruments for discovering real failures.
 
@@ -33,30 +33,40 @@ Initial systems:
 
 The goal is not to prove that one system is good or bad. The goal is to collect comparable claim cases and identify whether the same governance failures recur across systems.
 
-### Phase B: Claim Lifecycle Control Layer
+This corresponds to roadmap milestone 0.2.
 
-Build the CairnLab transition engine only if Phase A produces repeated failures that are:
+### 0.3 Semantic Invalidation Harness
+
+Before committing to the full kernel, CairnLab can build a small reusable harness that replays invalidation scenarios against imported claim cases.
+
+This harness is not a workspace rollback tool. It is a counterfactual claim-state module:
+
+```mermaid
+flowchart TD
+    invalidated["invalidated run / metric / artifact / approval"]
+    graph["dependency graph"]
+    affected["affected claims, certificates, gates, decisions"]
+    events["append-only transition events"]
+    authority["projected claim authority"]
+
+    invalidated --> graph --> affected --> events --> authority
+```
+
+The harness must stay decoupled from any one AutoResearch stack. External projects should be able to export claims, evidence, relations, verifier outputs, human gates, and release decisions as YAML/JSON, then call the planner without adopting CairnLab's CLI or storage layout.
+
+This corresponds to roadmap milestone 0.3.
+
+### 1.4 Claim Lifecycle Control Layer
+
+Build the CairnLab transition engine only if 0.2 and 0.3 produce repeated
+failures that are:
 
 - cross-system rather than tool-specific;
 - material to whether a claim may be verified, released, challenged, downgraded, or retracted;
 - not already captured by existing benchmark scores or in-system gates;
 - addressable by an external claim transition authority.
 
-### Phase A.5: Semantic Invalidation Harness
-
-Before committing to the full kernel, CairnLab can build a small reusable harness that replays invalidation scenarios against imported claim cases.
-
-This harness is not a workspace rollback tool. It is a counterfactual claim-state module:
-
-```text
-invalidated run / metric / artifact / approval
-  -> dependency graph
-  -> affected claims, verifier certificates, human gates, release decisions
-  -> append-only transition events
-  -> projected claim authority
-```
-
-The harness must stay decoupled from any one AutoResearch stack. External projects should be able to export claims, evidence, relations, verifier outputs, human gates, and release decisions as YAML/JSON, then call the planner without adopting CairnLab's CLI or storage layout.
+This corresponds to roadmap milestone 1.4 and later.
 
 ## First Target: AutoResearchClaw
 
@@ -138,7 +148,7 @@ notes: ""
 
 ## Failure Taxonomy
 
-Use these labels during Phase A. Add new labels only when an observed failure cannot be represented here.
+Use these labels during milestone 0.2. Add new labels only when an observed failure cannot be represented here.
 
 - `claim_without_artifact`
 - `artifact_not_machine_checkable`
@@ -164,7 +174,7 @@ Use these labels during Phase A. Add new labels only when an observed failure ca
 
 ## Semantic Invalidation Stress Scenarios
 
-Phase A.5 should start with synthetic cases before relying on expensive real-system runs. These cases are validation fixtures for the reusable harness.
+Milestone 0.3 should start with synthetic cases before relying on expensive real-system runs. These cases are validation fixtures for the reusable harness.
 
 | Scenario | Invalidated object | Expected claim-state consequence |
 | --- | --- | --- |
@@ -197,7 +207,7 @@ cairnlab_counterfactual:
 
 ## Go / No-Go Criteria
 
-Move from Phase A to a CairnLab transition engine MVP only if all of the following hold:
+Move from failure sampling to a CairnLab transition engine MVP only if all of the following hold:
 
 - At least three systems or workflows have been sampled.
 - At least six real tasks have been run or replayed.

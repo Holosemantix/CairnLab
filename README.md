@@ -164,7 +164,7 @@ claim
 
 ## Example CLI direction
 
-Phase 0.6 semantic invalidation harness:
+0.3 semantic invalidation harness:
 
 ```bash
 cairn init

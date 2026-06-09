@@ -19,6 +19,30 @@ boundary sits, and what must be updated when code changes.
 - [CLI Surface](modules/cli_surface.md): command-line facade over reusable APIs.
 - [Validation Reporting](modules/validation_reporting.md): validation report scope and limits.
 
+```mermaid
+flowchart TD
+    system["System Design"]
+    model["Domain Model"]
+    runtime["Semantic Invalidation Runtime"]
+    authority["Transition Authority"]
+    verifier["Verifier Execution"]
+    trace["Decision Trace Package"]
+    adapters["Adapter System"]
+    store["Local Project Store"]
+    cli["CLI Surface"]
+    reporting["Validation Reporting"]
+
+    system --> model
+    system --> runtime
+    system --> authority
+    system --> verifier
+    system --> trace
+    system --> adapters
+    system --> store
+    system --> cli
+    system --> reporting
+```
+
 ## Maintenance Rule
 
 Every code change that modifies one of these items must update the relevant
@@ -56,7 +80,7 @@ Existing documents keep their current roles:
 
 - `docs/ARCHITECTURE.md`: broader candidate architecture and future kernel direction.
 - `docs/KERNEL_SPEC.md`: kernel primitive specification.
-- `docs/SEMANTIC_INVALIDATION_HARNESS.md`: Phase 0.6 harness rationale and contract.
+- `docs/SEMANTIC_INVALIDATION_HARNESS.md`: 0.3 harness rationale and contract.
 - `docs/ADAPTER_CONTRACT.md`: adapter protocol and external project mapping rules.
 - `docs/ROADMAP.md`: staged build and validation sequence.
 

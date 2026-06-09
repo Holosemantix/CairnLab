@@ -50,6 +50,27 @@ This module must not own:
   cache/
 ```
 
+## Store Boundary
+
+```mermaid
+flowchart TD
+    case["ClaimCase"]
+    import["CairnProjectStore.import_claim_case()"]
+    objects["objects/<br/>claims, evidence, relations, cases"]
+    events["events/events.jsonl"]
+    reports["reports/<br/>validation JSON + Markdown"]
+    engine["CairnProject engine facade"]
+    graph["RelationGraph"]
+    projection["EventProjection"]
+
+    case --> import --> objects
+    engine --> objects
+    engine --> events
+    engine --> reports
+    objects --> graph
+    events --> projection
+```
+
 ## Import Paths
 
 The store supports two import entry points:

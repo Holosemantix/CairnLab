@@ -32,6 +32,24 @@ This module must not own:
 Validation reports can inform build decisions. They do not authorize claim state
 transitions.
 
+## Reporting Flow
+
+```mermaid
+flowchart TD
+    cases["Imported ClaimCase records"]
+    classes["failure_classes"]
+    behavior["native vs expected behavior"]
+    validation["validation.py"]
+    counts["failure taxonomy counts"]
+    recommendation["go / no-go / continue sampling"]
+    reports["validation_report.json + validation_report.md"]
+
+    cases --> classes --> validation
+    cases --> behavior --> validation
+    validation --> counts --> reports
+    validation --> recommendation --> reports
+```
+
 ## Inputs
 
 Current inputs are imported `ClaimCase` records from the local store.

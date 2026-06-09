@@ -20,6 +20,29 @@ Two additional governance objects are required for multi-agent work:
 7. `RoleContract`
 8. `PositionStatement`
 
+## Primitive Relationship
+
+```mermaid
+flowchart TD
+    claim["Claim"]
+    policy["EvidencePolicy"]
+    evidence["EvidenceItem"]
+    certificate["VerifierCertificate"]
+    transition["StateTransition"]
+    gate["HumanGate"]
+    role["RoleContract"]
+    position["PositionStatement"]
+
+    claim --> policy
+    policy --> evidence
+    evidence --> certificate
+    certificate --> transition
+    gate --> transition
+    role --> gate
+    position --> transition
+    transition --> claim
+```
+
 ## Claim
 
 A `Claim` is a stateful scientific assertion.

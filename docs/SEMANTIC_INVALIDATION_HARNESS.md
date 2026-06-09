@@ -12,14 +12,14 @@ keep their current lifecycle authority?
 
 ## Position In CairnLab
 
-The harness is a Phase 0.6 bridge between validation-first failure sampling and the full Research Claim Kernel.
+The harness is milestone 0.3: the bridge between failure sampling and the full Research Claim Kernel.
 
 It is not proof that the full kernel is already justified. It is a portable way to test whether existing systems repeatedly lack claim-state invalidation propagation.
 
 ```text
-Phase 0.5: sample real AutoResearch failures
-Phase 0.6: replay those failures through a semantic invalidation harness
-Phase 1: build the full claim lifecycle kernel only if the evidence warrants it
+0.2: sample real AutoResearch failures
+0.3: replay those failures through a semantic invalidation harness
+1.4: build the full claim lifecycle kernel only if the evidence warrants it
 ```
 
 ## Reusable Boundary
@@ -38,6 +38,25 @@ It exposes a small contract:
 It must not require the host project to use CairnLab's execution stack, UI, storage backend, LLM prompts, experiment runner, or model registry.
 
 The adapter contract is specified in `docs/ADAPTER_CONTRACT.md`. Adapters translate host metadata into `ClaimCase`; they do not decide claim lifecycle authority.
+
+## Control Flow
+
+```mermaid
+flowchart TD
+    host["Host AutoResearch system"]
+    metadata["exported claims, evidence, gates, decisions"]
+    case["ClaimCase"]
+    invalidate["invalidated run / metric / artifact / approval"]
+    planner["Semantic invalidation planner"]
+    plan["affected claims + authority objects"]
+    events["append-only transition events"]
+    state["projected claim authority"]
+
+    host --> metadata --> case
+    case --> planner
+    invalidate --> planner
+    planner --> plan --> events --> state
+```
 
 ## Non-Goals
 
@@ -128,7 +147,7 @@ The harness must preserve the repository-level governance rules:
 - material dissent blocks release unless resolved by verifier or explicit human override;
 - state is derived from append-only events, not mutable fields.
 
-In Phase 0.6, these objects may be imported as structured metadata. They must not be collapsed into free-form prose when the project advances to the full kernel.
+In milestone 0.3, these objects may be imported as structured metadata. They must not be collapsed into free-form prose when the project advances to the full kernel.
 
 ## First Stress Cases
 

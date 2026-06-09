@@ -1,308 +1,188 @@
 # CairnLab Roadmap
 
-## Phase 0: Repository alignment
+This roadmap is organized by tracks and milestones. The numbering is hierarchical
+instead of version-like: `0.3` means the third milestone in Track 0, not an
+incomplete product version.
 
-- Rename all previous ReproLedger references to CairnLab.
-- Confirm repo: `cairnlab`.
-- Confirm package: `cairnlab`.
-- Confirm CLI: `cairn`.
-- Adopt tagline: `Reliable paths for AI-assisted research.`
-- Adopt core positioning: `Research Claim Kernel`.
+## 0. Validation And Kernel Seed Track
 
-## Phase 0.5: Validation-first failure sampling
+This track validates CairnLab's strategic thesis before the project commits to a
+full kernel.
 
-Before building the kernel, validate whether an independent claim lifecycle control layer is actually needed.
+### 0.1 Repository Alignment
 
-Inputs:
+- Rename previous ReproLedger references to CairnLab.
+- Confirm repo, package, and CLI names.
+- Adopt **Research Claim Kernel** as the strategic boundary.
+- Preserve the core rule: no artifact, no claim.
 
-- existing AutoResearch systems;
-- public or system-provided benchmark tasks;
-- manifest-style custom tasks only after controlled benchmark tasks run;
-- material claims extracted from final outputs.
+### 0.2 Failure Sampling
 
-Initial target:
+Validate whether an independent claim lifecycle control layer is actually needed.
 
-- AutoResearchClaw, starting with documented smoke tests and ARC-Bench tasks.
+Acceptance:
 
-Validation artifacts:
+- at least three systems or workflows are sampled;
+- at least six real tasks are run or replayed;
+- at least thirty material claims are recorded;
+- at least three failure classes recur across systems;
+- at least one recurring failure class directly affects claim release control;
+- existing benchmark metrics do not already capture the failure;
+- the failure can plausibly be reduced by an external claim transition authority.
 
-- claim case records;
-- failure taxonomy labels;
-- task manifests;
-- run and artifact references;
-- Go / No-Go report.
+If these criteria are not met, keep CairnLab as a validation harness rather than
+promoting it into a full kernel.
 
-Acceptance criteria:
+### 0.3 Semantic Invalidation Harness
 
-- At least three systems or workflows are sampled.
-- At least six real tasks are run or replayed.
-- At least thirty material claims are recorded.
-- At least three failure classes recur across systems.
-- At least one recurring failure class directly affects claim release control.
-- Existing benchmark metrics do not already capture the failure.
-- The failure can plausibly be reduced by an external claim transition authority.
-
-If these criteria are not met, continue with validation harness work and do not proceed to a full transition engine.
-
-## Phase 0.6: Semantic invalidation harness
-
-Build a decoupled, local-first harness that can be reused by other AutoResearch projects to test claim-state invalidation propagation.
-
-This phase is allowed before the full kernel because it is a validation instrument, not a product-thesis commitment. It should remain independently extractable from the rest of CairnLab.
-
-Inputs:
-
-- hand-authored or exported claim cases;
-- claims, evidence objects, verifier outputs, human gates, release decisions, and typed relations;
-- native-system behavior fields that record whether the host system can propagate invalidation itself.
+Build a decoupled, local-first harness that can be reused by other AutoResearch
+projects to test claim-state invalidation propagation.
 
 Core modules:
 
-- `models`: portable claim-case, event, relation, and plan models;
-- `store`: local `.cairn/` object store and append-only event ledger;
-- `graph`: dependency traversal over imported objects;
-- `projection`: current state derived from base objects plus events;
-- `planner`: `plan_revert` and affected-object action mapping;
-- `validation`: failure-taxonomy and Go / No-Go reports;
-- `cli`: thin command wrapper over reusable library APIs.
+- `models`, `store`, `graph`, `projection`, `planner`, `validation`, `cli`;
+- reusable Python API first, CLI second.
 
-Commands:
+Acceptance:
 
-```bash
-cairn init
-cairn import-case examples/cases/case_wrong_metric.yaml
-cairn validate
-cairn trace claim:C1
-cairn affected run:exp_007
-cairn revert run:exp_007 --reason "metric computed on wrong split" --plan-only
-cairn revert run:exp_007 --reason "metric computed on wrong split" --apply --actor user:alice
-```
+- no dependency on a host AutoResearch runtime;
+- `plan_revert` is usable without `.cairn/` storage;
+- plan-only mode does not mutate events;
+- apply mode appends events and never rewrites imported YAML;
+- wrong metric, stale section, human scope drift, and release reopen cases work;
+- governance fields remain structured.
 
-Acceptance criteria:
+### 0.4 External Run Evidence Adapters
 
-- The harness does not depend on any host AutoResearch runtime.
-- A host project can use the planner from Python without using the CLI.
-- `--plan-only` does not mutate event logs.
-- `--apply` appends a root invalidation event plus derived events.
-- Original imported YAML is not rewritten by revert.
-- Wrong metric and human scope drift cases produce affected claim, section, gate, and release-decision changes.
-- State is projected from append-only events.
-- Governance fields are preserved as structured objects or metadata and are not collapsed into prose.
+Import real AutoResearch outputs without importing host runtime packages.
 
-## Phase 0.7: Minimal transition authority seed
+Acceptance:
 
-Add a small deterministic authority module before the full kernel MVP, so the
-project's core difference is exercised early without introducing a policy DSL or
-verifier plugin system.
+- AutoResearchClaw manifest and e2e runs import as `ClaimCase`;
+- ARIS manifests import as `ClaimCase`;
+- adapter diagnostics preserve degraded, paused, verifier-rejected, and missing
+  human-gate signals;
+- adapters remain translators, not transition authorities.
 
-Core module:
+## 1. Claim Kernel Track
 
-- `authority`: request-time transition gate for `verified` and `released` claim states.
+This track turns the validated harness into enforceable claim lifecycle control.
 
-Acceptance criteria:
+### 1.1 Transition Authority Seed
 
-- The module is storage-free and can be reused outside the CLI.
-- `verified` requires machine-addressable evidence and a passing verifier certificate.
-- `released` rechecks evidence and verifier certificates instead of trusting imported status.
-- `released` requires a human gate with actor, authority, scope, and rationale.
-- `released` requires `ResponsibilityAssignment` with an accountable party.
-- Consequential transitions require `RiskAssessment`.
-- High-impact releases require `DecisionTracePackage`.
-- Unresolved material dissent blocks release unless explicitly overridden.
-- `engine` remains a thin facade over the authority module.
+Add a deterministic transition gate for `verified` and `released` states.
 
-## Phase 0.8: Minimal verifier certificate execution
+Acceptance:
 
-Add deterministic verifier execution before the full verifier plugin system, so
-CairnLab can produce its own transition-authority inputs instead of only
-consuming imported certificates.
+- `verified` requires machine-addressable evidence and a passing verifier certificate;
+- `released` requires verified evidence, human gate, accountable party, and risk controls;
+- high-impact release requires a decision trace package;
+- material dissent blocks release unless resolved or explicitly overridden;
+- the module is storage-free and reusable outside the CLI.
 
-Core module:
+### 1.2 Verifier Certificate Execution
 
-- `verifiers`: deterministic checks that emit `VerifierCertificate` objects.
+Generate deterministic verifier certificates that can feed transition authority
+without relying on LLM reviewer prose.
 
-Acceptance criteria:
+Acceptance:
 
-- Verifiers are storage-free and reusable outside the CLI.
-- Verifiers do not decide claim transitions.
-- `artifact_hash` emits pass/fail/error certificates from supplied evidence.
-- `metric_threshold` emits pass/fail/error certificates from supplied metric evidence.
-- Certificates can be attached as `verifier_certificate` evidence.
-- Passing certificates can authorize `verified` through `TransitionAuthority`.
-- Failed certificates do not authorize stronger claim states.
+- `artifact_hash` and `metric_threshold` emit pass/fail/error certificates;
+- certificates are attachable as evidence;
+- passing certificates can authorize `verified`;
+- failed certificates cannot authorize stronger claim states.
 
-## Phase 0.9: Minimal decision trace package export
+### 1.3 Decision Trace Package Export
 
-Add a deterministic package builder for consequential claim decisions.
+Produce a reviewable package for consequential claim decisions.
 
-Core module:
+Acceptance:
 
-- `trace_package`: packages claims, evidence, verifier certificates, gates,
-  dissent, governance records, relations, and transition events.
+- export includes claim, evidence, certificates, gates, dissent, governance records,
+  relations, and transition events;
+- package generation is storage-free;
+- export includes a stable hash;
+- local projects expose it through a thin CLI command.
 
-Acceptance criteria:
+### 1.4 Kernel MVP
 
-- Package generation is storage-free and reusable outside the CLI.
-- Package generation does not decide claim transitions.
-- Export includes a stable hash.
-- Local `.cairn/` projects can export a package through a thin CLI command.
-- The package makes release/high-impact claim review possible without relying on
-  upstream AutoResearch prose.
+Implement the minimum claim lifecycle state machine if 0.2 and 0.3 show repeated
+release-control gaps.
 
-## Phase 1: Kernel MVP
+Acceptance:
 
-This phase is gated by Phase 0.5 evidence and informed by Phase 0.6 counterfactual results.
+- a claim cannot become `verified` without required verifier certificates;
+- a claim cannot become `released` without required human gate and accountability;
+- failed verifiers and unresolved material dissent block transition;
+- state is derived from append-only events.
 
-Implement the minimum claim state machine.
+## 2. Governance Track
 
-Objects:
+This track makes responsibility, risk, oversight, dissent, and release decisions
+operational.
 
-- Claim
-- EvidencePolicy
-- EvidenceItem
-- VerifierCertificate
-- StateTransition
-- HumanGate
-- RoleContract
-- PositionStatement
+### 2.1 Governance Alignment MVP
 
-Commands:
+- block released claims without accountable parties;
+- block high-impact claims without decision trace packages;
+- block consequential transitions without risk assessment;
+- record actor, authority, scope, rationale, and liability scope for human override.
 
-```bash
-cairn init
-cairn claim add
-cairn policy list
-cairn evidence attach
-cairn verify
-cairn status
-cairn gate request
-cairn report
-```
+### 2.2 Logging And Human Oversight Mapping
 
-Acceptance criteria:
+- log transition events automatically;
+- represent retention, oversight assignment, competence, authority, and
+  automation-bias fields where relevant;
+- keep these as design controls, not legal compliance claims.
 
-- A claim cannot become `verified` without required verifier certificates.
-- A claim cannot become `released` without required human gate.
-- A failed verifier blocks transition.
-- A material dissent blocks transition.
-- State is derived from append-only events.
+### 2.3 Governance Hardening
 
-## Phase 2: Verifier plugins
+- prevent agent consensus from verifying a claim;
+- require changed positions to cite reason and evidence delta;
+- preserve dissent as append-only state;
+- keep challenge, downgrade, and retract flows event-derived.
 
-Implement initial verifiers:
+## 3. Ecosystem Track
 
-- artifact_exists
-- artifact_hash
-- metric_json_schema
-- metric_threshold
-- reference_exists
-- provenance_complete
-- role_permission
-- material_dissent
+This track expands interoperability without collapsing CairnLab into integration
+glue.
 
-Acceptance criteria:
+### 3.1 Verifier Plugins
 
-- Verifiers emit certificates.
-- Certificates can authorize or block transitions.
-- Reports cite certificates rather than free-form LLM judgments.
+Initial plugin candidates:
 
-## Phase 3: Experiment and run adapters
+- artifact existence and hash;
+- metric schema and threshold;
+- reference existence;
+- provenance completeness;
+- role permission;
+- material dissent.
 
-Integrate with minimal external systems:
+### 3.2 Experiment And Run Adapters
 
-- local command runner,
-- Git commit capture,
-- MLflow run import,
-- DVC data pointer import,
+Initial integrations:
+
+- local command runner metadata;
+- Git commit capture;
+- MLflow run import;
+- DVC data pointer import;
 - JSON artifact import.
 
-Acceptance criteria:
+### 3.3 Upstream Agent Adapters
 
-- Existing runs can be attached to claims.
-- CairnLab can verify claims against imported artifacts.
-- CairnLab does not need to execute everything itself.
+Initial adapters:
 
-## Phase 4: Upstream agent adapters
+- Markdown report;
+- ARIS workflow;
+- AutoResearchClaw artifacts and e2e runs;
+- paper-to-code output;
+- OpenHands or Codex patch metadata.
 
-Add adapters for systems that produce claims or artifacts:
+### 3.4 Release Bundle And Provenance Export
 
-- generic Markdown report adapter,
-- ARIS-style workflow adapter,
-- AutoResearchClaw-style artifact adapter,
-- paper-to-code output adapter,
-- OpenHands / Codex patch adapter.
+Export candidates:
 
-Acceptance criteria:
-
-- External agents can submit candidate claims.
-- CairnLab can generate blocking issues when evidence is insufficient.
-- CairnLab can return claim status to upstream systems.
-
-## Phase 5: Release bundle and provenance export
-
-Add export formats:
-
-- report.md,
-- claims.json,
-- evidence.json,
-- verifier_certificates.json,
-- transition_log.jsonl,
-- RO-Crate package,
-- W3C PROV export,
-- optional in-toto/SLSA attestations.
-
-Acceptance criteria:
-
-- A third-party reviewer can reconstruct why a claim was released.
-- A released claim can be challenged and downgraded without mutating history.
-
-## Phase 6: Governance hardening
-
-Implement:
-
-- sealed initial positions,
-- role separation checks,
-- position change events,
-- social-consensus rejection,
-- human liability scopes,
-- challenge / downgrade / retract flows.
-
-Acceptance criteria:
-
-- Agent consensus cannot verify a claim.
-- A changed agent position must cite a reason and evidence delta.
-- Dissent cannot disappear silently.
-
-
-## Phase 1.5: Governance alignment MVP
-
-Add lifecycle and accountability primitives before integrating large agent workflows.
-
-Objects:
-
-- LifecycleContext
-- ResponsibilityAssignment
-- RiskAssessment
-- AssessmentRecord
-- DecisionTracePackage
-
-Acceptance criteria:
-
-- A released claim without accountable party is blocked.
-- A high-impact claim without DecisionTracePackage is blocked.
-- A consequential transition without RiskAssessment is blocked.
-- A transition missing required algorithm/data/design assessment records is blocked.
-- Human override creates a new transition event with liability scope.
-
-## Phase 1.6: EU-style logging and human oversight mapping
-
-Implement practice-inspired controls:
-
-- automatic event logging for all transition events;
-- lifetime log retention policy field;
-- human oversight assignment with competence/authority fields;
-- automation-bias warning field for high-autonomy contexts;
-- natural-person verification field where applicable;
-- machine-readable system and claim registry metadata.
-
-These are not compliance claims. They are kernel design requirements inspired by public AI governance practice.
+- `report.md`, `claims.json`, `evidence.json`, `verifier_certificates.json`;
+- `transition_log.jsonl`;
+- RO-Crate and W3C PROV-compatible metadata;
+- optional in-toto or SLSA-style attestations.

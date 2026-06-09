@@ -59,7 +59,7 @@ Do not build a public benchmark or leaderboard in this phase.
 - MLflow / DVC / PROV integration layer.
 - Large benchmark suite or public leaderboard.
 
-## Allowed Phase 0.6 Work
+## Allowed 0.3 Work
 
 It is acceptable to build a small semantic invalidation harness before the full kernel gate if it remains a validation instrument and reusable module.
 

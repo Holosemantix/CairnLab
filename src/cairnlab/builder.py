@@ -5,6 +5,7 @@ from typing import Any
 from .models import (
     Actor,
     Claim,
+    ClaimState,
     ClaimCase,
     Criticality,
     DecisionTracePackage,
@@ -52,6 +53,7 @@ class ClaimCaseBuilder:
         claim_type: str = "empirical_metric",
         state: str = "draft",
         *,
+        authority_state: str = ClaimState.DRAFT.value,
         scope: dict[str, Any] | None = None,
         risk: str = "medium",
         metadata: dict[str, Any] | None = None,
@@ -61,7 +63,8 @@ class ClaimCaseBuilder:
                 id=claim_id,
                 text=text,
                 type=claim_type,
-                state=state,
+                observed_state=state,
+                authority_state=authority_state,
                 scope=scope or {},
                 risk=risk,
                 metadata=metadata or {},
@@ -181,15 +184,19 @@ class ClaimCaseBuilder:
         certificate: VerifierCertificate,
         *,
         criticality: str = Criticality.SUPPORTING.value,
+        uri: str | None = None,
+        hash: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> "ClaimCaseBuilder":
         payload = certificate.model_dump(mode="json", exclude_none=True)
         self.add_evidence(
             certificate.id,
             EvidenceType.VERIFIER_CERTIFICATE.value,
-            uri=f"cairn://verifier_certificates/{safe_id_filename(certificate.id).removesuffix('.yaml')}",
-            hash=stable_hash(payload),
+            uri=uri or f"cairn://verifier_certificates/{safe_id_filename(certificate.id).removesuffix('.yaml')}",
+            hash=hash or stable_hash(payload),
             metadata={
                 "verdict": certificate.status,
+                **(metadata or {}),
                 **payload,
             },
         )

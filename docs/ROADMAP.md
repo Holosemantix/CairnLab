@@ -9,6 +9,10 @@ incomplete product version.
 This track validates CairnLab's strategic thesis before the project commits to a
 full kernel.
 
+The implemented kernel modules are prototype seeds for hypothesis testing. They
+must not be read as proof that the full cross-system kernel is already validated;
+`data/validation_evidence.yaml` is the go/no-go ledger for that decision.
+
 ### 0.1 Repository Alignment
 
 - Rename previous ReproLedger references to CairnLab.
@@ -63,6 +67,8 @@ Acceptance:
 - adapter diagnostics preserve degraded, paused, verifier-rejected, and missing
   human-gate signals;
 - adapters remain translators, not transition authorities.
+- imported `state` or `status` remains upstream `observed_state`, not CairnLab
+  authority state.
 
 Closure note:
 
@@ -95,6 +101,7 @@ Acceptance:
 - high-impact release requires a decision trace package;
 - material dissent blocks release unless resolved or explicitly overridden;
 - the module is storage-free and reusable outside the CLI.
+- force override requires explicit actor authority.
 
 ### 1.2 Verifier Certificate Execution
 
@@ -131,6 +138,7 @@ Acceptance:
 - a claim cannot become `released` without required human gate and accountability;
 - failed verifiers and unresolved material dissent block transition;
 - state is derived from append-only events.
+- transition request is plan-only unless explicitly applied to the event log.
 
 ## 2. Governance Track
 

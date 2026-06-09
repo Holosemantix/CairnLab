@@ -79,6 +79,10 @@ CairnLab should be embedded by systems like ARIS, AutoResearchClaw, ScientistOne
 
 It should not try to replace them.
 
+The validation evidence ledger keeps this positioning honest: fixtures and
+adapter contracts demonstrate interoperability, while real cross-system release
+control failures are required before treating the kernel as validated.
+
 If the validation phase succeeds, CairnLab should answer the question they all need to answer:
 
 > Can this claim be safely promoted to a stronger scientific state?

@@ -1,0 +1,116 @@
+version: 1
+updated_at: "2026-06-09"
+systems_sampled:
+  - name: autoresearchclaw
+    real_or_fixture: real
+    runs:
+      - id: arc-ml01-e2e-20260608
+        task: task:arc-ml01
+        real_or_fixture: real
+        artifacts:
+          - docs/kb/decisions/knowledge_archive-rc-20260608-090006-ea5791.md
+          - docs/kb/decisions/research_decision-rc-20260608-090006-ea5791.md
+          - docs/kb/decisions/quality_gate-rc-20260608-090006-ea5791.md
+        notes: "Real AutoResearchClaw ML01 resume reached later paper stages but recorded failed experiment/provenance and quality-gate concerns."
+      - id: arc-ml03-e2e-20260604
+        task: task:arc-ml03
+        real_or_fixture: real
+        artifacts:
+          - /opt/huawei/explorer-env/dataset/ag_data/code/AutoResearchClaw/experiments/arc_bench/results/e2e/ML03/e2e-ML03-20260604-093524/pipeline_summary.json
+        notes: "Real AutoResearchClaw ML03 run directory exists with paused/degraded pipeline summary evidence."
+  - name: aris
+    real_or_fixture: fixture_contract
+    runs:
+      - id: aris-e2e-smoke-fixture
+        task: task:aris-smoke
+        real_or_fixture: fixture_contract
+        artifacts:
+          - tests/fixtures/aris_e2e_smoke/paper/PAPER_CLAIM_AUDIT.json
+          - tests/fixtures/aris_e2e_smoke/research-wiki/claims/C1.md
+        notes: "Exercises real ARIS helper output shapes, but remains a fixture/contract validation case."
+
+tasks:
+  - id: task:arc-ml01
+    source_system: autoresearchclaw
+    real_or_fixture: real
+    claims_recorded: 3
+    material_claims_recorded: 3
+  - id: task:arc-ml03
+    source_system: autoresearchclaw
+    real_or_fixture: real
+    claims_recorded: 2
+    material_claims_recorded: 2
+  - id: task:aris-smoke
+    source_system: aris
+    real_or_fixture: fixture_contract
+    claims_recorded: 1
+    material_claims_recorded: 1
+
+claims:
+  - id: claim:arc-ml01.failed_experiment_but_paper_claims
+    source_system: autoresearchclaw
+    task: task:arc-ml01
+    real_or_fixture: real
+    materiality: high
+    upstream_observed_state: paper_written
+    cairnlab_counterfactual_state: blocked
+    changed_release_decision: true
+    benchmark_would_capture: false
+    failure_classes:
+      - experiment_run_failed_but_paper_claims_written
+      - release_requires_verifier_certificate
+  - id: claim:arc-ml01.quality_gate_requires_provenance
+    source_system: autoresearchclaw
+    task: task:arc-ml01
+    real_or_fixture: real
+    materiality: high
+    upstream_observed_state: quality_gate_warn
+    cairnlab_counterfactual_state: blocked
+    changed_release_decision: true
+    benchmark_would_capture: false
+    failure_classes:
+      - provenance_gap_after_paper_generation
+      - release_decision_requires_trace_package
+  - id: claim:arc-ml03.pipeline_paused
+    source_system: autoresearchclaw
+    task: task:arc-ml03
+    real_or_fixture: real
+    materiality: medium
+    upstream_observed_state: paused
+    cairnlab_counterfactual_state: blocked
+    changed_release_decision: true
+    benchmark_would_capture: false
+    failure_classes:
+      - downstream_claim_not_release_authorized
+
+failure_classes:
+  - name: experiment_run_failed_but_paper_claims_written
+    real_occurrences: 1
+    systems_seen:
+      - autoresearchclaw
+    release_control_relevant: true
+    plausibly_reduced_by_cairnlab: true
+  - name: release_requires_verifier_certificate
+    real_occurrences: 1
+    systems_seen:
+      - autoresearchclaw
+    release_control_relevant: true
+    plausibly_reduced_by_cairnlab: true
+  - name: provenance_gap_after_paper_generation
+    real_occurrences: 1
+    systems_seen:
+      - autoresearchclaw
+    release_control_relevant: true
+    plausibly_reduced_by_cairnlab: true
+  - name: release_decision_requires_trace_package
+    real_occurrences: 1
+    systems_seen:
+      - autoresearchclaw
+    release_control_relevant: true
+    plausibly_reduced_by_cairnlab: true
+  - name: downstream_claim_not_release_authorized
+    real_occurrences: 1
+    systems_seen:
+      - autoresearchclaw
+    release_control_relevant: true
+    plausibly_reduced_by_cairnlab: true

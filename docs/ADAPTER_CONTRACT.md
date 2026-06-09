@@ -267,7 +267,8 @@ verifier_certificates:
     status: pass
     inputs: [metric:repro.accuracy]
     result: {observed: 0.91, threshold: 0.90, direction: ">="}
-    can_authorize: [verified]
+    can_authorize:
+      - evidence_attached -> verified
 
 reviewer_verdicts:
   - id: reviewer:external_scope_review
@@ -286,6 +287,8 @@ material_dissent:
 
 The adapter maps:
 
+- `claims[*]` to `Claim` objects, with legacy `state` or `status` treated as
+  upstream `observed_state`;
 - `stages[*]` to `run` evidence by default;
 - `evidence[*]` to typed `EvidenceItem` objects;
 - `relations[*]` to typed dependency edges;

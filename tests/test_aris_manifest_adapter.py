@@ -194,7 +194,10 @@ def test_aris_kill_argument_warn_imports_material_dissent_and_blocks_release(tmp
     assert dissent.metadata["resolved"] is False
     assert "aris_kill_argument_material_dissent" in case.failure_classes
     assert decision.decision == "blocked"
-    assert decision.blocking_reasons == ["unresolved_material_dissent"]
+    assert decision.blocking_reasons == [
+        "release_requires_verified_state",
+        "unresolved_material_dissent",
+    ]
 
 
 def test_aris_manifest_adapter_imports_e2e_smoke_contract() -> None:

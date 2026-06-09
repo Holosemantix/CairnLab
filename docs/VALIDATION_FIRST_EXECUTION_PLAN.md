@@ -221,6 +221,12 @@ If these conditions are not met, continue using existing AutoResearch systems an
 
 For the semantic invalidation harness, a Go signal requires not only recurring failures but also a CairnLab counterfactual that changes a release-relevant state. If the harness only generates a report without changing claim authority, it is not sufficient differentiation.
 
+The machine-readable source for this decision is
+`data/validation_evidence.yaml`, documented in `docs/VALIDATION_EVIDENCE.md`.
+Synthetic cases and adapter fixtures are contract verification. They may show
+that CairnLab can consume external evidence, but they do not by themselves prove
+the cross-system need for a transition authority.
+
 ## Benchmark-Lite Scope
 
 The current benchmark direction is benchmark-lite, not a public leaderboard.

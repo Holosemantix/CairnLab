@@ -99,6 +99,7 @@ class InvalidationPlanner:
     ) -> AffectedObject | None:
         previous_state = self.projection.object_state(object_id)
         if object_id.startswith("claim:"):
+            previous_state = self._claim_invalidation_state(object_id)
             return self._claim_effect(object_id, reason, relation_path, previous_state)
 
         item = self.evidence.get(object_id)
@@ -114,6 +115,12 @@ class InvalidationPlanner:
             previous_state=previous_state,
             new_state="stale",
         )
+
+    def _claim_invalidation_state(self, claim_id: str) -> str | None:
+        authority_state = self.projection.claim_authority_state(claim_id)
+        if self.projection.events_for(claim_id) or authority_state != ClaimState.DRAFT.value:
+            return authority_state
+        return self.projection.claim_observed_state(claim_id) or authority_state
 
     def _claim_effect(
         self,

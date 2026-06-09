@@ -89,7 +89,14 @@ Transition authority:
 
 ```bash
 cairn transition request claim:C1 --to released --reason "release review"
+cairn transition request claim:C1 --to released --reason "release review" --apply
+cairn transition request claim:C1 --to released --reason "release review" --record-blocked
 ```
+
+`trace` reports `observed_state` and `authority_state` for claims. The legacy
+`projected_state` field remains for compatibility and is the authority projection.
+`transition request` is plan-only unless `--apply` is set. Blocked transitions are
+not persisted unless `--record-blocked` is set for audit.
 
 ## Output Rule
 

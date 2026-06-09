@@ -17,6 +17,7 @@ from .projection import EventProjection
 from .store import CairnProjectStore
 from .trace_package import DecisionTracePackager
 from .validation import build_validation_report, validation_report_markdown
+from .validation_evidence import load_validation_evidence
 
 
 class CairnProject:
@@ -59,10 +60,18 @@ class CairnProject:
     def trace(self, object_id: str) -> TraceResult:
         graph = RelationGraph(self.store.load_relations())
         projection = self._projection()
+        claims = self.store.load_claims()
         payloads = self.store.load_object_payloads()
+        observed_state = None
+        authority_state = None
+        if object_id in claims:
+            observed_state = projection.claim_observed_state(object_id)
+            authority_state = projection.claim_authority_state(object_id)
         return TraceResult(
             object_id=object_id,
             object=payloads.get(object_id),
+            observed_state=observed_state,
+            authority_state=authority_state,
             projected_state=projection.object_state(object_id),
             incoming_relations=graph.incoming(object_id),
             outgoing_relations=graph.outgoing(object_id),
@@ -71,7 +80,10 @@ class CairnProject:
         )
 
     def validate(self):
-        report = build_validation_report(self.store.load_cases())
+        report = build_validation_report(
+            self.store.load_cases(),
+            ledger=load_validation_evidence(self.root),
+        )
         self.store.write_validation_report(
             report.model_dump(mode="json"),
             validation_report_markdown(report),
@@ -95,6 +107,8 @@ class CairnProject:
         actor: Actor,
         reason: str,
         force: bool = False,
+        apply: bool = False,
+        record_blocked: bool = False,
     ) -> TransitionDecision:
         authority = TransitionAuthority(
             claims=self.store.load_claims(),
@@ -103,13 +117,28 @@ class CairnProject:
             projection=self._projection(),
             cases=self.store.load_cases(),
         )
-        return authority.request_transition(
+        decision = authority.request_transition(
             claim_id=claim_id,
             target_state=target_state,
             actor=actor,
             reason=reason,
             force=force,
         )
+        if (apply and decision.decision == "allowed") or (record_blocked and decision.decision == "blocked"):
+            self.append_transition_events(decision)
+        return decision
+
+    def append_transition_events(self, decision: TransitionDecision):
+        if decision.decision not in {"allowed", "blocked"}:
+            return []
+        for event in decision.events:
+            self.store.append_event(event)
+        return decision.events
+
+    def apply_transition_decision(self, decision: TransitionDecision):
+        if decision.decision != "allowed":
+            return []
+        return self.append_transition_events(decision)
 
     def _planner(self) -> InvalidationPlanner:
         return InvalidationPlanner(

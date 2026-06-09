@@ -35,8 +35,22 @@
         "id": { "type": "string" },
         "text": { "type": "string" },
         "type": { "type": "string" },
-        "state": { "type": "string" },
-        "status": { "type": "string" },
+        "observed_state": {
+          "description": "Upstream observed state imported from an external system.",
+          "type": ["string", "null"]
+        },
+        "authority_state": {
+          "description": "CairnLab authority seed state; stronger states should normally be event-derived.",
+          "type": "string"
+        },
+        "state": {
+          "description": "Legacy alias for observed_state.",
+          "type": "string"
+        },
+        "status": {
+          "description": "Legacy alias for observed_state.",
+          "type": "string"
+        },
         "scope": { "type": "object" },
         "risk": { "type": "string" },
         "metadata": { "type": "object" }

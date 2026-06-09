@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ..builder import ClaimCaseBuilder
+from ..models import VerifierCertificate
 from .base import AdapterDiagnostic, AdapterExportResult
 
 
@@ -248,20 +249,36 @@ class ArisManifestAdapter:
                 if not audit:
                     continue
                 audit_id = str(audit.get("id") or self._default_audit_id(root, audit_path, audit_type))
-                builder.add_evidence(
-                    audit_id,
-                    "verifier_certificate",
-                    uri=audit_path.resolve().as_uri(),
-                    hash=self._file_sha256(audit_path),
-                    metadata={
-                        "audit_type": audit_type,
-                        "verdict": audit.get("verdict") or audit.get("status"),
-                        "source_file": str(audit_path),
-                        "inputs": audit.get("inputs") or audit.get("evidence_refs") or [],
-                    },
-                )
+                raw_inputs = audit.get("inputs") or audit.get("evidence_refs") or []
+                inputs = [str(item) for item in raw_inputs] if isinstance(raw_inputs, list) else []
+                verdict = audit.get("verdict") or audit.get("status")
+                status = self._certificate_status(verdict)
                 for claim_id in claim_ids:
-                    builder.add_relation(audit_id, claim_id, "verified_by", criticality="supporting")
+                    certificate_id = audit_id if len(claim_ids) == 1 else f"{audit_id}:{self._id_suffix(claim_id)}"
+                    certificate = VerifierCertificate(
+                        id=certificate_id,
+                        verifier=str(audit.get("verifier") or audit.get("audit_skill") or audit_type),
+                        claim=claim_id,
+                        status=status,
+                        inputs=inputs,
+                        result={
+                            "audit_type": audit_type,
+                            "verdict": verdict,
+                            "source_file": str(audit_path),
+                        },
+                        can_authorize=["evidence_attached -> verified"] if status == "pass" else [],
+                        reason=None if status == "pass" else self._normalize_verdict(verdict),
+                    )
+                    builder.add_verifier_certificate(
+                        certificate,
+                        uri=audit_path.resolve().as_uri(),
+                        hash=self._file_sha256(audit_path),
+                        metadata={
+                            "adapter": self.name,
+                            "artifact_type": "aris_audit",
+                            "audit_type": audit_type,
+                        },
+                    )
                 self._record_verdict_diagnostic(
                     builder,
                     diagnostics,
@@ -341,28 +358,39 @@ class ArisManifestAdapter:
             exit_code = report.get("exit_code")
             if verdict == "UNKNOWN" and isinstance(exit_code, int):
                 verdict = "PASS" if exit_code == 0 else "FAIL"
-            builder.add_evidence(
-                evidence_id,
-                "verifier_certificate",
-                uri=report_path.resolve().as_uri(),
-                hash=self._file_sha256(report_path),
-                metadata={
-                    "adapter": self.name,
-                    "artifact_type": "aris_submission_verifier_report",
-                    "source_file": str(report_path),
-                    "verifier": report.get("verifier") or "verify_paper_audits.sh",
-                    "verdict": verdict,
-                    "exit_code": exit_code,
-                    "assurance": report.get("assurance"),
-                    "any_problem": report.get("any_problem"),
-                    "submission_blocking": report.get("submission_blocking"),
-                    "paper_dir": report.get("paper_dir"),
-                    "audits": report.get("audits") or [],
-                    "generated_at": report.get("generated_at"),
-                },
-            )
+            status = self._certificate_status(verdict)
             for claim_id in claim_ids:
-                builder.add_relation(evidence_id, claim_id, "verified_by", criticality="critical")
+                certificate_id = evidence_id if len(claim_ids) == 1 else f"{evidence_id}:{self._id_suffix(claim_id)}"
+                certificate = VerifierCertificate(
+                    id=certificate_id,
+                    verifier=str(report.get("verifier") or "verify_paper_audits.sh"),
+                    claim=claim_id,
+                    status=status,
+                    inputs=[],
+                    result={
+                        "verdict": verdict,
+                        "exit_code": exit_code,
+                        "assurance": report.get("assurance"),
+                        "any_problem": report.get("any_problem"),
+                        "submission_blocking": report.get("submission_blocking"),
+                        "paper_dir": report.get("paper_dir"),
+                        "audits": report.get("audits") or [],
+                        "generated_at": report.get("generated_at"),
+                    },
+                    can_authorize=["evidence_attached -> verified"] if status == "pass" else [],
+                    reason=None if status == "pass" else verdict,
+                )
+                builder.add_verifier_certificate(
+                    certificate,
+                    criticality="critical",
+                    uri=report_path.resolve().as_uri(),
+                    hash=self._file_sha256(report_path),
+                    metadata={
+                        "adapter": self.name,
+                        "artifact_type": "aris_submission_verifier_report",
+                        "source_file": str(report_path),
+                    },
+                )
             self._record_verdict_diagnostic(
                 builder,
                 diagnostics,
@@ -556,6 +584,14 @@ class ArisManifestAdapter:
             return value
         return "UNKNOWN"
 
+    def _certificate_status(self, verdict: Any) -> str:
+        normalized = self._normalize_verdict(verdict)
+        if normalized == "PASS":
+            return "pass"
+        if normalized in {"BLOCKED", "FAIL", "WARN"}:
+            return "fail"
+        return "error"
+
     def _len_if_list(self, value: Any) -> int | None:
         return len(value) if isinstance(value, list) else None
 
@@ -566,6 +602,9 @@ class ArisManifestAdapter:
             relative = path.name
         stem = str(relative).removesuffix(".json").removesuffix(".review")
         return re.sub(r"[^A-Za-z0-9_.-]+", ".", stem).strip(".") or "artifact"
+
+    def _id_suffix(self, value: str) -> str:
+        return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("_") or "claim"
 
     def _default_audit_id(self, root: Path, path: Path, audit_type: str) -> str:
         if path.parent == root:

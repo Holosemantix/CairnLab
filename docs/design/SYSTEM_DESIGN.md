@@ -223,6 +223,7 @@ decision = project.request_transition(
     ClaimState.RELEASED,
     Actor(id="human:pi", role="principal_investigator"),
     reason="release review",
+    apply=True,
 )
 ```
 
@@ -243,6 +244,8 @@ The library API is the primary reusable surface. The CLI is optional.
 The implementation must preserve these repository-level constraints:
 
 - consequential claim transitions require `RiskAssessment`;
+- imported `state` or `status` fields are upstream `observed_state`, not
+  CairnLab authority;
 - released claims require `ResponsibilityAssignment` with an accountable party;
 - high-impact claims require `DecisionTracePackage`;
 - human gates record actor, authority, scope, and rationale;

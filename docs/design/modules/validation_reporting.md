@@ -6,15 +6,17 @@ Validation reporting checks whether imported claim cases expose the failure
 classes and governance gaps CairnLab is meant to study. It supports the
 validation-first decision about whether a full Research Claim Kernel is needed.
 
-Primary source file:
+Primary source files:
 
 - `src/cairnlab/validation.py`
+- `src/cairnlab/validation_evidence.py`
 
 ## Owns
 
 This module owns:
 
 - case-level validation summaries;
+- real validation evidence ledger loading;
 - recommendation text;
 - failure taxonomy aggregation;
 - validation report JSON and Markdown payloads.
@@ -37,22 +39,30 @@ transitions.
 ```mermaid
 flowchart TD
     cases["Imported ClaimCase records"]
+    ledger["validation_evidence.yaml"]
     classes["failure_classes"]
     behavior["native vs expected behavior"]
     validation["validation.py"]
-    counts["failure taxonomy counts"]
+    counts["fixture/contract + real evidence counts"]
     recommendation["go / no-go / continue sampling"]
     reports["validation_report.json + validation_report.md"]
 
     cases --> classes --> validation
     cases --> behavior --> validation
+    ledger --> validation
     validation --> counts --> reports
     validation --> recommendation --> reports
 ```
 
 ## Inputs
 
-Current inputs are imported `ClaimCase` records from the local store.
+Current inputs are imported `ClaimCase` records from the local store plus an
+optional validation evidence ledger:
+
+```text
+data/validation_evidence.yaml
+.cairn/validation_evidence.yaml
+```
 
 Important fields:
 
@@ -60,6 +70,11 @@ Important fields:
 - `expected_cairnlab_behavior`;
 - `failure_classes`;
 - claims, evidence, and relations.
+
+Ledger fields record real-vs-fixture systems, runs, tasks, material claims, and
+release-control failure classes. Fixture and adapter tests are labeled as
+contract verification; they do not satisfy real validation thresholds by
+themselves.
 
 ## Outputs
 
@@ -72,8 +87,8 @@ The local store writes:
 
 ## Dependency Rules
 
-`validation.py` may depend on `models`. It must not import CLI, store, adapters,
-planner, or host project packages.
+`validation.py` may depend on `models` and `validation_evidence`. It must not
+import CLI, store, adapters, planner, or host project packages.
 
 The store is responsible for writing report files.
 
@@ -85,9 +100,10 @@ When validation becomes stricter:
 - avoid LLM reviewer calls in this module;
 - update this document and `docs/VALIDATION_FIRST_EXECUTION_PLAN.md`;
 - add tests with representative case fixtures.
+- keep `go` gated on real framework evidence, not only synthetic or fixture
+  coverage.
 
 ## Tests
 
-Current coverage is indirect through the semantic invalidation tests and CLI
-validation flow. Add direct report tests when recommendation logic becomes more
-complex.
+Current coverage includes direct validation evidence ledger tests, semantic
+invalidation tests, and CLI validation flow.

@@ -87,6 +87,20 @@ The most important contracts are:
 Object IDs must remain stable and meaningful because they are used as graph
 nodes, event targets, trace anchors, and adapter interoperability keys.
 
+## Claim State Fields
+
+`Claim` separates upstream observation from CairnLab authority:
+
+- `observed_state` records what an external system reported, including legacy
+  imported `state` or `status` fields;
+- `authority_state` is CairnLab's trusted seed state and defaults to `draft`;
+- `projected_state` in `TraceResult` is a compatibility alias for the authority
+  projection, not for upstream observed state.
+
+Adapters should normally populate `observed_state` only. Stronger CairnLab states
+must be derived from append-only `TransitionEvent` records, except for explicit
+trusted seed fixtures that set `authority_state` in tests or controlled imports.
+
 `VerifierCertificate` is the structured output of deterministic verifier
 execution. For current storage compatibility, certificates are attached to claim
 cases as `EvidenceItem(type=verifier_certificate)` through the builder helper.

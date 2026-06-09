@@ -209,7 +209,8 @@ class Claim(CairnModel):
     id: str
     text: str
     type: ClaimType | str
-    state: ClaimState = ClaimState.DRAFT
+    observed_state: ClaimState | str | None = None
+    authority_state: ClaimState = ClaimState.DRAFT
     scope: dict[str, Any] = Field(default_factory=dict)
     risk: Literal["low", "medium", "high", "critical"] = "medium"
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -220,10 +221,17 @@ class Claim(CairnModel):
 
     @model_validator(mode="before")
     @classmethod
-    def accept_status_alias(cls, data: Any) -> Any:
-        if isinstance(data, dict) and "state" not in data and "status" in data:
+    def map_legacy_state_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
             data = dict(data)
-            data["state"] = data["status"]
+            if "observed_state" not in data:
+                if "state" in data:
+                    data["observed_state"] = data.pop("state")
+                elif "status" in data:
+                    data["observed_state"] = data.pop("status")
+            else:
+                data.pop("state", None)
+                data.pop("status", None)
         return data
 
 
@@ -320,6 +328,8 @@ class ImportResult(CairnModel):
 class TraceResult(CairnModel):
     object_id: str
     object: dict[str, Any] | None = None
+    observed_state: str | None = None
+    authority_state: str | None = None
     projected_state: str | None = None
     incoming_relations: list[Relation] = Field(default_factory=list)
     outgoing_relations: list[Relation] = Field(default_factory=list)
@@ -332,6 +342,13 @@ class ValidationReport(CairnModel):
     systems_sampled: int
     claims_sampled: int
     stress_cases: int
+    synthetic_cases: int = 0
+    contract_verification_cases: int = 0
+    real_framework_runs: int = 0
+    real_tasks: int = 0
+    real_material_claims: int = 0
+    real_release_control_failures: int = 0
     failure_class_counts: dict[str, int] = Field(default_factory=dict)
+    real_failure_class_counts: dict[str, int] = Field(default_factory=dict)
     recommendation: Literal["go", "no_go", "continue_sampling"] = "continue_sampling"
     reasons: list[str] = Field(default_factory=list)

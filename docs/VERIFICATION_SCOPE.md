@@ -22,11 +22,14 @@ It verifies:
 - transition authority blocking and allow paths;
 - verifier certificate execution;
 - decision trace package generation;
+- validation evidence ledger accounting;
 - selected CLI entrypoints.
 
 It does not run real AutoResearchClaw, ARIS, or another AutoResearch runtime.
 Fixture tests prove the CairnLab contracts and adapter mappings. They do not
 prove that a live upstream framework emits complete metadata under real load.
+The validation ledger records real-vs-fixture evidence separately so engineering
+tests cannot accidentally become a `go` signal.
 
 ## Real AutoResearch Validation
 

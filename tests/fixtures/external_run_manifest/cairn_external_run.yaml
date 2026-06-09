@@ -82,7 +82,7 @@ verifier_certificates:
       threshold: 0.90
       direction: ">="
     can_authorize:
-      - verified
+      - evidence_attached -> verified
     criticality: critical
 
 reviewer_verdicts:

@@ -5,8 +5,7 @@
   "required": [
     "id",
     "text",
-    "type",
-    "status"
+    "type"
   ],
   "properties": {
     "id": {
@@ -18,7 +17,21 @@
     "type": {
       "type": "string"
     },
+    "observed_state": {
+      "description": "Upstream observed claim state imported from an external system.",
+      "type": ["string", "null"]
+    },
+    "authority_state": {
+      "description": "CairnLab authority seed state. Stronger states should normally be event-derived.",
+      "type": "string",
+      "default": "draft"
+    },
+    "state": {
+      "description": "Legacy alias for observed_state.",
+      "type": "string"
+    },
     "status": {
+      "description": "Legacy alias for observed_state.",
       "type": "string"
     }
   }

@@ -70,8 +70,17 @@ evidence:
     status: valid
     hash: sha256:cert001
     metadata:
-      verifier: synthetic_verifier
       verdict: pass
+      id: verifier:cert_001
+      verifier: synthetic_verifier@0.1.0
+      claim: claim:C1
+      status: pass
+      inputs:
+        - metric:exp_007.accuracy
+      result:
+        verdict: pass
+      can_authorize:
+        - evidence_attached -> verified
   - id: human_gate:H1
     type: human_gate
     uri: cairn://human_gates/H1

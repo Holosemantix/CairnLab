@@ -6,7 +6,7 @@ from typer.testing import CliRunner
 
 from cairnlab import Actor, CairnProject, CairnRuntime, ClaimCaseBuilder
 from cairnlab.cli import app
-from cairnlab.models import ClaimState
+from cairnlab.models import ClaimState, VerifierCertificate
 
 
 def test_runtime_decision_trace_package_includes_release_authority_inputs() -> None:
@@ -97,17 +97,26 @@ def _decision_trace_case() -> ClaimCaseBuilder:
             source_system="unit-test",
             stress_scenario="release_trace",
         )
-        .add_claim("claim:C1", "A verified claim ready for release.", state="verified", risk="high")
+        .add_claim(
+            "claim:C1",
+            "A verified claim ready for release.",
+            state="verified",
+            authority_state="verified",
+            risk="high",
+        )
         .add_evidence("metric:m1", "metric", uri="memory://metrics/m1", hash="sha256:m1", metadata={"value": 0.93})
         .add_support("metric:m1", "claim:C1")
-        .add_evidence(
-            "verifier:V1",
-            "verifier_certificate",
-            uri="memory://verifiers/V1",
-            hash="sha256:v1",
-            metadata={"verdict": "pass", "inputs": ["metric:m1"]},
+        .add_verifier_certificate(
+            VerifierCertificate(
+                id="verifier:V1",
+                verifier="unit-test@0.1.0",
+                claim="claim:C1",
+                status="pass",
+                inputs=["metric:m1"],
+                result={"status": "ok"},
+                can_authorize=["evidence_attached -> verified"],
+            )
         )
-        .add_relation("verifier:V1", "claim:C1", "verified_by")
         .add_human_gate(
             "human_gate:H1",
             "claim:C1",

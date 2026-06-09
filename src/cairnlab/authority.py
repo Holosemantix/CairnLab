@@ -14,10 +14,12 @@ from .models import (
     EvidenceItem,
     EvidenceStatus,
     EvidenceType,
+    RelationType,
     ResponsibilityAssignment,
     RiskAssessment,
     TransitionDecision,
     TransitionEvent,
+    VerifierCertificate,
 )
 from .projection import EventProjection
 from .utils import enum_value, stable_hash, utc_event_id
@@ -30,7 +32,15 @@ CONSEQUENTIAL_STATES = {
 }
 
 HIGH_IMPACT_RISK_TIERS = {"high", "critical"}
-PASSING_VERDICTS = {"pass", "passed", "allow", "allowed", "verified", "true"}
+OVERRIDE_AUTHORITIES = {
+    "release_override",
+    "principal_investigator",
+    "governance_owner",
+}
+VERIFIER_AUTHORIZED_TRANSITIONS = {
+    "evidence_attached -> verified",
+    "verification_pending -> verified",
+}
 INVALID_EVIDENCE_STATES = {
     EvidenceStatus.INVALIDATED.value,
     EvidenceStatus.STALE.value,
@@ -92,6 +102,11 @@ class TransitionAuthority:
         if claim is None:
             block("claim_not_found", "import or create the claim before requesting a transition")
         else:
+            if force and not self._has_override_authority(actor):
+                block(
+                    "missing_override_authority",
+                    "force override requires an authorized actor with release override authority",
+                )
             if target_state == ClaimState.VERIFIED:
                 self._check_verified_requirements(claim_id, block)
 
@@ -106,6 +121,21 @@ class TransitionAuthority:
                 self._check_released_requirements(claim, claim_id, force, block)
 
         event_type = EventType.TRANSITION_BLOCKED if blocking_reasons else EventType.TRANSITION_ALLOWED
+        payload: dict[str, object] = {
+            "blocking_reasons": blocking_reasons,
+            "force": force,
+        }
+        if force:
+            payload["override"] = {
+                "actor": actor.id,
+                "role": actor.role,
+                "authority": actor.authority,
+                "liability_scope": [
+                    "release_requires_verified_state",
+                    "unresolved_material_dissent",
+                ],
+                "rationale": reason,
+            }
         event = TransitionEvent(
             id=utc_event_id("transition", claim_id),
             type=event_type,
@@ -122,10 +152,7 @@ class TransitionAuthority:
                     "force": force,
                 }
             ),
-            payload={
-                "blocking_reasons": blocking_reasons,
-                "force": force,
-            },
+            payload=payload,
         )
         return TransitionDecision(
             decision="blocked" if blocking_reasons else "allowed",
@@ -140,8 +167,8 @@ class TransitionAuthority:
     def _check_verified_requirements(self, claim_id: str, block) -> None:
         if not self._has_machine_addressable_evidence(claim_id):
             block("missing_machine_addressable_evidence", "attach evidence with stable URI or hash")
-        if not self._has_passing_verifier_certificate(claim_id):
-            block("missing_passing_verifier_certificate", "attach a passing verifier certificate")
+        for reason in self._verifier_certificate_blocking_reasons(claim_id):
+            block(reason, self._verifier_certificate_required_action(reason))
 
     def _check_released_requirements(self, claim: Claim, claim_id: str, force: bool, block) -> None:
         if not self._has_valid_human_gate(claim_id):
@@ -167,16 +194,51 @@ class TransitionAuthority:
                 return True
         return False
 
-    def _has_passing_verifier_certificate(self, claim_id: str) -> bool:
-        for item in self._incoming_evidence(claim_id):
+    def _verifier_certificate_blocking_reasons(self, claim_id: str) -> list[str]:
+        reasons: list[str] = []
+        saw_candidate = False
+        for relation in self.graph.incoming(claim_id):
+            if enum_value(relation.type) != RelationType.VERIFIED_BY.value:
+                continue
+            item = self.evidence.get(relation.source)
+            if not item:
+                continue
             if enum_value(item.type) != EvidenceType.VERIFIER_CERTIFICATE.value:
                 continue
+            saw_candidate = True
             if self._is_invalid_evidence(item.id):
+                self._append_reason(reasons, "verifier_certificate_inputs_invalidated")
                 continue
-            verdict = self._metadata_verdict(item)
-            if verdict in PASSING_VERDICTS:
-                return True
-        return False
+            try:
+                certificate = VerifierCertificate.model_validate(item.metadata or {})
+            except Exception:
+                self._append_reason(reasons, "malformed_verifier_certificate")
+                continue
+            if certificate.claim != claim_id:
+                self._append_reason(reasons, "verifier_certificate_claim_mismatch")
+                continue
+            if certificate.status != "pass":
+                self._append_reason(reasons, "missing_passing_verifier_certificate")
+                continue
+            if not any(transition in certificate.can_authorize for transition in VERIFIER_AUTHORIZED_TRANSITIONS):
+                self._append_reason(reasons, "verifier_certificate_not_authorized_for_transition")
+                continue
+            missing_inputs = [input_id for input_id in certificate.inputs if input_id not in self.evidence]
+            if missing_inputs:
+                self._append_reason(reasons, "verifier_certificate_inputs_missing")
+                continue
+            invalid_inputs = [
+                input_id
+                for input_id in certificate.inputs
+                if input_id in self.evidence and self._is_invalid_evidence(input_id)
+            ]
+            if invalid_inputs:
+                self._append_reason(reasons, "verifier_certificate_inputs_invalidated")
+                continue
+            return []
+        if not saw_candidate:
+            return ["missing_passing_verifier_certificate"]
+        return reasons or ["missing_passing_verifier_certificate"]
 
     def _has_valid_human_gate(self, claim_id: str) -> bool:
         for item in self._incoming_evidence(claim_id):
@@ -231,13 +293,23 @@ class TransitionAuthority:
     def _is_invalid_evidence(self, evidence_id: str) -> bool:
         return self.projection.evidence_status(evidence_id) in INVALID_EVIDENCE_STATES
 
-    def _metadata_verdict(self, item: EvidenceItem) -> str | None:
-        metadata = item.metadata or {}
-        for key in ("verdict", "status", "result", "decision"):
-            value = metadata.get(key)
-            if value is not None:
-                return str(value).lower()
-        return None
+    def _has_override_authority(self, actor: Actor) -> bool:
+        return bool(actor.authority in OVERRIDE_AUTHORITIES)
+
+    def _append_reason(self, reasons: list[str], reason: str) -> None:
+        if reason not in reasons:
+            reasons.append(reason)
+
+    def _verifier_certificate_required_action(self, reason: str) -> str:
+        actions = {
+            "malformed_verifier_certificate": "attach a structured VerifierCertificate payload",
+            "verifier_certificate_claim_mismatch": "attach a certificate bound to this claim",
+            "verifier_certificate_inputs_missing": "attach all evidence inputs referenced by the certificate",
+            "verifier_certificate_inputs_invalidated": "refresh invalidated certificate inputs and rerun verifier",
+            "verifier_certificate_not_authorized_for_transition": "use a verifier certificate authorized for verification",
+            "missing_passing_verifier_certificate": "attach a passing verifier certificate",
+        }
+        return actions.get(reason, "attach a passing verifier certificate")
 
     def _index_governance(
         self,

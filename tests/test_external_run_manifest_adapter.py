@@ -62,7 +62,10 @@ def test_external_run_manifest_blocks_release_on_unresolved_dissent(tmp_path: Pa
     )
 
     assert decision.decision == "blocked"
-    assert decision.blocking_reasons == ["unresolved_material_dissent"]
+    assert decision.blocking_reasons == [
+        "release_requires_verified_state",
+        "unresolved_material_dissent",
+    ]
 
 
 def test_external_run_manifest_feeds_runtime_revert_plan() -> None:

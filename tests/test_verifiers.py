@@ -118,7 +118,13 @@ def test_metric_threshold_certificate_feeds_release_authority(tmp_path: Path) ->
             source_system="unit-test",
             stress_scenario="metric_threshold_release",
         )
-        .add_claim("claim:C1", "Accuracy is at least 0.90.", state="verified", risk="medium")
+        .add_claim(
+            "claim:C1",
+            "Accuracy is at least 0.90.",
+            state="verified",
+            authority_state="verified",
+            risk="medium",
+        )
         .add_evidence(metric.id, metric.type, uri=metric.uri, hash=metric.hash, metadata=metric.metadata)
         .add_support(metric.id, "claim:C1")
         .add_verifier_certificate(certificate)

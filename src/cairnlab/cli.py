@@ -107,6 +107,10 @@ def trace(
         typer.echo(result.model_dump_json(indent=2))
         return
     typer.echo(f"Object: {result.object_id}")
+    if result.observed_state is not None:
+        typer.echo(f"Observed state: {result.observed_state}")
+    if result.authority_state is not None:
+        typer.echo(f"Authority state: {result.authority_state}")
     typer.echo(f"Projected state: {result.projected_state}")
     typer.echo("Downstream:")
     for downstream in result.downstream_objects:
@@ -187,6 +191,8 @@ def transition_request(
     reason: str = typer.Option(..., "--reason"),
     actor: str = typer.Option("user:unknown", "--actor"),
     force: bool = typer.Option(False, "--force"),
+    apply: bool = typer.Option(False, "--apply"),
+    record_blocked: bool = typer.Option(False, "--record-blocked"),
     path: Path = typer.Option(Path("."), "--path"),
     json_output: bool = typer.Option(False, "--json"),
 ) -> None:
@@ -198,6 +204,8 @@ def transition_request(
         actor=actor_model,
         reason=reason,
         force=force,
+        apply=apply,
+        record_blocked=record_blocked,
     )
     if json_output:
         typer.echo(decision.model_dump_json(indent=2))
@@ -205,6 +213,10 @@ def transition_request(
         typer.echo(f"Decision: {decision.decision}")
         for reason_item in decision.blocking_reasons:
             typer.echo(f"- {reason_item}")
+        if apply and decision.decision == "allowed":
+            typer.echo(f"Appended {len(decision.events)} transition event(s)")
+        elif record_blocked and decision.decision == "blocked":
+            typer.echo(f"Recorded {len(decision.events)} blocked transition event(s)")
 
 
 @adapter_app.command("detect")

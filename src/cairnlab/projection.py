@@ -42,16 +42,19 @@ class EventProjection:
 
     def object_state(self, object_id: str) -> str | None:
         if object_id in self.claims:
-            return self.claim_state(object_id)
+            return self.claim_authority_state(object_id)
         if object_id in self.evidence:
             return self.evidence_status(object_id)
         return None
 
     def claim_state(self, claim_id: str) -> str | None:
+        return self.claim_authority_state(claim_id)
+
+    def claim_authority_state(self, claim_id: str) -> str | None:
         claim = self.claims.get(claim_id)
         if not claim:
             return None
-        state = enum_value(claim.state)
+        state = enum_value(claim.authority_state)
         for event in self.events:
             if event.target != claim_id:
                 continue
@@ -61,6 +64,12 @@ class EventProjection:
             elif event_type in CLAIM_EVENT_STATES:
                 state = CLAIM_EVENT_STATES[event_type]
         return state
+
+    def claim_observed_state(self, claim_id: str) -> str | None:
+        claim = self.claims.get(claim_id)
+        if not claim:
+            return None
+        return enum_value(claim.observed_state)
 
     def evidence_status(self, evidence_id: str) -> str | None:
         item = self.evidence.get(evidence_id)

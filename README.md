@@ -46,11 +46,18 @@ verifier_certificates:
     verifier: metric_threshold
     claim: claim:C1
     status: pass
+    inputs: [metric:repro.accuracy]
+    can_authorize:
+      - evidence_attached -> verified
 ```
 
 This keeps idea generation, paper-to-code, review, experiment execution, and
 verification pluggable: external systems produce artifacts; CairnLab controls
 claim lifecycle transitions.
+
+Imported `state`/`status` fields are treated as upstream `observed_state`.
+CairnLab authority state is derived from explicit trusted seeds and append-only
+transition events.
 
 ARIS helper-contract smoke validation is available without adding ARIS as a
 runtime dependency:

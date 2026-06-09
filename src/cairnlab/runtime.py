@@ -71,13 +71,19 @@ class CairnRuntime:
 
     def trace(self, object_id: str) -> TraceResult:
         payload = None
+        observed_state = None
+        authority_state = None
         if object_id in self.claims:
             payload = self.claims[object_id].model_dump(mode="json", exclude_none=True)
+            observed_state = self.projection.claim_observed_state(object_id)
+            authority_state = self.projection.claim_authority_state(object_id)
         elif object_id in self.evidence:
             payload = self.evidence[object_id].model_dump(mode="json", exclude_none=True)
         return TraceResult(
             object_id=object_id,
             object=payload,
+            observed_state=observed_state,
+            authority_state=authority_state,
             projected_state=self.projection.object_state(object_id),
             incoming_relations=self.graph.incoming(object_id),
             outgoing_relations=self.graph.outgoing(object_id),

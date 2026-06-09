@@ -1,0 +1,12 @@
+{
+  "audit_skill": "proof-checker",
+  "verdict": "NOT_APPLICABLE",
+  "reason_code": "no_theorems",
+  "summary": "No formal theorem claims in the smoke paper.",
+  "audited_input_hashes": {},
+  "trace_path": ".aris/traces/proof-checker/2026-06-09_run01/",
+  "thread_id": "deterministic-smoke-proof",
+  "reviewer_model": "deterministic-smoke",
+  "reviewer_reasoning": "none",
+  "generated_at": "2026-06-09T00:00:00Z"
+}

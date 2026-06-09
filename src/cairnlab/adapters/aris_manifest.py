@@ -13,8 +13,9 @@ from .base import AdapterDiagnostic, AdapterExportResult
 class ArisManifestAdapter:
     """Translate ARIS-style exported metadata into a CairnLab ClaimCase.
 
-    The adapter reads structured JSON/JSONL exports only. It does not import
-    ARIS, invoke skills, parse papers, or mutate the host project.
+    The adapter reads structured JSON/JSONL exports and ARIS wiki Markdown
+    frontmatter only. It does not import ARIS, invoke skills, parse papers, or
+    mutate the host project.
     """
 
     name = "aris-manifest"
@@ -24,9 +25,11 @@ class ArisManifestAdapter:
         has_manifest = (root / "research-wiki" / "claims").exists() or any(
             (root / name).exists()
             for name in (
+                "PROOF_AUDIT.json",
                 "EXPERIMENT_AUDIT.json",
                 "PAPER_CLAIM_AUDIT.json",
                 "CITATION_AUDIT.json",
+                "KILL_ARGUMENT.json",
             )
         )
         return has_manifest or (self._has_aris_marker(root) and bool(self._review_sidecar_paths(root)))
@@ -52,7 +55,7 @@ class ArisManifestAdapter:
             diagnostics.append(
                 AdapterDiagnostic(
                     level="warning",
-                    message="No structured claim JSON files found under research-wiki/claims.",
+                    message="No structured claim JSON or Markdown files found under research-wiki/claims.",
                     path=str(root / "research-wiki" / "claims"),
                 )
             )
@@ -60,7 +63,7 @@ class ArisManifestAdapter:
             diagnostics.append(
                 AdapterDiagnostic(
                     level="info",
-                    message="No structured experiment JSON files found under research-wiki/experiments.",
+                    message="No structured experiment JSON or Markdown files found under research-wiki/experiments.",
                     path=str(root / "research-wiki" / "experiments"),
                 )
             )
@@ -89,16 +92,16 @@ class ArisManifestAdapter:
     ) -> list[str]:
         claims_dir = root / "research-wiki" / "claims"
         claim_ids: list[str] = []
-        for claim_path in sorted(claims_dir.glob("*.json")) if claims_dir.exists() else []:
-            claim = self._read_json(claim_path, diagnostics)
+        for claim_path in self._structured_paths(claims_dir):
+            claim = self._read_structured(claim_path, diagnostics)
             if not claim:
                 continue
-            claim_id = str(claim.get("id") or f"claim:{claim_path.stem}")
+            claim_id = str(claim.get("id") or claim.get("node_id") or f"claim:{claim_path.stem}")
             builder.add_claim(
                 claim_id,
                 str(claim.get("text") or claim.get("claim") or claim_path.stem),
-                claim_type=str(claim.get("type") or "empirical_metric"),
-                state=str(claim.get("state") or claim.get("status") or "draft"),
+                claim_type=str(claim.get("claim_type") or claim.get("cairn_type") or "empirical_metric"),
+                state=self._claim_state(claim.get("state") or claim.get("status")),
                 scope=claim.get("scope") or {},
                 risk=str(claim.get("risk") or "medium"),
                 metadata={
@@ -117,11 +120,11 @@ class ArisManifestAdapter:
     ) -> list[str]:
         experiments_dir = root / "research-wiki" / "experiments"
         experiment_ids: list[str] = []
-        for experiment_path in sorted(experiments_dir.glob("*.json")) if experiments_dir.exists() else []:
-            experiment = self._read_json(experiment_path, diagnostics)
+        for experiment_path in self._structured_paths(experiments_dir):
+            experiment = self._read_structured(experiment_path, diagnostics)
             if not experiment:
                 continue
-            experiment_id = str(experiment.get("id") or f"experiment:{experiment_path.stem}")
+            experiment_id = str(experiment.get("id") or experiment.get("node_id") or f"experiment:{experiment_path.stem}")
             run_id = experiment_id if experiment_id.startswith("run:") else f"run:{experiment_id.split(':')[-1]}"
             builder.add_evidence(
                 run_id,
@@ -189,7 +192,18 @@ class ArisManifestAdapter:
                     )
                 )
                 continue
-            if not isinstance(edge, dict) or not edge.get("source") or not edge.get("target"):
+            if not isinstance(edge, dict):
+                diagnostics.append(
+                    AdapterDiagnostic(
+                        level="warning",
+                        message=f"Skipping edge JSON that is not an object on line {index}.",
+                        path=str(edges_path),
+                    )
+                )
+                continue
+            source = edge.get("source") or edge.get("from")
+            target = edge.get("target") or edge.get("to")
+            if not source or not target:
                 diagnostics.append(
                     AdapterDiagnostic(
                         level="warning",
@@ -198,7 +212,8 @@ class ArisManifestAdapter:
                     )
                 )
                 continue
-            target = str(edge["target"])
+            source_id = self._normalize_node_id(str(source))
+            target = self._normalize_node_id(str(target))
             if target.startswith("paper_section:"):
                 builder.add_evidence(
                     target,
@@ -206,7 +221,7 @@ class ArisManifestAdapter:
                     metadata={"source": "aris_research_wiki_edge"},
                 )
             builder.add_relation(
-                str(edge["source"]),
+                source_id,
                 target,
                 self._relation_type(str(edge.get("type") or "depends_on")),
                 relation_id=str(edge.get("id") or f"rel:aris:{index:04d}"),
@@ -221,41 +236,40 @@ class ArisManifestAdapter:
         diagnostics: list[AdapterDiagnostic],
     ) -> None:
         audit_files = [
+            ("PROOF_AUDIT.json", "proof_audit"),
             ("EXPERIMENT_AUDIT.json", "experiment_audit"),
             ("PAPER_CLAIM_AUDIT.json", "paper_claim_audit"),
             ("CITATION_AUDIT.json", "citation_audit"),
             ("KILL_ARGUMENT.json", "kill_argument"),
         ]
         for file_name, audit_type in audit_files:
-            audit_path = root / file_name
-            if not audit_path.exists():
-                continue
-            audit = self._read_json(audit_path, diagnostics)
-            if not audit:
-                continue
-            audit_id = str(audit.get("id") or f"verifier:{audit_type}")
-            builder.add_evidence(
-                audit_id,
-                "verifier_certificate",
-                uri=audit_path.resolve().as_uri(),
-                hash=self._file_sha256(audit_path),
-                metadata={
-                    "audit_type": audit_type,
-                    "verdict": audit.get("verdict") or audit.get("status"),
-                    "source_file": str(audit_path),
-                    "inputs": audit.get("inputs") or audit.get("evidence_refs") or [],
-                },
-            )
-            for claim_id in claim_ids:
-                builder.add_relation(audit_id, claim_id, "verified_by", criticality="supporting")
-            self._record_verdict_diagnostic(
-                builder,
-                diagnostics,
-                path=audit_path,
-                verdict=audit.get("verdict") or audit.get("status"),
-                source=f"ARIS {audit_type}",
-                failure_class=f"aris_{audit_type}_rejected",
-            )
+            for audit_path in self._audit_paths(root, file_name):
+                audit = self._read_json(audit_path, diagnostics)
+                if not audit:
+                    continue
+                audit_id = str(audit.get("id") or self._default_audit_id(root, audit_path, audit_type))
+                builder.add_evidence(
+                    audit_id,
+                    "verifier_certificate",
+                    uri=audit_path.resolve().as_uri(),
+                    hash=self._file_sha256(audit_path),
+                    metadata={
+                        "audit_type": audit_type,
+                        "verdict": audit.get("verdict") or audit.get("status"),
+                        "source_file": str(audit_path),
+                        "inputs": audit.get("inputs") or audit.get("evidence_refs") or [],
+                    },
+                )
+                for claim_id in claim_ids:
+                    builder.add_relation(audit_id, claim_id, "verified_by", criticality="supporting")
+                self._record_verdict_diagnostic(
+                    builder,
+                    diagnostics,
+                    path=audit_path,
+                    verdict=audit.get("verdict") or audit.get("status"),
+                    source=f"ARIS {audit_type}",
+                    failure_class=f"aris_{audit_type}_rejected",
+                )
 
     def _add_review_sidecars(
         self,
@@ -314,7 +328,7 @@ class ArisManifestAdapter:
             if not report:
                 continue
             evidence_id = f"verifier:{self._path_id(root, report_path)}"
-            verdict = self._primary_verdict(report)
+            verdict = self._verifier_report_verdict(report)
             exit_code = report.get("exit_code")
             if verdict == "UNKNOWN" and isinstance(exit_code, int):
                 verdict = "PASS" if exit_code == 0 else "FAIL"
@@ -330,6 +344,9 @@ class ArisManifestAdapter:
                     "verifier": report.get("verifier") or "verify_paper_audits.sh",
                     "verdict": verdict,
                     "exit_code": exit_code,
+                    "assurance": report.get("assurance"),
+                    "any_problem": report.get("any_problem"),
+                    "submission_blocking": report.get("submission_blocking"),
                     "paper_dir": report.get("paper_dir"),
                     "audits": report.get("audits") or [],
                     "generated_at": report.get("generated_at"),
@@ -399,6 +416,18 @@ class ArisManifestAdapter:
             return []
         return sorted(path for path in root.rglob("audit-verifier-report.json") if path.is_file())
 
+    def _audit_paths(self, root: Path, file_name: str) -> list[Path]:
+        candidates = [root / file_name]
+        for report_path in self._submission_verifier_report_paths(root):
+            candidates.append(report_path.parent.parent / file_name)
+        seen: set[Path] = set()
+        paths: list[Path] = []
+        for path in candidates:
+            if path.exists() and path not in seen:
+                paths.append(path)
+                seen.add(path)
+        return paths
+
     def _record_verdict_diagnostic(
         self,
         builder: ClaimCaseBuilder,
@@ -448,6 +477,18 @@ class ArisManifestAdapter:
     def _primary_verdict(self, payload: dict[str, Any]) -> str:
         return self._normalize_verdict(payload.get("verdict") or payload.get("status") or "unknown")
 
+    def _verifier_report_verdict(self, report: dict[str, Any]) -> str:
+        verdict = self._primary_verdict(report)
+        if verdict != "UNKNOWN":
+            return verdict
+        if report.get("submission_blocking") is True:
+            return "FAIL"
+        if report.get("any_problem") is True:
+            return "WARN"
+        if "submission_blocking" in report or "any_problem" in report:
+            return "PASS"
+        return "UNKNOWN"
+
     def _worst_verdict(self, verdicts: list[str]) -> str:
         order = ["ERROR", "BLOCKED", "FAIL", "WARN", "UNKNOWN", "PASS", "NOT_APPLICABLE"]
         present = {self._normalize_verdict(verdict) for verdict in verdicts}
@@ -476,10 +517,114 @@ class ArisManifestAdapter:
         stem = str(relative).removesuffix(".json").removesuffix(".review")
         return re.sub(r"[^A-Za-z0-9_.-]+", ".", stem).strip(".") or "artifact"
 
+    def _default_audit_id(self, root: Path, path: Path, audit_type: str) -> str:
+        if path.parent == root:
+            return f"verifier:{audit_type}"
+        return f"verifier:{self._path_id(root, path)}"
+
+    def _structured_paths(self, directory: Path) -> list[Path]:
+        if not directory.exists():
+            return []
+        return sorted([*directory.glob("*.json"), *directory.glob("*.md")])
+
+    def _read_structured(
+        self,
+        path: Path,
+        diagnostics: list[AdapterDiagnostic],
+    ) -> dict[str, Any] | None:
+        if path.suffix == ".json":
+            return self._read_json(path, diagnostics)
+        return self._read_markdown_frontmatter(path, diagnostics)
+
+    def _read_markdown_frontmatter(
+        self,
+        path: Path,
+        diagnostics: list[AdapterDiagnostic],
+    ) -> dict[str, Any] | None:
+        text = path.read_text(encoding="utf-8")
+        match = re.match(r"^---\n(.*?)\n---\n?(.*)$", text, re.DOTALL)
+        if not match:
+            diagnostics.append(
+                AdapterDiagnostic(
+                    level="warning",
+                    message="Skipping Markdown without frontmatter.",
+                    path=str(path),
+                )
+            )
+            return None
+        payload = self._parse_frontmatter(match.group(1))
+        body = match.group(2).strip()
+        payload.setdefault("metadata", {})
+        payload["metadata"]["source_format"] = "aris_markdown_frontmatter"
+        if "text" not in payload and "claim" not in payload:
+            first_paragraph = self._first_paragraph(body)
+            if first_paragraph:
+                payload["text"] = first_paragraph
+        return payload
+
+    def _parse_frontmatter(self, raw: str) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        for line in raw.splitlines():
+            if ":" not in line or line.startswith((" ", "\t", "-")):
+                continue
+            key, value = line.split(":", 1)
+            key = key.strip()
+            value = value.strip()
+            payload[key] = self._parse_frontmatter_value(value)
+        return payload
+
+    def _parse_frontmatter_value(self, value: str) -> Any:
+        if value in {"", "null", "None"}:
+            return None
+        if value in {"true", "false"}:
+            return value == "true"
+        if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+            return value[1:-1]
+        if value.startswith(("{", "[")):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                return value
+        try:
+            if "." in value:
+                return float(value)
+            return int(value)
+        except ValueError:
+            return value
+
+    def _first_paragraph(self, body: str) -> str | None:
+        lines = []
+        for line in body.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                if lines:
+                    break
+                continue
+            if stripped.startswith("#"):
+                continue
+            lines.append(stripped)
+        return " ".join(lines) if lines else None
+
+    def _normalize_node_id(self, value: str) -> str:
+        if value.startswith("exp:"):
+            return f"run:{value.split(':', 1)[1]}"
+        return value
+
+    def _claim_state(self, value: Any) -> str:
+        mapping = {
+            "supported": "verified",
+            "partial": "challenged",
+            "invalidated": "invalidated",
+            "reported": "evidence_attached",
+            "pending": "verification_pending",
+        }
+        state = str(value or "draft")
+        return mapping.get(state, state)
+
     def _relation_type(self, aris_type: str) -> str:
         mapping = {
             "supports": "supports",
-            "invalidates": "supports",
+            "invalidates": "challenges",
             "tested_by": "depends_on",
             "verified_by": "verified_by",
             "reported_in": "contained_in",

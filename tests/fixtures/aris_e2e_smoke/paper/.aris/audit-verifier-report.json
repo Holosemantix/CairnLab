@@ -1,0 +1,38 @@
+{
+  "verifier_version": "1",
+  "paper_dir": "/tmp/cairnlab-aris-smoke/paper",
+  "assurance": "submission",
+  "generated_at": "2026-06-09T00:00:00Z",
+  "any_problem": false,
+  "submission_blocking": false,
+  "audits": [
+    {
+      "audit": "proof-checker",
+      "status": "OK",
+      "verdict": "NOT_APPLICABLE",
+      "stale": false,
+      "issues": []
+    },
+    {
+      "audit": "paper-claim-audit",
+      "status": "OK",
+      "verdict": "PASS",
+      "stale": false,
+      "issues": []
+    },
+    {
+      "audit": "citation-audit",
+      "status": "OK",
+      "verdict": "NOT_APPLICABLE",
+      "stale": false,
+      "issues": []
+    },
+    {
+      "audit": "kill-argument",
+      "status": "OK",
+      "verdict": "NOT_APPLICABLE",
+      "stale": false,
+      "issues": []
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "audit_skill": "paper-claim-audit",
+  "verdict": "PASS",
+  "reason_code": "numbers_match",
+  "summary": "The smoke paper's accuracy claim matches paper/results/metrics.json.",
+  "audited_input_hashes": {},
+  "trace_path": ".aris/traces/paper-claim-audit/2026-06-09_run01/",
+  "thread_id": "deterministic-smoke-claim",
+  "reviewer_model": "deterministic-smoke",
+  "reviewer_reasoning": "none",
+  "generated_at": "2026-06-09T00:00:00Z"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "human_gate:aris_smoke_release",
+  "claim": "claim:C1",
+  "actor": "human:smoke-reviewer@example.org",
+  "authority": "validation_owner",
+  "scope": {
+    "claim": "claim:C1",
+    "verifier": "verifier:paper..aris.audit-verifier-report"
+  },
+  "rationale": "Smoke fixture records that a human gate is still separate from ARIS verifier output."
+}

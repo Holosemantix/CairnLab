@@ -1,0 +1,12 @@
+{
+  "audit_skill": "kill-argument",
+  "verdict": "NOT_APPLICABLE",
+  "reason_code": "smoke_not_theory_or_scope_paper",
+  "summary": "No adversarial theory or scope argument is required for this smoke fixture.",
+  "audited_input_hashes": {},
+  "trace_path": ".aris/traces/kill-argument/2026-06-09_run01/",
+  "thread_id": "deterministic-smoke-kill",
+  "reviewer_model": "deterministic-smoke",
+  "reviewer_reasoning": "none",
+  "generated_at": "2026-06-09T00:00:00Z"
+}

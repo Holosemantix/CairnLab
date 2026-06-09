@@ -1,0 +1,12 @@
+{
+  "audit_skill": "citation-audit",
+  "verdict": "NOT_APPLICABLE",
+  "reason_code": "no_citations",
+  "summary": "No bibliography claims in the smoke paper.",
+  "audited_input_hashes": {},
+  "trace_path": ".aris/traces/citation-audit/2026-06-09_run01/",
+  "thread_id": "deterministic-smoke-citation",
+  "reviewer_model": "deterministic-smoke",
+  "reviewer_reasoning": "none",
+  "generated_at": "2026-06-09T00:00:00Z"
+}

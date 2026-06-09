@@ -71,6 +71,8 @@ Closure note:
   and sanitization signals.
 - ARIS evidence now covers research-wiki manifests, audit JSON, real
   `*.review.json` sidecars, and submission verifier reports.
+- ARIS smoke validation now exercises real deterministic helper boundaries:
+  `research_wiki.py`, `evidence_check.py`, and `verify_paper_audits.sh`.
 - LLM reviewer sidecars are imported as evidence context; deterministic
   verifier reports are imported as verifier evidence; neither bypasses the
   CairnLab transition authority.

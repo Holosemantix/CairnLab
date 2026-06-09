@@ -281,9 +281,11 @@ The first ARIS adapter should treat these sources as metadata:
 
 | Host object | CairnLab object |
 | --- | --- |
-| `research-wiki/claims` | `Claim` |
-| experiment pages | `run`, `metric`, `artifact` evidence |
+| `research-wiki/claims` JSON or Markdown frontmatter | `Claim` |
+| experiment JSON or Markdown frontmatter pages | `run`, `metric`, `artifact` evidence |
+| `research-wiki/graph/edges.jsonl` with `source`/`target` or `from`/`to` | typed relations |
 | `/result-to-claim` status | claim base state or transition seed |
+| `PROOF_AUDIT.json` | `verifier_certificate` evidence |
 | `EXPERIMENT_AUDIT.json` | `verifier_certificate` evidence |
 | `PAPER_CLAIM_AUDIT.json` | `verifier_certificate` evidence |
 | `CITATION_AUDIT.json` | citation verifier evidence |
@@ -302,8 +304,11 @@ It detects and reads:
 
 ```text
 research-wiki/claims/*.json
+research-wiki/claims/*.md
 research-wiki/experiments/*.json
+research-wiki/experiments/*.md
 research-wiki/graph/edges.jsonl
+PROOF_AUDIT.json                 optional
 EXPERIMENT_AUDIT.json            optional
 PAPER_CLAIM_AUDIT.json           optional
 CITATION_AUDIT.json              optional
@@ -315,13 +320,17 @@ KILL_ARGUMENT.json               optional
 
 It maps:
 
-- `research-wiki/claims/*.json` to `Claim`;
-- `research-wiki/experiments/*.json` to `run`, `metric`, and `artifact` evidence;
-- `research-wiki/graph/edges.jsonl` to typed CairnLab relations;
+- `research-wiki/claims/*.json` and Markdown frontmatter pages to `Claim`;
+- `research-wiki/experiments/*.json` and Markdown frontmatter pages to `run`,
+  `metric`, and `artifact` evidence;
+- `research-wiki/graph/edges.jsonl` to typed CairnLab relations, including the
+  real ARIS helper's `from`/`to` edge shape;
+- ARIS `exp:*` node IDs to CairnLab `run:*` evidence IDs;
 - ARIS audit JSON files to `verifier_certificate` evidence;
 - ARIS `*.review.json` sidecars to `reviewer_verdict` evidence with
   `not_transition_authority=true`;
-- ARIS submission verifier reports to `verifier_certificate` evidence;
+- ARIS submission verifier reports, including the real
+  `verify_paper_audits.sh` report shape, to `verifier_certificate` evidence;
 - rejected, blocked, failed, or errored verifier reports to diagnostics and
   `failure_classes`;
 - `.aris/human_gate.json` to a `human_gate`.

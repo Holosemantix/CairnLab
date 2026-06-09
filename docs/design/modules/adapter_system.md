@@ -119,16 +119,26 @@ as `stage-15` research-decision failures, pipeline degradation, quality-gate
 failures, paper verifier rejection, and sanitized numerical claims are
 diagnostics and evidence context only. They never authorize a claim release.
 
-`aris-manifest` handles both exported ARIS research-wiki manifests and the
-real ARIS repository sidecar pattern observed in validation. When ARIS markers
-are present, it can import `*.review.json` files as `reviewer_verdict` evidence.
-Those sidecars preserve reviewer route, source hashes, nested verdict history,
-warnings, and blocking issues, but they are explicitly marked as non-authority
-evidence. `.aris/audit-verifier-report.json` is imported as
-`verifier_certificate` evidence because it represents the machine-readable
-submission gate result. Rejected, blocked, failed, or errored verifier reports
-become diagnostics and `failure_classes`; they still do not release or retract a
-claim without CairnLab transition authority.
+`aris-manifest` handles exported ARIS research-wiki manifests, the real ARIS
+wiki helper's Markdown-frontmatter page style, and the real ARIS repository
+sidecar pattern observed in validation. It accepts `source`/`target` graph
+edges and the `from`/`to` edge shape emitted by `research_wiki.py add_edge`.
+ARIS `exp:*` IDs are normalized to CairnLab `run:*` evidence IDs at the adapter
+boundary.
+
+When ARIS markers are present, the adapter can import `*.review.json` files as
+`reviewer_verdict` evidence. Those sidecars preserve reviewer route, source
+hashes, nested verdict history, warnings, and blocking issues, but they are
+explicitly marked as non-authority evidence. `.aris/audit-verifier-report.json`
+is imported as `verifier_certificate` evidence because it represents the
+machine-readable submission gate result. Rejected, blocked, failed, or errored
+verifier reports become diagnostics and `failure_classes`; they still do not
+release or retract a claim without CairnLab transition authority.
+
+The optional `scripts/run_aris_e2e_smoke.py` validation runner exercises this
+boundary against a local ARIS checkout by invoking ARIS deterministic helpers as
+external commands. It does not import ARIS packages or add ARIS to CairnLab's
+runtime dependency graph.
 
 ## CLI Surface
 
@@ -178,6 +188,8 @@ Current coverage:
 - AutoResearchClaw manifest detection and export;
 - ARIS manifest, review sidecar, submission verifier, and missing human-gate
   diagnostics;
+- ARIS E2E smoke contract with Markdown-frontmatter wiki pages, real helper
+  `from`/`to` edges, paper audits, verifier reports, and revert planning;
 - registry name listing;
 - auto-detection success;
 - no-match failure;

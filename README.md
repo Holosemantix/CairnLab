@@ -26,6 +26,13 @@ Auto-selection succeeds only when exactly one adapter matches. The adapter layer
 does not decide claim release, downgrade, or retraction; it only emits portable
 `ClaimCase` objects for the kernel runtime.
 
+ARIS helper-contract smoke validation is available without adding ARIS as a
+runtime dependency:
+
+```bash
+python scripts/run_aris_e2e_smoke.py --aris-repo path/to/Auto-claude-code-research-in-sleep
+```
+
 ## Why this repository exists
 
 The AutoResearch ecosystem is now crowded: ARIS, AutoResearchClaw, ScientistOne, EviBound, DeepScientist, Claw AI Lab, AI Scientist, Paper2Agent, Paper2Code, MLflow/DVC/PROV-based infrastructure, and many benchmarks all cover important parts of autonomous research. CairnLab must therefore **not** become another idea-to-paper agent, research dashboard, or thin integration layer.

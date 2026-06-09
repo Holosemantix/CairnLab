@@ -9,6 +9,7 @@ from cairnlab import ArisManifestAdapter, CairnRuntime
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "aris_manifest"
+E2E_SMOKE_FIXTURE = ROOT / "tests" / "fixtures" / "aris_e2e_smoke"
 
 
 def test_aris_manifest_adapter_detects_fixture() -> None:
@@ -97,6 +98,39 @@ def test_aris_manifest_adapter_preserves_rejected_verifier_and_missing_human_gat
     assert any(item.id == "verifier:aris.audit-verifier-report" for item in case.evidence)
     assert any("ARIS submission verifier reports BLOCKED" in item.message for item in result.diagnostics)
     assert any("No .aris/human_gate.json" in item.message for item in result.diagnostics)
+
+
+def test_aris_manifest_adapter_imports_e2e_smoke_contract() -> None:
+    result = ArisManifestAdapter().export_case(E2E_SMOKE_FIXTURE)
+    case = result.case
+    evidence_ids = {item.id for item in case.evidence}
+    relation_pairs = {(relation.source, relation.target, str(relation.type)) for relation in case.relations}
+
+    assert [claim.id for claim in case.claims] == ["claim:C1"]
+    assert "run:exp_001" in evidence_ids
+    assert "metric:exp_001.accuracy" in evidence_ids
+    assert "reviewer:docs.SMOKE" in evidence_ids
+    assert "verifier:paper.PROOF_AUDIT" in evidence_ids
+    assert "verifier:paper.PAPER_CLAIM_AUDIT" in evidence_ids
+    assert "verifier:paper..aris.audit-verifier-report" in evidence_ids
+    assert "human_gate:aris_smoke_release" in evidence_ids
+    assert ("run:exp_001", "claim:C1", "supports") in relation_pairs
+    assert not case.failure_classes
+    assert case.expected_cairnlab_behavior["require_transition_authority_for_release"]
+
+
+def test_aris_e2e_smoke_contract_feeds_runtime_plan() -> None:
+    result = ArisManifestAdapter().export_case(E2E_SMOKE_FIXTURE)
+    runtime = CairnRuntime.from_case(result.case)
+
+    plan = runtime.plan_revert("run:exp_001", reason="ARIS smoke result invalidated")
+    affected = {item.id: item.action.value for item in plan.affected}
+
+    assert affected["metric:exp_001.accuracy"] == "invalidate"
+    assert affected["claim:C1"] == "challenge"
+    assert affected["verifier:paper.PAPER_CLAIM_AUDIT"] == "invalidate"
+    assert affected["verifier:paper..aris.audit-verifier-report"] == "invalidate"
+    assert affected["human_gate:aris_smoke_release"] == "require_reapproval"
 
 
 def test_aris_manifest_adapter_feeds_runtime_plan() -> None:

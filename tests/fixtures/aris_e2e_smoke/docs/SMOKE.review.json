@@ -1,0 +1,14 @@
+{
+  "skill": "render-html",
+  "source": "docs/SMOKE.md",
+  "output": "docs/SMOKE.html",
+  "reviewer": "deterministic-smoke",
+  "verdict": "PASS",
+  "checks": {
+    "source_hash_match": "pass",
+    "information_fidelity": "pass"
+  },
+  "blocking_issues": [],
+  "warnings": [],
+  "rendered_at": "2026-06-09"
+}

@@ -270,6 +270,15 @@ class ArisManifestAdapter:
                     source=f"ARIS {audit_type}",
                     failure_class=f"aris_{audit_type}_rejected",
                 )
+                self._add_material_dissent_from_audit(
+                    root,
+                    builder,
+                    audit_path,
+                    audit,
+                    audit_id,
+                    audit_type,
+                    claim_ids,
+                )
 
     def _add_review_sidecars(
         self,
@@ -460,6 +469,47 @@ class ArisManifestAdapter:
                 path=str(path),
             )
         )
+
+    def _add_material_dissent_from_audit(
+        self,
+        root: Path,
+        builder: ClaimCaseBuilder,
+        audit_path: Path,
+        audit: dict[str, Any],
+        audit_id: str,
+        audit_type: str,
+        claim_ids: list[str],
+    ) -> None:
+        if audit_type != "kill_argument" or not claim_ids:
+            return
+        normalized = self._normalize_verdict(audit.get("verdict") or audit.get("status"))
+        if normalized not in {"WARN", "FAIL", "BLOCKED", "ERROR"}:
+            return
+
+        details = audit.get("details") if isinstance(audit.get("details"), dict) else {}
+        dissent_id = f"dissent:{self._path_id(root, audit_path)}"
+        builder.add_evidence(
+            dissent_id,
+            "material_dissent",
+            uri=audit_path.resolve().as_uri(),
+            hash=self._file_sha256(audit_path),
+            metadata={
+                "source": "ARIS kill_argument",
+                "source_file": str(audit_path),
+                "audit_id": audit_id,
+                "severity": "material",
+                "resolved": False,
+                "verdict": normalized,
+                "reason_code": audit.get("reason_code"),
+                "summary": audit.get("summary"),
+                "reviewer_model": audit.get("reviewer_model"),
+                "trace_path": audit.get("trace_path"),
+                "unresolved_critical_count": details.get("unresolved_critical_count"),
+            },
+        )
+        for claim_id in claim_ids:
+            builder.add_relation(dissent_id, claim_id, "challenges", criticality="critical")
+        builder.add_failure_class("aris_kill_argument_material_dissent")
 
     def _verdicts(self, value: Any) -> list[str]:
         verdicts: list[str] = []

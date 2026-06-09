@@ -4,7 +4,18 @@ import json
 import shutil
 from pathlib import Path
 
-from cairnlab import ArisManifestAdapter, CairnRuntime
+from cairnlab import (
+    Actor,
+    ArisManifestAdapter,
+    CairnProject,
+    CairnRuntime,
+)
+from cairnlab.models import (
+    ClaimState,
+    ResponsibilityAssignment,
+    ResponsibilityEntry,
+    RiskAssessment,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -98,6 +109,92 @@ def test_aris_manifest_adapter_preserves_rejected_verifier_and_missing_human_gat
     assert any(item.id == "verifier:aris.audit-verifier-report" for item in case.evidence)
     assert any("ARIS submission verifier reports BLOCKED" in item.message for item in result.diagnostics)
     assert any("No .aris/human_gate.json" in item.message for item in result.diagnostics)
+
+
+def test_aris_kill_argument_warn_imports_material_dissent_and_blocks_release(tmp_path: Path) -> None:
+    claims_dir = tmp_path / "research-wiki" / "claims"
+    experiments_dir = tmp_path / "research-wiki" / "experiments"
+    graph_dir = tmp_path / "research-wiki" / "graph"
+    aris_dir = tmp_path / ".aris"
+    claims_dir.mkdir(parents=True)
+    experiments_dir.mkdir(parents=True)
+    graph_dir.mkdir(parents=True)
+    aris_dir.mkdir()
+    (claims_dir / "C1.json").write_text(
+        json.dumps(
+            {
+                "id": "claim:C1",
+                "text": "A release-ready ARIS claim with an unresolved adversarial objection.",
+                "status": "verified",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (experiments_dir / "exp_001.json").write_text(
+        json.dumps({"id": "exp:exp_001", "status": "completed", "metrics": {"accuracy": 0.91}}),
+        encoding="utf-8",
+    )
+    (graph_dir / "edges.jsonl").write_text(
+        json.dumps({"from": "exp:exp_001", "to": "claim:C1", "type": "supports"}) + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "PAPER_CLAIM_AUDIT.json").write_text(
+        json.dumps({"audit_skill": "paper-claim-audit", "verdict": "PASS"}),
+        encoding="utf-8",
+    )
+    (tmp_path / "KILL_ARGUMENT.json").write_text(
+        json.dumps(
+            {
+                "audit_skill": "kill-argument",
+                "verdict": "WARN",
+                "reason_code": "unresolved_scope_objection",
+                "summary": "The claim remains too broad for the available evidence.",
+                "reviewer_model": "codex-subagent",
+                "details": {"unresolved_critical_count": 1},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (aris_dir / "human_gate.json").write_text(
+        json.dumps(
+            {
+                "id": "human_gate:aris_release",
+                "claim": "claim:C1",
+                "actor": "human:pi",
+                "authority": "release_owner",
+                "scope": {"claim": "claim:C1"},
+                "rationale": "Imported ARIS release approval.",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = ArisManifestAdapter().export_case(tmp_path)
+    case = result.case
+    case.risk_assessments.append(RiskAssessment(object="claim:C1", risk_tier="medium"))
+    case.responsibility_assignments.append(
+        ResponsibilityAssignment(
+            object="claim:C1",
+            action="release_claim",
+            accountable=[ResponsibilityEntry(role="owner", actor="human:pi")],
+        )
+    )
+    project = CairnProject.open(tmp_path / "cairn-project")
+    project.import_claim_case(case)
+    decision = project.request_transition(
+        "claim:C1",
+        ClaimState.RELEASED,
+        Actor(id="human:pi", role="principal_investigator", authority="release_owner"),
+        reason="attempt release with unresolved ARIS kill argument",
+    )
+
+    dissent = next(item for item in case.evidence if item.id == "dissent:KILL_ARGUMENT")
+    assert dissent.type == "material_dissent"
+    assert dissent.metadata["severity"] == "material"
+    assert dissent.metadata["resolved"] is False
+    assert "aris_kill_argument_material_dissent" in case.failure_classes
+    assert decision.decision == "blocked"
+    assert decision.blocking_reasons == ["unresolved_material_dissent"]
 
 
 def test_aris_manifest_adapter_imports_e2e_smoke_contract() -> None:

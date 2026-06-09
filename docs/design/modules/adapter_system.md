@@ -135,6 +135,14 @@ machine-readable submission gate result. Rejected, blocked, failed, or errored
 verifier reports become diagnostics and `failure_classes`; they still do not
 release or retract a claim without CairnLab transition authority.
 
+ARIS `KILL_ARGUMENT.json` is treated specially because it is an adversarial
+claim-level objection rather than a routine reviewer note. A `WARN`, `FAIL`,
+`BLOCKED`, or `ERROR` verdict is imported as unresolved `material_dissent`
+evidence linked to the affected claims. This preserves the external audit
+artifact while making release depend on CairnLab's deterministic material-dissent
+rule: the dissent must be resolved by verifier evidence or explicitly overridden
+by a human gate before a stronger lifecycle transition can be authorized.
+
 The optional `scripts/run_aris_e2e_smoke.py` validation runner exercises this
 boundary against a local ARIS checkout by invoking ARIS deterministic helpers as
 external commands. It does not import ARIS packages or add ARIS to CairnLab's

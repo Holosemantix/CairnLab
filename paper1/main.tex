@@ -119,7 +119,7 @@ A natural remedy is input-side noise augmentation. We sweep \stdmax{} $\in \{0.0
 
 \paragraph{C2 --- Diagnostic evidence.} Across 36 LeWM checkpoints and a PLDM replication, we show severe corruption fragility, task-dependent recovery under input-side noise augmentation, and the limits of pointwise diagnostics: after conditioning on \stdmax{}, the strongest single-step \fragility{} does not explain the PushT corruption gap (partial Spearman $\rho = +0.19$, CI including $0$).
 
-\paragraph{C3 --- Paired consistency probes and scope boundaries.} We report a dense Gaussian-noise ACPC basin diagnostic on all 36 LeWM checkpoints, add a compact PLDM base-vs-best basin replication in Appendix~\ref{sec:appendix-F}, and keep the broader Phase-0 ACPC/PCC/CRA/MAF/ADM/SPRR sweep in Appendix~\ref{sec:appendix-H} as exploratory evidence, not as a universal robustness predictor. We also use two negative ablations to constrain method claims: error-based heteroscedastic reweighting can erase action-critical transitions, and perturbed-history $\to$ original-future denoising is not a sufficient closed-loop fix. These are design constraints, not completed methods.
+\paragraph{C3 --- Paired consistency probes and scope boundaries.} We report dense Gaussian-noise ACPC basin diagnostics on all 36 LeWM checkpoints and all 36 PLDM checkpoints, while keeping the broader Phase-0 ACPC/PCC/CRA/MAF/ADM/SPRR sweep in Appendix~\ref{sec:appendix-H} as exploratory evidence, not as a universal robustness predictor. We also use two negative ablations to constrain method claims: error-based heteroscedastic reweighting can erase action-critical transitions, and perturbed-history $\to$ original-future denoising is not a sufficient closed-loop fix. These are design constraints, not completed methods.
 
 %% ===========================================================================
 \section{Related Work}\label{sec:related}
@@ -666,13 +666,13 @@ The result is consistent with a closed-loop train/eval consistency explanation r
 
 \subsection{Limitations and future directions}\label{sec:disc-limit}
 
-\paragraph{Limitation 1 --- architecture scope.} The main diagnostics are LeWM-centred; PLDM replicates task-level signatures, the PushT partial-correlation null, and a compact base-vs-best ACPC basin pattern, but its internal recovery mechanism differs. EMA-target and variational JEPA variants remain open.
+\paragraph{Limitation 1 --- architecture scope.} The main diagnostics are LeWM-centred; PLDM replicates task-level signatures, the PushT partial-correlation null, and the full Gaussian-noise ACPC basin pattern, but its internal recovery mechanism differs. EMA-target and variational JEPA variants remain open.
 
 \paragraph{Limitation 2 --- corruption scope.} Gaussian pixel noise is the controlled training axis. Blur stress tests in \Cref{sec:appendix-G} show visual fragility beyond Gaussian noise, but also corruption-specific task ordering; blur-specific training remains follow-up work.
 
 \paragraph{Limitation 3 --- diagnostic scope.} The framework is empirical. Reacher and TwoRoom fail the partial-correlation criterion for all metrics, and we do not yet have a theory predicting which tasks support cross-checkpoint diagnostics.
 
-\paragraph{Limitation 4 --- method scope.} The dense paired ACPC basin diagnostic is LeWM/Gaussian-noise only. PLDM adds a base-vs-best replication rather than a full 4$\times$9 basin sweep, so we do not claim a method-invariant ACPC-basin mechanism. Appendix~\ref{sec:appendix-H} broadens the probes under auxiliary pixels+goal stress, but those rows are post-hoc, small-sample, and exploratory. Appendix~\ref{sec:appendix-I} adds the target-view ablation, which is negative; a method paper still needs a trained predictive-consistency objective.
+\paragraph{Limitation 4 --- method scope.} The dense paired ACPC basin diagnostic now covers the LeWM and PLDM Gaussian-noise sweeps, but only for two related JEPA-family world models and one corruption family. We therefore use it as a replication of the paired-basin pattern, not as a method-invariant theorem. Appendix~\ref{sec:appendix-H} broadens the probes under auxiliary pixels+goal stress, but those rows are post-hoc, small-sample, and exploratory. Appendix~\ref{sec:appendix-I} adds the target-view ablation, which is negative; a method paper still needs a trained predictive-consistency objective.
 
 \paragraph{Additional ablation --- hard $\ne$ nuisance.} A heteroscedastic NLL probe with a learned per-transition $\sigma$-head shows why error-based downweighting is unsafe in this setting: TwoRoom remains strong, but PushT unperturbed success collapses from $86.33\%$ to $13.33\%$ because contact-control transitions are high-error and action-critical. Full data are in \Cref{sec:appendix-D}.
 
@@ -1038,11 +1038,11 @@ Cube & 9 & $-0.36$ & $+0.19$ & $-0.53$ & $-0.13$ \\
 }
 \end{table}
 
-\paragraph{PLDM base-vs-best ACPC basin replication.} We also run the Gaussian-noise basin protocol on the PLDM no-noise baseline and each task's PLDM pixels 0.08 point-best checkpoint. This is a compact replication, not a full PLDM 4$\times$9 basin sweep. Source: \codebrk{acpc\_basin\_diagnostics\_pldm\_base\_best.json}.
+\paragraph{PLDM full-sweep ACPC basin replication.} We also run the Gaussian-noise basin protocol on all 36 PLDM checkpoints. \Cref{tab:pldm-acpc-basin} reports the compact baseline-vs-pixels-0.08-point-best summary, but the released source contains the full 4 tasks $\times$ 9 configs grid: \codebrk{acpc\_basin\_diagnostics\_pldm.json}.
 
 \begin{table}[H]
 \centering
-\caption{PLDM base-vs-best Gaussian-noise ACPC basin replication. The protocol matches \Cref{tab:acpc-basin}: same-state Gaussian-noise views of the observation history (std 0.01--0.08), clean goal, and the same recorded action sequence. The robust checkpoint is selected by PLDM pixels 0.08 success.}
+\caption{PLDM full-sweep Gaussian-noise ACPC basin replication, summarised by the no-noise baseline and each task's PLDM pixels 0.08 point-best checkpoint. The protocol matches \Cref{tab:acpc-basin}: same-state Gaussian-noise views of the observation history (std 0.01--0.08), clean goal, and the same recorded action sequence.}
 \label{tab:pldm-acpc-basin}
 \small
 \begin{tabular}{llrrrr}
@@ -1061,7 +1061,7 @@ Cube & noise $0.04$ & $54.67$ & $-0.67$ & $0.146$ & $0.054$ \\
 \end{tabular}
 \end{table}
 
-\paragraph{Reading.} The PLDM basin replication is directionally consistent with the LeWM ACPC-basin reading: the pixels 0.08 point-best checkpoint reduces $R_F$ on all four tasks, sharply on TwoRoom, PushT, and Cube. Reacher is the scope boundary: PLDM is already near-robust at the no-noise baseline, and both the behavioural drop and the basin change are small. This artifact reduces the concern that the paired basin pattern is purely a LeWM artifact, but it does not upgrade the claim to a method-invariant mechanism because the dense basin grid remains LeWM-only and \Cref{tab:pldm-full-diag} shows different internal diagnostic movement.
+\paragraph{Reading.} The PLDM basin replication is directionally consistent with the LeWM ACPC-basin reading: the pixels 0.08 point-best checkpoint reduces $R_F$ on all four tasks, sharply on TwoRoom, PushT, and Cube. Reacher is the scope boundary: PLDM is already near-robust at the no-noise baseline, and both the behavioural drop and the basin change are small. The full 36-row artifact reduces the concern that the paired basin pattern is purely a LeWM artifact, but it does not upgrade the claim to a method-invariant mechanism because \Cref{tab:pldm-full-diag} shows different internal diagnostic movement.
 
 \paragraph{PLDM full-diagnostic mechanism check.} We also run the same five diagnostic layers on the PLDM sweep and release the resulting per-checkpoint summary in \codebrk{canonical\_full\_diagnostics\_pldm\_20260523.json}. The compact base-vs-representative view in \Cref{tab:pldm-full-diag} shows a different mechanism profile from the LeWM compression chain in \Cref{tab:diag-base-vs-best}: PLDM's representative recovery checkpoints do \emph{not} exhibit a broad collapse in rank, transition resolution, or inverse-dynamics probe. The most consistent movement is instead a reduction in multi-step predictor drift. This is useful precisely because it separates two claims: the task-level fragility/recovery signature replicates across method families, while the exact diagnostic mechanism is architecture-dependent.
 
@@ -1084,7 +1084,7 @@ Cube    & 0.04 & $134.80 \to 124.49$ & $0.6395 \to 0.6313$ & $0.5428 \to 0.5576$
 }
 \end{table}
 
-\paragraph{What this strengthens, and what it does not.} PLDM strengthens the empirical evidence by showing that the four task signatures are not tied to one LeWM checkpoint family. The compact basin replication in \Cref{tab:pldm-acpc-basin} further supports the paired same-state perturbation reading at the baseline-vs-robust endpoints. It also strengthens the diagnostic-boundary claim: after removing the sweep-level \stdmax{} effect and the method offset on PushT, the local predictor-sensitivity diagnostic does not isolate corruption-specific robustness. The TwoRoom and Cube PLDM residuals are deliberately left visible in \Cref{tab:pldm-partial-corr}. They do not contradict the headline null: the intervals are wide, the noisy-eval ranges are small on the saturated tasks, and the residuals should not be converted into a robustness oracle.
+\paragraph{What this strengthens, and what it does not.} PLDM strengthens the empirical evidence by showing that the four task signatures are not tied to one LeWM checkpoint family. The full PLDM basin artifact, summarised in \Cref{tab:pldm-acpc-basin}, further supports the paired same-state perturbation reading at the baseline-vs-robust endpoints. It also strengthens the diagnostic-boundary claim: after removing the sweep-level \stdmax{} effect and the method offset on PushT, the local predictor-sensitivity diagnostic does not isolate corruption-specific robustness. The TwoRoom and Cube PLDM residuals are deliberately left visible in \Cref{tab:pldm-partial-corr}. They do not contradict the headline null: the intervals are wide, the noisy-eval ranges are small on the saturated tasks, and the residuals should not be converted into a robustness oracle.
 
 \paragraph{Mechanism boundary.} \Cref{tab:pldm-full-diag} is the reason we do not promote the LeWM compression chain to a universal theorem. On LeWM, noise-trained representatives can compress effective rank and reduce transition-key resolution; on PLDM, the same task-level robustness pattern is accompanied mainly by reduced rollout drift with largely preserved rank/resolution probes. The shared conclusion is therefore about \emph{control-time visual fragility and noise-training recovery}; the internal diagnostic route is method-specific.
 

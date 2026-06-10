@@ -25,7 +25,7 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json",
-    ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm_base_best.json",
+    ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm.json",
     ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
@@ -48,7 +48,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.schema.json",
     ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json",
-    ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm_base_best.json",
+    ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
     ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json",
@@ -123,16 +123,6 @@ EXPECTED_ACPC_PHASE0_METRICS = {
 EXPECTED_BOOTSTRAP_SCOPES = {"within_lewm", "within_pldm", "joint"}
 EXPECTED_BOOTSTRAP_METRICS = {"frag", "drift"}
 EXPECTED_ACPC_BASIN_CORRUPTIONS = {round(i / 100, 2) for i in range(1, 9)}
-EXPECTED_PLDM_ACPC_BASIN_KEYS = {
-    ("TwoRoom", "0.0"),
-    ("TwoRoom", "0.06"),
-    ("PushT", "0.0"),
-    ("PushT", "0.03"),
-    ("Reacher", "0.0"),
-    ("Reacher", "0.03"),
-    ("Cube", "0.0"),
-    ("Cube", "0.04"),
-}
 REQUIRED_ACPC_BASIN_FIELDS = {
     "pixels_std0.08_success",
     "pixels_goal_std0.08_success",
@@ -645,8 +635,8 @@ def check_acpc_basin_json() -> None:
         fail("ACPC basin task/config coverage mismatch")
 
 
-def check_pldm_acpc_basin_base_best_json() -> None:
-    path = ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm_base_best.json"
+def check_pldm_acpc_basin_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm.json"
     data = json.loads(path.read_text(encoding="utf-8"))
 
     meta = data.get("metadata", {})
@@ -654,8 +644,8 @@ def check_pldm_acpc_basin_base_best_json() -> None:
         fail(f"unexpected PLDM ACPC basin schema: {meta.get('schema_version')!r}")
     if meta.get("method") != "PLDM" or meta.get("methods") != ["PLDM"]:
         fail(f"PLDM ACPC basin method mismatch: {meta.get('method')!r}/{meta.get('methods')!r}")
-    if meta.get("base_vs_best") is not True:
-        fail("PLDM ACPC basin must be a base-vs-best replication")
+    if meta.get("base_vs_best") is not False:
+        fail("PLDM ACPC basin must be the full sweep, not base-vs-best")
     if meta.get("robust_metric") != "pixels_std0.08":
         fail(f"PLDM ACPC basin robust metric mismatch: {meta.get('robust_metric')!r}")
     if meta.get("corrupt_goal") is not False:
@@ -675,14 +665,14 @@ def check_pldm_acpc_basin_base_best_json() -> None:
         fail("PLDM ACPC basin corruption grid mismatch")
 
     rows = data.get("rows")
-    if not isinstance(rows, list) or len(rows) != len(EXPECTED_PLDM_ACPC_BASIN_KEYS):
+    if not isinstance(rows, list) or len(rows) != len(EXPECTED_TASKS) * len(EXPECTED_CONFIGS):
         fail(f"PLDM ACPC basin row count mismatch: {len(rows) if isinstance(rows, list) else type(rows)}")
     seen: set[tuple[str, str]] = set()
     for row in rows:
         task = row.get("task")
         std_key = row.get("std_key")
         key = (task, std_key)
-        if key not in EXPECTED_PLDM_ACPC_BASIN_KEYS:
+        if task not in EXPECTED_TASKS or std_key not in EXPECTED_CONFIGS:
             fail(f"unexpected PLDM ACPC basin row key: {key}")
         if key in seen:
             fail(f"duplicate PLDM ACPC basin row: {key}")
@@ -713,7 +703,7 @@ def check_pldm_acpc_basin_base_best_json() -> None:
             value = row[field]
             if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
                 fail(f"PLDM ACPC basin {key}/{field} is not finite")
-    if seen != EXPECTED_PLDM_ACPC_BASIN_KEYS:
+    if seen != {(task, std) for task in EXPECTED_TASKS for std in EXPECTED_CONFIGS}:
         fail("PLDM ACPC basin task/config coverage mismatch")
 
 
@@ -1003,7 +993,7 @@ def main() -> int:
         ("acpc phase0 diagnostics json", check_acpc_phase0_diagnostics_json),
         ("blur baselines json", check_blur_baselines_json),
         ("acpc basin json", check_acpc_basin_json),
-        ("pldm acpc basin base-best json", check_pldm_acpc_basin_base_best_json),
+        ("pldm acpc basin json", check_pldm_acpc_basin_json),
         ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),

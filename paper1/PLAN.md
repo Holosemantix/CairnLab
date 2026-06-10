@@ -87,10 +87,10 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 
 ## 5. 当前 submit-readiness
 
-**状态：near submit-ready；ACPC dense Gaussian-noise basin diagnostic、PLDM base-vs-best basin replication、Phase 0 exploratory appendix、target-view negative ablation 已补并已降权，reference audit / PDF / consistency checks 已通过。**
+**状态：near submit-ready；ACPC dense Gaussian-noise basin diagnostic、PLDM full 4×9 basin replication、Phase 0 exploratory appendix、target-view negative ablation 已补并已降权，reference audit / PDF / consistency checks 已通过。**
 
 - 框架已 reframe：title / abstract / intro / related work / §3 ACPC 概念+诊断 / discussion / conclusion 已围绕 action-conditioned predictive consistency 重写；新增 §4.x Gaussian-noise ACPC basin table；main-text radar / mechanism schematic 已移除，避免证据弱图压低严谨性。
-- ACPC 主文 empirical evidence 现在是 **Gaussian-noise basin radius**：`tools/paper1_acpc_basin.py` 从 canonical eval manifest 解析 LeWM 36 个 epoch-10 checkpoints，在 clean + Gaussian noise std 0.01..0.08 views 上计算 encoder radius / prediction radius / contraction，输出 `assets/paper1_data/acpc_basin_diagnostics.json`。PLDM 已补 compact base-vs-pixels-0.08-point-best replication：`assets/paper1_data/acpc_basin_diagnostics_pldm_base_best.json`，用于 Appendix F 边界验证，不写成 full PLDM basin sweep。
+- ACPC 主文 empirical evidence 现在是 **Gaussian-noise basin radius**：`tools/paper1_acpc_basin.py` 从 canonical eval manifest 解析 LeWM 36 个 epoch-10 checkpoints，在 clean + Gaussian noise std 0.01..0.08 views 上计算 encoder radius / prediction radius / contraction，输出 `assets/paper1_data/acpc_basin_diagnostics.json`。PLDM 已补 full 4 tasks × 9 configs replication：`assets/paper1_data/acpc_basin_diagnostics_pldm.json`，用于 Appendix F 边界验证；正文只展示 baseline-vs-pixels-0.08-point-best summary。
 - ACPC 系列 paired probes（ACPC-1/H、PCC、CRA、MAF、ADM、SPRR）已有 full-sweep Phase 0 artifact：`assets/paper1_data/acpc_phase0_diagnostics.json`，72 rows = 2 methods × 4 tasks × 9 std levels，全部 `status=ok`。当前只作为 Appendix H face-validity / mechanism-localization evidence，不能声称预测 robustness。
 - target-view ablation 已完成并作为 Appendix I negative result 纳入：`assets/paper1_data/target_view_closed_loop_summary.json` 记录四任务八个 target-noise checkpoints，支持 full-sequence perturbed-target branch 作为当前 empirical mainline，但不作为独立贡献或因果证明。
 - related work 已明确 ViGMO / Bisim-JEPA / LeJEPA theory 的边界；2026-06-08 已完成 references final source audit（见 `paper1/reference_audit.md`）。
@@ -100,11 +100,11 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 
 - **References final source audit 已完成**。reframe 新增条目已做首轮核验并移除 `TODO verify`：`bsmpc` 已替换为 Shimizu--Tomizuka, ICLR 2025 / arXiv:2410.04553；`voelcker2025calibratedvalueaware` 已改为 ICML 2025 PMLR 267 的正式题名 *Calibrated Value-Aware Model Learning with Probabilistic Environment Models*；`dupuis2023vibr`、`gelada2019deepmdp` 已补 PMLR volume/pages。2026-06-08 live audit 复核了容易变动的 2025/2026 arXiv/OpenReview/Nature/PMLR 条目，未发现需要修改 BibTeX 的错误。
 - **Full-sequence rerun audit 已完成**。32 个 full-sequence eval + diagnostics 已用当前代码重跑，pixels 0.08 与归档旧代码结果相近（四任务均在约 2.3 pt 内），用于排除代码改动驱动 mainline 结论变化；主表仍以 canonical artifacts 为准。
-- **PLDM base-vs-best ACPC basin replication 已完成**。8/8 rows `ok`，覆盖四任务 baseline + PLDM pixels 0.08 point-best checkpoint；结果支持同向 basin tightening，但仍只作为 Appendix F compact replication。
+- **PLDM full 4×9 ACPC basin replication 已完成**。36/36 rows `ok`，覆盖四任务 baseline + 8 个 PLDM noise configs；结果支持同向 basin tightening，但仍作为 Appendix F replication/boundary evidence，不写成 method-invariant theorem。
 
 ## 6. 讨论时常见问题
 
-- 若 reviewer 强要求 method-family dense basin，是否需要补 PLDM full 4×9 ACPC basin sweep？当前版本已有 PLDM base-vs-best replication，但不把它写成 full-grid 证据。
+- 若 reviewer 强要求更广 method-family dense basin，是否还需要第三个 world-model family？当前版本已有 LeWM + PLDM 两个 4×9 Gaussian ACPC basin sweeps，但不写成 method-invariant theorem。
 - Phase 0 ACPC artifact 是否足以作为 Appendix H exploratory evidence，还是必须补 Phase 1 training objective？
 - target-view negative result 是否需要后续 rollout-consistent denoising / multi-step objective 复核，才能从 scope boundary 升级为 causal method claim？
 - candidate action sequence 来源如何固定（CEM 采样 / 固定 random / dataset actions），保证 clean/noisy 同一 candidate set？
@@ -118,7 +118,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 
 ### 7.1 Paper 1 v0 — 当前状态
 
-已重构为 **action-conditioned predictive consistency** 的 reframing + diagnostic paper。实验证据包括 corruption cliff、noise sweep、dense Gaussian-noise ACPC basin、PLDM base-vs-best basin replication、blur eval-only sanity、partial-corr null、hetero 负结果、target-view negative ablation；Phase 0 ACPC artifact 已完成并作为 exploratory Appendix H 纳入正文。当前最小可立项版本不再需要“Phase 0 尚未完成”作为阻塞项；但若要把 PCC/CRA/MAF/ADM/SPRR 也写成主文证据，仍需额外扩展和 claim audit。提交前 references 人工核对、build、checker 已通过；注意 §7.3.b（adaptive resolution / per-token consistency）已与本文 motivate 的 APDC 高度重合——若补 Phase 1 方法实验，应明确 Paper 1 与 Paper 2b 的边界。
+已重构为 **action-conditioned predictive consistency** 的 reframing + diagnostic paper。实验证据包括 corruption cliff、noise sweep、dense Gaussian-noise ACPC basin、PLDM full 4×9 basin replication、blur eval-only sanity、partial-corr null、hetero 负结果、target-view negative ablation；Phase 0 ACPC artifact 已完成并作为 exploratory Appendix H 纳入正文。当前最小可立项版本不再需要“Phase 0 尚未完成”作为阻塞项；但若要把 PCC/CRA/MAF/ADM/SPRR 也写成主文证据，仍需额外扩展和 claim audit。提交前 references 人工核对、build、checker 已通过；注意 §7.3.b（adaptive resolution / per-token consistency）已与本文 motivate 的 APDC 高度重合——若补 Phase 1 方法实验，应明确 Paper 1 与 Paper 2b 的边界。
 
 ### 7.2 Paper 1 v1 — 可选增强（不阻塞 v0）
 

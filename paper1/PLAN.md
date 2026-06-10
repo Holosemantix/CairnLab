@@ -101,6 +101,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - **References final source audit 已完成**。reframe 新增条目已做首轮核验并移除 `TODO verify`：`bsmpc` 已替换为 Shimizu--Tomizuka, ICLR 2025 / arXiv:2410.04553；`voelcker2025calibratedvalueaware` 已改为 ICML 2025 PMLR 267 的正式题名 *Calibrated Value-Aware Model Learning with Probabilistic Environment Models*；`dupuis2023vibr`、`gelada2019deepmdp` 已补 PMLR volume/pages。2026-06-08 live audit 复核了容易变动的 2025/2026 arXiv/OpenReview/Nature/PMLR 条目，未发现需要修改 BibTeX 的错误。
 - **Full-sequence rerun audit 已完成**。32 个 full-sequence eval + diagnostics 已用当前代码重跑，pixels 0.08 与归档旧代码结果相近（四任务均在约 2.3 pt 内），用于排除代码改动驱动 mainline 结论变化；主表仍以 canonical artifacts 为准。
 - **PLDM full 4×9 ACPC basin replication 已完成**。36/36 rows `ok`，覆盖四任务 baseline + 8 个 PLDM noise configs；结果支持同向 basin tightening，但仍作为 Appendix F replication/boundary evidence，不写成 method-invariant theorem。
+- **Latest external review 最小文字修补已执行**：Limitations 显式写明 evaluation seeds ≠ training seeds；ACPC basin 段已桥接 Appendix H downstream readouts；PushT “force” 表述已改为 contact-relevant pose/configuration cues；t-SNE 图统一按 2-D covariance envelope / high-D stats 解读。
 
 ## 6. 讨论时常见问题
 
@@ -147,7 +148,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - **核心问题**：能否在 controller 端通过 per-token consistency routing，突破 input-side noise training 的 per-task tuning 边界？
 - **由 Paper 1 哪里 motivating**：§5.5 "Additional ablation" 已验证 σ-head 学到了 prediction difficulty，但作为 loss reweighter 在 PushT 上 collapse（86% → 13%）；§5.5 Future direction 1 明示该方向。Paper 1 给出 input-side selective-consistency 诊断图景，Paper 2b 要回答 controller-side 是否能进一步榨出增益。
 - **当前状态**：完整 4 任务 sweep + 4 件套因果干预（constant_w、random_gate、shuffle_σ、shuffle_A）已完成。**关键数据**：PushT 强视觉扰动（px+goal 0.08）C1+C2 联用 = 85.33 vs C1 单独 75.75（**+9.58pt**）；causal claim "per-token routing 本身是主导项"（constant_w −28.67pt）经 ablation 证实。详细 plan 在 `plan_adaptive_resolution.md`；**paper 写作未开始**。
-- **Paper1 / Phase-1 图形边界**：PushT `selective_contraction_clusters` 已作为 Paper1 主文 qualitative mechanism illustration 纳入，paper-facing asset 为 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；它不是 standalone proof。默认应使用 repeated same-state perturbation samples + 90% 2-D covariance ellipse；t-SNE envelope 不是 high-D basin boundary，主读数仍应来自 high-D `median r/NN`, `r < NN`, `disjoint balls` 和 ACPC basin artifact。Phase-1 / AAAC paper 承担方法贡献与 controller-side instantiation。
+- **Paper1 / Phase-1 图形边界**：PushT `selective_contraction_clusters` 已作为 Paper1 主文 qualitative mechanism illustration 纳入，paper-facing asset 为 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；它不是 standalone proof。默认应使用 repeated same-state perturbation samples + 90% 2-D covariance envelope；t-SNE envelope 不是 high-D basin boundary，主读数仍应来自 high-D `median r/NN`, `r < NN`, `disjoint balls` 和 ACPC basin artifact。PLDM PushT 图可作为 internal/appendix sanity candidate，但不得做跨方法 t-SNE 坐标或 envelope 面积比较；若要增强图形严谨性，优先补 r/NN distribution 或 local normalized atlas。Phase-1 / AAAC paper 承担方法贡献与 controller-side instantiation。
 - **相对 Paper 1 的 delta**：Paper 1 诊断现象 + input-side fix 的边界；Paper 2b 提供 controller-side instantiation，与 input-side noise 正交可叠加。
 
 #### 7.3.c Spherical world model / Field-JEPA

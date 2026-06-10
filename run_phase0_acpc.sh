@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# Phase 0 ACPC diagnostics — batch runner for Paper 1
+# Usage:
+#   bash run_phase0_acpc.sh              # full 72 ckpts (LeWM + PLDM)
+#   bash run_phase0_acpc.sh --dry-run    # resolve manifests only
+#   bash run_phase0_acpc.sh --single     # single checkpoint dry-run (PushT LeWM 0.0)
+#   bash run_phase0_acpc.sh --lewm-only  # LeWM 36 ckpts only
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+DATA_ROOT="/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll"
+EVAL_LEWM="assets/paper1_data/canonical_evals_20260517.json"
+EVAL_PLDM="assets/paper1_data/canonical_evals_pldm_20260522.json"
+LOCAL_EVAL_LEWM="/tmp/canonical_evals_local.json"
+LOCAL_EVAL_PLDM="/tmp/canonical_evals_pldm_local.json"
+OUT="assets/paper1_data/acpc_phase0_diagnostics.json"
+
+# ---------------------------------------------------------------------------
+# Prepare localized eval JSONs (replace /home/ag/... with local path)
+# ---------------------------------------------------------------------------
+echo "[phase0] Preparing localized eval manifests..."
+if [[ ! -f "$LOCAL_EVAL_LEWM" ]] || [[ "$(stat -c %Y "$EVAL_LEWM")" -gt "$(stat -c %Y "$LOCAL_EVAL_LEWM" 2>/dev/null || echo 0)" ]]; then
+    sed "s|/home/ag/dataset/ag_data/data/world_model/quentinll|$DATA_ROOT|g" "$EVAL_LEWM" > "$LOCAL_EVAL_LEWM"
+    echo "[phase0]   -> $LOCAL_EVAL_LEWM"
+fi
+if [[ ! -f "$LOCAL_EVAL_PLDM" ]] || [[ "$(stat -c %Y "$EVAL_PLDM")" -gt "$(stat -c %Y "$LOCAL_EVAL_PLDM" 2>/dev/null || echo 0)" ]]; then
+    sed "s|/home/ag/dataset/ag_data/data/world_model/quentinll|$DATA_ROOT|g" "$EVAL_PLDM" > "$LOCAL_EVAL_PLDM"
+    echo "[phase0]   -> $LOCAL_EVAL_PLDM"
+fi
+
+# ---------------------------------------------------------------------------
+# Environment
+# ---------------------------------------------------------------------------
+export STABLEWM_HOME="$DATA_ROOT"
+
+# Verify deps
+echo "[phase0] Verifying environment..."
+if ! python3 -c "import torch; import stable_worldmodel; import stable_pretraining; print('  OK')" 2>/dev/null; then
+    echo "[phase0] ERROR: torch / stable_worldmodel / stable_pretraining not found."
+    echo "[phase0] Please activate the correct conda/venv."
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Run mode selection
+# ---------------------------------------------------------------------------
+METHODS="LeWM PLDM"
+TASKS="TwoRoom PushT Reacher Cube"
+STD_KEYS="0.0 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08"
+LIMIT=""
+
+case "${1:-}" in
+    --dry-run)
+        echo "[phase0] DRY-RUN mode: resolving manifests and model files only."
+        EXTRA_FLAGS="--dry-run"
+        ;;
+    --single)
+        echo "[phase0] SINGLE mode: PushT LeWM 0.0 only."
+        METHODS="LeWM"
+        TASKS="PushT"
+        STD_KEYS="0.0"
+        OUT="/tmp/acpc_phase0_single.json"
+        ;;
+    --lewm-only)
+        echo "[phase0] LEWM-ONLY mode: 36 ckpts."
+        METHODS="LeWM"
+        ;;
+    *)
+        echo "[phase0] FULL mode: LeWM + PLDM (72 ckpts). This will take 1–3 hours on GPU."
+        EXTRA_FLAGS=""
+        ;;
+esac
+
+# ---------------------------------------------------------------------------
+# Execute
+# ---------------------------------------------------------------------------
+echo "[phase0] Starting at $(date -Iseconds)"
+echo "[phase0] Output: $OUT"
+
+python3 -m tools.paper1_phase0_acpc \
+    --methods $METHODS \
+    --tasks $TASKS \
+    --std-keys $STD_KEYS \
+    --evals-lewm "$LOCAL_EVAL_LEWM" \
+    --evals-pldm "$LOCAL_EVAL_PLDM" \
+    --out "$OUT" \
+    ${LIMIT:-} \
+    ${EXTRA_FLAGS:-}
+
+echo "[phase0] Finished at $(date -Iseconds)"
+echo "[phase0] Output: $OUT"
+
+# Quick status report
+python3 -c "
+import json, sys
+with open('$OUT') as f:
+    d = json.load(f)
+rows = d['rows']
+ok = sum(1 for r in rows if r['status'] == 'ok')
+err = sum(1 for r in rows if r['status'] == 'error')
+print(f'[phase0] Results: {ok} OK, {err} error, {len(rows)} total')
+"

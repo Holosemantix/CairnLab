@@ -4,7 +4,7 @@ This script is intentionally separate from the paper-facing figure generator.
 It answers a narrower mechanism question on existing full-sequence
 perturbed-target checkpoints:
 
-    do same-state perturbation basins shrink, and what happens to simple
+    do same-state perturbation clusters shrink, and what happens to simple
     state/action discriminability proxies?
 
 The default path only reads released JSON artifacts and writes a compact branch
@@ -104,10 +104,12 @@ def _rows_by_task_std(rows: Iterable[Mapping[str, Any]]) -> dict[tuple[str, str]
     return out
 
 
-def _phase_rows_by_task_std(rows: Iterable[Mapping[str, Any]]) -> dict[tuple[str, str], Mapping[str, Any]]:
+def _phase_rows_by_task_std(
+    rows: Iterable[Mapping[str, Any]], *, method: str
+) -> dict[tuple[str, str], Mapping[str, Any]]:
     out: dict[tuple[str, str], Mapping[str, Any]] = {}
     for row in rows:
-        if row.get("status") != "ok" or row.get("method") != "LeWM":
+        if row.get("status") != "ok" or row.get("method") != method:
             continue
         out[(str(row["task"]), str(row["std_key"]))] = row
     return out
@@ -128,11 +130,20 @@ def build_summary(
     acpc_basin_path: Path,
     acpc_phase0_path: Path,
     robust_metric: str,
+    method: str,
+    method_label: str | None,
+    robust_label: str | None,
 ) -> dict[str, Any]:
     basin_payload = _load_json(acpc_basin_path)
     phase_payload = _load_json(acpc_phase0_path)
-    basin_rows = [r for r in basin_payload["rows"] if r.get("status") == "ok"]
-    phase_by_key = _phase_rows_by_task_std(phase_payload["rows"])
+    method_name = str(method)
+    display_method = method_label or method_name
+    basin_rows = [
+        r
+        for r in basin_payload["rows"]
+        if r.get("status") == "ok" and str(r.get("method", method_name)) == method_name
+    ]
+    phase_by_key = _phase_rows_by_task_std(phase_payload["rows"], method=method_name)
 
     out_rows: list[dict[str, Any]] = []
     for task in TASKS:
@@ -159,7 +170,9 @@ def build_summary(
         out_rows.append(
             {
                 "task": task,
-                "target_view_branch": "full_sequence_perturbed_target",
+                "target_view_branch": (
+                    "full_sequence_perturbed_target" if method_name == "LeWM" else "noise_sweep"
+                ),
                 "best_std_key": str(best["std_key"]),
                 "best_subdir": best.get("subdir"),
                 "clean_success_base": base["clean_success"],
@@ -204,7 +217,14 @@ def build_summary(
             "source_acpc_basin": str(acpc_basin_path),
             "source_acpc_phase0": str(acpc_phase0_path),
             "robust_metric": robust_metric,
-            "branch": "existing full-sequence perturbed-target LeWM sweep",
+            "method": method_name,
+            "method_label": display_method,
+            "robust_label": robust_label,
+            "branch": (
+                "existing full-sequence perturbed-target LeWM sweep"
+                if method_name == "LeWM"
+                else f"existing {display_method} noise sweep"
+            ),
             "interpretation": (
                 "RE/RF are same-state perturbation basin radii from the primary "
                 "observation-only ACPC basin diagnostic. ADM/SPRR are auxiliary "
@@ -257,10 +277,11 @@ def _readable_conclusion(
 
 def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    method_label = payload["metadata"].get("method_label", payload["metadata"].get("method", "LeWM"))
     lines = [
         "# Selective-Contraction Branch Table",
         "",
-        "Scope: existing LeWM full-sequence perturbed-target sweep. This is a branch diagnostic, not a new main claim.",
+        f"Scope: existing {method_label} sweep. This is a branch diagnostic, not a new main claim.",
         "",
         "| Task | best std | px0.08 success | encoder radius R_E | prediction radius R_F | origin NN L2 | transition L2 | aux ADM | aux SPRR | read |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
@@ -300,7 +321,7 @@ def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
             "Visualization note: selective-contraction cluster plots should be read through "
             "the high-D panel statistics. The 2-D t-SNE envelopes are qualitative summaries "
             "of repeated same-state perturbation samples, not estimates of the true high-D "
-            "basin support.",
+            "basin boundary.",
             "",
         ]
     )
@@ -355,6 +376,33 @@ def _checkpoint_specs(
             )
         )
     return specs
+
+
+def _method_slug(summary: Mapping[str, Any]) -> str:
+    method = str(summary.get("metadata", {}).get("method", "LeWM")).lower()
+    return "" if method == "lewm" else f"{method}_"
+
+
+def _branch_slug(summary: Mapping[str, Any]) -> str:
+    method = str(summary.get("metadata", {}).get("method", "LeWM"))
+    return "fullseq" if method == "LeWM" else "noise"
+
+
+def _display_labels(summary: Mapping[str, Any], robust_std_key: str) -> dict[str, str]:
+    meta = summary.get("metadata", {})
+    method = str(meta.get("method", "LeWM"))
+    method_label = str(meta.get("method_label") or method)
+    if method == "LeWM":
+        robust = str(meta.get("robust_label") or f"full-seq noise-trained {method_label} std={robust_std_key}")
+        return {
+            "base": f"clean-trained {method_label}",
+            "fullseq_robust": robust,
+        }
+    robust = str(meta.get("robust_label") or f"noise-trained {method_label} std={robust_std_key}")
+    return {
+        "base": f"clean-trained {method_label}",
+        "fullseq_robust": robust,
+    }
 
 
 def _pca_fit_transform(arrays: Sequence[np.ndarray]) -> list[np.ndarray]:
@@ -904,10 +952,7 @@ def render_2d_task(
     if anchor_count > 0:
         anchors = np.unique(anchors)
     colors = plt.cm.tab20(np.linspace(0, 1, max(1, len(anchors))))
-    label_by_spec = {
-        "base": "no perturb training",
-        "fullseq_robust": f"full-seq perturb training std={specs[1].std_key}",
-    }
+    label_by_spec = _display_labels(summary, specs[1].std_key)
 
     fig, axes = plt.subplots(2, 2, figsize=(13.5, 10.5), sharex="col", sharey="col")
     panels = [
@@ -951,7 +996,7 @@ def render_2d_task(
     )
     fig.tight_layout(rect=(0, 0.055, 1, 0.96))
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / f"{task.lower()}_fullseq_selective_contraction_2d.png"
+    out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_2d.png"
     fig.savefig(out, dpi=190)
     plt.close(fig)
     return out
@@ -989,10 +1034,7 @@ def render_atlas_task(
 
     anchors = _select_spread_anchors(encoded["fullseq_robust"]["predictor"][0], anchor_count)
     colors = plt.cm.turbo(np.linspace(0.05, 0.95, max(1, len(anchors))))
-    label_by_spec = {
-        "base": "clean-trained LeWM",
-        "fullseq_robust": f"full-seq noise-trained LeWM std={specs[1].std_key}",
-    }
+    label_by_spec = _display_labels(summary, specs[1].std_key)
     feature_by_name = {
         "encoder": "Encoder",
         "predictor": "Predictor H8",
@@ -1033,7 +1075,7 @@ def render_atlas_task(
     )
     fig.tight_layout(rect=(0, 0.055, 1, 0.955), h_pad=3.0, w_pad=1.5)
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / f"{task.lower()}_fullseq_selective_contraction_atlas.png"
+    out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_atlas.png"
     fig.savefig(out, dpi=190)
     plt.close(fig)
     return out
@@ -1076,10 +1118,7 @@ def render_cluster_task(
 
     anchors = _select_spread_anchors(encoded["fullseq_robust"]["predictor"][0], anchor_count)
     colors = plt.cm.turbo(np.linspace(0.05, 0.95, max(1, len(anchors))))
-    label_by_spec = {
-        "base": "clean-trained LeWM",
-        "fullseq_robust": f"full-seq noise-trained LeWM std={specs[1].std_key}",
-    }
+    label_by_spec = _display_labels(summary, specs[1].std_key)
     feature_by_name = {
         "encoder": "Encoder features",
         "predictor": "Predictor H8 features",
@@ -1204,7 +1243,7 @@ def render_cluster_task(
     )
     fig.tight_layout(rect=(0, 0.072, 1, 0.955), h_pad=2.4, w_pad=1.4)
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / f"{task.lower()}_fullseq_selective_contraction_clusters.png"
+    out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_clusters.png"
     fig.savefig(out, dpi=190)
     plt.close(fig)
     return out
@@ -1271,10 +1310,7 @@ def render_3d_task(
             encoded[label]["predictor"], anchors
         )
     colors = plt.cm.tab10(np.linspace(0, 1, max(1, len(anchors))))
-    label_by_spec = {
-        "base": f"base std=0.0",
-        "fullseq_robust": f"full-seq robust std={specs[1].std_key}",
-    }
+    label_by_spec = _display_labels(summary, specs[1].std_key)
 
     fig = plt.figure(figsize=(12, 9))
     panels = [
@@ -1341,7 +1377,7 @@ def render_3d_task(
     )
     fig.tight_layout(rect=(0, 0.04, 1, 0.96))
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / f"{task.lower()}_fullseq_selective_contraction_3d.png"
+    out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_3d.png"
     fig.savefig(out, dpi=180)
     plt.close(fig)
     return out
@@ -1352,6 +1388,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--acpc-basin", type=Path, default=DEFAULT_DATA_DIR / "acpc_basin_diagnostics.json")
     p.add_argument("--acpc-phase0", type=Path, default=DEFAULT_DATA_DIR / "acpc_phase0_diagnostics.json")
     p.add_argument("--robust-metric", default="pixels_std0.08_success")
+    p.add_argument("--method", choices=["LeWM", "PLDM"], default="LeWM")
+    p.add_argument("--method-label", default=None)
+    p.add_argument("--robust-label", default=None)
     p.add_argument("--out-json", type=Path, default=DEFAULT_OUT_JSON)
     p.add_argument("--out-md", type=Path, default=DEFAULT_OUT_MD)
     p.add_argument("--plot-2d", action="store_true")
@@ -1388,6 +1427,9 @@ def main() -> None:
         acpc_basin_path=args.acpc_basin,
         acpc_phase0_path=args.acpc_phase0,
         robust_metric=args.robust_metric,
+        method=args.method,
+        method_label=args.method_label,
+        robust_label=args.robust_label,
     )
     _write_json(args.out_json, summary)
     write_markdown(args.out_md, summary)

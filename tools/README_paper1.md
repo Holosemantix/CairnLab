@@ -92,6 +92,32 @@ python -m tools.paper1_selective_contraction \
   --cluster-envelope ellipse --cluster-envelope-coverage 0.90
 ```
 
+The paper-facing PLDM appendix figure (`assets/paper1_figs/pusht_pldm_noise_selective_contraction_clusters.png`, Appendix F) uses the full-quality parameters and the paper-facing output dir:
+
+```bash
+STABLEWM_HOME=<dataset-root> python -m tools.paper1_selective_contraction \
+  --method PLDM \
+  --acpc-basin assets/paper1_data/acpc_basin_diagnostics_pldm.json \
+  --plot-clusters --plot-tasks PushT \
+  --n-sequences 128 --cluster-anchor-count 16 \
+  --view-stds 0.0 0.01 0.04 0.08 \
+  --cluster-perturb-repeats 6 \
+  --cluster-out-dir assets/paper1_figs \
+  --cluster-envelope ellipse --cluster-envelope-coverage 0.90
+```
+
+The projection-free local-atlas companion figure (`assets/paper1_figs/pusht_fullseq_selective_contraction_atlas.png`, Appendix A.6) is rendered with:
+
+```bash
+STABLEWM_HOME=<dataset-root> python -m tools.paper1_selective_contraction \
+  --plot-atlas --plot-tasks PushT \
+  --n-sequences 128 --atlas-anchor-count 16 \
+  --view-stds 0.0 0.01 0.04 0.08 \
+  --atlas-out-dir assets/paper1_figs
+```
+
+Both load checkpoints and the HDF5 datasets; `STABLEWM_HOME` must point at the dataset root that contains `pusht_expert_train.h5` (the resolver checks `$STABLEWM_HOME/<name>.h5` and `$STABLEWM_HOME/datasets/<name>.h5`).
+
 For quick path checks, reduce the render size, for example add `--n-sequences 48 --cluster-anchor-count 10 --cluster-perturb-repeats 3 --cluster-perplexity 12 --cluster-tsne-max-iter 350`; this is a smoke test, not a paper-facing figure. For non-LeWM methods, the default summary output is method-specific (for example `selective_contraction_pldm_noise_branch.*`) so that sanity runs do not overwrite the LeWM paper-facing branch summary. Do not compare LeWM and PLDM t-SNE coordinates or envelope areas directly; if PLDM visualization is used, treat it as a qualitative method-family sanity check and keep the high-D ACPC basin table as the evidence.
 
 ## Canonical artifact builders

@@ -2,7 +2,7 @@
 
 > Source of truth: `paper1/main.tex`. 数值、表格、图和 artifact 以论文正文与 `assets/paper1_data/` 为准。
 > Reframing 执行依据：`paper1/paper1_acpc_rewrite_execution_plan.md`。
-> Last updated: 2026-06-10（external-review closure, runner safety fixes, and targeted citation recheck）。
+> Last updated: 2026-06-10（second three-round review: Table-6 hetero-contamination data correction, PLDM appendix qualitative figure, local-atlas figure, checker regression guard）。
 
 ---
 
@@ -103,6 +103,8 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - **PLDM full 4×9 ACPC basin replication 已完成**。36/36 rows `ok`，覆盖四任务 baseline + 8 个 PLDM noise configs；结果支持同向 basin tightening，但仍作为 Appendix F replication/boundary evidence，不写成 method-invariant theorem。
 - **Latest external review 最小文字修补已执行**：Limitations 显式写明 evaluation seeds ≠ training seeds；ACPC basin 段已桥接 Appendix H downstream readouts；PushT “force” 表述已改为 contact-relevant pose/configuration cues；t-SNE 图统一按 2-D covariance envelope / high-D stats 解读。
 - **2026-06-10 runner / artifact safety 已补**：`run_phase0_acpc.sh --dry-run` 输出 `/tmp/acpc_phase0_dry_run.json` 且不要求 torch；非 LeWM selective-contraction summary 默认写 method-specific files，避免 PLDM sanity run 覆盖 LeWM paper-facing artifact；checker 已加入旧 selective-contraction 口径回归保护。
+- **2026-06-10 第二轮三审数据修正（重要）**：审计发现 `canonical_diagnostics_20260517.json` 的 `table3_representative_diagnostics` 中 TwoRoom（noise 0.08）与 PushT（noise 0.02）代表列被误填为 `*_lewm_hetero_default` 的诊断值（TwoRoom 7/7 指标重复、PushT nn/rank 重复）。已按 per-checkpoint `diagnostics_summary.json` 重提取并修正（TwoRoom rank 47.6→37.7 而非 33.6；PushT rank 76.4→77.4 而非 42.9；rollout T8 TwoRoom 0.66 而非 17.90、PushT 6.00 而非 16.50）。修正后 **PushT 在 noise sweep 下不再呈现 rank/probe 压缩**——“compression risks resolution” 的 PushT 证据只属于 hetero 负结果；正文 §5.5 mechanistic reading、tradeoff 表、Appendix F mechanism boundary 已全部重写为：两族主导变化都是 multi-step rollout drift 大幅下降，LeWM 仅在 TwoRoom 重噪声代表点出现 rank 压缩。checker 已加 hetero-contamination 回归 guard 固定四列代表值。
+- **2026-06-10 图形增强**：Appendix F 新增 PLDM PushT full-quality qualitative cluster 图（n=128/anchors=16/repeats=6，caption 明确 qualitative-only、不与 LeWM t-SNE 坐标比较）；Appendix A.6 新增 projection-free local normalized atlas 图（外审 Option D）并配渲染命令；正文 cluster 图渲染命令补全 full-quality 参数；untracked PLDM smoke 输出已删除并以 full-quality 重跑替代。
 
 ## 6. 讨论时常见问题
 
@@ -149,7 +151,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - **核心问题**：能否在 controller 端通过 per-token consistency routing，突破 input-side noise training 的 per-task tuning 边界？
 - **由 Paper 1 哪里 motivating**：§5.5 "Additional ablation" 已验证 σ-head 学到了 prediction difficulty，但作为 loss reweighter 在 PushT 上 collapse（86% → 13%）；§5.5 Future direction 1 明示该方向。Paper 1 给出 input-side selective-consistency 诊断图景，Paper 2b 要回答 controller-side 是否能进一步榨出增益。
 - **当前状态**：完整 4 任务 sweep + 4 件套因果干预（constant_w、random_gate、shuffle_σ、shuffle_A）已完成。**关键数据**：PushT 强视觉扰动（px+goal 0.08）C1+C2 联用 = 85.33 vs C1 单独 75.75（**+9.58pt**）；causal claim "per-token routing 本身是主导项"（constant_w −28.67pt）经 ablation 证实。详细 plan 在 `plan_adaptive_resolution.md`；**paper 写作未开始**。
-- **Paper1 / Phase-1 图形边界**：PushT `selective_contraction_clusters` 已作为 Paper1 主文 qualitative mechanism illustration 纳入，paper-facing asset 为 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；它不是 standalone proof。默认应使用 repeated same-state perturbation samples + 90% 2-D covariance envelope；t-SNE envelope 不是 high-D basin boundary，主读数仍应来自 high-D `median r/NN`, `r < NN`, `disjoint balls` 和 ACPC basin artifact。PLDM PushT 图可作为 internal/appendix sanity candidate，但不得做跨方法 t-SNE 坐标或 envelope 面积比较；若要增强图形严谨性，优先补 r/NN distribution 或 local normalized atlas。Phase-1 / AAAC paper 承担方法贡献与 controller-side instantiation。
+- **Paper1 / Phase-1 图形边界**：PushT `selective_contraction_clusters` 已作为 Paper1 主文 qualitative mechanism illustration 纳入，paper-facing asset 为 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；它不是 standalone proof。默认应使用 repeated same-state perturbation samples + 90% 2-D covariance envelope；t-SNE envelope 不是 high-D basin boundary，主读数仍应来自 high-D `median r/NN`, `r < NN`, `disjoint balls` 和 ACPC basin artifact。PLDM PushT full-quality 图已作为 Appendix F qualitative method-family check 纳入（不做跨方法 t-SNE 坐标或 envelope 面积比较）；local normalized atlas 已作为 Appendix A.6 projection-free 补充图纳入。Phase-1 / AAAC paper 承担方法贡献与 controller-side instantiation。
 - **相对 Paper 1 的 delta**：Paper 1 诊断现象 + input-side fix 的边界；Paper 2b 提供 controller-side instantiation，与 input-side noise 正交可叠加。
 
 #### 7.3.c Spherical world model / Field-JEPA

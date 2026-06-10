@@ -384,6 +384,37 @@ def check_canonical_diagnostics_json() -> None:
                 if metric not in task_values[which]:
                     fail(f"canonical diagnostics {task}/{which} missing metric {metric!r}")
 
+    # Regression guard for the 2026-06-10 table3 audit: the TwoRoom and PushT
+    # representative entries must stay pinned to the per-checkpoint diagnostics of
+    # tworoom_lewm_noise_0to008_p1 / pusht_lewm_noise_0to002_p1. The previous
+    # release accidentally duplicated the *_lewm_hetero_default diagnostics here.
+    expected_representative = {
+        "TwoRoom": {
+            "clean_effective_rank": 37.69,
+            "clean_nn_cos_dist_median": 0.0321,
+            "transition_resolution_ratio_l2": 0.6621,
+            "transition_resolution_ratio_cos": 0.461,
+            "id_probe_r2": 0.1419,
+            "action_mean_pred_shift_norm": 0.4843,
+        },
+        "PushT": {
+            "clean_effective_rank": 77.41,
+            "clean_nn_cos_dist_median": 0.2477,
+            "transition_resolution_ratio_l2": 0.2989,
+            "transition_resolution_ratio_cos": 0.0867,
+            "id_probe_r2": 0.769,
+            "action_mean_pred_shift_norm": 0.1305,
+        },
+    }
+    for task, expected in expected_representative.items():
+        got = values[task]["representative"]
+        for metric, want in expected.items():
+            if abs(float(got[metric]) - want) > 1e-9:
+                fail(
+                    f"canonical diagnostics table3 {task}/representative/{metric}: "
+                    f"got {got[metric]}, want {want} (hetero-contamination regression guard)"
+                )
+
 
 def check_pldm_diagnostics_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "canonical_diagnostics_pldm_20260522.json"

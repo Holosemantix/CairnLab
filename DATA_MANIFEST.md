@@ -4,7 +4,7 @@ This manifest documents the released evaluation aggregate for Paper 1:
 
 - Canonical aggregate: `assets/paper1_data/canonical_evals_20260517.json`
 - Schema: `assets/paper1_data/canonical_evals_20260517.schema.json`
-- Canonical diagnostics: `assets/paper1_data/canonical_diagnostics_20260517.json`
+- Canonical diagnostics: `assets/paper1_data/canonical_diagnostics_20260517.json` (2026-06-10 revision: the TwoRoom/PushT `table3_representative_diagnostics` entries were re-extracted from the per-checkpoint diagnostics after an audit found they duplicated the `*_lewm_hetero_default` values; see the JSON `metadata.table3_revision_20260610` note)
 - Diagnostics schema: `assets/paper1_data/canonical_diagnostics_20260517.schema.json`
 - External baseline sanity check: `assets/paper1_data/canonical_external_baselines_20260520.json`
 - External baseline schema: `assets/paper1_data/canonical_external_baselines_20260520.schema.json`

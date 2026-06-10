@@ -4,7 +4,8 @@
     "diagnostic_max_std_selection": "Per checkpoint, metrics are taken from the max-std history-only row of eval_results/diagnostics/predictor_sensitivity.json.",
     "history_noise_only": true,
     "related_eval_source": "canonical_evals_20260517.json",
-    "scope": "4 tasks \u00d7 9 checkpoints with predictor metrics for Table 4 / Table 4b / Figure 3, plus finalized Table 3 representative diagnostic values."
+    "scope": "4 tasks \u00d7 9 checkpoints with predictor metrics for Table 4 / Table 4b / Figure 3, plus finalized Table 3 representative diagnostic values.",
+    "table3_revision_20260610": "TwoRoom and PushT representative values were re-extracted on 2026-06-10 from tworoom_lewm_noise_0to008_p1 and pusht_lewm_noise_0to002_p1 eval_results/diagnostics/diagnostics_summary.json after an audit found the previous entries duplicated the corresponding *_lewm_hetero_default diagnostics. Reacher and Cube entries were verified against the same per-checkpoint files and left unchanged."
   },
   "predictor_metrics_by_task": {
     "Cube": {
@@ -354,12 +355,12 @@
           "transition_resolution_ratio_l2": 0.3015
         },
         "representative": {
-          "action_mean_pred_shift_norm": 0.12,
-          "clean_effective_rank": 42.85,
-          "clean_nn_cos_dist_median": 0.1051,
-          "id_probe_r2": 0.75,
-          "transition_resolution_ratio_cos": 0.08,
-          "transition_resolution_ratio_l2": 0.28
+          "action_mean_pred_shift_norm": 0.1305,
+          "clean_effective_rank": 77.41,
+          "clean_nn_cos_dist_median": 0.2477,
+          "id_probe_r2": 0.769,
+          "transition_resolution_ratio_cos": 0.0867,
+          "transition_resolution_ratio_l2": 0.2989
         }
       },
       "Reacher": {
@@ -390,12 +391,12 @@
           "transition_resolution_ratio_l2": 0.7216
         },
         "representative": {
-          "action_mean_pred_shift_norm": 0.4482,
-          "clean_effective_rank": 33.59,
-          "clean_nn_cos_dist_median": 0.0281,
-          "id_probe_r2": -0.0573,
-          "transition_resolution_ratio_cos": 0.378,
-          "transition_resolution_ratio_l2": 0.6055
+          "action_mean_pred_shift_norm": 0.4843,
+          "clean_effective_rank": 37.69,
+          "clean_nn_cos_dist_median": 0.0321,
+          "id_probe_r2": 0.1419,
+          "transition_resolution_ratio_cos": 0.461,
+          "transition_resolution_ratio_l2": 0.6621
         }
       }
     }

@@ -420,7 +420,14 @@ Cube & noise $0.03$ & $68.33$ & $-3.33$ & $0.238$ & $0.115$ \\
 \end{tabular}
 \end{table}
 
-The strict reading is important. The diagnostic supports the ACPC framing because robust noise-trained checkpoints have much smaller action-conditioned prediction basins under same-family visual perturbations: e.g., PushT reduces $R_F$ from $1.543$ to $0.088$, and TwoRoom from $0.785$ to $0.028$. It does \emph{not} support the stronger universal claim that encoder representations remain widely separated while predictions alone collapse them. In this Gaussian-noise setting, robust checkpoints usually shrink both the encoder basin and the predictive basin, with the predictor-space radius remaining the control-facing quantity. This is why we use the basin diagnostic to refine the mechanism claim, not to replace the behavioural corruption evaluation.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{pusht_fullseq_selective_contraction_clusters.png}
+\caption{Qualitative PushT view of the same-state perturbation basins behind \Cref{tab:acpc-basin}. Each coloured anchor denotes one dataset state; coloured local samples are repeated Gaussian perturbation views of that same state, and grey points show the sampled background cloud. Top: clean-trained LeWM; bottom: full-sequence noise-trained LeWM at \stdmax{} $=0.08$. Left panels use encoder-history features; right panels use $H=8$ predictor-rollout features. The t-SNE plane and 90\% covariance ellipses are visualization only; inset statistics (\emph{median $r$/NN}, \emph{$r<\mathrm{NN}$}, and \emph{disjoint balls}) are computed in the original high-dimensional feature space. This is a representative mechanism view; the multi-task quantitative evidence remains \Cref{tab:acpc-basin}.}
+\label{fig:selective-contraction}
+\end{figure}
+
+The strict reading is important. The diagnostic supports the ACPC framing because robust noise-trained checkpoints have much smaller action-conditioned prediction basins under same-family visual perturbations: e.g., PushT reduces $R_F$ from $1.543$ to $0.088$, and TwoRoom from $0.785$ to $0.028$. \Cref{fig:selective-contraction} provides a representative PushT visualization of this contraction, but it should not be read as a standalone proof or a high-dimensional basin boundary. The result does \emph{not} support the stronger universal claim that encoder representations remain widely separated while predictions alone collapse them. In this Gaussian-noise setting, robust checkpoints usually shrink both the encoder basin and the predictive basin, with the predictor-space radius remaining the control-facing quantity. This is why we use the basin diagnostic to refine the mechanism claim, not to replace the behavioural corruption evaluation.
 
 The broader representation-level evidence appears next in \Cref{tab:diag-base-vs-best}.
 
@@ -665,7 +672,7 @@ The result is consistent with a closed-loop train/eval consistency explanation r
 
 \paragraph{Limitation 3 --- diagnostic scope.} The framework is empirical. Reacher and TwoRoom fail the partial-correlation criterion for all metrics, and we do not yet have a theory predicting which tasks support cross-checkpoint diagnostics.
 
-\paragraph{Limitation 4 --- method scope.} The main paired ACPC basin diagnostic is LeWM/Gaussian-noise only. Appendix~\ref{sec:appendix-H} broadens the probes under auxiliary pixels+goal stress, but those rows are post-hoc, small-sample, and exploratory. Appendix~\ref{sec:appendix-I} adds the target-view ablation, which is negative; a method paper still needs a trained predictive-consistency objective.
+\paragraph{Limitation 4 --- method scope.} The main paired ACPC basin diagnostic is LeWM/Gaussian-noise only. PLDM supports the task-level robustness signature and exploratory paired diagnostics, but we do not claim a method-invariant ACPC-basin mechanism. Appendix~\ref{sec:appendix-H} broadens the probes under auxiliary pixels+goal stress, but those rows are post-hoc, small-sample, and exploratory. Appendix~\ref{sec:appendix-I} adds the target-view ablation, which is negative; a method paper still needs a trained predictive-consistency objective.
 
 \paragraph{Additional ablation --- hard $\ne$ nuisance.} A heteroscedastic NLL probe with a learned per-transition $\sigma$-head shows why error-based downweighting is unsafe in this setting: TwoRoom remains strong, but PushT unperturbed success collapses from $86.33\%$ to $13.33\%$ because contact-control transitions are high-error and action-critical. Full data are in \Cref{sec:appendix-D}.
 
@@ -738,6 +745,17 @@ Training runs on a single NVIDIA H800 (80\,GB) and follows the LeWM training sch
 
 \subsection{Main-figure rendering}
 \Cref{fig:sweep,fig:scatter} are produced by \code{tools/paper1\_figs.py}; run \codebrk{python -m tools.paper1\_figs --out-dir assets/paper1\_figs}. The script reads \dataset{canonical\_evals\_20260517.json} together with \dataset{canonical\_diagnostics\_20260517.json}; no checkpoint or model loading is required.
+
+\Cref{fig:selective-contraction} is produced by \codebrk{tools/paper1\_selective\_contraction.py}. The paper-facing rendering command is:
+
+\begin{lstlisting}
+python -m tools.paper1_selective_contraction \
+  --plot-clusters --plot-tasks PushT \
+  --cluster-out-dir assets/paper1_figs \
+  --cluster-envelope ellipse --cluster-envelope-coverage 0.90
+\end{lstlisting}
+
+Unlike the aggregate figure generator, this optional rendering path loads the PushT checkpoints and dataset windows to draw repeated same-state perturbation samples. The panel annotations are high-dimensional statistics; the t-SNE ellipses are only qualitative 2-D summaries.
 
 \subsection{Corruption visualizations}\label{sec:appendix-A-corruption-viz}
 \Cref{fig:corruption-viz} shows representative renderings of the two evaluated corruption families, applied to a sample observation from each of the four tasks. The Gaussian-noise row includes a mild calibration severity $\sigma = 0.03$ in addition to the two evaluation endpoints $\sigma \in \{0.05, 0.08\}$ used in \Cref{sec:exp-cliff,sec:exp-sweep}; the main sweep treats observation-only noise with an unperturbed goal as the primary endpoint and keeps pixels+goal noise as an auxiliary stress condition. The Gaussian-blur kernel sizes ($k \in \{3, 7, 11, 15\}$) match the stress test in \Cref{sec:appendix-G}. Each panel is a single $224 \times 224$ RGB frame from the corresponding task's evaluation rollout, after corruption and before encoder normalisation.

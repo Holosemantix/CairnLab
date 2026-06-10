@@ -1,6 +1,6 @@
 # Paper 1 工具说明
 
-本目录下和 Paper 1 直接相关的脚本分三类：release gate、图表/统计复现、从本地原始实验目录重新聚合 canonical artifact。除非特别说明，命令都从仓库根目录 `/home/ag/projects/wm_exp` 执行。
+本目录下和 Paper 1 直接相关的脚本分三类：release gate、图表/统计复现、从本地原始实验目录重新聚合 canonical artifact。除非特别说明，命令都从仓库根目录执行。
 
 ## 最常用命令
 
@@ -77,7 +77,7 @@ python -m tools.paper1_selective_contraction \
 
 ACPC basin runner 默认只接受 Gaussian-noise corruption specs，并使用 dense eval grid `0.01 ... 0.08`，以匹配 Paper 1 的 Gaussian-noise training sweep；它默认只扰动 observation history、保持 goal clean。不要把 blur/resize 混入这个 artifact。默认命令只跑 LeWM dense 4 tasks × 9 configs；PLDM appendix replication 使用 `--methods PLDM` 跑同样的 4 tasks × 9 configs full sweep。`--base-vs-best` 仅保留作快速本地审计，不作为 paper-facing artifact。`--dry-run` 只解析 manifest 和 epoch-10 checkpoint 路径，不加载模型。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 `/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/<task-root>/ckpt/<subdir>/` 下存在唯一 `*epoch_10_object.ckpt`。
 
-Phase 0 ACPC runner 的 `--dry-run` 只解析 manifest 和 checkpoint 路径，不需要 `torch`。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 canonical eval 里的 `path` 或 `--model-root` 下存在可 `torch.load` 的 model object checkpoint。当前 ADM 是 action-distance latent proxy，不是 oracle state/keypoint ADM。
+Phase 0 ACPC runner 的 `--dry-run` 只解析 manifest 和 checkpoint 路径，不需要 `torch`；shell wrapper `run_phase0_acpc.sh --dry-run` 输出到 `/tmp/acpc_phase0_dry_run.json`，避免覆盖 canonical artifact。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 canonical eval 里的 `path` 或 `--model-root` 下存在可 `torch.load` 的 model object checkpoint。当前 ADM 是 action-distance latent proxy，不是 oracle state/keypoint ADM。
 
 Selective-contraction cluster plots are paper-facing qualitative illustrations, not standalone proof. Read the t-SNE envelope as a 2-D visual summary only; the panel annotations (`median r/NN`, `r < NN`, `disjoint balls`) are computed in the original high-D feature space. Use `--cluster-envelope circle` only to reproduce the legacy max-distance circle view; `--cluster-envelope hull` is a sample hull and should not be presented as a high-D basin boundary.
 
@@ -92,7 +92,7 @@ python -m tools.paper1_selective_contraction \
   --cluster-envelope ellipse --cluster-envelope-coverage 0.90
 ```
 
-Do not compare LeWM and PLDM t-SNE coordinates or envelope areas directly; if PLDM visualization is used, treat it as a qualitative method-family sanity check and keep the high-D ACPC basin table as the evidence.
+For quick path checks, reduce the render size, for example add `--n-sequences 48 --cluster-anchor-count 10 --cluster-perturb-repeats 3 --cluster-perplexity 12 --cluster-tsne-max-iter 350`; this is a smoke test, not a paper-facing figure. For non-LeWM methods, the default summary output is method-specific (for example `selective_contraction_pldm_noise_branch.*`) so that sanity runs do not overwrite the LeWM paper-facing branch summary. Do not compare LeWM and PLDM t-SNE coordinates or envelope areas directly; if PLDM visualization is used, treat it as a qualitative method-family sanity check and keep the high-D ACPC basin table as the evidence.
 
 ## Canonical artifact builders
 

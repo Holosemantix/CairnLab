@@ -19,8 +19,10 @@ ROOT = Path(__file__).resolve().parents[1]
 RELEASE_FILES = [
     ROOT / "paper1" / "main.tex",
     ROOT / "tools" / "paper1_figs.py",
+    ROOT / "tools" / "README_paper1.md",
     ROOT / "paper1" / "references.bib",
     ROOT / "DATA_MANIFEST.md",
+    ROOT / "assets" / "paper1_data" / "selective_contraction_fullseq_branch.md",
     ROOT / "assets" / "paper1_data" / "canonical_diagnostics_20260517.json",
     ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
@@ -70,6 +72,10 @@ FORBIDDEN_SNIPPETS = [
     "LeWM + SWM",
     "PushT n=18 scatter",
     "best (σ*=",
+    "same-state encoder/predictor basins shrink",
+    "same-state basin shrinkage is not monotone",
+    "smaller same-state perturbation basin",
+    "high-D basin support",
 ]
 
 EXPECTED_TASKS = {"TwoRoom", "PushT", "Reacher", "Cube"}

@@ -58,6 +58,19 @@ def _load_json(path: Path) -> Any:
         return json.load(f)
 
 
+def _resolve_summary_paths(method: str, out_json: Path, out_md: Path) -> tuple[Path, Path]:
+    if method == "LeWM":
+        return out_json, out_md
+
+    branch = "noise"
+    slug = method.lower()
+    if out_json == DEFAULT_OUT_JSON:
+        out_json = DEFAULT_DATA_DIR / f"selective_contraction_{slug}_{branch}_branch.json"
+    if out_md == DEFAULT_OUT_MD:
+        out_md = DEFAULT_DATA_DIR / f"selective_contraction_{slug}_{branch}_branch.md"
+    return out_json, out_md
+
+
 def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
@@ -226,7 +239,7 @@ def build_summary(
                 else f"existing {display_method} noise sweep"
             ),
             "interpretation": (
-                "RE/RF are same-state perturbation basin radii from the primary "
+                "RE/RF are same-state perturbation radii from the primary "
                 "observation-only ACPC basin diagnostic. ADM/SPRR are auxiliary "
                 "pixels+goal Phase-0 proxies and should be read only as branch "
                 "sanity checks, not paper-facing proof. Optional cluster plots "
@@ -250,9 +263,9 @@ def _readable_conclusion(
     adm_best: float,
 ) -> str:
     same_state = (
-        "same-state encoder/predictor basins shrink"
+        "same-state encoder/predictor radii contract"
         if re_best < re_base and rf_best < rf_base
-        else "same-state basin shrinkage is not monotone"
+        else "same-state radius contraction is not monotone"
     )
     trans = _ratio(trans_best, trans_base)
     adm = _ratio(adm_best, adm_base)
@@ -313,7 +326,8 @@ def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
     lines.extend(
         [
             "",
-            "Reading: lower R_E/R_F means a smaller same-state perturbation basin. "
+            "Reading: lower R_E/R_F means smaller same-state perturbation spread "
+            "in the reported feature space. "
             "Higher SPRR means the auxiliary action-distance margin is larger relative "
             "to paired rollout disagreement. ADM/SPRR come from the exploratory pixels+goal "
             "Phase-0 diagnostic, so they are supportive visualization/branch evidence only.",
@@ -1423,6 +1437,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
+    args.out_json, args.out_md = _resolve_summary_paths(args.method, args.out_json, args.out_md)
     summary = build_summary(
         acpc_basin_path=args.acpc_basin,
         acpc_phase0_path=args.acpc_phase0,

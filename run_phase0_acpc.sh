@@ -41,7 +41,9 @@ export STABLEWM_HOME="$DATA_ROOT"
 
 # Verify deps
 echo "[phase0] Verifying environment..."
-if ! python3 -c "import torch; import stable_worldmodel; import stable_pretraining; print('  OK')" 2>/dev/null; then
+if [[ "${1:-}" == "--dry-run" || "${1:-}" == "--single" ]]; then
+    echo "  SKIP (dry-run does not load models)"
+elif ! python3 -c "import torch; import stable_worldmodel; import stable_pretraining; print('  OK')" 2>/dev/null; then
     echo "[phase0] ERROR: torch / stable_worldmodel / stable_pretraining not found."
     echo "[phase0] Please activate the correct conda/venv."
     exit 1
@@ -58,14 +60,16 @@ LIMIT=""
 case "${1:-}" in
     --dry-run)
         echo "[phase0] DRY-RUN mode: resolving manifests and model files only."
+        OUT="/tmp/acpc_phase0_dry_run.json"
         EXTRA_FLAGS="--dry-run"
         ;;
     --single)
-        echo "[phase0] SINGLE mode: PushT LeWM 0.0 only."
+        echo "[phase0] SINGLE mode: PushT LeWM 0.0 dry-run only."
         METHODS="LeWM"
         TASKS="PushT"
         STD_KEYS="0.0"
         OUT="/tmp/acpc_phase0_single.json"
+        EXTRA_FLAGS="--dry-run"
         ;;
     --lewm-only)
         echo "[phase0] LEWM-ONLY mode: 36 ckpts."
@@ -104,5 +108,6 @@ with open('$OUT') as f:
 rows = d['rows']
 ok = sum(1 for r in rows if r['status'] == 'ok')
 err = sum(1 for r in rows if r['status'] == 'error')
-print(f'[phase0] Results: {ok} OK, {err} error, {len(rows)} total')
+dry = sum(1 for r in rows if r['status'] == 'dry_run')
+print(f'[phase0] Results: {ok} OK, {err} error, {dry} dry-run, {len(rows)} total')
 "

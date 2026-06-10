@@ -11,9 +11,10 @@ Default scope is the LeWM canonical sweep:
 
 The script is eval-only: it loads existing checkpoints, samples fixed dataset
 windows, applies the same corruption family used by the training sweep
-(Gaussian pixel noise) to the history/goal frames, and rolls all views forward
-under the same action sequence.  It intentionally rejects blur/resize specs so
-the paper-facing diagnostic does not mix train/eval corruption families.
+(Gaussian pixel noise) to the history frames and optionally the goal frames,
+then rolls all views forward under the same action sequence.  It intentionally
+rejects blur/resize specs so the paper-facing diagnostic does not mix train/eval
+corruption families.
 """
 
 from __future__ import annotations

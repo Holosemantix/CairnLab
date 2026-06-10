@@ -11,7 +11,7 @@ Companion plan / storyline doc: `PLAN.md` (next to this README).
 ```
 paper1/
 ├── main.tex          # the paper (article class, ~970 lines)
-├── references.bib    # 35 entries; final source audit is tracked in PLAN.md
+├── references.bib    # 41 entries; final source audit is tracked in reference_audit.md
 ├── figures/          # symlink → ../assets/paper1_figs/
 ├── build.sh          # `bash build.sh` (uses latexmk if available, else pdflatex + bibtex)
 ├── .gitignore        # ignores LaTeX intermediates; main.pdf is tracked intentionally

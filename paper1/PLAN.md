@@ -188,3 +188,12 @@ python -m tools.pldm_correlation_analysis \
 python -m tools.build_partial_corr_bootstrap \
   --out assets/paper1_data/partial_corr_bootstrap_20260523.json
 ```
+
+---
+
+## 9. Release gate log
+
+- 2026-06-10, base commit `57e9cb3` plus pre-submission polish working tree.
+  - `python -m tools.check_paper1_consistency`: PASS; final stdout line was `[OK] paper1 release consistency checks passed`.
+  - `cd paper1 && bash build.sh --clean`: PASS; final stdout line was `OK: paper1/main.pdf built (6691335 bytes)`.
+  - `paper1/main.log`: PASS; no final `Overfull`, `Underfull`, undefined reference/citation, fatal error, or undefined control sequence matches.

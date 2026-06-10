@@ -162,16 +162,44 @@ def resolve_epoch10_model_file(
 
 def iter_manifest_rows(
     *,
+    method: str,
     tasks: Sequence[str],
     std_keys: Sequence[str],
     eval_file: Path,
-) -> Iterable[tuple[str, str, Mapping[str, Any]]]:
+) -> Iterable[tuple[str, str, str, Mapping[str, Any]]]:
     data = _load_json(eval_file)
     for task in tasks:
         task_block = data.get(task, {})
         for std_key in std_keys:
             if std_key in task_block:
-                yield task, std_key, task_block[std_key]
+                yield method, task, std_key, task_block[std_key]
+
+
+def iter_base_vs_best_rows(
+    *,
+    method: str,
+    tasks: Sequence[str],
+    eval_file: Path,
+    robust_metric: str,
+) -> Iterable[tuple[str, str, str, Mapping[str, Any]]]:
+    data = _load_json(eval_file)
+    for task in tasks:
+        task_block = data.get(task, {})
+        if "0.0" not in task_block:
+            continue
+        yield method, task, "0.0", task_block["0.0"]
+        best_std, best_entry = max(
+            (
+                (std_key, entry)
+                for std_key, entry in task_block.items()
+                if std_key != "0.0" and robust_metric in entry.get("metrics", {})
+            ),
+            key=lambda item: (
+                _mean_metric(item[1], robust_metric),
+                _mean_metric(item[1], "clean"),
+            ),
+        )
+        yield method, task, best_std, best_entry
 
 
 def make_corrupted_batch(
@@ -244,6 +272,7 @@ def _ratio(num: float, den: float) -> float:
 
 def run_checkpoint(
     *,
+    method: str,
     task: str,
     std_key: str,
     entry: Mapping[str, Any],
@@ -356,7 +385,7 @@ def run_checkpoint(
 
         return {
             "status": "ok",
-            "method": "LeWM",
+            "method": method,
             "task": task,
             "std_key": std_key,
             "subdir": entry.get("subdir"),
@@ -417,9 +446,17 @@ def run_checkpoint(
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Run Paper 1 Gaussian-noise ACPC basin diagnostics.")
+    p.add_argument("--methods", nargs="+", default=["LeWM"], choices=sorted(phase0.METHOD_EVALS))
     p.add_argument("--tasks", nargs="+", default=list(phase0.TASKS), choices=list(phase0.TASKS))
     p.add_argument("--std-keys", nargs="+", default=list(phase0.STD_KEYS))
     p.add_argument("--evals-lewm", default=phase0.METHOD_EVALS["LeWM"])
+    p.add_argument("--evals-pldm", default=phase0.METHOD_EVALS["PLDM"])
+    p.add_argument(
+        "--base-vs-best",
+        action="store_true",
+        help="Run only each task's baseline plus robust-metric best non-baseline checkpoint.",
+    )
+    p.add_argument("--robust-metric", default="pixels_std0.08")
     p.add_argument(
         "--model-root",
         action="append",
@@ -456,19 +493,39 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
-    eval_file = Path(args.evals_lewm)
+    eval_files = {
+        "LeWM": Path(args.evals_lewm),
+        "PLDM": Path(args.evals_pldm),
+    }
     model_roots = [Path(p).expanduser() for p in args.model_root]
     corruption_specs = parse_corruptions(args.corruptions)
     rows: list[dict[str, Any]] = []
 
-    manifest = list(
-        iter_manifest_rows(tasks=args.tasks, std_keys=args.std_keys, eval_file=eval_file)
-    )
+    manifest: list[tuple[str, str, str, Mapping[str, Any]]] = []
+    for method in args.methods:
+        if args.base_vs_best:
+            manifest.extend(
+                iter_base_vs_best_rows(
+                    method=method,
+                    tasks=args.tasks,
+                    eval_file=eval_files[method],
+                    robust_metric=args.robust_metric,
+                )
+            )
+        else:
+            manifest.extend(
+                iter_manifest_rows(
+                    method=method,
+                    tasks=args.tasks,
+                    std_keys=args.std_keys,
+                    eval_file=eval_files[method],
+                )
+            )
     if args.limit is not None:
         manifest = manifest[: args.limit]
 
     total = len(manifest)
-    for row_idx, (task, std_key, entry) in enumerate(manifest, start=1):
+    for row_idx, (method, task, std_key, entry) in enumerate(manifest, start=1):
         model_file, tried, resolution = resolve_epoch10_model_file(
             task=task,
             subdir=str(entry.get("subdir", "")),
@@ -480,7 +537,7 @@ def main() -> None:
             rows.append(
                 {
                     "status": status,
-                    "method": "LeWM",
+                    "method": method,
                     "task": task,
                     "std_key": std_key,
                     "subdir": entry.get("subdir"),
@@ -498,11 +555,12 @@ def main() -> None:
         try:
             print(
                 f"[paper1_acpc_basin] ({row_idx}/{total}) "
-                f"running LeWM {task} std={std_key} -> {model_file}",
+                f"running {method} {task} std={std_key} -> {model_file}",
                 flush=True,
             )
             rows.append(
                 run_checkpoint(
+                    method=method,
                     task=task,
                     std_key=std_key,
                     entry=entry,
@@ -513,14 +571,14 @@ def main() -> None:
             )
             print(
                 f"[paper1_acpc_basin] ({row_idx}/{total}) "
-                f"finished LeWM {task} std={std_key}",
+                f"finished {method} {task} std={std_key}",
                 flush=True,
             )
         except Exception as exc:  # noqa: BLE001 - record per-row failure.
             rows.append(
                 {
                     "status": "error",
-                    "method": "LeWM",
+                    "method": method,
                     "task": task,
                     "std_key": std_key,
                     "subdir": entry.get("subdir"),
@@ -534,9 +592,12 @@ def main() -> None:
         "metadata": {
             "schema_version": "paper1-acpc-basin-0.1",
             "created_utc": datetime.now(timezone.utc).isoformat(),
-            "method": "LeWM",
+            "method": args.methods[0] if len(args.methods) == 1 else None,
+            "methods": list(args.methods),
             "tasks": list(args.tasks),
             "std_keys": list(args.std_keys),
+            "base_vs_best": bool(args.base_vs_best),
+            "robust_metric": str(args.robust_metric),
             "corruptions": corruption_specs,
             "corrupt_goal": bool(args.corrupt_goal),
             "dry_run": bool(args.dry_run),

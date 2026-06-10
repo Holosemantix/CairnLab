@@ -25,6 +25,7 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json",
+    ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm_base_best.json",
     ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
@@ -47,6 +48,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.json",
     ROOT / "assets" / "paper1_data" / "canonical_blur_baselines_20260523.schema.json",
     ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json",
+    ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm_base_best.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
     ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json",
@@ -121,6 +123,16 @@ EXPECTED_ACPC_PHASE0_METRICS = {
 EXPECTED_BOOTSTRAP_SCOPES = {"within_lewm", "within_pldm", "joint"}
 EXPECTED_BOOTSTRAP_METRICS = {"frag", "drift"}
 EXPECTED_ACPC_BASIN_CORRUPTIONS = {round(i / 100, 2) for i in range(1, 9)}
+EXPECTED_PLDM_ACPC_BASIN_KEYS = {
+    ("TwoRoom", "0.0"),
+    ("TwoRoom", "0.06"),
+    ("PushT", "0.0"),
+    ("PushT", "0.03"),
+    ("Reacher", "0.0"),
+    ("Reacher", "0.03"),
+    ("Cube", "0.0"),
+    ("Cube", "0.04"),
+}
 REQUIRED_ACPC_BASIN_FIELDS = {
     "pixels_std0.08_success",
     "pixels_goal_std0.08_success",
@@ -633,6 +645,78 @@ def check_acpc_basin_json() -> None:
         fail("ACPC basin task/config coverage mismatch")
 
 
+def check_pldm_acpc_basin_base_best_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm_base_best.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    meta = data.get("metadata", {})
+    if meta.get("schema_version") != "paper1-acpc-basin-0.1":
+        fail(f"unexpected PLDM ACPC basin schema: {meta.get('schema_version')!r}")
+    if meta.get("method") != "PLDM" or meta.get("methods") != ["PLDM"]:
+        fail(f"PLDM ACPC basin method mismatch: {meta.get('method')!r}/{meta.get('methods')!r}")
+    if meta.get("base_vs_best") is not True:
+        fail("PLDM ACPC basin must be a base-vs-best replication")
+    if meta.get("robust_metric") != "pixels_std0.08":
+        fail(f"PLDM ACPC basin robust metric mismatch: {meta.get('robust_metric')!r}")
+    if meta.get("corrupt_goal") is not False:
+        fail("PLDM ACPC basin metadata should mark corrupt_goal=false")
+    if meta.get("dry_run") is not False:
+        fail("PLDM ACPC basin artifact must be from a real run, not dry-run")
+
+    corruptions = meta.get("corruptions")
+    if not isinstance(corruptions, list) or len(corruptions) != 8:
+        fail("PLDM ACPC basin metadata must list exactly 8 Gaussian-noise corruptions")
+    got_magnitudes = set()
+    for spec in corruptions:
+        if spec.get("type") != "gaussian_noise":
+            fail(f"PLDM ACPC basin contains non-noise corruption: {spec}")
+        got_magnitudes.add(round(float(spec.get("magnitude")), 2))
+    if got_magnitudes != EXPECTED_ACPC_BASIN_CORRUPTIONS:
+        fail("PLDM ACPC basin corruption grid mismatch")
+
+    rows = data.get("rows")
+    if not isinstance(rows, list) or len(rows) != len(EXPECTED_PLDM_ACPC_BASIN_KEYS):
+        fail(f"PLDM ACPC basin row count mismatch: {len(rows) if isinstance(rows, list) else type(rows)}")
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        task = row.get("task")
+        std_key = row.get("std_key")
+        key = (task, std_key)
+        if key not in EXPECTED_PLDM_ACPC_BASIN_KEYS:
+            fail(f"unexpected PLDM ACPC basin row key: {key}")
+        if key in seen:
+            fail(f"duplicate PLDM ACPC basin row: {key}")
+        seen.add(key)
+        if row.get("status") != "ok":
+            fail(f"PLDM ACPC basin row {key} is not ok: {row.get('status')}")
+        if row.get("method") != "PLDM":
+            fail(f"PLDM ACPC basin row method mismatch: {key}")
+        if row.get("corrupt_goal") is not False:
+            fail(f"PLDM ACPC basin row should keep the goal clean: {key}")
+        model_file = str(row.get("model_file", ""))
+        if not model_file.endswith("epoch_10_object.ckpt"):
+            fail(f"PLDM ACPC basin row does not use epoch_10 object ckpt: {model_file}")
+        variants = row.get("variant_rows")
+        if not isinstance(variants, list) or len(variants) != 8:
+            fail(f"PLDM ACPC basin {key} must contain 8 variant rows")
+        variant_magnitudes = set()
+        for variant in variants:
+            if variant.get("corruption_type") != "gaussian_noise":
+                fail(f"PLDM ACPC basin {key} has non-noise variant: {variant}")
+            variant_magnitudes.add(round(float(variant.get("magnitude")), 2))
+        if variant_magnitudes != EXPECTED_ACPC_BASIN_CORRUPTIONS:
+            fail(f"PLDM ACPC basin {key} variant grid mismatch")
+        missing = REQUIRED_ACPC_BASIN_FIELDS - set(row)
+        if missing:
+            fail(f"PLDM ACPC basin {key} missing fields: {sorted(missing)}")
+        for field in REQUIRED_ACPC_BASIN_FIELDS:
+            value = row[field]
+            if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                fail(f"PLDM ACPC basin {key}/{field} is not finite")
+    if seen != EXPECTED_PLDM_ACPC_BASIN_KEYS:
+        fail("PLDM ACPC basin task/config coverage mismatch")
+
+
 def check_external_baselines_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "canonical_external_baselines_20260520.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -919,6 +1003,7 @@ def main() -> int:
         ("acpc phase0 diagnostics json", check_acpc_phase0_diagnostics_json),
         ("blur baselines json", check_blur_baselines_json),
         ("acpc basin json", check_acpc_basin_json),
+        ("pldm acpc basin base-best json", check_pldm_acpc_basin_base_best_json),
         ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),

@@ -9,6 +9,7 @@ from . import __version__
 from .adapters import AdapterSelectionError, adapter_names, detect_adapters, select_adapter
 from .engine import CairnProject
 from .models import Actor, ClaimState
+from .transition_explain import explain_transition_decision, render_transition_explanation_text
 from .utils import actor_from_string
 
 app = typer.Typer(help="CairnLab Research Claim Kernel CLI")
@@ -217,6 +218,31 @@ def transition_request(
             typer.echo(f"Appended {len(decision.events)} transition event(s)")
         elif record_blocked and decision.decision == "blocked":
             typer.echo(f"Recorded {len(decision.events)} blocked transition event(s)")
+
+
+@transition_app.command("explain")
+def transition_explain(
+    claim_id: str,
+    to: ClaimState = typer.Option(..., "--to"),
+    reason: str = typer.Option(..., "--reason"),
+    actor: str = typer.Option("user:unknown", "--actor"),
+    force: bool = typer.Option(False, "--force"),
+    path: Path = typer.Option(Path("."), "--path"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    project = CairnProject.open(path)
+    decision = project.request_transition(
+        claim_id=claim_id,
+        target_state=to,
+        actor=actor_from_string(actor),
+        reason=reason,
+        force=force,
+    )
+    explanation = explain_transition_decision(decision)
+    if json_output:
+        typer.echo(explanation.model_dump_json(indent=2))
+        return
+    typer.echo(render_transition_explanation_text(explanation))
 
 
 @adapter_app.command("detect")

@@ -91,12 +91,14 @@ Transition authority:
 cairn transition request claim:C1 --to released --reason "release review"
 cairn transition request claim:C1 --to released --reason "release review" --apply
 cairn transition request claim:C1 --to released --reason "release review" --record-blocked
+cairn transition explain claim:C1 --to released --reason "release review" --json
 ```
 
 `trace` reports `observed_state` and `authority_state` for claims. The legacy
 `projected_state` field remains for compatibility and is the authority projection.
 `transition request` is plan-only unless `--apply` is set. Blocked transitions are
-not persisted unless `--record-blocked` is set for audit.
+not persisted unless `--record-blocked` is set for audit. `transition explain`
+is always plan-only; it renders the `TransitionDecision` without appending events.
 
 ## Output Rule
 
@@ -126,4 +128,5 @@ Current coverage:
 
 - `adapter detect` JSON output;
 - `import-external` with auto-detected adapter;
-- underlying import, trace, revert, and transition behavior through engine tests.
+- underlying import, trace, revert, and transition behavior through engine tests;
+- `transition explain` JSON/text output and plan-only behavior.

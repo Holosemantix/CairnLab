@@ -1,0 +1,73 @@
+schema_version: "0.1"
+project_name: "cairnlab"
+
+principles:
+  strategic_boundary:
+    description: "CairnLab is a Research Claim Kernel, not an autonomous scientist or generic integration dashboard."
+    severity: error
+  transition_authority:
+    description: "Only deterministic authority code decides claim lifecycle transitions; CLI, adapters, and reports must not decide release or verification."
+    severity: error
+  append_only_state:
+    description: "Claim authority state is derived from append-only events, not mutable imported fields."
+    severity: error
+  low_coupling:
+    description: "Modules expose narrow APIs and preserve dependency direction from models upward to facades."
+    severity: error
+  reliability:
+    description: "Public behavior changes must include deterministic tests and design document updates when module contracts change."
+    severity: error
+  minimalism:
+    description: "Prefer small, reversible changes and avoid speculative policy layers."
+    severity: warning
+  observability:
+    description: "Blocked decisions must expose stable reasons and actionable required actions."
+    severity: warning
+
+budgets:
+  # Legacy-tolerant static budgets: current CairnLab has large adapter and model
+  # modules. New work should follow the stricter review checklist below until
+  # CairnDev supports path-specific legacy debt exemptions.
+  max_python_file_lines: 800
+  max_function_lines: 120
+  max_class_methods: 40
+  max_public_api_per_module: 35
+  max_new_runtime_dependencies_per_change: 1
+  require_tests_for_changed_public_behavior: true
+  require_adr_for_new_abstraction_layer: true
+  disallow_circular_imports: true
+  discourage_global_mutable_state: false
+
+commands:
+  test: "pytest -q"
+  quality_check: "PYTHONPATH=/opt/workspace/explorer-env/dataset/ag_data/code/CairnDev/src python -m cairndev.cli check ."
+
+change_budgets:
+  new_python_file_target_lines: 250
+  new_function_target_lines: 60
+  new_class_target_methods: 10
+  cli_handler_target_lines: 30
+  require_design_doc_for_cli_changes: true
+  require_design_doc_for_transition_semantics: true
+
+module_boundaries:
+  models: "Portable data contracts only; no store, CLI, runtime, or adapter imports."
+  authority: "Owns deterministic transition decisions; does not render CLI output or persist events."
+  transition_explain: "May format TransitionDecision for human/JSON output; must not decide transition semantics."
+  cli: "Command facade only; parse options, call public APIs, render output."
+  adapters: "Translate external metadata into ClaimCase only; never decide lifecycle authority."
+
+known_legacy_debt:
+  - "src/cairnlab/adapters/aris_manifest.py exceeds preferred file and class size."
+  - "src/cairnlab/adapters/autoresearchclaw_e2e_run.py exceeds preferred file and class size."
+  - "src/cairnlab/models.py intentionally exposes many public model contracts."
+  - "tests/test_transition_authority.py exceeds preferred file size."
+
+review_checklist:
+  - "Does this preserve the Research Claim Kernel boundary?"
+  - "Does authority remain the only module deciding allowed or blocked transitions?"
+  - "Does CLI stay a thin I/O facade?"
+  - "Are I/O, explanation formatting, transition semantics, and persistence separated?"
+  - "Are public behavior changes covered by tests?"
+  - "Were relevant design docs updated in the same change?"
+  - "Did this avoid new dependencies and speculative abstractions?"

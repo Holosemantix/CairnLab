@@ -22,9 +22,9 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 | 脚本 | 作用 | 输入 | 输出 / 用途 |
 |---|---|---|---|
 | `tools/paper1_figs.py` | 渲染主文中由脚本生成的图 | `assets/paper1_data/canonical_evals_20260517.json`, `assets/paper1_data/canonical_diagnostics_20260517.json` | 默认输出 `assets/paper1_figs/fig2_sweep.png`, `fig5_scatter.png`；已下线的 `fig3_pareto.png`, `fig4_radar.png`, `fig6_mechanism.png` 仍可用 `--only` 生成但当前不进正文 |
-| `tools/build_partial_corr_bootstrap.py` | 为 partial Spearman 相关计算 95% percentile bootstrap CI | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/partial_corr_bootstrap_20260523.json`，用于主文 Table 7 和 Appendix F |
-| `tools/pldm_correlation_analysis.py` | 复算 LeWM/PLDM within-method 与 joint partial correlation | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/cross_method_corr_pldm_20260522.json`，用于 Appendix F 和 consistency checker |
-| `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / prediction radius / contraction | LeWM/PLDM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；Appendix F 的 PLDM full-sweep replication 用 `assets/paper1_data/acpc_basin_diagnostics_pldm.json` |
+| `tools/build_partial_corr_bootstrap.py` | 为 partial Spearman 相关计算 95% percentile bootstrap CI | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/partial_corr_bootstrap_20260523.json`，用于主文 partial-correlation tables 和 PLDM appendix |
+| `tools/pldm_correlation_analysis.py` | 复算 LeWM/PLDM within-method 与 joint partial correlation | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/cross_method_corr_pldm_20260522.json`，用于 PLDM appendix 和 consistency checker |
+| `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / prediction radius / contraction | LeWM/PLDM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；PLDM appendix 的 full-sweep replication 用 `assets/paper1_data/acpc_basin_diagnostics_pldm.json` |
 | `tools/paper1_phase0_acpc.py` | 低频 paired ACPC 诊断 runner：ACPC-1/H、PCC、CRA、MAF、ADM proxy、SPRR | LeWM/PLDM canonical eval manifest + 本地 loadable model checkpoints | `assets/paper1_data/acpc_phase0_diagnostics.json`；保留作后续 PCC/CRA/ADM 扩展，不作为当前主文 ACPC-basin source |
 | `tools/paper1_selective_contraction.py` | Phase-1 前的 selective-contraction branch probe；可选渲染同 state clean/noised cluster 图 | ACPC basin + Phase-0 diagnostics；plot 模式还需要本地 checkpoint/data | `assets/paper1_data/selective_contraction_fullseq_branch.*`；cluster 图默认输出到 `assets/phase1_figs/selective_contraction_clusters/`，paper-facing 输出可用 `--cluster-out-dir assets/paper1_figs` 生成 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；用 repeated perturbation samples + 90% 2-D covariance ellipse，只作 qualitative visualization |
 
@@ -92,7 +92,7 @@ python -m tools.paper1_selective_contraction \
   --cluster-envelope ellipse --cluster-envelope-coverage 0.90
 ```
 
-The paper-facing PLDM appendix figure (`assets/paper1_figs/pusht_pldm_noise_selective_contraction_clusters.png`, Appendix F) uses the full-quality parameters and the paper-facing output dir:
+The paper-facing PLDM appendix figure (`assets/paper1_figs/pusht_pldm_noise_selective_contraction_clusters.png`) uses the full-quality parameters and the paper-facing output dir:
 
 ```bash
 STABLEWM_HOME=<dataset-root> python -m tools.paper1_selective_contraction \
@@ -106,7 +106,7 @@ STABLEWM_HOME=<dataset-root> python -m tools.paper1_selective_contraction \
   --cluster-envelope ellipse --cluster-envelope-coverage 0.90
 ```
 
-The projection-free local-atlas companion figure (`assets/paper1_figs/pusht_fullseq_selective_contraction_atlas.png`, Appendix A.6) is rendered with:
+The projection-free local-atlas companion figure (`assets/paper1_figs/pusht_fullseq_selective_contraction_atlas.png`) is rendered with:
 
 ```bash
 STABLEWM_HOME=<dataset-root> python -m tools.paper1_selective_contraction \

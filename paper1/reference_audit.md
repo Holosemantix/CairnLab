@@ -1,8 +1,10 @@
 # Reference Audit
 
-Date: 2026-06-10
+Date: 2026-06-11
 
 2026-06-08 final pass: rechecked the temporally unstable 2025/2026 entries against official arXiv, OpenReview, Nature, ICLR, and PMLR pages. The main live checks covered `maes2026lewm`, `maes2026stableworldmodel`, `huang2026vjepa`, `klindt2026lejepaworldmodel`, `usjepa2025`, `njepa2025`, `toso2026bisimjepa`, `assran2025vjepa2`, `vigmo`, `ghaemi2025seqjepa`, `voelcker2025calibratedvalueaware`, `hafner2025dreamerv3`, `dupuis2023vibr`, `gelada2019deepmdp`, `hansen2024tdmpc2`, and `bsmpc`. 2026-06-10 targeted recheck updated `maes2026stableworldmodel` from the earlier workshop v1 record to the newer arXiv platform paper and removed an unsupported precise VJEPA noisy-distractor number.
+
+2026-06-11 targeted recheck: re-opened the official arXiv/OpenReview records for `maes2026lewm`, `maes2026stableworldmodel`, `huang2026vjepa`, `klindt2026lejepaworldmodel`, `toso2026bisimjepa`, `assran2025vjepa2`, `vigmo`, `usjepa2025`, `njepa2025`, and `bardes2024vjepa`. No bibliography metadata changes were needed. Text-use remains bounded: V-JEPA 2 is cited for understanding/prediction/planning; Huang VJEPA is cited only for noisy-environment nuisance filtering without a precise numeric claim; ViGMO is cited for visual distractions and latent consistency; Bisim-JEPA is cited for control-relevant invariant visual representations, with the main text now explicitly stating that ACPC is not a learned bisimulation metric.
 
 Scope: all 41 citation keys used in `paper1/main.tex`. Unused BibTeX entries were removed from `paper1/references.bib`, so every remaining entry is cited.
 

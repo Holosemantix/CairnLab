@@ -4,7 +4,11 @@
 
 Adapters translate external AutoResearch project metadata into portable
 `ClaimCase` objects. They make CairnLab reusable without requiring host projects
-to adopt CairnLab storage, CLI, prompts, or execution runtime.
+to adopt CairnLab storage, CLI, prompts, or execution runtime. When CairnLab
+code invokes, wraps, or validates against a third-party AutoResearch system,
+that call is still part of the adapter boundary: the external system produces
+artifacts, evidence, verifier reports, reviewer notes, or observed upstream
+state, while CairnLab retains all lifecycle authority.
 
 Primary source files:
 
@@ -35,7 +39,11 @@ This module must not own:
 - network access;
 - external project package imports.
 
-Adapters are translators, not authorities.
+Adapters are translators, not authorities. Third-party AutoResearch systems may
+be called only through explicit adapters, manifests, or documented validation
+scripts, and their outputs must not bypass CairnLab evidence policies, verifier
+certificates, governance gates, material-dissent handling, provenance, or
+append-only transition events.
 
 ## Registry Behavior
 
@@ -82,6 +90,10 @@ flowchart TD
 
 The adapter boundary ends at `ClaimCase`. Detection and export do not import the
 host runtime, mutate host state, run experiments, or decide lifecycle authority.
+If a separate validation script invokes a host helper command, the invocation
+must remain explicit, documented, fixture-tested when practical, and limited to
+producing external artifacts that CairnLab later imports through the same
+authority-constrained evidence path.
 
 ## Built-In Adapters
 
@@ -197,6 +209,11 @@ When adding an adapter:
 - emit diagnostics for missing structured metadata;
 - add fixture-based tests;
 - update `docs/ADAPTER_CONTRACT.md` and this document.
+
+When adding code that invokes a third-party AutoResearch system, add tests and
+design notes showing that external outputs remain non-authoritative until
+CairnLab verifier, governance, provenance, dissent, and append-only transition
+requirements are satisfied.
 
 Do not add a plugin mechanism until at least one adapter lives outside this
 repository and needs packaging support.

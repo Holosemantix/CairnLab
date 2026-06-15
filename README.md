@@ -12,6 +12,21 @@ Humans approve.
 
 **No artifact, no claim.**
 
+## Development Setup
+
+Install CairnLab with its development quality tooling from GitHub:
+
+```bash
+pip install -e ".[dev]"
+pytest -q
+cairndev check .
+```
+
+The `dev` extra installs CairnDev as an external quality-control tool. CairnLab
+keeps project-specific constraints in `AGENTS.md`, `.cairndev/contract.yaml`,
+and `.agents/skills/`; CairnDev supplies the reusable checker and workflow
+skill implementation.
+
 ## AutoResearch Adapters
 
 Built-in manifest adapters can translate external project metadata into CairnLab
@@ -53,7 +68,11 @@ verifier_certificates:
 
 This keeps idea generation, paper-to-code, review, experiment execution, and
 verification pluggable: external systems produce artifacts; CairnLab controls
-claim lifecycle transitions.
+claim lifecycle transitions. Any CairnLab code that calls or wraps a
+third-party AutoResearch system must preserve the same boundary: the external
+system may produce artifacts, evidence, verifier reports, reviewer notes, or
+observed upstream state, but it must not bypass CairnLab authority, governance
+gates, provenance, material-dissent handling, or append-only transition events.
 
 Imported `state`/`status` fields are treated as upstream `observed_state`.
 CairnLab authority state is derived from explicit trusted seeds and append-only

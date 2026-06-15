@@ -5,6 +5,11 @@ description = "Research Claim Kernel and AutoResearch landscape survey tools for
 requires-python = ">=3.10"
 dependencies = ["PyYAML>=6.0", "pydantic>=2.0", "typer>=0.12", "rich>=13.0"]
 
+[project.optional-dependencies]
+dev = [
+    "cairndev @ git+https://github.com/Holosemantix/CairnDev.git",
+]
+
 [project.scripts]
 cairn = "cairnlab.cli:app"
 

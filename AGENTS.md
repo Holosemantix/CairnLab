@@ -12,6 +12,32 @@ No artifact, no claim.
 
 LLMs propose. Verifiers decide. Provenance records. Humans approve.
 
+## Development gate
+
+For any task that changes code, tests, CLI behavior, storage, adapters, model
+fields, transition semantics, or development workflow:
+
+1. Read `AGENTS.md`, `.cairndev/contract.yaml`, `docs/design/README.md`,
+   and the affected module design document before editing.
+2. Preserve the current CairnLab requirements: deterministic authority code
+   decides claim lifecycle transitions; CLI, adapters, reports, and imported
+   upstream state do not decide release or verification; authority state is
+   derived from append-only events.
+3. If the task invokes, wraps, imports from, or adapts a third-party AutoResearch
+   system, treat that system as an external artifact/evidence producer. Its
+   outputs may enter CairnLab only through explicit adapters, manifests,
+   verifier certificates, evidence items, observed upstream state, or
+   documented validation scripts; they must not bypass CairnLab authority,
+   governance gates, material-dissent handling, provenance, or append-only
+   transition events.
+4. Name the affected module boundary and the smallest viable change before
+   editing.
+5. Update matching design docs and deterministic tests when public APIs, CLI
+   behavior, schemas, storage layout, adapter contracts, third-party
+   AutoResearch calls, or transition semantics change.
+6. Run the declared test and quality-check commands, or report a concrete
+   blocker.
+
 ## Do not collapse into integration glue
 
 It is not enough to connect MLflow, DVC, PROV, RO-Crate, EviBound-style gates, and reviewer prompts. A change is core only if it affects whether a claim is allowed to transition to a stronger state.

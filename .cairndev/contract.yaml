@@ -11,6 +11,12 @@ principles:
   append_only_state:
     description: "Claim authority state is derived from append-only events, not mutable imported fields."
     severity: error
+  development_gate:
+    description: "Code and development changes must follow AGENTS.md, this contract, docs/design/README.md, and the affected module design document before editing."
+    severity: error
+  third_party_autoresearch_boundary:
+    description: "Third-party AutoResearch systems are external artifact/evidence producers; their outputs must not bypass CairnLab authority, governance, provenance, or append-only transition events."
+    severity: error
   low_coupling:
     description: "Modules expose narrow APIs and preserve dependency direction from models upward to facades."
     severity: error
@@ -40,7 +46,7 @@ budgets:
 
 commands:
   test: "pytest -q"
-  quality_check: "PYTHONPATH=/opt/workspace/explorer-env/dataset/ag_data/code/CairnDev/src python -m cairndev.cli check ."
+  quality_check: "cairndev check ."
 
 change_budgets:
   new_python_file_target_lines: 250
@@ -55,7 +61,7 @@ module_boundaries:
   authority: "Owns deterministic transition decisions; does not render CLI output or persist events."
   transition_explain: "May format TransitionDecision for human/JSON output; must not decide transition semantics."
   cli: "Command facade only; parse options, call public APIs, render output."
-  adapters: "Translate external metadata into ClaimCase only; never decide lifecycle authority."
+  adapters: "Translate or wrap external AutoResearch outputs into ClaimCase/evidence only; never decide lifecycle authority or bypass governance gates."
 
 known_legacy_debt:
   - "src/cairnlab/adapters/aris_manifest.py exceeds preferred file and class size."
@@ -64,10 +70,13 @@ known_legacy_debt:
   - "tests/test_transition_authority.py exceeds preferred file size."
 
 review_checklist:
+  - "Did development work start from AGENTS.md, this contract, docs/design/README.md, and the affected module design document?"
   - "Does this preserve the Research Claim Kernel boundary?"
   - "Does authority remain the only module deciding allowed or blocked transitions?"
+  - "If third-party AutoResearch systems are invoked or adapted, are they constrained to external artifact/evidence production?"
   - "Does CLI stay a thin I/O facade?"
   - "Are I/O, explanation formatting, transition semantics, and persistence separated?"
   - "Are public behavior changes covered by tests?"
   - "Were relevant design docs updated in the same change?"
+  - "Does the change preserve authority-only transitions, thin CLI/adapters, append-only state, governance gates, provenance, and material-dissent handling?"
   - "Did this avoid new dependencies and speculative abstractions?"

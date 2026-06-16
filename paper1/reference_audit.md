@@ -1,12 +1,14 @@
 # Reference Audit
 
-Date: 2026-06-11
+Date: 2026-06-16
 
 2026-06-08 final pass: rechecked the temporally unstable 2025/2026 entries against official arXiv, OpenReview, Nature, ICLR, and PMLR pages. The main live checks covered `maes2026lewm`, `maes2026stableworldmodel`, `huang2026vjepa`, `klindt2026lejepaworldmodel`, `usjepa2025`, `njepa2025`, `toso2026bisimjepa`, `assran2025vjepa2`, `vigmo`, `ghaemi2025seqjepa`, `voelcker2025calibratedvalueaware`, `hafner2025dreamerv3`, `dupuis2023vibr`, `gelada2019deepmdp`, `hansen2024tdmpc2`, and `bsmpc`. 2026-06-10 targeted recheck updated `maes2026stableworldmodel` from the earlier workshop v1 record to the newer arXiv platform paper and removed an unsupported precise VJEPA noisy-distractor number.
 
 2026-06-11 targeted recheck: re-opened the official arXiv/OpenReview records for `maes2026lewm`, `maes2026stableworldmodel`, `huang2026vjepa`, `klindt2026lejepaworldmodel`, `toso2026bisimjepa`, `assran2025vjepa2`, `vigmo`, `usjepa2025`, `njepa2025`, and `bardes2024vjepa`. No bibliography metadata changes were needed. Text-use remains bounded: V-JEPA 2 is cited for understanding/prediction/planning; Huang VJEPA is cited only for noisy-environment nuisance filtering without a precise numeric claim; ViGMO is cited for visual distractions and latent consistency; Bisim-JEPA is cited for control-relevant invariant visual representations, with the main text now explicitly stating that ACPC is not a learned bisimulation metric.
 
-Scope: all 41 citation keys used in `paper1/main.tex`. Unused BibTeX entries were removed from `paper1/references.bib`, so every remaining entry is cited.
+2026-06-16 targeted collision check: added `wang2026groupactions` after checking the official arXiv record. Text-use remains bounded: the paper is cited for formalising action-conditioned video world modeling as a group action and for GAC/GAR-style action-faithfulness metrics; ACPC is explicitly separated as same-action paired visual-corruption predictive-consistency diagnostics with a discriminability guard.
+
+Scope: all 42 citation keys used in `paper1/main.tex`. Unused BibTeX entries were removed from `paper1/references.bib`, so every remaining entry is cited.
 
 | Key | Official source checked | Metadata conclusion | Text-use conclusion |
 |---|---|---|---|
@@ -16,6 +18,7 @@ Scope: all 41 citation keys used in `paper1/main.tex`. Unused BibTeX entries wer
 | `assran2025vjepa2` | https://arxiv.org/abs/2506.09985 | Fixed: added arXiv eprint, DOI, class, and URL. | OK: cited as V-JEPA 2 extending V-JEPA to understanding, prediction, and planning. |
 | `maes2026lewm` | https://arxiv.org/abs/2603.19312 | Fixed: added arXiv eprint, DOI, class, and URL. | OK: LeWM two-loss end-to-end JEPA-from-pixels description matches the arXiv abstract. |
 | `maes2026stableworldmodel` | https://arxiv.org/abs/2605.21800 | Updated 2026-06-10: cite the newer arXiv platform paper *stable-worldmodel: A Platform for Reproducible World Modeling Research and Evaluation* rather than the earlier workshop v1 record. | OK: cited for the stable-worldmodel baseline suite and benchmark ecosystem. |
+| `wang2026groupactions` | https://arxiv.org/abs/2605.24578 | Added 2026-06-16: official arXiv metadata, DOI, class, and URL recorded. | OK: cited for group-action action-faithfulness, identity/inverse/composition consistency, and GAC/GAR metrics; main text explicitly separates it from same-action visual-corruption ACPC diagnostics. |
 | `sobal2025stresstesting` | https://openreview.net/forum?id=jON7H6A9UU | OK: WRL@ICLR 2025 poster metadata and URL match OpenReview. | OK: cited for the latent-dynamics planning baseline family. |
 | `sobal2022jointembeddingpredictivearchitectures` | https://arxiv.org/abs/2211.10831 | OK: arXiv metadata, DOI, and URL match. | OK: cited for PLDM/JEPA slow-feature context. |
 | `njepa2025` | https://arxiv.org/abs/2507.15216 | Fixed: removed non-official title parenthetical; added arXiv eprint, DOI, class, and URL. | OK: cited as JEPA robustness/noise-related work, consistent with diffusion-noise schedule claims. |

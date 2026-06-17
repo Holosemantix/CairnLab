@@ -47,6 +47,20 @@ def get_pred_loss_tensor(tensor: torch.Tensor, *, space: str) -> torch.Tensor:
     raise ValueError(f"Unsupported loss.pred.space: {space}")
 
 
+def mse_token(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    return (pred - target).pow(2).mean(dim=-1)
+
+
+def self_bounded_aux_loss(
+    base_loss: torch.Tensor,
+    aux_raw: torch.Tensor,
+    *,
+    eps: float = 1e-8,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    scale = (base_loss.detach() / aux_raw.detach().clamp_min(eps)).clamp(max=1.0)
+    return aux_raw * scale, scale
+
+
 def resolve_norm_fn(norm_name: str):
     """Resolve a config string to an nn norm class (or None for identity).
     Mirrors train_swm.resolve_norm_fn so both training paths accept the same
@@ -459,6 +473,22 @@ def resolve_pred_target_view(cfg) -> str:
     return aliases[target_view]
 
 
+def generic_latent_consistency_enabled(cfg) -> bool:
+    return bool(
+        cfg.loss.get("generic_latent_consistency", {}).get("enabled", False)
+    )
+
+
+def paired_view_method_enabled(cfg) -> bool:
+    snap_enabled = bool(cfg.loss.get("snap_acpc", {}).get("enabled", False))
+    if snap_enabled:
+        raise NotImplementedError(
+            "loss.snap_acpc.enabled=True is reserved for a later PR; "
+            "run generic_latent_consistency first."
+        )
+    return generic_latent_consistency_enabled(cfg)
+
+
 def image_perturbation_enabled_for_stage(cfg, stage: str) -> bool:
     """Match train-set perturbation semantics for in-forward origin-target ablations."""
     image_cfg = cfg.get("image_noise", {})
@@ -585,14 +615,39 @@ def lejepa_forward(self, batch, stage, cfg):
     pred_cfg = cfg.loss.get("pred", {})
     pred_space = pred_cfg.get("space", "raw")
     target_view = resolve_pred_target_view(cfg)
+    glc_enabled = generic_latent_consistency_enabled(cfg)
+    paired_view = paired_view_method_enabled(cfg)
+    if paired_view and target_view != "perturbed":
+        raise ValueError(
+            "paired-view training methods require loss.pred.target_view=perturbed"
+        )
 
-    output = self.model.encode(batch)
+    origin_output = None
+    origin_emb = None
+    if paired_view:
+        origin_output = self.model.encode(dict(batch))
+        perturbed_pixels = apply_configured_pixel_perturbation(batch, cfg, stage)
+        if perturbed_pixels is batch["pixels"]:
+            output = origin_output
+        else:
+            perturbed_batch = dict(batch)
+            perturbed_batch["pixels"] = perturbed_pixels
+            output = self.model.encode(perturbed_batch)
+        origin_emb = origin_output["emb"]
+    else:
+        output = self.model.encode(batch)
 
     emb = output["emb"]  # (B, T, D)
     act_emb = output["act_emb"]
     sigreg_emb = emb
 
-    if target_view == "perturbed":
+    if paired_view:
+        ctx_emb = emb[:, :ctx_len]
+        with torch.no_grad():
+            output["target_view_paired_context_noise_l2"] = torch.linalg.vector_norm(
+                ctx_emb.detach() - origin_emb[:, :ctx_len].detach(), dim=-1
+            ).mean()
+    elif target_view == "perturbed":
         ctx_emb = emb[:, :ctx_len]
     elif target_view == "origin":
         perturbed_pixels = apply_configured_pixel_perturbation(batch, cfg, stage)
@@ -630,6 +685,11 @@ def lejepa_forward(self, batch, stage, cfg):
     hetero_mode = hetero_cfg.get("mode", "loss").lower()
     if hetero_enabled and hetero_mode not in {"loss", "probe"}:
         raise ValueError(f"Unsupported loss.hetero.mode: {hetero_mode}")
+    if glc_enabled and hetero_enabled and hetero_mode == "loss":
+        raise ValueError(
+            "loss.generic_latent_consistency is defined for the MSE pred_loss "
+            "baseline; disable loss.hetero or use loss.hetero.mode=probe."
+        )
     if hetero_enabled:
         pred_emb, logvar_hat = self.model.predict_with_logvar(
             ctx_emb,
@@ -645,6 +705,8 @@ def lejepa_forward(self, batch, stage, cfg):
         logvar_hat = None
     pred_loss_emb = get_pred_loss_tensor(pred_emb, space=pred_space)
     tgt_loss_emb = get_pred_loss_tensor(tgt_emb, space=pred_space)
+    pred_mse_tokens = mse_token(pred_loss_emb, tgt_loss_emb)
+    pred_mse_loss = pred_mse_tokens.mean()
 
     # LeWM loss, optional hetero replacement, or detached sigma probe.
     if hetero_enabled and hetero_mode == "loss":
@@ -659,11 +721,11 @@ def lejepa_forward(self, batch, stage, cfg):
         output["pred_loss"] = hetero_loss
         # Also report the underlying MSE for direct comparability with the
         # LeWM baseline (loss curves stay readable when toggling hetero).
-        output["pred_loss_mse_equiv"] = (pred_loss_emb - tgt_loss_emb).pow(2).mean().detach()
+        output["pred_loss_mse_equiv"] = pred_mse_loss.detach()
         for k, v in hetero_monitors.items():
             output[k] = v
     else:
-        output["pred_loss"] = (pred_loss_emb - tgt_loss_emb).pow(2).mean()
+        output["pred_loss"] = pred_mse_loss
         if hetero_enabled and hetero_mode == "probe":
             sigma_probe_loss, probe_monitors = compute_sigma_probe_loss(
                 pred_loss_emb,
@@ -677,6 +739,22 @@ def lejepa_forward(self, batch, stage, cfg):
             output["pred_loss_mse_equiv"] = output["pred_loss"].detach()
             for k, v in probe_monitors.items():
                 output[k] = v
+    if glc_enabled:
+        latent_raw = mse_token(
+            emb[:, :ctx_len],
+            origin_emb[:, :ctx_len].detach(),
+        ).mean()
+        latent_loss, latent_scale = self_bounded_aux_loss(
+            pred_mse_loss,
+            latent_raw,
+        )
+        output["glc_latent_raw"] = latent_raw
+        output["glc_latent_scale"] = latent_scale
+        output["glc_latent_loss"] = latent_loss
+        output["glc_pair_to_base"] = (
+            latent_raw.detach() / pred_mse_loss.detach().clamp_min(1e-8)
+        )
+        output["pred_loss"] = output["pred_loss"] + latent_loss
     gate_cfg = cfg.loss.get("action_gate", {})
     if gate_cfg.get("enabled", False):
         warmup_epochs = int(gate_cfg.get("warmup_epochs", 3))
@@ -932,6 +1010,7 @@ def lejepa_forward(self, batch, stage, cfg):
                 or k.startswith("hetero_")
                 or k.startswith("sigma_probe_")
                 or k.startswith("adaptive_")
+                or k.startswith("glc_")
                 or k.startswith("target_view_")
                 or k == "pred_loss_mse_equiv"
                 or k == "sigreg_warmup_active"
@@ -982,11 +1061,21 @@ def run(cfg):
         dataset, lengths=[cfg.train_split, 1 - cfg.train_split], generator=rnd_gen
     )
     target_view = resolve_pred_target_view(cfg)
+    paired_view = paired_view_method_enabled(cfg)
+    if paired_view and target_view != "perturbed":
+        raise ValueError(
+            "paired-view training methods require loss.pred.target_view=perturbed"
+        )
     img_noise = get_img_noise_transform(cfg.get("image_noise"))
-    if img_noise is not None and target_view == "perturbed":
+    if img_noise is not None and target_view == "perturbed" and not paired_view:
         train_set = TransformDataset(train_set, img_noise)
         if cfg.image_noise.get("apply_to_val", False):
             val_set = TransformDataset(val_set, img_noise)
+    elif img_noise is not None and paired_view:
+        print(
+            "[image_noise] paired-view method enabled: "
+            "using in-forward clean/noisy branches"
+        )
     elif img_noise is not None:
         print(
             f"[image_noise] target_view={target_view}: "

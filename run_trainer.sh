@@ -41,6 +41,9 @@
 #   loss_hetero_mode, loss_hetero_probe_weight,
 #   loss_hetero_logvar_hidden_dim, loss_hetero_s_min, loss_hetero_s_max,
 #   loss_hetero_tau_floor,
+#   loss_generic_latent_consistency_enabled (lewm-only GLC baseline; when true,
+#                                            image noise is applied in-forward
+#                                            as clean/noisy paired views),
 #   loss_action_gate_enabled (lewm-only logging-only adaptive resolution
 #                             gate; rides on loss_hetero_mode=probe),
 #   loss_action_gate_mode (full | sigma_only; sigma_only skips A_t perturb
@@ -318,6 +321,7 @@ add_override "loss.hetero.logvar_hidden_dim" "${loss_hetero_logvar_hidden_dim:-}
 add_override "loss.hetero.s_min" "${loss_hetero_s_min:-}"
 add_override "loss.hetero.s_max" "${loss_hetero_s_max:-}"
 add_override "loss.hetero.tau_floor" "${loss_hetero_tau_floor:-}"
+add_override "loss.generic_latent_consistency.enabled" "${loss_generic_latent_consistency_enabled:-}"
 add_override "loss.action_gate.enabled" "${loss_action_gate_enabled:-}"
 add_override "loss.action_gate.mode" "${loss_action_gate_mode:-}"
 add_override "loss.action_gate.intervention" "${loss_action_gate_intervention:-}"

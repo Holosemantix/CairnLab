@@ -115,9 +115,14 @@ dissent, human gates, release decisions, risk assessments, responsibility
 assignments, decision trace packages, and typed relations. This is how an
 external idea generator, paper-to-code project, review framework, experiment
 runner, or verifier wrapper can feed CairnLab without CairnLab owning that stage.
-Reviewer verdicts are always marked as non-authority evidence; unresolved
-material dissent is imported as a critical challenge and release blocker for the
-transition authority.
+Manifest `path` references may identify files or artifact directories. The
+adapter resolves relative paths from the import root, the manifest directory,
+and manifest ancestors; files receive `sha256:` hashes and directories receive
+stable `sha256-tree:` hashes over sorted contained file paths and bytes. External
+relation criticality aliases such as `material`, `blocking`, and `required` are
+normalized to CairnLab `critical`. Reviewer verdicts are always marked as
+non-authority evidence; unresolved material dissent is imported as a critical
+challenge and release blocker for the transition authority.
 
 `autoresearchclaw-e2e-run` is a resolver layer for the real AutoResearchClaw
 e2e directory shape observed in validation:
@@ -222,8 +227,9 @@ repository and needs packaging support.
 
 Current coverage:
 
-- generic external run manifest detection, export, reviewer non-authority
-  preservation, material-dissent release blocking, and revert planning;
+- generic external run manifest detection, export, file and directory artifact
+  hashing, reviewer non-authority preservation, material-dissent release
+  blocking, and revert planning;
 - AutoResearchClaw e2e run detection, export, diagnostics, and revert planning;
 - AutoResearchClaw manifest detection and export;
 - ARIS manifest, review sidecar, submission verifier, and missing human-gate
@@ -235,4 +241,6 @@ Current coverage:
 - no-match failure;
 - ambiguous match failure;
 - CLI `adapter detect`;
-- CLI `import-external`.
+- CLI `import-external`;
+- static development-boundary checks that adapters do not import host runtimes,
+  mutate host state, call transition authority, or append CairnLab events.

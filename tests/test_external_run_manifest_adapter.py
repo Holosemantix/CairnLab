@@ -17,6 +17,66 @@ def test_external_run_manifest_adapter_detects_fixture() -> None:
     assert adapter.detect(FIXTURE / "cairn_external_run.yaml")
 
 
+def test_external_run_manifest_hashes_directory_evidence_and_repo_relative_paths(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    package = project / "research" / "multitask_transfer"
+    tables = package / "tables"
+    eval_results = package / "eval_results"
+    tables.mkdir(parents=True)
+    eval_results.mkdir()
+    (tables / "eval_summary.csv").write_text("metric,value\nsuccess,1.0\n", encoding="utf-8")
+    (eval_results / "b_metrics.txt").write_text("seed=43 success=1\n", encoding="utf-8")
+    (eval_results / "a_metrics.txt").write_text("seed=42 success=1\n", encoding="utf-8")
+    manifest = package / "cairn_external_run.yaml"
+    manifest.write_text(
+        """
+manifest_type: cairn.external_run.v1
+case_id: external-run:directory-evidence
+source_system: external-runner
+stage: result_analysis
+stages:
+  - id: run:summarize
+    phase: result_analysis
+    tool: summarize.py
+    status: completed
+    path: research/multitask_transfer/tables/eval_summary.csv
+claims:
+  - id: claim:C1
+    text: "External metrics support the claim."
+    state: evidence_attached
+evidence:
+  - id: evidence:eval_summary_csv
+    type: table
+    path: research/multitask_transfer/tables/eval_summary.csv
+  - id: evidence:eval_metric_directory
+    type: metric_set
+    path: eval_results
+relations:
+  - source: evidence:eval_summary_csv
+    target: claim:C1
+    type: supports
+    criticality: material
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = ExternalRunManifestAdapter().export_case(manifest)
+    second = ExternalRunManifestAdapter().export_case(manifest)
+    evidence = {item.id: item for item in result.case.evidence}
+    second_evidence = {item.id: item for item in second.case.evidence}
+    relation = next(item for item in result.case.relations if item.source == "evidence:eval_summary_csv")
+
+    assert not result.diagnostics
+    assert relation.criticality.value == "critical"
+    assert evidence["run:summarize"].uri == "research/multitask_transfer/tables/eval_summary.csv"
+    assert evidence["run:summarize"].hash.startswith("sha256:")
+    assert evidence["evidence:eval_summary_csv"].uri == "research/multitask_transfer/tables/eval_summary.csv"
+    assert evidence["evidence:eval_summary_csv"].hash.startswith("sha256:")
+    assert evidence["evidence:eval_metric_directory"].uri == "eval_results"
+    assert evidence["evidence:eval_metric_directory"].hash.startswith("sha256-tree:")
+    assert evidence["evidence:eval_metric_directory"].hash == second_evidence["evidence:eval_metric_directory"].hash
+
+
 def test_external_run_manifest_adapter_exports_cross_stage_case() -> None:
     result = ExternalRunManifestAdapter().export_case(FIXTURE)
     case = result.case

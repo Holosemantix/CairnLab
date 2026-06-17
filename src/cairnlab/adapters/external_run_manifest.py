@@ -196,7 +196,7 @@ class ExternalRunManifestAdapter:
                 continue
             builder.add_verifier_certificate(
                 verifier,
-                criticality=str(certificate.get("criticality") or "supporting"),
+                criticality=self._criticality(certificate.get("criticality")),
             )
 
     def _add_reviewers(
@@ -229,7 +229,12 @@ class ExternalRunManifestAdapter:
             )
             claim_id = review.get("claim") or review.get("claim_id")
             if claim_id:
-                builder.add_relation(str(review_id), str(claim_id), str(review.get("relation_type") or "depends_on"), criticality=str(review.get("criticality") or "contextual"))
+                builder.add_relation(
+                    str(review_id),
+                    str(claim_id),
+                    str(review.get("relation_type") or "depends_on"),
+                    criticality=self._criticality(review.get("criticality"), default="contextual"),
+                )
 
     def _add_material_dissent(
         self,
@@ -345,7 +350,7 @@ class ExternalRunManifestAdapter:
                 str(target),
                 str(relation.get("type") or relation.get("relation_type") or "depends_on"),
                 relation_id=str(relation.get("id")) if relation.get("id") else None,
-                criticality=str(relation.get("criticality") or "supporting"),
+                criticality=self._criticality(relation.get("criticality")),
             )
 
     def _manifest_path(self, root: Path) -> Path | None:
@@ -369,20 +374,45 @@ class ExternalRunManifestAdapter:
         return data
 
     def _uri_and_hash(self, root: Path, payload: dict[str, Any], manifest_path: Path) -> tuple[str | None, str | None]:
-        del manifest_path
         uri = payload.get("uri")
         path_value = payload.get("path")
         if not path_value:
             return str(uri) if uri else None, None
-        path = Path(str(path_value))
-        path = path if path.is_absolute() else root / path
+        path = self._resolve_payload_path(root, str(path_value), manifest_path)
         if not path.exists():
             return str(uri) if uri else None, None
+        evidence_uri = str(uri) if uri else self._evidence_uri(root, str(path_value), path)
         try:
-            relative_uri = path.relative_to(root).as_posix()
+            digest = self._path_sha256(path)
+        except OSError:
+            return evidence_uri, None
+        return evidence_uri, digest
+
+    def _resolve_payload_path(self, root: Path, path_value: str, manifest_path: Path) -> Path:
+        path = Path(path_value)
+        if path.is_absolute():
+            return path
+
+        candidates = [root / path, manifest_path.parent / path]
+        candidates.extend(parent / path for parent in manifest_path.parents)
+        seen: set[Path] = set()
+        for candidate in candidates:
+            normalized = candidate.resolve() if candidate.exists() else candidate.absolute()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            if candidate.exists():
+                return candidate
+        return root / path
+
+    def _evidence_uri(self, root: Path, path_value: str, path: Path) -> str:
+        authored_path = Path(path_value)
+        if not authored_path.is_absolute():
+            return authored_path.as_posix()
+        try:
+            return path.relative_to(root).as_posix()
         except ValueError:
-            relative_uri = path.resolve().as_uri()
-        return str(uri or relative_uri), self._file_sha256(path)
+            return path.resolve().as_uri()
 
     def _list_of_mappings(self, value: Any) -> list[dict[str, Any]]:
         if not isinstance(value, list):
@@ -392,9 +422,38 @@ class ExternalRunManifestAdapter:
     def _mapping(self, value: Any) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
 
+    def _criticality(self, value: Any, *, default: str = "supporting") -> str:
+        normalized = str(value or default).lower()
+        aliases = {
+            "blocker": "critical",
+            "blocking": "critical",
+            "material": "critical",
+            "required": "critical",
+        }
+        normalized = aliases.get(normalized, normalized)
+        if normalized in {"critical", "supporting", "contextual", "weak"}:
+            return normalized
+        return default
+
+    def _path_sha256(self, path: Path) -> str:
+        if path.is_dir():
+            return self._directory_sha256(path)
+        return self._file_sha256(path)
+
     def _file_sha256(self, path: Path) -> str:
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         return f"sha256:{digest}"
+
+    def _directory_sha256(self, path: Path) -> str:
+        h = hashlib.sha256()
+        files = sorted(item for item in path.rglob("*") if item.is_file())
+        for item in files:
+            relative = item.relative_to(path).as_posix()
+            h.update(relative.encode("utf-8"))
+            h.update(b"\\0")
+            h.update(item.read_bytes())
+            h.update(b"\\0")
+        return f"sha256-tree:{h.hexdigest()}"
 
     def _slug(self, value: str) -> str:
         return "".join(character if character.isalnum() or character in "._-" else "_" for character in value).strip("_") or "external"

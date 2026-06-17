@@ -301,6 +301,15 @@ The adapter maps:
   `responsibility_assignments[*]`, and `decision_trace_packages[*]` to the
   matching governance objects.
 
+`path` values may point at files or directories. Relative paths are resolved
+against the import root, the manifest directory, and manifest ancestors so a
+nested manifest can still refer to repository-root artifacts. File artifacts get
+`sha256:` hashes; directory artifacts get deterministic `sha256-tree:` hashes
+over sorted contained file paths and bytes. The adapter reads artifacts only for
+URI and hash provenance; it never executes them. External relation criticality
+aliases such as `material`, `blocking`, and `required` are normalized to
+CairnLab `critical` relation criticality.
+
 The generic manifest still does not authorize release. A passing verifier can
 support `verified`; release remains blocked until CairnLab transition authority
 sees the required risk assessment, human gate, accountability, and no unresolved

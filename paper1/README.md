@@ -2,7 +2,7 @@
 
 Self-contained LaTeX source for the arXiv preprint.
 
-> *Action-Conditioned Predictive Consistency for Robust Visual World Models*
+> *Diagnosing Visual Robustness in JEPA World Models through Action-Conditioned Predictive Consistency*
 
 Companion plan / storyline doc: `PLAN.md` (next to this README).
 

@@ -1,5 +1,6 @@
 from functools import partial
 from pathlib import Path
+from contextlib import contextmanager
 
 import hydra
 import lightning as pl
@@ -489,6 +490,23 @@ def paired_view_method_enabled(cfg) -> bool:
     return generic_latent_consistency_enabled(cfg)
 
 
+@contextmanager
+def preserve_batchnorm_eval(module: nn.Module):
+    """Temporarily freeze BatchNorm stats without changing other module modes."""
+    bn_modules = [
+        m
+        for m in module.modules()
+        if isinstance(m, nn.modules.batchnorm._BatchNorm) and m.training
+    ]
+    try:
+        for m in bn_modules:
+            m.eval()
+        yield
+    finally:
+        for m in bn_modules:
+            m.train()
+
+
 def image_perturbation_enabled_for_stage(cfg, stage: str) -> bool:
     """Match train-set perturbation semantics for in-forward origin-target ablations."""
     image_cfg = cfg.get("image_noise", {})
@@ -625,10 +643,11 @@ def lejepa_forward(self, batch, stage, cfg):
     origin_output = None
     origin_emb = None
     if paired_view:
-        origin_output = self.model.encode(dict(batch))
+        with torch.no_grad(), preserve_batchnorm_eval(self.model):
+            origin_output = self.model.encode(dict(batch))
         perturbed_pixels = apply_configured_pixel_perturbation(batch, cfg, stage)
         if perturbed_pixels is batch["pixels"]:
-            output = origin_output
+            output = self.model.encode(batch)
         else:
             perturbed_batch = dict(batch)
             perturbed_batch["pixels"] = perturbed_pixels

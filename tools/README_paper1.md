@@ -75,7 +75,7 @@ python -m tools.paper1_selective_contraction \
 
 95% CI 的口径：脚本对 checkpoint rows 做 with-replacement bootstrap。within-LeWM 和 within-PLDM 是每个 task 的 9 个 checkpoint rows；joint 分析是 LeWM+PLDM 共 18 个 rows，并在 partial correlation 中同时 conditioning on `std_max` 和 `method`。CI 是 bootstrap 分布的 2.5/97.5 percentile，不是额外 evaluation seed 的置信区间。
 
-ACPC basin runner 默认只接受 Gaussian-noise corruption specs，并使用 dense eval grid `0.01 ... 0.08`，以匹配 Paper 1 的 Gaussian-noise training sweep；它默认只扰动 observation history、保持 goal clean。不要把 blur/resize 混入这个 artifact。默认命令只跑 LeWM dense 4 tasks × 9 configs；PLDM appendix replication 使用 `--methods PLDM` 跑同样的 4 tasks × 9 configs full sweep。`--base-vs-best` 仅保留作快速本地审计，不作为 paper-facing artifact。`--dry-run` 只解析 manifest 和 epoch-10 checkpoint 路径，不加载模型。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 `/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/<task-root>/ckpt/<subdir>/` 下存在唯一 `*epoch_10_object.ckpt`。
+ACPC basin runner 默认只接受 Gaussian-noise corruption specs，并使用 dense eval grid `0.01 ... 0.08`，以匹配 Paper 1 的 Gaussian-noise training sweep；它默认只扰动 observation history、保持 goal clean。不要把 blur/resize 混入这个 artifact。默认命令只跑 LeWM dense 4 tasks × 9 configs；PLDM appendix replication 使用 `--methods PLDM` 跑同样的 4 tasks × 9 configs full sweep。`--base-vs-best` 仅保留作快速本地审计，不作为 paper-facing artifact。`--dry-run` 只解析 manifest 和 epoch-10 checkpoint 路径，不加载模型。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 `$DATA_ROOT/<task-root>/ckpt/<subdir>/` 下存在唯一 `*epoch_10_object.ckpt`。`DATA_ROOT` 也可以通过 `PAPER1_DATA_ROOT`、`STABLEWM_HOME` 或 `--model-root` 传入。
 
 Phase 0 ACPC runner 的 `--dry-run` 只解析 manifest 和 checkpoint 路径，不需要 `torch`；shell wrapper `run_phase0_acpc.sh --dry-run` 输出到 `/tmp/acpc_phase0_dry_run.json`，避免覆盖 canonical artifact。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 canonical eval 里的 `path` 或 `--model-root` 下存在可 `torch.load` 的 model object checkpoint。当前 ADM 是 action-distance latent proxy，不是 oracle state/keypoint ADM。
 
@@ -122,15 +122,15 @@ For quick path checks, reduce the render size, for example add `--n-sequences 48
 
 ## Canonical artifact builders
 
-这些脚本需要本机存在原始实验目录，默认 root 是：
+这些脚本需要本机存在原始实验目录。用 `DATA_ROOT` 传入前缀，例如：
 
 ```text
-/home/ag/dataset/ag_data/data/world_model/quentinll
+$DATA_ROOT
 ```
 
 | 脚本 | 作用 | 输出 |
 |---|---|---|
-| `tools/build_canonical_evals_pldm.py` | 从 PLDM 4 tasks x 9 checkpoints 的 `eval_results` 聚合 unperturbed（artifact key: `clean`）/ goal / pixels / pixels+goal eval，3 evaluation seeds x 100 trajectories，population std | `assets/paper1_data/canonical_evals_pldm_20260522.json` |
+| `tools/build_canonical_evals_pldm.py` | 从 PLDM 4 tasks x 9 checkpoints 的 `eval_results` 聚合 unperturbed（artifact key: `clean`）/ goal / observation-noise / observation+goal eval，3 evaluation seeds x 100 trajectories，population std | `assets/paper1_data/canonical_evals_pldm_20260522.json` |
 | `tools/build_canonical_diagnostics_pldm.py` | 聚合 PLDM full-coverage predictor metrics：fragility ratio 和 T8 drift | `assets/paper1_data/canonical_diagnostics_pldm_20260522.json` |
 | `tools/build_canonical_full_diagnostics_pldm.py` | 聚合 PLDM five-layer diagnostics summary rows，并生成 schema | `assets/paper1_data/canonical_full_diagnostics_pldm_20260523.json` |
 | `tools/build_canonical_blur_baselines.py` | 聚合 LeWM/PLDM no-noise baseline 的 blur eval-only 结果 | `assets/paper1_data/canonical_blur_baselines_20260523.json` |
@@ -139,20 +139,20 @@ For quick path checks, reduce the render size, for example add `--n-sequences 48
 
 ```bash
 python -m tools.build_canonical_evals_pldm \
-  --root /home/ag/dataset/ag_data/data/world_model/quentinll \
+  --root "$DATA_ROOT" \
   --out assets/paper1_data/canonical_evals_pldm_20260522.json
 
 python -m tools.build_canonical_diagnostics_pldm \
-  --root /home/ag/dataset/ag_data/data/world_model/quentinll \
+  --root "$DATA_ROOT" \
   --out assets/paper1_data/canonical_diagnostics_pldm_20260522.json
 
 python -m tools.build_canonical_full_diagnostics_pldm \
-  --root /home/ag/dataset/ag_data/data/world_model/quentinll \
+  --root "$DATA_ROOT" \
   --out assets/paper1_data/canonical_full_diagnostics_pldm_20260523.json \
   --schema-out assets/paper1_data/canonical_full_diagnostics_pldm_20260523.schema.json
 
 python -m tools.build_canonical_blur_baselines \
-  --root /home/ag/dataset/ag_data/data/world_model/quentinll \
+  --root "$DATA_ROOT" \
   --out assets/paper1_data/canonical_blur_baselines_20260523.json \
   --schema-out assets/paper1_data/canonical_blur_baselines_20260523.schema.json
 ```

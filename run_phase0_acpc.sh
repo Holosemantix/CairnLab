@@ -14,24 +14,51 @@ cd "$SCRIPT_DIR"
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-DATA_ROOT="/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll"
 EVAL_LEWM="assets/paper1_data/canonical_evals_20260517.json"
 EVAL_PLDM="assets/paper1_data/canonical_evals_pldm_20260522.json"
 LOCAL_EVAL_LEWM="/tmp/canonical_evals_local.json"
 LOCAL_EVAL_PLDM="/tmp/canonical_evals_pldm_local.json"
 OUT="assets/paper1_data/acpc_phase0_diagnostics.json"
 
+CANONICAL_DATA_ROOT="${CANONICAL_DATA_ROOT:-}"
+if [[ -z "$CANONICAL_DATA_ROOT" ]]; then
+    CANONICAL_DATA_ROOT="$(python3 - "$EVAL_LEWM" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+for task_block in data.values():
+    if isinstance(task_block, dict):
+        for entry in task_block.values():
+            path = entry.get("path") if isinstance(entry, dict) else None
+            if path and "/ckpt/" in path:
+                print(path.split("/ckpt/", 1)[0].rsplit("/", 1)[0])
+                raise SystemExit
+raise SystemExit("could not infer canonical data root from eval manifest")
+PY
+)"
+fi
+DATA_ROOT="${DATA_ROOT:-${STABLEWM_HOME:-$CANONICAL_DATA_ROOT}}"
+
 # ---------------------------------------------------------------------------
-# Prepare localized eval JSONs (replace /home/ag/... with local path)
+# Prepare localized eval JSONs when the desired data prefix differs from the
+# prefix embedded in the canonical eval manifests.
 # ---------------------------------------------------------------------------
 echo "[phase0] Preparing localized eval manifests..."
-if [[ ! -f "$LOCAL_EVAL_LEWM" ]] || [[ "$(stat -c %Y "$EVAL_LEWM")" -gt "$(stat -c %Y "$LOCAL_EVAL_LEWM" 2>/dev/null || echo 0)" ]]; then
-    sed "s|/home/ag/dataset/ag_data/data/world_model/quentinll|$DATA_ROOT|g" "$EVAL_LEWM" > "$LOCAL_EVAL_LEWM"
-    echo "[phase0]   -> $LOCAL_EVAL_LEWM"
-fi
-if [[ ! -f "$LOCAL_EVAL_PLDM" ]] || [[ "$(stat -c %Y "$EVAL_PLDM")" -gt "$(stat -c %Y "$LOCAL_EVAL_PLDM" 2>/dev/null || echo 0)" ]]; then
-    sed "s|/home/ag/dataset/ag_data/data/world_model/quentinll|$DATA_ROOT|g" "$EVAL_PLDM" > "$LOCAL_EVAL_PLDM"
-    echo "[phase0]   -> $LOCAL_EVAL_PLDM"
+if [[ "$DATA_ROOT" == "$CANONICAL_DATA_ROOT" ]]; then
+    LOCAL_EVAL_LEWM="$EVAL_LEWM"
+    LOCAL_EVAL_PLDM="$EVAL_PLDM"
+    echo "[phase0]   -> using canonical eval manifests"
+else
+    if [[ ! -f "$LOCAL_EVAL_LEWM" ]] || [[ "$(stat -c %Y "$EVAL_LEWM")" -gt "$(stat -c %Y "$LOCAL_EVAL_LEWM" 2>/dev/null || echo 0)" ]]; then
+        sed "s|$CANONICAL_DATA_ROOT|$DATA_ROOT|g" "$EVAL_LEWM" > "$LOCAL_EVAL_LEWM"
+        echo "[phase0]   -> $LOCAL_EVAL_LEWM"
+    fi
+    if [[ ! -f "$LOCAL_EVAL_PLDM" ]] || [[ "$(stat -c %Y "$EVAL_PLDM")" -gt "$(stat -c %Y "$LOCAL_EVAL_PLDM" 2>/dev/null || echo 0)" ]]; then
+        sed "s|$CANONICAL_DATA_ROOT|$DATA_ROOT|g" "$EVAL_PLDM" > "$LOCAL_EVAL_PLDM"
+        echo "[phase0]   -> $LOCAL_EVAL_PLDM"
+    fi
 fi
 
 # ---------------------------------------------------------------------------

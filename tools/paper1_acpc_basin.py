@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -36,9 +37,7 @@ TASK_CKPT_ROOTS = {
     "Cube": "lewm-cube",
 }
 
-DEFAULT_MODEL_ROOT = Path(
-    "/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll"
-)
+DEFAULT_MODEL_ROOT = os.environ.get("PAPER1_DATA_ROOT") or os.environ.get("STABLEWM_HOME")
 
 DEFAULT_CORRUPTIONS = (
     "gaussian_noise:0.01",
@@ -118,9 +117,6 @@ def _candidate_dirs(
     if run_path:
         p = Path(run_path).expanduser()
         dirs.append(p)
-        raw = str(p)
-        if raw.startswith("/home/ag/"):
-            dirs.append(Path("/opt/huawei/explorer-env") / raw[len("/home/ag/") :])
     for root in model_roots:
         dirs.extend(
             [
@@ -460,8 +456,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--model-root",
         action="append",
-        default=[str(DEFAULT_MODEL_ROOT)],
-        help="Root containing lewm-{task}/ckpt/<subdir> checkpoint directories.",
+        default=[DEFAULT_MODEL_ROOT] if DEFAULT_MODEL_ROOT else [],
+        help="Root containing lewm-{task}/ckpt/<subdir> checkpoint directories. Defaults to PAPER1_DATA_ROOT or STABLEWM_HOME when set.",
     )
     p.add_argument("--out", default="assets/paper1_data/acpc_basin_diagnostics.json")
     p.add_argument("--dry-run", action="store_true")

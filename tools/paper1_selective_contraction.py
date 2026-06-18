@@ -241,7 +241,7 @@ def build_summary(
             "interpretation": (
                 "RE/RF are same-state perturbation radii from the primary "
                 "observation-only ACPC basin diagnostic. ADM/SPRR are auxiliary "
-                "pixels+goal Phase-0 proxies and should be read only as branch "
+                "observation+goal Phase-0 proxies and should be read only as branch "
                 "sanity checks, not paper-facing proof. Optional cluster plots "
                 "use repeated perturbation samples and 2-D visualization "
                 "envelopes; their envelopes are not high-D basin boundaries."
@@ -296,7 +296,7 @@ def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
         "",
         f"Scope: existing {method_label} sweep. This is a branch diagnostic, not a new main claim.",
         "",
-        "| Task | best std | px0.08 success | encoder radius R_E | prediction radius R_F | origin NN L2 | transition L2 | aux ADM | aux SPRR | read |",
+        "| Task | best std | obs-noise 0.08 success | encoder radius R_E | prediction radius R_F | original NN L2 | transition L2 | aux ADM | aux SPRR | read |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     metric = payload["metadata"]["robust_metric"]
@@ -329,7 +329,7 @@ def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
             "Reading: lower R_E/R_F means smaller same-state perturbation spread "
             "in the reported feature space. "
             "Higher SPRR means the auxiliary action-distance margin is larger relative "
-            "to paired rollout disagreement. ADM/SPRR come from the exploratory pixels+goal "
+            "to paired rollout disagreement. ADM/SPRR come from the exploratory observation+goal "
             "Phase-0 diagnostic, so they are supportive visualization/branch evidence only.",
             "",
             "Visualization note: selective-contraction cluster plots should be read through "
@@ -409,12 +409,12 @@ def _display_labels(summary: Mapping[str, Any], robust_std_key: str) -> dict[str
     if method == "LeWM":
         robust = str(meta.get("robust_label") or f"full-seq noise-trained {method_label} std={robust_std_key}")
         return {
-            "base": f"clean-trained {method_label}",
+            "base": f"no-noise-trained {method_label}",
             "fullseq_robust": robust,
         }
     robust = str(meta.get("robust_label") or f"noise-trained {method_label} std={robust_std_key}")
     return {
-        "base": f"clean-trained {method_label}",
+        "base": f"no-noise-trained {method_label}",
         "fullseq_robust": robust,
     }
 
@@ -762,7 +762,7 @@ def _draw_local_atlas_panel(
     colors: np.ndarray,
     title: str,
     neighbor_count: int,
-) -> None:
+) -> dict[str, float]:
     stats = _cluster_isolation_stats(array)
     cols = min(6, max(1, int(math.ceil(math.sqrt(max(1, len(anchors)) * 1.4)))))
     rows = int(math.ceil(max(1, len(anchors)) / cols))
@@ -807,24 +807,13 @@ def _draw_local_atlas_panel(
         ax.scatter(pts[0, 0], pts[0, 1], s=30, color=color, marker="o", edgecolor="#222222", linewidth=0.35)
         ax.scatter(pts[1:, 0], pts[1:, 1], s=18, color=color, marker="^", alpha=0.82, linewidth=0)
 
-    ax.set_title(title)
+    ax.set_title(title, fontsize=8.2, pad=4)
     ax.set_xlim(-cell_radius - 0.2, (cols - 1) * span + cell_radius + 0.2)
     ax.set_ylim(-(rows - 1) * span - cell_radius - 0.2, cell_radius + 0.2)
     ax.set_aspect("equal", adjustable="box")
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.text(
-        0.015,
-        0.985,
-        f"median r/NN = {stats['median_radius_over_nn']:.2f}\n"
-        f"r < NN = {100.0 * stats['frac_radius_lt_nn']:.0f}%\n"
-        f"disjoint balls = {100.0 * stats['frac_disjoint_balls']:.0f}%",
-        transform=ax.transAxes,
-        ha="left",
-        va="top",
-        fontsize=8.2,
-        bbox={"facecolor": "white", "edgecolor": "#CCCCCC", "alpha": 0.84, "pad": 3},
-    )
+    return stats
 
 
 def _extract_view_features(
@@ -1054,15 +1043,16 @@ def render_atlas_task(
         "predictor": "Predictor H8",
     }
 
-    fig, axes = plt.subplots(2, 2, figsize=(16.4, 13.4))
+    fig, axes = plt.subplots(2, 2, figsize=(7.4, 7.2))
     panels = [
         ("base", "encoder"),
         ("base", "predictor"),
         ("fullseq_robust", "encoder"),
         ("fullseq_robust", "predictor"),
     ]
+    stats_rows: list[list[str]] = []
     for ax, (label, feature) in zip(axes.reshape(-1), panels):
-        _draw_local_atlas_panel(
+        stats = _draw_local_atlas_panel(
             plt=plt,
             ax=ax,
             array=encoded[label][feature],
@@ -1071,26 +1061,46 @@ def render_atlas_task(
             title=f"{label_by_spec[label]}: {feature_by_name[feature]} local clusters",
             neighbor_count=neighbor_count,
         )
+        stats_rows.append(
+            [
+                label_by_spec[label],
+                feature_by_name[feature],
+                f"{stats['median_radius_over_nn']:.2f}",
+                f"{100.0 * stats['frac_radius_lt_nn']:.0f}%",
+                f"{100.0 * stats['frac_disjoint_balls']:.0f}%",
+            ]
+        )
 
     fig.suptitle(
         f"{task}: local cluster atlas normalized by nearest original-state distance "
         f"(n={n_sequences}, anchors={len(anchors)}, neighbors={neighbor_count})",
-        y=0.985,
+        y=0.975,
+        fontsize=9.2,
     )
+    stats_ax = fig.add_axes([0.07, 0.035, 0.86, 0.145])
+    stats_ax.axis("off")
+    table = stats_ax.table(
+        cellText=stats_rows,
+        colLabels=["branch", "space", "median r/NN", "r < NN", "disjoint"],
+        cellLoc="center",
+        colLoc="center",
+        loc="center",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(6.8)
+    table.scale(1.0, 1.12)
     fig.text(
         0.5,
-        0.025,
-        "Each small box is one selected original state. Circle radius = distance to its nearest other original state "
-        "in the original feature space; colored circle/triangles are original/perturbed views; gray x marks nearby "
-        "other original states after local PCA.",
+        0.012,
+        "Each box is one original state; circle radius is its nearest different-state distance in high-D space.",
         ha="center",
         va="bottom",
-        fontsize=9.0,
+        fontsize=6.8,
     )
-    fig.tight_layout(rect=(0, 0.055, 1, 0.955), h_pad=3.0, w_pad=1.5)
+    fig.tight_layout(rect=(0, 0.19, 1, 0.945), h_pad=1.6, w_pad=0.8)
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_atlas.png"
-    fig.savefig(out, dpi=190)
+    fig.savefig(out, dpi=320)
     plt.close(fig)
     return out
 
@@ -1138,13 +1148,14 @@ def render_cluster_task(
         "predictor": "Predictor H8 features",
     }
 
-    fig, axes = plt.subplots(2, 2, figsize=(15.2, 11.8))
+    fig, axes = plt.subplots(2, 2, figsize=(7.4, 7.2))
     panels = [
         ("base", "encoder"),
         ("base", "predictor"),
         ("fullseq_robust", "encoder"),
         ("fullseq_robust", "predictor"),
     ]
+    stats_rows: list[list[str]] = []
     for panel_idx, (ax, (label, feature)) in enumerate(zip(axes.reshape(-1), panels)):
         arr = encoded[label][feature]
         projected = _tsne_fit_transform_2d(
@@ -1203,30 +1214,28 @@ def render_cluster_task(
                 zorder=4,
             )
 
-        ax.set_title(f"{label_by_spec[label]}: {feature_by_name[feature]}")
+        ax.set_title(f"{label_by_spec[label]}: {feature_by_name[feature]}", fontsize=8.2, pad=4)
         ax.set_xlim(*xlim)
         ax.set_ylim(*ylim)
-        ax.set_xlabel("t-SNE 1")
-        ax.set_ylabel("t-SNE 2")
+        ax.set_xlabel("t-SNE 1", fontsize=7.4)
+        ax.set_ylabel("t-SNE 2", fontsize=7.4)
+        ax.tick_params(labelsize=6.8, pad=1)
         ax.grid(True, color="#EEEEEE", linewidth=0.45)
         ax.set_aspect("equal", adjustable="box")
-        ax.text(
-            0.02,
-            0.98,
-            "high-D local stats\n"
-            f"median r/NN = {stats['median_radius_over_nn']:.2f}\n"
-            f"r < NN = {100.0 * stats['frac_radius_lt_nn']:.0f}%\n"
-            f"disjoint balls = {100.0 * stats['frac_disjoint_balls']:.0f}%",
-            transform=ax.transAxes,
-            ha="left",
-            va="top",
-            fontsize=8.5,
-            bbox={"facecolor": "white", "edgecolor": "#CCCCCC", "alpha": 0.82, "pad": 4},
+        stats_rows.append(
+            [
+                label_by_spec[label],
+                feature_by_name[feature],
+                f"{stats['median_radius_over_nn']:.2f}",
+                f"{100.0 * stats['frac_radius_lt_nn']:.0f}%",
+                f"{100.0 * stats['frac_disjoint_balls']:.0f}%",
+            ]
         )
 
     fig.suptitle(
         f"{task}: same-state perturbation clusters in encoder and H8 predictor spaces",
-        y=0.985,
+        y=0.975,
+        fontsize=9.2,
     )
     envelope_note = {
         "ellipse": (
@@ -1237,28 +1246,31 @@ def render_cluster_task(
         "circle": "colored circles use the legacy max-distance envelope in the t-SNE plane",
         "none": "no colored envelope is drawn",
     }[envelope]
+    stats_ax = fig.add_axes([0.07, 0.040, 0.86, 0.145])
+    stats_ax.axis("off")
+    table = stats_ax.table(
+        cellText=stats_rows,
+        colLabels=["branch", "space", "median r/NN", "r < NN", "disjoint"],
+        cellLoc="center",
+        colLoc="center",
+        loc="center",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(6.8)
+    table.scale(1.0, 1.12)
     fig.text(
         0.5,
-        0.040,
-        f"n={n_sequences}, anchors={len(anchors)}, view stds={','.join(f'{s:g}' for s in view_stds)}, "
-        f"perturb repeats={max(1, int(perturb_repeats))}.",
+        0.012,
+        "t-SNE is visualization only; table stats are computed in high-D space. "
+        f"Gray dots show sampled views; {envelope_note}.",
         ha="center",
         va="bottom",
-        fontsize=9.0,
+        fontsize=6.8,
     )
-    fig.text(
-        0.5,
-        0.022,
-        "t-SNE is visualization only; panel stats are computed in the original high-D feature space. "
-        f"Gray dots show all sampled original/perturbed views; {envelope_note}.",
-        ha="center",
-        va="bottom",
-        fontsize=8.8,
-    )
-    fig.tight_layout(rect=(0, 0.072, 1, 0.955), h_pad=2.4, w_pad=1.4)
+    fig.tight_layout(rect=(0, 0.19, 1, 0.945), h_pad=1.6, w_pad=0.9)
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_clusters.png"
-    fig.savefig(out, dpi=190)
+    fig.savefig(out, dpi=320)
     plt.close(fig)
     return out
 

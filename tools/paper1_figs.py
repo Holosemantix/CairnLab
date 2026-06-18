@@ -7,10 +7,10 @@ Script-generated PNG filenames match the figure numbers in the rendered PDF
 where applicable. The default render set contains only figures still referenced
 by ``paper1/main.tex``:
 
-    fig2_sweep.png      — unperturbed / pixels-only 0.08 vs std_max
+    fig2_sweep.png      — unperturbed / observation-noise 0.08 vs sigma_max
 
-    fig5_scatter.png    — PushT n=9 LeWM scatter: predictor_target_to_nn_cos_ratio
-                          (max-std) vs unperturbed / corruption-drop
+    fig5_scatter.png    — PushT n=9 LeWM scatter: fragility ratio
+                          vs unperturbed / corruption-drop
 
     (fig3_pareto, fig4_radar, and fig6_mechanism were pruned from the paper
     after the figure-density audit. Their generator functions are kept below
@@ -376,7 +376,7 @@ def fig1_concept(out_path: Path):
 
 
 # ============================================================================
-# Figure 2 — Sweep curves: unperturbed and corrupted eval vs std_max, per task
+# Figure 2 — Sweep curves: unperturbed and corrupted eval vs sigma_max, per task
 # ============================================================================
 
 def fig2_sweep(out_path: Path):
@@ -418,7 +418,7 @@ def fig2_sweep(out_path: Path):
 
 
 # ============================================================================
-# Figure 3 — Scatter: predictor_target_to_nn_cos_ratio_at_max_std vs eval drop
+# Figure 3 — Scatter: fragility ratio vs eval drop
 # Uses the n=9 LeWM PushT sweep only.
 # ============================================================================
 
@@ -499,7 +499,7 @@ def fig3_scatter(out_path: Path, data_root: Path):
                            edgecolor="gray", alpha=0.92), fontsize=8.5,
                  family="DejaVu Sans Mono")
         ax_.set_xscale("log")
-        ax_.set_xlabel(r"$\mathtt{predictor\_target\_to\_nn\_cos\_ratio}$")
+        ax_.set_xlabel("Fragility ratio (target/NN at max training noise)")
         ax_.set_ylabel(ylabel)
         ax_.set_title(title, fontsize=10, loc="left", pad=8)
         ax_.grid(alpha=0.25, linewidth=0.4)
@@ -508,14 +508,14 @@ def fig3_scatter(out_path: Path, data_root: Path):
     rho_clean = _panel(ax_clean, cleans, "PushT unperturbed success rate (%)",
                        "(a)  vs unperturbed success — residual ckpt-quality signal",
                        anchor_y_top=0.18)
-    rho_drop = _panel(ax_drop, drops, "PushT eval drop  (unperturbed − pixels 0.08, pts)",
-                      "(b)  vs corruption drop — mediated by std_max",
+    rho_drop = _panel(ax_drop, drops, "PushT eval drop (unperturbed - obs-noise 0.08, pts)",
+                      "(b)  vs corruption drop - mediated by training noise",
                       anchor_y_top=0.96)
 
-    # colourbar for std_max
+    # colourbar for the training noise level
     cbar = fig.colorbar(ax_clean.collections[0], ax=[ax_clean, ax_drop],
                         fraction=0.025, pad=0.04)
-    cbar.set_label("std_max during training", fontsize=8.5)
+    cbar.set_label(r"training noise level $\sigma_{\max}$", fontsize=8.5)
 
     fig.savefig(out_path)
     plt.close(fig)
@@ -677,8 +677,8 @@ def fig5_mechanism(out_path: Path):
 
 
 # ============================================================================
-# Figure 6 — Pareto frontier: (unperturbed, pixels-only 0.08) per (task, std_max)
-# Each task gets a connected curve; markers coloured by std_max.
+# Figure 6 — Pareto frontier: (unperturbed, observation-noise 0.08) per
+# task and training noise level. Kept for archival reproduction.
 # ============================================================================
 
 def fig6_pareto(out_path: Path):
@@ -703,7 +703,7 @@ def fig6_pareto(out_path: Path):
             ax.scatter(x, y, s=55, marker=markers[task],
                        color=colors[task], alpha=0.55 + 0.05 * SWEEP_STDS[1:].index(s),
                        edgecolor="black", linewidth=0.3, zorder=3)
-        # mark pixels-only 0.08 point-best
+        # mark observation-noise 0.08 point-best
         best_std = tables["corrupted_point_best"][task]["std"]
         if best_std in SWEEP_STDS:
             i = SWEEP_STDS.index(best_std)
@@ -720,7 +720,7 @@ def fig6_pareto(out_path: Path):
     ax.set_xlim(0, 105)
     ax.set_ylim(0, 105)
     ax.set_xlabel("Unperturbed success rate (%)")
-    ax.set_ylabel("Corrupted success rate (%)  —  pixels 0.08")
+    ax.set_ylabel("Corrupted success rate (%) - obs-noise 0.08")
     ax.grid(alpha=0.25, linewidth=0.4)
     ax.legend(loc="lower right", frameon=False, fontsize=8.5, ncol=2)
     fig.tight_layout()
@@ -738,8 +738,8 @@ def main():
     ap.add_argument("--out-dir", default="assets/paper1_figs",
                     help="output directory (relative to repo root)")
     ap.add_argument("--data-root",
-                    default="/home/ag/dataset/ag_data/data/world_model/quentinll",
-                    help="legacy arg; no longer required once assets/paper1_data/canonical_diagnostics_20260517.json is present")
+                    default="dataset/ag_data/data/world_model/quentinll",
+                    help="legacy relative path under the local dataset prefix; no longer required once assets/paper1_data/canonical_diagnostics_20260517.json is present")
     ap.add_argument("--only", nargs="+", choices=["1", "2", "3", "4", "5", "6"],
                     help="render only these figures (default: all)")
     args = ap.parse_args()
@@ -747,11 +747,11 @@ def main():
     repo_root = Path(__file__).resolve().parent.parent
     out_dir = (repo_root / args.out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    data_root = Path(args.data_root).resolve()
+    data_root = Path(args.data_root)
 
     _setup_style()
     print(f"Output dir: {out_dir}")
-    print(f"Data root:  {data_root}")
+    print(f"Data root:  {data_root} (legacy, relative to the configured dataset prefix)")
     # Default renders only the script-generated figures used in the paper.
     # Pruned slots remain callable via --only for archival reproduction.
     selected = set(args.only or ["2", "5"])

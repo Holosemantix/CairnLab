@@ -79,7 +79,7 @@ ACPC basin runner 默认只接受 Gaussian-noise corruption specs，并使用 de
 
 Phase 0 ACPC runner 的 `--dry-run` 只解析 manifest 和 checkpoint 路径，不需要 `torch`；shell wrapper `run_phase0_acpc.sh --dry-run` 输出到 `/tmp/acpc_phase0_dry_run.json`，避免覆盖 canonical artifact。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 canonical eval 里的 `path` 或 `--model-root` 下存在可 `torch.load` 的 model object checkpoint。当前 ADM 是 action-distance latent proxy，不是 oracle state/keypoint ADM。
 
-Selective-contraction cluster plots are paper-facing qualitative illustrations, not standalone proof. Read the t-SNE envelope as a 2-D visual summary only; the panel annotations (`median r/NN`, `r < NN`, `disjoint balls`) are computed in the original high-D feature space. Use `--cluster-envelope circle` only to reproduce the legacy max-distance circle view; `--cluster-envelope hull` is a sample hull and should not be presented as a high-D basin boundary.
+Selective-contraction cluster plots are paper-facing qualitative illustrations, not standalone proof. Read the t-SNE envelope as a 2-D visual summary only; the small panel summaries (`median r/NN`, `r < NN`, `disjoint balls`) are computed in the original high-D feature space and must not be replaced by bottom-of-figure screenshot tables or in-axis legend boxes. Use `--cluster-envelope circle` only to reproduce the legacy max-distance circle view; `--cluster-envelope hull` is a sample hull and should not be presented as a high-D basin boundary.
 
 Optional PLDM sanity plots can use the same runner without changing paper-facing claims:
 

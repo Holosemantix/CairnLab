@@ -407,14 +407,14 @@ def _display_labels(summary: Mapping[str, Any], robust_std_key: str) -> dict[str
     method = str(meta.get("method", "LeWM"))
     method_label = str(meta.get("method_label") or method)
     if method == "LeWM":
-        robust = str(meta.get("robust_label") or f"full-seq noise-trained {method_label} std={robust_std_key}")
+        robust = str(meta.get("robust_label") or f"noise-trained {method_label} {robust_std_key}")
         return {
-            "base": f"no-noise-trained {method_label}",
+            "base": f"no-noise {method_label}",
             "fullseq_robust": robust,
         }
-    robust = str(meta.get("robust_label") or f"noise-trained {method_label} std={robust_std_key}")
+    robust = str(meta.get("robust_label") or f"noise-trained {method_label} {robust_std_key}")
     return {
-        "base": f"no-noise-trained {method_label}",
+        "base": f"no-noise {method_label}",
         "fullseq_robust": robust,
     }
 
@@ -708,6 +708,14 @@ def _cluster_isolation_stats(array: np.ndarray) -> dict[str, float]:
     }
 
 
+def _cluster_stats_title(stats: Mapping[str, float]) -> str:
+    return (
+        f"r/NN {stats['median_radius_over_nn']:.2f}; "
+        f"r<NN {100.0 * stats['frac_radius_lt_nn']:.0f}%; "
+        f"disjoint {100.0 * stats['frac_disjoint_balls']:.0f}%"
+    )
+
+
 def _expanded_view_stds(view_stds: Sequence[float], perturb_repeats: int) -> list[float]:
     out = []
     repeats = max(1, int(perturb_repeats))
@@ -807,7 +815,7 @@ def _draw_local_atlas_panel(
         ax.scatter(pts[0, 0], pts[0, 1], s=30, color=color, marker="o", edgecolor="#222222", linewidth=0.35)
         ax.scatter(pts[1:, 0], pts[1:, 1], s=18, color=color, marker="^", alpha=0.82, linewidth=0)
 
-    ax.set_title(title, fontsize=8.2, pad=4)
+    ax.set_title(f"{title}\nhigh-D: {_cluster_stats_title(stats)}", fontsize=7.8, pad=4)
     ax.set_xlim(-cell_radius - 0.2, (cols - 1) * span + cell_radius + 0.2)
     ax.set_ylim(-(rows - 1) * span - cell_radius - 0.2, cell_radius + 0.2)
     ax.set_aspect("equal", adjustable="box")
@@ -1050,9 +1058,8 @@ def render_atlas_task(
         ("fullseq_robust", "encoder"),
         ("fullseq_robust", "predictor"),
     ]
-    stats_rows: list[list[str]] = []
     for ax, (label, feature) in zip(axes.reshape(-1), panels):
-        stats = _draw_local_atlas_panel(
+        _draw_local_atlas_panel(
             plt=plt,
             ax=ax,
             array=encoded[label][feature],
@@ -1061,15 +1068,6 @@ def render_atlas_task(
             title=f"{label_by_spec[label]}: {feature_by_name[feature]} local clusters",
             neighbor_count=neighbor_count,
         )
-        stats_rows.append(
-            [
-                label_by_spec[label],
-                feature_by_name[feature],
-                f"{stats['median_radius_over_nn']:.2f}",
-                f"{100.0 * stats['frac_radius_lt_nn']:.0f}%",
-                f"{100.0 * stats['frac_disjoint_balls']:.0f}%",
-            ]
-        )
 
     fig.suptitle(
         f"{task}: local cluster atlas normalized by nearest original-state distance "
@@ -1077,18 +1075,6 @@ def render_atlas_task(
         y=0.975,
         fontsize=9.2,
     )
-    stats_ax = fig.add_axes([0.07, 0.035, 0.86, 0.145])
-    stats_ax.axis("off")
-    table = stats_ax.table(
-        cellText=stats_rows,
-        colLabels=["branch", "space", "median r/NN", "r < NN", "disjoint"],
-        cellLoc="center",
-        colLoc="center",
-        loc="center",
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(6.8)
-    table.scale(1.0, 1.12)
     fig.text(
         0.5,
         0.012,
@@ -1097,7 +1083,7 @@ def render_atlas_task(
         va="bottom",
         fontsize=6.8,
     )
-    fig.tight_layout(rect=(0, 0.19, 1, 0.945), h_pad=1.6, w_pad=0.8)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.945), h_pad=1.6, w_pad=0.8)
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_atlas.png"
     fig.savefig(out, dpi=320)
@@ -1155,7 +1141,6 @@ def render_cluster_task(
         ("fullseq_robust", "encoder"),
         ("fullseq_robust", "predictor"),
     ]
-    stats_rows: list[list[str]] = []
     for panel_idx, (ax, (label, feature)) in enumerate(zip(axes.reshape(-1), panels)):
         arr = encoded[label][feature]
         projected = _tsne_fit_transform_2d(
@@ -1214,7 +1199,12 @@ def render_cluster_task(
                 zorder=4,
             )
 
-        ax.set_title(f"{label_by_spec[label]}: {feature_by_name[feature]}", fontsize=8.2, pad=4)
+        ax.set_title(
+            f"{label_by_spec[label]}: {feature_by_name[feature]}\n"
+            f"high-D: {_cluster_stats_title(stats)}",
+            fontsize=7.8,
+            pad=4,
+        )
         ax.set_xlim(*xlim)
         ax.set_ylim(*ylim)
         ax.set_xlabel("t-SNE 1", fontsize=7.4)
@@ -1222,16 +1212,6 @@ def render_cluster_task(
         ax.tick_params(labelsize=6.8, pad=1)
         ax.grid(True, color="#EEEEEE", linewidth=0.45)
         ax.set_aspect("equal", adjustable="box")
-        stats_rows.append(
-            [
-                label_by_spec[label],
-                feature_by_name[feature],
-                f"{stats['median_radius_over_nn']:.2f}",
-                f"{100.0 * stats['frac_radius_lt_nn']:.0f}%",
-                f"{100.0 * stats['frac_disjoint_balls']:.0f}%",
-            ]
-        )
-
     fig.suptitle(
         f"{task}: same-state perturbation clusters in encoder and H8 predictor spaces",
         y=0.975,
@@ -1246,28 +1226,16 @@ def render_cluster_task(
         "circle": "colored circles use the legacy max-distance envelope in the t-SNE plane",
         "none": "no colored envelope is drawn",
     }[envelope]
-    stats_ax = fig.add_axes([0.07, 0.040, 0.86, 0.145])
-    stats_ax.axis("off")
-    table = stats_ax.table(
-        cellText=stats_rows,
-        colLabels=["branch", "space", "median r/NN", "r < NN", "disjoint"],
-        cellLoc="center",
-        colLoc="center",
-        loc="center",
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(6.8)
-    table.scale(1.0, 1.12)
     fig.text(
         0.5,
         0.012,
-        "t-SNE is visualization only; table stats are computed in high-D space. "
+        "t-SNE is visualization only; panel annotations are computed in high-D space. "
         f"Gray dots show sampled views; {envelope_note}.",
         ha="center",
         va="bottom",
         fontsize=6.8,
     )
-    fig.tight_layout(rect=(0, 0.19, 1, 0.945), h_pad=1.6, w_pad=0.9)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.945), h_pad=2.0, w_pad=0.9)
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_clusters.png"
     fig.savefig(out, dpi=320)

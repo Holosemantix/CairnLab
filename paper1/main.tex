@@ -221,11 +221,7 @@ the representation and predictions should keep them separable,
   d\!\big(\Psi(z_i),\, \Psi(z_j)\big) > m',
   \label{eq:acpc-disc}
 \end{equation}
-where $\Psi$ is a discriminability readout (latent, predicted delta, inverse-dynamics feature, cost feature, or rollout embedding) and $m, m' > 0$ are margins. Equations~\eqref{eq:acpc-h}--\eqref{eq:acpc-disc} make the central tension precise: it is not invariance versus resolution in the abstract, but
-\begin{center}
-\emph{predictive disagreement low for same-state visual-perturbation pairs; predictive discriminability high for state/action/transition-distinct pairs.}
-\end{center}
-A method that drove $\mathrm{ACPC}_H \to 0$ by collapsing the latent would violate \eqref{eq:acpc-disc}, which is why the two conditions are stated together.
+where $\Psi$ is a discriminability readout (latent, predicted delta, inverse-dynamics feature, cost feature, or rollout embedding) and $m, m' > 0$ are margins. Equations~\eqref{eq:acpc-h}--\eqref{eq:acpc-disc} state the target: lower predictive disagreement for same-state visual perturbations must preserve discriminability among state/action/transition-distinct pairs. A method that drove $\mathrm{ACPC}_H \to 0$ by collapsing the latent would violate \eqref{eq:acpc-disc}, so the two conditions are inseparable.
 
 \subsection{Operational consistency diagnostics}\label{sec:acpc-diag}
 
@@ -424,7 +420,7 @@ Cube & noise $0.03$ & $68.33$ & $-3.33$ & $0.238$ & $0.115$ \\
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\linewidth]{pusht_fullseq_selective_contraction_clusters.png}
-\caption{Representative PushT same-state perturbation clusters for \Cref{tab:acpc-basin}. Top: no-noise-trained LeWM; bottom: noise-trained LeWM at \stdmax{} $=0.08$. Left: encoder-history features; right: $H=8$ predictor-rollout features. t-SNE coordinates and envelopes are visualization only; the embedded table reports original-space local statistics.}
+\caption{Representative PushT same-state perturbation clusters for \Cref{tab:acpc-basin}. Top: no-noise-trained LeWM; bottom: noise-trained LeWM at \stdmax{} $=0.08$. Left: encoder-history features; right: $H=8$ predictor-rollout features. t-SNE coordinates and envelopes are visualization only; the small panel summaries report original-space local statistics.}
 \label{fig:selective-contraction}
 \end{figure}
 
@@ -793,18 +789,20 @@ python -m tools.paper1_selective_contraction \
   --cluster-envelope ellipse --cluster-envelope-coverage 0.90
 \end{lstlisting}
 
-Unlike the aggregate figure generator, this optional rendering path loads the PushT checkpoints and dataset windows to draw repeated same-state perturbation samples. The small table below the panels reports high-dimensional statistics; the t-SNE ellipses are only qualitative 2-D covariance envelopes.
+Unlike the aggregate figure generator, this optional rendering path loads the PushT checkpoints and dataset windows to draw repeated same-state perturbation samples. The small panel summaries report high-dimensional statistics; the t-SNE ellipses are only qualitative 2-D covariance envelopes.
 
 \subsection{Local cluster atlas: a projection-free check of the basin visualization}\label{sec:appendix-A-atlas}
 
 Because t-SNE distorts global distances, \Cref{fig:selective-contraction-atlas} provides a complementary \emph{local normalized atlas} view of the same PushT data. Each small box selects one original dataset state; the circle radius equals the distance to its nearest \emph{other} original state, computed in the original high-dimensional feature space, and the coloured markers are that state's original and Gaussian-perturbed views after a local PCA used only for in-box display. The visual question per box is therefore exactly the high-dimensional one: does the same-state perturbation cloud stay inside the nearest-different-state radius? On the no-noise-trained checkpoint many perturbation views escape their circles (median $r/\mathrm{NN} > 1$, few disjoint balls); on the full-sequence noise-trained checkpoint the clouds contract well inside the circles in both encoder and predictor-rollout features. This avoids the global-projection caveats of \Cref{fig:selective-contraction} at the cost of showing only local neighbourhoods; the quantitative multi-task evidence remains \Cref{tab:acpc-basin}.
 
-\begin{figure}[tbp]
+\begin{landscape}
+\begin{figure}[p]
 \centering
-\includegraphics[width=\linewidth]{pusht_fullseq_selective_contraction_atlas.png}
-\caption{PushT local cluster atlas normalized by nearest original-state distance ($n=128$ windows, 16 anchors, 8 neighbours). Each box shows one original state, its Gaussian-perturbed views, and nearby original states after local PCA; the circle radius is the high-dimensional nearest-other-state distance. The embedded table reports original-space local statistics.}
+\includegraphics[width=0.82\linewidth]{pusht_fullseq_selective_contraction_atlas.png}
+\caption{PushT local cluster atlas ($n=128$ windows, 16 anchors, 8 neighbours). Each box is one original state with Gaussian-perturbed views after local PCA; the circle radius is the high-dimensional nearest-other-state distance. Panel summaries report original-space local statistics.}
 \label{fig:selective-contraction-atlas}
 \end{figure}
+\end{landscape}
 
 The atlas rendering command is:
 
@@ -1129,10 +1127,10 @@ Cube & noise $0.04$ & $54.67$ & $-0.67$ & $0.146$ & $0.054$ \\
 
 \paragraph{Reading.} The PLDM basin replication is directionally consistent with the LeWM ACPC-basin reading: the observation-noise 0.08 point-best checkpoint reduces $R_F$ on all four tasks, sharply on TwoRoom, PushT, and Cube. Reacher is the scope boundary: PLDM is already near-robust at the no-noise baseline, and both the behavioural drop and the basin change are small. The full 36-row artifact reduces the concern that the paired basin pattern is purely a LeWM artifact, but it does not upgrade the claim to a method-invariant mechanism because \Cref{tab:pldm-full-diag} shows different internal diagnostic movement.
 
-\begin{figure}[H]
+\begin{figure}[p]
 \centering
 \includegraphics[width=\linewidth]{pusht_pldm_noise_selective_contraction_clusters.png}
-\caption{Qualitative PLDM PushT same-state perturbation clusters for \Cref{tab:pldm-acpc-basin}. Top: no-noise-trained PLDM; bottom: noise-trained PLDM at \stdmax{} $=0.03$. The embedded table reports original-space local statistics; t-SNE coordinates are qualitative and not comparable with LeWM.}
+\caption{Qualitative PLDM PushT same-state perturbation clusters for \Cref{tab:pldm-acpc-basin}. Top: no-noise-trained PLDM; bottom: noise-trained PLDM at \stdmax{} $=0.03$. Small panel summaries report original-space local statistics; t-SNE coordinates are qualitative and not comparable with LeWM.}
 \label{fig:pldm-selective-contraction}
 \end{figure}
 

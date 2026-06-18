@@ -78,6 +78,14 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
         f.write("\n")
 
 
+def _artifact_path(path: Path) -> str:
+    resolved = path.expanduser().resolve()
+    try:
+        return str(resolved.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _finite(x: Any) -> bool:
     try:
         return math.isfinite(float(x))
@@ -227,8 +235,8 @@ def build_summary(
     return {
         "metadata": {
             "schema_version": "paper1-selective-contraction-branch-0.2",
-            "source_acpc_basin": str(acpc_basin_path),
-            "source_acpc_phase0": str(acpc_phase0_path),
+            "source_acpc_basin": _artifact_path(acpc_basin_path),
+            "source_acpc_phase0": _artifact_path(acpc_phase0_path),
             "robust_metric": robust_metric,
             "method": method_name,
             "method_label": display_method,
@@ -716,6 +724,23 @@ def _cluster_stats_title(stats: Mapping[str, float]) -> str:
     )
 
 
+def _cluster_point_counts(array: np.ndarray, anchor_count: int) -> dict[str, int]:
+    view_count = int(array.shape[0])
+    state_count = int(array.shape[1])
+    anchors = int(anchor_count)
+    return {
+        "view_count_per_state": view_count,
+        "sampled_state_count": state_count,
+        "background_origin_points": state_count,
+        "background_perturbed_points": max(0, view_count - 1) * state_count,
+        "background_total_points": view_count * state_count,
+        "colored_anchor_count": anchors,
+        "colored_anchor_origin_points": anchors,
+        "colored_anchor_perturbed_points": max(0, view_count - 1) * anchors,
+        "colored_anchor_total_points": view_count * anchors,
+    }
+
+
 def _expanded_view_stds(view_stds: Sequence[float], perturb_repeats: int) -> list[float]:
     out = []
     repeats = max(1, int(perturb_repeats))
@@ -1141,8 +1166,23 @@ def render_cluster_task(
         ("fullseq_robust", "encoder"),
         ("fullseq_robust", "predictor"),
     ]
+    sample_shapes = {
+        f"{label}:{feature}": encoded[label][feature].shape[:2]
+        for label, feature in panels
+    }
+    if len(set(sample_shapes.values())) != 1:
+        raise ValueError(f"cluster panels use inconsistent sample counts: {sample_shapes}")
+    panel_point_counts = []
     for panel_idx, (ax, (label, feature)) in enumerate(zip(axes.reshape(-1), panels)):
         arr = encoded[label][feature]
+        panel_point_counts.append(
+            {
+                "panel": f"{label}:{feature}",
+                "row_label": label,
+                "feature": feature,
+                **_cluster_point_counts(arr, len(anchors)),
+            }
+        )
         projected = _tsne_fit_transform_2d(
             arr,
             seed=seed + 17 * (panel_idx + 1),
@@ -1239,6 +1279,30 @@ def render_cluster_task(
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_clusters.png"
     fig.savefig(out, dpi=320)
+    point_counts_out = out.with_name(f"{out.stem}_point_counts.json")
+    _write_json(
+        point_counts_out,
+        {
+            "schema_version": "paper1-selective-contraction-cluster-point-counts-0.1",
+            "figure": out.name,
+            "task": task,
+            "method": str(summary.get("metadata", {}).get("method", "")),
+            "n_sequences": int(n_sequences),
+            "view_stds": [float(x) for x in view_stds],
+            "expanded_view_stds": [float(x) for x in cluster_view_stds],
+            "perturb_repeats": int(perturb_repeats),
+            "rollout_horizon": int(rollout_horizon),
+            "seed": int(seed),
+            "anchor_indices": [int(x) for x in anchors.tolist()],
+            "panels": panel_point_counts,
+            "note": (
+                "All four cluster panels must have identical view_count_per_state "
+                "and sampled_state_count. Colored anchor points are overlaid on the "
+                "same background sample, so contraction can make the lower-row points "
+                "visually overlap even when the counts match."
+            ),
+        },
+    )
     plt.close(fig)
     return out
 

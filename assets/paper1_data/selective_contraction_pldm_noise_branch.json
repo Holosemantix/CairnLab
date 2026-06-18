@@ -2,13 +2,13 @@
   "metadata": {
     "schema_version": "paper1-selective-contraction-branch-0.2",
     "source_acpc_basin": "assets/paper1_data/acpc_basin_diagnostics_pldm.json",
-    "source_acpc_phase0": "/opt/huawei/explorer-env/dataset/ag_data/code/wm_exp/assets/paper1_data/acpc_phase0_diagnostics.json",
+    "source_acpc_phase0": "assets/paper1_data/acpc_phase0_diagnostics.json",
     "robust_metric": "pixels_std0.08_success",
     "method": "PLDM",
     "method_label": "PLDM",
     "robust_label": null,
     "branch": "existing PLDM noise sweep",
-    "interpretation": "RE/RF are same-state perturbation radii from the primary observation-only ACPC basin diagnostic. ADM/SPRR are auxiliary pixels+goal Phase-0 proxies and should be read only as branch sanity checks, not paper-facing proof. Optional cluster plots use repeated perturbation samples and 2-D visualization envelopes; their envelopes are not high-D basin boundaries."
+    "interpretation": "RE/RF are same-state perturbation radii from the primary observation-only ACPC basin diagnostic. ADM/SPRR are auxiliary observation+goal Phase-0 proxies and should be read only as branch sanity checks, not paper-facing proof. Optional cluster plots use repeated perturbation samples and 2-D visualization envelopes; their envelopes are not high-D basin boundaries."
   },
   "rows": [
     {

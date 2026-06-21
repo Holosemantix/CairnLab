@@ -93,6 +93,8 @@ loss:
     target_view: perturbed
   generic_latent_consistency:
     enabled: false
+  snap_acpc:
+    enabled: false
   # SimSiam-style stop-grad on the target branch (Chen & He, CVPR 2021).
   # Default false preserves classic LeWM behavior. Setting true is the
   # recommended companion when removing BN from the projection head — the

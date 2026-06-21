@@ -480,14 +480,21 @@ def generic_latent_consistency_enabled(cfg) -> bool:
     )
 
 
+def snap_acpc_enabled(cfg) -> bool:
+    return bool(cfg.loss.get("snap_acpc", {}).get("enabled", False))
+
+
 def paired_view_method_enabled(cfg) -> bool:
-    snap_enabled = bool(cfg.loss.get("snap_acpc", {}).get("enabled", False))
-    if snap_enabled:
-        raise NotImplementedError(
-            "loss.snap_acpc.enabled=True is reserved for a later PR; "
-            "run generic_latent_consistency first."
+    enabled_methods = [
+        generic_latent_consistency_enabled(cfg),
+        snap_acpc_enabled(cfg),
+    ]
+    if sum(enabled_methods) > 1:
+        raise ValueError(
+            "Enable at most one paired-view method: "
+            "loss.generic_latent_consistency or loss.snap_acpc."
         )
-    return generic_latent_consistency_enabled(cfg)
+    return any(enabled_methods)
 
 
 @contextmanager
@@ -634,6 +641,7 @@ def lejepa_forward(self, batch, stage, cfg):
     pred_space = pred_cfg.get("space", "raw")
     target_view = resolve_pred_target_view(cfg)
     glc_enabled = generic_latent_consistency_enabled(cfg)
+    snap_enabled = snap_acpc_enabled(cfg)
     paired_view = paired_view_method_enabled(cfg)
     if paired_view and target_view != "perturbed":
         raise ValueError(
@@ -704,9 +712,9 @@ def lejepa_forward(self, batch, stage, cfg):
     hetero_mode = hetero_cfg.get("mode", "loss").lower()
     if hetero_enabled and hetero_mode not in {"loss", "probe"}:
         raise ValueError(f"Unsupported loss.hetero.mode: {hetero_mode}")
-    if glc_enabled and hetero_enabled and hetero_mode == "loss":
+    if (glc_enabled or snap_enabled) and hetero_enabled and hetero_mode == "loss":
         raise ValueError(
-            "loss.generic_latent_consistency is defined for the MSE pred_loss "
+            "paired-view auxiliary losses are defined for the MSE pred_loss "
             "baseline; disable loss.hetero or use loss.hetero.mode=probe."
         )
     if hetero_enabled:
@@ -774,6 +782,28 @@ def lejepa_forward(self, batch, stage, cfg):
             latent_raw.detach() / pred_mse_loss.detach().clamp_min(1e-8)
         )
         output["pred_loss"] = output["pred_loss"] + latent_loss
+    if snap_enabled:
+        with torch.no_grad(), preserve_batchnorm_eval(self.model):
+            clean_pred_emb = self.model.predict(
+                origin_emb[:, :ctx_len],
+                origin_output["act_emb"][:, :ctx_len],
+            )
+        clean_pred_loss_emb = get_pred_loss_tensor(clean_pred_emb, space=pred_space)
+        acpc_raw = mse_token(
+            pred_loss_emb,
+            clean_pred_loss_emb.detach(),
+        ).mean()
+        acpc_loss, acpc_scale = self_bounded_aux_loss(
+            pred_mse_loss,
+            acpc_raw,
+        )
+        output["snap_acpc_pred_raw"] = acpc_raw
+        output["snap_acpc_pred_scale"] = acpc_scale
+        output["snap_acpc_pred_loss"] = acpc_loss
+        output["snap_acpc_pair_to_base"] = (
+            acpc_raw.detach() / pred_mse_loss.detach().clamp_min(1e-8)
+        )
+        output["pred_loss"] = output["pred_loss"] + acpc_loss
     gate_cfg = cfg.loss.get("action_gate", {})
     if gate_cfg.get("enabled", False):
         warmup_epochs = int(gate_cfg.get("warmup_epochs", 3))
@@ -1030,6 +1060,7 @@ def lejepa_forward(self, batch, stage, cfg):
                 or k.startswith("sigma_probe_")
                 or k.startswith("adaptive_")
                 or k.startswith("glc_")
+                or k.startswith("snap_acpc_")
                 or k.startswith("target_view_")
                 or k == "pred_loss_mse_equiv"
                 or k == "sigreg_warmup_active"

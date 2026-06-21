@@ -13,6 +13,8 @@ This log is organized by experiment phase:
 7. **Four-Task Temporal Hinge Comparison**: latest `epoch=10`, `num_eval=500` comparison batch.
 8. **Appendix A**: raw PushT ablation records retained for traceability.
 9. **Next Directions**: recommended follow-up experiments.
+10. **Paper2 GLC adequacy baseline**: Reacher generic latent consistency
+    implementation and negative gate result.
 
 ## 1. Current Working Summary
 
@@ -1084,3 +1086,111 @@ If compute budget is limited, the cleanest next sequence is:
 At this point, the regularizer ablation has done its job. The next gains are
 more likely to come from action / transition-aware dynamics than from continuing
 to search the same uniformity or fixed temporal-hinge hyperparameter grids.
+
+## 10. Paper2 GLC Adequacy Baseline
+
+This section records the first Paper2 adequacy baseline after the Paper1 ACPC
+diagnostics. The question was intentionally narrow: before implementing a
+SNAP-ACPC or APDC-style objective, test whether a minimal related-work baseline
+based on encoder-level clean/noisy latent consistency is already sufficient.
+
+### Implementation
+
+Implemented branch:
+
+- `loss.generic_latent_consistency.enabled`
+- paired-view training path for LeWM
+- `run_trainer.sh` and `run_trainer_batch.sh` CLI/env passthrough
+- self-bounded auxiliary loss, so GLC has no extra tuned loss weight
+- clean-anchor BatchNorm freeze fix for the detached clean branch
+
+Training semantics:
+
+- paired-view mode requires `loss.pred.target_view=perturbed`
+- normal LeWM prediction loss and SIGReg use the noisy branch
+- the clean branch is encoded under `no_grad` and used only as a detached anchor
+- BN running stats are frozen only for the clean-anchor encode
+
+Relevant commits:
+
+- `1dc5f09 add generic latent consistency baseline`
+- `f68f006 freeze glc anchor batchnorm stats`
+
+### Reacher 0.08 evaluation
+
+Main BN-fix run:
+
+```text
+/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_reacher_lewm_glc_bnfix_noise_0to008_p1
+```
+
+Run notes:
+
+- `loss.generic_latent_consistency.enabled=true`
+- `image_noise.std_max=0.08`
+- `loss.pred.target_view=perturbed`
+- `post_train_eval_mode=full`
+- `num_eval=150` in `summary.txt`
+- eval rows exist for `pixels` and `pixels+goal`; no clean/origin row was
+  produced for this run
+
+Closed-loop success comparison:
+
+| Model | Origin | Clean | `pixels_std0.08` | `pixels_goal_std0.08` |
+|---|---:|---:|---:|---:|
+| `reacher_lewm_20260430` |  | 59.42 | 17.17 | 14.92 |
+| `reacher_lewm_noise_0to008_p1` | 81.33 |  | 83.67 | 81.00 |
+| `reacher_lewm_glc_noise_0to008_p1` | 58.67 |  | 19.67 | 18.33 |
+| `reacher_reacher_lewm_glc_bnfix_noise_0to008_p1` |  |  | 24.00 | 12.00 |
+| `reacher_lewm_baseline_unperturbed_target_noise_0to008_p1` | 60.33 |  | 24.33 |  |
+
+BN-fix GLC corruption sweep:
+
+| Condition | Success |
+|---|---:|
+| `pixels_std0.03` | 37.33 |
+| `pixels_std0.05` | 37.33 |
+| `pixels_std0.08` | 24.00 |
+| `pixels_goal_std0.03` | 48.00 |
+| `pixels_goal_std0.05` | 26.67 |
+| `pixels_goal_std0.08` | 12.00 |
+
+### Diagnostics
+
+Noise sensitivity shows the failure is not explained by the clean-anchor BN
+side effect.
+
+| Model | Std | Angle median | CKA | Noise-to-NN ratio | Risk |
+|---|---:|---:|---:|---:|---|
+| normal noise 0.08 | 0.08 | 2.51 | 0.998 | 0.014 | low |
+| old GLC 0.08 | 0.08 | 80.33 | 0.447 | 12.30 | high |
+| BN-fix GLC 0.08 | 0.08 | 80.13 | 0.412 | 12.58 | high |
+| target-origin 0.08 | 0.08 | 79.94 | 0.407 | 13.81 | high |
+
+Predictor sensitivity is also much worse than the normal noise-trained branch:
+
+| Model | Std | Target L2 | Rollout T1 L2 | Rollout T8 L2 | T8 angle |
+|---|---:|---:|---:|---:|---:|
+| normal noise 0.08 | 0.08 | 0.0029 | 0.303 | 0.252 | 1.02 |
+| BN-fix GLC 0.08 | 0.08 | 0.0078 | 14.164 | 16.685 | 81.86 |
+| target-origin 0.08 | 0.08 |  |  | 12.995 | 68.85 |
+
+### Gate decision
+
+GLC failed the adequacy gate on Reacher.
+
+Interpretation:
+
+- The BN-fix corrected a real implementation side-effect, but it did not change
+  the conclusion.
+- Generic encoder-level latent consistency behaves like the failed
+  target-origin branch, not like ordinary noise training.
+- Encoder-level clean/noisy closeness is therefore too weak and too
+  mis-targeted for the Paper1 ACPC failure mode.
+
+Decision:
+
+- stop broad GLC sweeps unless a clean/origin eval row is needed for a table
+- do not promote GLC as a method contribution
+- if continuing train-side work, move to SNAP-ACPC / action-conditioned
+  predictive consistency with an explicit discriminability guard

@@ -135,9 +135,18 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 | DMC-Suite task 扩展 | ~1 周 | 弱化 "4 task cherry-picked" 质疑 |
 | TD-MPC2 / DreamerV3 cross-arch | ~1 周 each | 测 5 层诊断是否能扩到 reconstruction-based world model |
 
-### 7.3 Paper 2 候选 — 由 Paper 1 motivating 的 3 条独立方向
+### 7.3 Paper 2 候选 — 由 Paper 1 motivating 的方向与已关闭 baseline
 
-每条都是独立的方法贡献，可以并行推进。
+下面三条是独立的方法贡献，可以并行推进。Paper2 总控准备文档见 [`paper2/PLAN.md`](../paper2/PLAN.md)。GLC 是 related-work adequacy baseline，不作为独立贡献；它的负结果用于关闭 encoder-level latent consistency 这条过弱路线。
+
+#### 7.3.0 已关闭 baseline：generic latent consistency（GLC）
+
+- **核心问题**：在进入 SNAP-ACPC / APDC 之前，先验证最小 related-work baseline：同一状态的 clean/noisy encoder context tokens 做 generic latent consistency，是否已经足够满足 Paper 1 暴露出的鲁棒性需求。
+- **实现状态**：PR-0 已完成并推送：`loss.generic_latent_consistency.enabled`、paired-view training path、`run_trainer.sh` / `run_trainer_batch.sh` 参数适配，以及 clean-anchor BatchNorm running-stat freeze fix。正常 LeWM pred loss 和 SIGReg 仍走 noisy branch；clean branch 只作为 detached anchor。
+- **Reacher 0.08 结果**：GLC 在 Reacher 上未通过 adequacy gate。普通 noise training `reacher_lewm_noise_0to008_p1` 在 `pixels_std0.08` / `pixels_goal_std0.08` 约为 `83.67` / `81.00`；旧 GLC 为 `19.67` / `18.33`；BN-fix GLC 为 `24.00` / `12.00`（BN-fix run 只记录 corruption eval，未记录 clean/origin row）。BN-fix 没有救回结果，说明 clean-anchor BN side-effect 不是主要失败机制。
+- **诊断读法**：GLC 的 clean/noisy encoder sensitivity 仍是 high-risk（std 0.08 angle 约 `80°`、CKA 约 `0.41`），predictor rollout drift 仍很大（T8 L2 约 `16.7`）。行为和诊断都接近此前失败的 target-origin branch，而不是普通 noise training branch。
+- **Gate 判断**：GLC 无增益且 ACPC/predictive discriminability 方向没有改善，停止继续扩展 generic encoder-level consistency。若继续做 train-side method，应转向 SNAP-ACPC / action-conditioned predictive consistency，即在同一动作序列下约束 clean/noisy predictions，并保留 discriminability guard。
+- **记录位置**：Paper2 总控 gate 见 [`paper2/PLAN.md`](../paper2/PLAN.md)；具体数值和 run provenance 见 [`experiments.md`](../experiments.md) 的 "Paper2 GLC adequacy baseline" 小节。
 
 #### 7.3.a Plan-side robust CEM
 

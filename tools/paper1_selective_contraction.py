@@ -1269,13 +1269,14 @@ def render_cluster_task(
     fig.text(
         0.5,
         0.012,
-        "t-SNE is visualization only; panel annotations are computed in high-D space. "
+        "t-SNE is visualization only; panel annotations are computed in high-D space.\n"
         f"Gray dots show sampled views; {envelope_note}.",
         ha="center",
         va="bottom",
-        fontsize=6.8,
+        fontsize=6.6,
+        linespacing=1.18,
     )
-    fig.tight_layout(rect=(0, 0.05, 1, 0.945), h_pad=2.0, w_pad=0.9)
+    fig.tight_layout(rect=(0, 0.075, 1, 0.945), h_pad=2.0, w_pad=0.9)
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_clusters.png"
     fig.savefig(out, dpi=320)

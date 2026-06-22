@@ -484,15 +484,21 @@ def snap_acpc_enabled(cfg) -> bool:
     return bool(cfg.loss.get("snap_acpc", {}).get("enabled", False))
 
 
+def paired_view_control_enabled(cfg) -> bool:
+    return bool(cfg.loss.get("paired_view_control", {}).get("enabled", False))
+
+
 def paired_view_method_enabled(cfg) -> bool:
     enabled_methods = [
         generic_latent_consistency_enabled(cfg),
         snap_acpc_enabled(cfg),
+        paired_view_control_enabled(cfg),
     ]
     if sum(enabled_methods) > 1:
         raise ValueError(
             "Enable at most one paired-view method: "
-            "loss.generic_latent_consistency or loss.snap_acpc."
+            "loss.generic_latent_consistency, loss.snap_acpc, "
+            "or loss.paired_view_control."
         )
     return any(enabled_methods)
 
@@ -642,6 +648,7 @@ def lejepa_forward(self, batch, stage, cfg):
     target_view = resolve_pred_target_view(cfg)
     glc_enabled = generic_latent_consistency_enabled(cfg)
     snap_enabled = snap_acpc_enabled(cfg)
+    paired_control_enabled = paired_view_control_enabled(cfg)
     paired_view = paired_view_method_enabled(cfg)
     if paired_view and target_view != "perturbed":
         raise ValueError(
@@ -674,6 +681,11 @@ def lejepa_forward(self, batch, stage, cfg):
             output["target_view_paired_context_noise_l2"] = torch.linalg.vector_norm(
                 ctx_emb.detach() - origin_emb[:, :ctx_len].detach(), dim=-1
             ).mean()
+            if paired_control_enabled:
+                output["paired_noaux_active"] = emb.new_tensor(1.0)
+                output["paired_noaux_context_noise_l2"] = output[
+                    "target_view_paired_context_noise_l2"
+                ]
     elif target_view == "perturbed":
         ctx_emb = emb[:, :ctx_len]
     elif target_view == "origin":
@@ -804,6 +816,21 @@ def lejepa_forward(self, batch, stage, cfg):
             acpc_raw.detach() / pred_mse_loss.detach().clamp_min(1e-8)
         )
         output["pred_loss"] = output["pred_loss"] + acpc_loss
+    if paired_control_enabled:
+        with torch.no_grad(), preserve_batchnorm_eval(self.model):
+            clean_pred_emb = self.model.predict(
+                origin_emb[:, :ctx_len],
+                origin_output["act_emb"][:, :ctx_len],
+            )
+            clean_pred_loss_emb = get_pred_loss_tensor(clean_pred_emb, space=pred_space)
+            noaux_pred_raw = mse_token(
+                pred_loss_emb.detach(),
+                clean_pred_loss_emb.detach(),
+            ).mean()
+        output["paired_noaux_pred_raw"] = noaux_pred_raw
+        output["paired_noaux_pair_to_base"] = (
+            noaux_pred_raw.detach() / pred_mse_loss.detach().clamp_min(1e-8)
+        )
     gate_cfg = cfg.loss.get("action_gate", {})
     if gate_cfg.get("enabled", False):
         warmup_epochs = int(gate_cfg.get("warmup_epochs", 3))
@@ -1061,6 +1088,7 @@ def lejepa_forward(self, batch, stage, cfg):
                 or k.startswith("adaptive_")
                 or k.startswith("glc_")
                 or k.startswith("snap_acpc_")
+                or k.startswith("paired_noaux_")
                 or k.startswith("target_view_")
                 or k == "pred_loss_mse_equiv"
                 or k == "sigreg_warmup_active"

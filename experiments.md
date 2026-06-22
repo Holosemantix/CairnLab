@@ -15,6 +15,8 @@ This log is organized by experiment phase:
 9. **Next Directions**: recommended follow-up experiments.
 10. **Paper2 GLC adequacy baseline**: Reacher generic latent consistency
     implementation and negative gate result.
+11. **Paper2 SNAP-ACPC PR-1A negative baseline**: Reacher one-step predictive
+    consistency result and route decision.
 
 ## 1. Current Working Summary
 
@@ -1192,5 +1194,127 @@ Decision:
 
 - stop broad GLC sweeps unless a clean/origin eval row is needed for a table
 - do not promote GLC as a method contribution
-- if continuing train-side work, move to SNAP-ACPC / action-conditioned
-  predictive consistency with an explicit discriminability guard
+- SNAP-ACPC PR-1A was the next minimal train-side check; its result is recorded
+  in the following section
+
+## 11. Paper2 SNAP-ACPC PR-1A Negative Baseline
+
+This section records the first one-step action-conditioned predictive
+consistency check after GLC failed. The question was whether matching clean and
+noisy **predictions** under the same action context is already enough to close
+the gap exposed by Paper1, without returning to the more complex AAAC route.
+
+### Implementation
+
+Implemented branch:
+
+- `loss.snap_acpc.enabled`
+- paired clean/noisy LeWM forward shared with the GLC infrastructure
+- normal prediction loss and SIGReg remain on the noisy branch
+- clean branch is encoded and predicted under `no_grad`
+- BatchNorm running stats are frozen for the detached clean-anchor path
+- self-bounded auxiliary loss, so SNAP-ACPC has no extra tuned loss weight
+- `run_trainer.sh` and `run_trainer_batch.sh` passthrough via
+  `loss_snap_acpc_enabled=true`
+
+Relevant commit:
+
+- `cae8bd2 add snap acpc preparation path`
+
+### Reacher 0.08 evaluation
+
+Main run:
+
+```text
+/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_snap_acpc_noise_0to008_p1
+```
+
+Run notes:
+
+- `loss.snap_acpc.enabled=true`
+- `loss.generic_latent_consistency.enabled=false`
+- `image_noise.std_max=0.08`
+- `loss.pred.target_view=perturbed`
+- eval rows exist for `pixels` and `pixels+goal`; no clean/origin row was
+  produced for this run
+
+Closed-loop success comparison:
+
+| Model | Origin | Clean | `pixels_std0.08` | `pixels_goal_std0.08` |
+|---|---:|---:|---:|---:|
+| `reacher_lewm_20260430` |  | 59.42 | 17.17 | 14.92 |
+| `reacher_lewm_noise_0to008_p1` | 81.33 |  | 83.67 | 81.00 |
+| `reacher_lewm_glc_noise_0to008_p1` | 58.67 |  | 19.67 | 18.33 |
+| `reacher_reacher_lewm_glc_bnfix_noise_0to008_p1` |  |  | 24.00 | 12.00 |
+| `reacher_lewm_baseline_unperturbed_target_noise_0to008_p1` | 60.33 |  | 24.33 |  |
+| `reacher_lewm_snap_acpc_noise_0to008_p1` |  |  | 24.67 | 19.67 |
+
+SNAP-ACPC corruption sweep:
+
+| Condition | Success |
+|---|---:|
+| `pixels_std0.03` | 40.67 |
+| `pixels_std0.05` | 30.33 |
+| `pixels_std0.08` | 24.67 |
+| `pixels_goal_std0.03` | 37.00 |
+| `pixels_goal_std0.05` | 29.67 |
+| `pixels_goal_std0.08` | 19.67 |
+
+### Diagnostics
+
+SNAP-ACPC improves neither the behavior gate nor the main ACPC diagnostic
+relative to ordinary noise training.
+
+Noise sensitivity at std 0.08, all frames:
+
+| Model | Angle median | CKA | Noise-to-NN cosine ratio | Clean rank | Risk |
+|---|---:|---:|---:|---:|---|
+| normal noise 0.08 | 2.55 | 0.998 | 0.155 | 70.31 | low |
+| BN-fix GLC 0.08 | 80.23 | 0.386 | 127.96 | 64.65 | high |
+| target-origin 0.08 | 79.70 | 0.383 | 123.93 | 64.48 | high |
+| SNAP-ACPC 0.08 | 80.81 | 0.495 | 129.04 | 63.35 | high |
+
+Predictor sensitivity at std 0.08:
+
+| Model | Target L2 | Target-to-NN cosine ratio | Rollout T1 L2 | Rollout T8 L2 | T8 angle |
+|---|---:|---:|---:|---:|---:|
+| normal noise 0.08 | 0.0029 | 0.000009 | 0.303 | 0.252 | 1.02 |
+| BN-fix GLC 0.08 | 0.0078 | 0.000028 | 14.164 | 16.685 | 81.86 |
+| target-origin 0.08 | 0.0076 | 0.000027 | 12.996 | 12.995 | 68.85 |
+| SNAP-ACPC 0.08 | 0.0062 | 0.000018 | 13.914 | 16.422 | 78.44 |
+
+Task-resolution diagnostics do not show a clean collapse rescue story:
+
+| Model | Transition ratio cosine | Transition ratio L2 | ID probe R2 | Lidar rank |
+|---|---:|---:|---:|---:|
+| normal noise 0.08 | 0.144 | 0.383 | 0.177 | 49.55 |
+| BN-fix GLC 0.08 | 0.136 | 0.373 | 0.159 | 45.94 |
+| target-origin 0.08 | 0.136 | 0.370 | 0.160 | 45.84 |
+| SNAP-ACPC 0.08 | 0.139 | 0.373 | 0.167 | 45.36 |
+
+### Gate decision
+
+SNAP-ACPC PR-1A failed the Paper2 gate on Reacher.
+
+Interpretation:
+
+- It is only marginally above GLC and target-origin behavior, and far below
+  ordinary noise training.
+- The encoder clean/noisy geometry remains high-risk: roughly `80.8` degrees at
+  std 0.08 all frames, despite CKA being slightly higher than GLC.
+- Predictor rollout drift remains in the same failure regime as GLC: T8 L2 is
+  `16.42`, while ordinary noise training is `0.252`.
+- The failure is not a simple discriminability collapse: transition and
+  inverse-dynamics probes are not dramatically worse than GLC, but the visual
+  perturbation still transduces into a large predictive rollout shift.
+
+Decision:
+
+- close one-step self-bounded SNAP-ACPC as a negative baseline
+- do not broaden this exact PR-1A path into larger sweeps by default
+- do not route back to AAAC/APDC as the next Paper2 mainline
+- require the next method hypothesis to explain, simplify, or beat ordinary
+  noise training under matched noise settings
+- before designing another loss, run `loss.paired_view_control.enabled=true` to
+  test whether the paired clean/noisy in-forward path is equivalent to ordinary
+  `TransformDataset` noise training when no auxiliary loss is added

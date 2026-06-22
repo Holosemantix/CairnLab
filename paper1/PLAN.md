@@ -137,7 +137,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 
 ### 7.3 Paper 2 候选 — 由 Paper 1 motivating 的方向与已关闭 baseline
 
-下面三条是独立的方法贡献，可以并行推进。Paper2 总控准备文档见 [`paper2/PLAN.md`](../paper2/PLAN.md)。GLC 是 related-work adequacy baseline，不作为独立贡献；它的负结果用于关闭 encoder-level latent consistency 这条过弱路线。
+下面条目是 Paper1 之后的候选方向与已关闭 baseline。Paper2 总控准备文档见 [`paper2/PLAN.md`](../paper2/PLAN.md)。GLC 与 one-step SNAP-ACPC 都是 adequacy baseline，不作为独立贡献；它们的负结果用于关闭过弱的一步 clean/noisy consistency 路线。AAAC/APDC 证据保留为归档路线，但当前不再作为 Paper2 下一主线，因为它不够简洁，也没有形成相对普通 noise training 的干净超越。
 
 #### 7.3.0 已关闭 baseline：generic latent consistency（GLC）
 
@@ -145,8 +145,16 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - **实现状态**：PR-0 已完成并推送：`loss.generic_latent_consistency.enabled`、paired-view training path、`run_trainer.sh` / `run_trainer_batch.sh` 参数适配，以及 clean-anchor BatchNorm running-stat freeze fix。正常 LeWM pred loss 和 SIGReg 仍走 noisy branch；clean branch 只作为 detached anchor。
 - **Reacher 0.08 结果**：GLC 在 Reacher 上未通过 adequacy gate。普通 noise training `reacher_lewm_noise_0to008_p1` 在 `pixels_std0.08` / `pixels_goal_std0.08` 约为 `83.67` / `81.00`；旧 GLC 为 `19.67` / `18.33`；BN-fix GLC 为 `24.00` / `12.00`（BN-fix run 只记录 corruption eval，未记录 clean/origin row）。BN-fix 没有救回结果，说明 clean-anchor BN side-effect 不是主要失败机制。
 - **诊断读法**：GLC 的 clean/noisy encoder sensitivity 仍是 high-risk（std 0.08 angle 约 `80°`、CKA 约 `0.41`），predictor rollout drift 仍很大（T8 L2 约 `16.7`）。行为和诊断都接近此前失败的 target-origin branch，而不是普通 noise training branch。
-- **Gate 判断**：GLC 无增益且 ACPC/predictive discriminability 方向没有改善，停止继续扩展 generic encoder-level consistency。若继续做 train-side method，应转向 SNAP-ACPC / action-conditioned predictive consistency，即在同一动作序列下约束 clean/noisy predictions，并保留 discriminability guard。
+- **Gate 判断**：GLC 无增益且 ACPC/predictive discriminability 方向没有改善，停止继续扩展 generic encoder-level consistency。后续 one-step SNAP-ACPC 已作为最小 predictive-consistency check 跑完并失败；不再把一步 clean/noisy matching 当 Paper2 主线。
 - **记录位置**：Paper2 总控 gate 见 [`paper2/PLAN.md`](../paper2/PLAN.md)；具体数值和 run provenance 见 [`experiments.md`](../experiments.md) 的 "Paper2 GLC adequacy baseline" 小节。
+
+#### 7.3.1 已关闭 baseline：one-step SNAP-ACPC
+
+- **核心问题**：在 GLC 失败后，检验最小 action-conditioned predictive consistency：同一 batch / 同一动作上下文下，让 noisy branch 的 one-step prediction 匹配 detached clean branch prediction，是否已足够接近普通 noise training。
+- **Reacher 0.08 结果**：`reacher_lewm_snap_acpc_noise_0to008_p1` 在 `pixels_std0.08` / `pixels_goal_std0.08` 为 `24.67` / `19.67`，只略高于 GLC / target-origin branch，远低于普通 noise training 的 `83.67` / `81.00`。
+- **诊断读法**：std 0.08 all-frame clean/noisy angle 约 `80.81°`，CKA 约 `0.495`，predictor rollout T8 L2 约 `16.42`；普通 noise training 的对应 T8 L2 约 `0.252`。SNAP-ACPC 没有解决 visual perturbation transduced into rollout drift 的核心问题。
+- **Gate 判断**：关闭 one-step self-bounded SNAP-ACPC，不默认扩展到更大 sweep；下一步不能回到 AAAC/APDC 作为主线，而应先解释普通 noise training 为什么这么强，并提出更简洁、能在 matched-noise 下追平或超过它的机制。
+- **记录位置**：具体数值和 run provenance 见 [`experiments.md`](../experiments.md) 的 "Paper2 SNAP-ACPC PR-1A Negative Baseline" 小节；路线决策见 [`paper2/PLAN.md`](../paper2/PLAN.md)。
 
 #### 7.3.a Plan-side robust CEM
 
@@ -160,8 +168,9 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - **核心问题**：能否在 controller 端通过 per-token consistency routing，突破 input-side noise training 的 per-task tuning 边界？
 - **由 Paper 1 哪里 motivating**：§5.5 "Additional ablation" 已验证 σ-head 学到了 prediction difficulty，但作为 loss reweighter 在 PushT 上 collapse（86% → 13%）；§5.5 Future direction 1 明示该方向。Paper 1 给出 input-side selective-consistency 诊断图景，Paper 2b 要回答 controller-side 是否能进一步榨出增益。
 - **当前状态**：完整 4 任务 sweep + 4 件套因果干预（constant_w、random_gate、shuffle_σ、shuffle_A）已完成。**关键数据**：PushT 强视觉扰动（px+goal 0.08）C1+C2 联用 = 85.33 vs C1 单独 75.75（**+9.58pt**）；causal claim "per-token routing 本身是主导项"（constant_w −28.67pt）经 ablation 证实。详细 plan 在 `plan_adaptive_resolution.md`；**paper 写作未开始**。
-- **Paper1 / Phase-1 图形边界**：PushT `selective_contraction_clusters` 已作为 Paper1 主文 qualitative mechanism illustration 纳入，paper-facing asset 为 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；它不是 standalone proof。默认应使用 repeated same-state perturbation samples + 90% 2-D covariance envelope；t-SNE envelope 不是 high-D basin boundary，主读数仍应来自 high-D `median r/NN`, `r < NN`, `disjoint balls` 和 ACPC basin artifact。PLDM PushT full-quality 图已作为 PLDM appendix qualitative method-family check 纳入（不做跨方法 t-SNE 坐标或 envelope 面积比较）；local normalized atlas 已作为 projection-free 补充图纳入。Phase-1 / AAAC paper 承担方法贡献与 controller-side instantiation。
-- **相对 Paper 1 的 delta**：Paper 1 诊断现象 + input-side fix 的边界；Paper 2b 提供 controller-side instantiation，与 input-side noise 正交可叠加。
+- **Paper1 / Phase-1 图形边界**：PushT `selective_contraction_clusters` 已作为 Paper1 主文 qualitative mechanism illustration 纳入，paper-facing asset 为 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；它不是 standalone proof。默认应使用 repeated same-state perturbation samples + 90% 2-D covariance envelope；t-SNE envelope 不是 high-D basin boundary，主读数仍应来自 high-D `median r/NN`, `r < NN`, `disjoint balls` 和 ACPC basin artifact。PLDM PushT full-quality 图已作为 PLDM appendix qualitative method-family check 纳入（不做跨方法 t-SNE 坐标或 envelope 面积比较）；local normalized atlas 已作为 projection-free 补充图纳入。此前 Phase-1 / AAAC paper 设想是 controller-side instantiation；当前只保留为归档证据。
+- **当前路线判断**：该方向保留为归档证据和可引用背景，不再作为 Paper2 下一主线。主要原因是路线复杂度高，且没有形成相对普通 noise training 的简洁、干净超越。
+- **相对 Paper 1 的 delta**：Paper 1 诊断现象 + input-side fix 的边界；AAAC/APDC 曾提供 controller-side instantiation 证据，但当前不承担下一步 method 主线。
 
 #### 7.3.c Spherical world model / Field-JEPA
 

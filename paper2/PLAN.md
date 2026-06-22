@@ -1,14 +1,15 @@
 # Paper 2 Method Preparation Plan
 
-_Paper2 method-selection and code-adaptation gate. Last updated: 2026-06-21._
+_Paper2 method-selection and code-adaptation gate. Last updated: 2026-06-22._
 
 ---
 
 ## 1. Scope
 
 This document consolidates the Paper2 preparation state after the Paper1 ACPC
-diagnostics and the Reacher GLC adequacy baseline. It is a planning and gate
-document, not a replacement for the detailed experiment logs.
+diagnostics, the Reacher GLC adequacy baseline, and the one-step SNAP-ACPC
+negative result. It is a planning and gate document, not a replacement for the
+detailed experiment logs.
 
 Current role:
 
@@ -22,8 +23,8 @@ Source documents:
 | Source | Role |
 |---|---|
 | [`paper1/PLAN.md`](../paper1/PLAN.md) | Paper1 framing, ACPC definition, Paper2 route map |
-| [`experiments.md`](../experiments.md) | Experiment log, including the Reacher GLC adequacy result |
-| [`plan_adaptive_resolution.md`](../plan_adaptive_resolution.md) | AAAC / APDC method evidence and ablations |
+| [`experiments.md`](../experiments.md) | Experiment log, including the Reacher GLC and SNAP-ACPC adequacy results |
+| [`plan_adaptive_resolution.md`](../plan_adaptive_resolution.md) | Archived AAAC / APDC evidence and ablations; not the next default route |
 | [`planner_side_robustification_experiment_plan.md`](../planner_side_robustification_experiment_plan.md) | Planner-side robust CEM plan |
 | [`train.py`](../train.py) | Current LeWM training implementation |
 | [`config/train/lewm.yaml`](../config/train/lewm.yaml) | Current default-off loss switches |
@@ -77,37 +78,24 @@ Decision:
 - do not promote generic encoder-level consistency as a Paper2 method
 - use the result to justify moving toward action-conditioned predictive losses
 
-### AAAC / APDC evidence
+### AAAC / APDC archived route
 
-The adaptive-resolution line already has substantially more evidence than GLC.
-The important distinction is that AAAC should not be framed as "generic
-consistency beats noise training." The stable claim is narrower:
+The adaptive-resolution line remains useful background evidence, but it is not
+the next Paper2 route. The current decision is to avoid returning to AAAC as
+the mainline because it does not give the paper what is now needed:
 
-- C1 is input-side global noise training.
-- C2 is controller-side per-token consistency routing.
-- C1 and C2 are complementary under same-noise comparisons.
-- The specific `sigma + A_t` gate is a chosen instantiation, not a universal or
-  mathematically unique controller.
+- it is not a concise mechanism relative to ordinary input-side noise training
+- it depends on a multi-part controller route (`sigma`, action sensitivity,
+  per-token routing, BN-safe side paths)
+- its evidence is not a clean, simple, noise-training-dominating result
+- it risks shifting Paper2 away from the sharper question exposed by Paper1:
+  why ordinary noise training works so well, and what minimal predictive
+  mechanism can match or improve it
 
 Important evidence already recorded in
-[`plan_adaptive_resolution.md`](../plan_adaptive_resolution.md):
-
-| Claim | Evidence |
-|---|---|
-| Hetero loss is unsafe | PushT clean collapse under direct loss reweighting |
-| Probe-only sigma is usable | Sigma head can be trained without breaking LeWM MSE |
-| Gate logging needed BN discipline | Freeze-BN gate path fixed a stateful side effect |
-| Per-token routing matters on PushT | `constant_w` loses 28.67pt on PushT px+goal 0.08 |
-| C1+C2 is additive under same-noise comparison | PushT +9.58pt, TwoRoom +2.00pt, Reacher +9.67pt, Cube +8.00pt |
-
-Paper2 implication:
-
-- AAAC / APDC is already a serious Paper2 candidate.
-- SNAP-ACPC should be treated as a minimal action-conditioned predictive
-  objective candidate, not as a replacement for the existing AAAC evidence.
-- If SNAP-ACPC is implemented, it should share the same guardrails: detached
-  controllers, BN-safe auxiliary forwards, behavior gates, and discriminability
-  checks.
+[`plan_adaptive_resolution.md`](../plan_adaptive_resolution.md) should remain
+available for provenance, but should be read as archived route evidence rather
+than as the default next implementation target.
 
 ### Planner-side robust CEM
 
@@ -125,10 +113,51 @@ Status:
 
 Decision:
 
-- do not block train-side SNAP-ACPC preparation on robust CEM
+- do not use robust CEM to re-open AAAC or one-step SNAP-ACPC by default
 - do not claim train-side necessity if robust CEM later solves the failure
 - if robust CEM works strongly, Paper2 may become robust latent MPC rather than
   a new train-side objective
+
+### SNAP-ACPC PR-1A result
+
+SNAP-ACPC PR-1A was implemented as a minimal one-step predictive consistency
+baseline: clean and noisy branches share the same batch and actions, normal
+LeWM prediction loss stays on the noisy branch, and a self-bounded auxiliary
+term matches the noisy predicted latent to a detached clean predicted latent.
+
+Main Reacher run:
+
+```text
+/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_snap_acpc_noise_0to008_p1
+```
+
+Behavior at `image_noise.std_max=0.08`:
+
+| Model | `pixels_std0.08` | `pixels_goal_std0.08` | Read |
+|---|---:|---:|---|
+| normal noise training | 83.67 | 81.00 | strong |
+| old GLC | 19.67 | 18.33 | failed |
+| BN-fix GLC | 24.00 | 12.00 | failed |
+| target-origin branch | 24.33 |  | failed |
+| SNAP-ACPC PR-1A | 24.67 | 19.67 | failed |
+
+Diagnostics at the same Reacher setting do not rescue the result:
+
+| Metric | Normal noise 0.08 | SNAP-ACPC PR-1A |
+|---|---:|---:|
+| noise angle median, std 0.08 all frames | 2.55 | 80.81 |
+| CKA, std 0.08 all frames | 0.998 | 0.495 |
+| predictor rollout T8 L2, std 0.08 | 0.252 | 16.422 |
+| inverse-dynamics probe R2 | 0.177 | 0.167 |
+| transition ratio L2 | 0.383 | 0.373 |
+
+Decision:
+
+- close one-step self-bounded SNAP-ACPC as a negative baseline
+- do not broaden this PR-1A path into larger sweeps by default
+- do not route back to AAAC/APDC as the next mainline
+- treat normal noise training as the empirical bar that Paper2 must explain,
+  simplify, or beat under matched settings
 
 ## 3. Method decision flow
 
@@ -142,29 +171,29 @@ flowchart TB
     glc_gate -->|Yes| stop_encoder([Stop train-side escalation])
     glc_gate -->|No| close_glc[Close encoder-level consistency]
 
-    close_glc --> train_side[Prepare train-side ACPC objective]
+    close_glc --> train_side[Prepare minimal train-side predictive objective]
     close_glc --> planner_side[Evaluate robust CEM separately]
 
-    train_side --> aaac_existing[Reuse AAAC evidence]
     train_side --> snap_pr1[Implement SNAP-ACPC PR-1]
     snap_pr1 --> cpu_smoke[Run CPU smoke checks]
-    cpu_smoke --> gpu_mve[Run GPU MVE later]
+    cpu_smoke --> gpu_mve[Run GPU MVE]
     gpu_mve --> final_gate{Behavior and diagnostics pass?}
 
     final_gate -->|Yes| scale_tasks[Scale task matrix]
-    final_gate -->|No| revise_objective[Revise objective or stop]
+    final_gate -->|No| close_snap[Close one-step SNAP-ACPC]
+    close_snap --> next_hypothesis[Study concise noise-training-level mechanism]
     planner_side --> planner_gate{Planner solves failure?}
     planner_gate -->|Yes| robust_mpc[Route to robust latent MPC]
-    planner_gate -->|No| train_priority[Prioritize train-side method]
+    planner_gate -->|No| train_priority[Do not overclaim planner route]
 
     classDef evidence fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a5f
     classDef decision fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
     classDef stop fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
     classDef success fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
 
-    class paper1_diag,glc_baseline,train_side,planner_side,aaac_existing,snap_pr1,cpu_smoke,gpu_mve evidence
+    class paper1_diag,glc_baseline,train_side,planner_side,snap_pr1,cpu_smoke,gpu_mve,next_hypothesis evidence
     class glc_gate,final_gate,planner_gate decision
-    class stop_encoder,close_glc,revise_objective stop
+    class stop_encoder,close_glc,close_snap stop
     class scale_tasks,robust_mpc,train_priority success
 ```
 
@@ -177,20 +206,22 @@ Current code already provides several pieces needed for the next step:
 | Paired-view forward | Available through GLC path | Reuse for predictive consistency |
 | BN-safe clean anchor | Available via `preserve_batchnorm_eval` | Keep for any detached clean branch |
 | Dataset transform bypass | Available for paired-view methods | Keep clean anchor in-batch |
-| `snap_acpc` switch | Default-off one-step PR-1A path | Extend only after CPU smoke and GPU MVE |
+| `snap_acpc` switch | Default-off one-step PR-1A path | Kept for negative-baseline reproducibility |
+| `paired_view_control` switch | Default-off paired clean/noisy no-aux path | Test paired-view path equivalence without auxiliary loss |
 | GLC metrics | Logged with `glc_` prefix | Kept separate from `snap_acpc_` metrics |
-| `adaptive_consistency` | Existing encoder consistency with action-gate weights | Do not confuse with SNAP-ACPC predictive loss |
-| Runner passthrough | GLC/AAAC/SNAP-ACPC available | Use `loss_snap_acpc_enabled=true` |
+| `adaptive_consistency` | Existing encoder consistency with action-gate weights | Archived AAAC route, not next mainline |
+| Runner passthrough | GLC/AAAC/SNAP-ACPC available | Kept for reproducibility and controlled reruns |
 
-The next code adaptation should be narrow. It should not change default LeWM,
-GLC, AAAC, robust CEM, or Paper1 artifact behavior.
+Any next code adaptation should be narrow and must first state how it can
+explain, simplify, or beat ordinary noise training. It should not change default
+LeWM, GLC, AAAC, robust CEM, or Paper1 artifact behavior.
 
 ## 5. PR-1 target
 
 Working name: `loss.snap_acpc.enabled`.
 
-Status: PR-1A is implemented in the current working tree and awaits GPU behavior
-validation.
+Status: PR-1A is implemented and has failed the first Reacher behavior and
+diagnostic gate.
 
 Minimum viable PR-1:
 
@@ -216,7 +247,8 @@ loss      = base_loss + self_bounded_aux_loss(base_loss, raw_acpc)
 Important constraints:
 
 - PR-1A is a minimal predictive-consistency hook, not the final method.
-- Multi-step rollout consistency should wait until the one-step hook is stable.
+- Multi-step rollout consistency is not automatically approved by the PR-1A
+  failure; it needs a separate, concise hypothesis.
 - Discriminability must at least be logged before any method claim is made.
 - If the objective reduces predictive drift by collapsing action-relevant
   differences, it fails the Paper2 gate.
@@ -247,6 +279,8 @@ Stop conditions:
 - If robust CEM alone solves the failure, do not overclaim train-side necessity.
 - If clean success drops while robustness improves, treat it as a trade-off
   result, not a clean method win.
+- If a proposed route is materially more complex than ordinary noise training
+  without a clear matched-setting advantage, do not make it the Paper2 mainline.
 
 ## 7. CPU-only preparation checklist
 
@@ -278,14 +312,26 @@ python train.py data=tworoom \
 | Question | Current answer |
 |---|---|
 | Should GLC continue? | No, except for table-completeness eval rows |
-| Should SNAP-ACPC be one-step or multi-step first? | One-step first, multi-step after smoke |
-| Should SNAP-ACPC reuse AAAC gates immediately? | No, keep PR-1A simple; add routing later if needed |
+| Should one-step SNAP-ACPC continue? | No, close as a negative baseline |
+| Should SNAP-ACPC move to multi-step automatically? | No, only with a new concise hypothesis |
+| Should paired-view infrastructure be checked? | Yes, run no-aux equivalence control first |
+| Should the route return to AAAC/APDC? | No, archived evidence only; not the next mainline |
 | Should robust CEM block train-side work? | No, but its result can change the paper framing |
 | Should `SNAP-ACPC` be the final method name? | Not yet; treat as a working name |
 
 ## 9. Immediate next step
 
-Do not broaden this into a method rewrite yet. PR-1A now provides the
-default-off one-step predictive consistency path, runner passthrough, and logs.
-The immediate next step is GPU behavior validation against matched noise
-baselines, followed by Paper1 diagnostics if the behavior gate is non-negative.
+Record SNAP-ACPC PR-1A as a negative baseline and stop broadening it by default.
+Before proposing another loss, run the paired-view no-aux equivalence control
+with `loss.paired_view_control.enabled=true`. This isolates whether the
+in-forward clean/noisy branch is behaviorally equivalent to ordinary
+`TransformDataset` noise training when no auxiliary loss is added.
+
+Gate:
+
+- if paired no-aux matches ordinary noise training, the paired-view
+  infrastructure is not the cause of GLC/SNAP failure
+- if paired no-aux fails, debug the in-forward perturbation path before any
+  method work
+- only after that control should the next Paper2 step return to hypothesis
+  design around the ordinary noise-training mechanism

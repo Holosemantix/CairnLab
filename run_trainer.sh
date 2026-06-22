@@ -47,6 +47,9 @@
 #   loss_snap_acpc_enabled (lewm-only one-step action-conditioned predictive
 #                           consistency baseline; paired clean/noisy views,
 #                           default off),
+#   loss_paired_view_control_enabled (lewm-only paired clean/noisy no-aux
+#                                     diagnostic; bypasses TransformDataset but
+#                                     adds no auxiliary loss),
 #   loss_action_gate_enabled (lewm-only logging-only adaptive resolution
 #                             gate; rides on loss_hetero_mode=probe),
 #   loss_action_gate_mode (full | sigma_only; sigma_only skips A_t perturb
@@ -326,6 +329,7 @@ add_override "loss.hetero.s_max" "${loss_hetero_s_max:-}"
 add_override "loss.hetero.tau_floor" "${loss_hetero_tau_floor:-}"
 add_override "loss.generic_latent_consistency.enabled" "${loss_generic_latent_consistency_enabled:-}"
 add_override "loss.snap_acpc.enabled" "${loss_snap_acpc_enabled:-}"
+add_override "loss.paired_view_control.enabled" "${loss_paired_view_control_enabled:-}"
 add_override "loss.action_gate.enabled" "${loss_action_gate_enabled:-}"
 add_override "loss.action_gate.mode" "${loss_action_gate_mode:-}"
 add_override "loss.action_gate.intervention" "${loss_action_gate_intervention:-}"

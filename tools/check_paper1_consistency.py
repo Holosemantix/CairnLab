@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -672,6 +673,85 @@ def check_acpc_basin_json() -> None:
         fail("ACPC basin task/config coverage mismatch")
 
 
+def check_acpc_basin_full_grid_table() -> None:
+    tex = (ROOT / "paper1" / "main.tex").read_text(encoding="utf-8")
+    marker = r"\label{tab:acpc-basin-full-grid}"
+    start = tex.find(marker)
+    if start < 0:
+        fail("main.tex is missing tab:acpc-basin-full-grid")
+    end = tex.find(r"\end{tabular}", start)
+    if end < 0:
+        fail("tab:acpc-basin-full-grid does not close its tabular")
+    table = tex[start:end]
+
+    row_re = re.compile(
+        r"^(TwoRoom|PushT|Reacher|Cube)\s*&\s*"
+        r"([0-9.]+)\s*&\s*"
+        r"([-0-9.]+)\s*&\s*"
+        r"([-0-9.]+)\s*&\s*"
+        r"([-0-9.]+)\s*&\s*"
+        r"([-0-9.]+)\s*&\s*"
+        r"([-0-9.]+)\s*&\s*"
+        r"([-0-9.]+)\s*&\s*"
+        r"([^\\\\]*)\\\\"
+    )
+    parsed: dict[tuple[str, str], dict[str, object]] = {}
+    for raw_line in table.splitlines():
+        line = raw_line.strip()
+        match = row_re.match(line)
+        if not match:
+            continue
+        task, std_display, unpert, obs, drop, radius_e, radius_f, ratio, note = match.groups()
+        std_key = "0.0" if std_display == "0" else std_display
+        key = (task, std_key)
+        if key in parsed:
+            fail(f"duplicate LaTeX full-grid row: {task}/{std_key}")
+        parsed[key] = {
+            "unpert": float(unpert),
+            "obs": float(obs),
+            "drop": float(drop),
+            "radius_e": float(radius_e),
+            "radius_f": float(radius_f),
+            "ratio": float(ratio),
+            "note": note.strip(),
+        }
+
+    expected_keys = {(task, std) for task in EXPECTED_TASKS for std in EXPECTED_CONFIGS}
+    if set(parsed) != expected_keys:
+        fail(
+            "LaTeX ACPC full-grid coverage mismatch: "
+            f"missing={sorted(expected_keys - set(parsed))}, extra={sorted(set(parsed) - expected_keys)}"
+        )
+
+    basin = json.loads((ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json").read_text(encoding="utf-8"))
+    evals = json.loads((ROOT / "assets" / "paper1_data" / "canonical_evals_20260517.json").read_text(encoding="utf-8"))
+    rows = {(row["task"], row["std_key"]): row for row in basin["rows"]}
+    obs_best = {
+        task: max(EXPECTED_CONFIGS, key=lambda std: evals[task][std]["metrics"]["pixels_std0.08"]["mean"])
+        for task in EXPECTED_TASKS
+    }
+
+    def check_display(label: str, got: float, want: float, digits: int) -> None:
+        rounded = round(float(want), digits)
+        if got != rounded:
+            fail(f"{label} mismatch: table has {got}, artifact rounds to {rounded}")
+
+    for key, shown in parsed.items():
+        task, std_key = key
+        row = rows[key]
+        eval_cell = evals[task][std_key]["metrics"]
+        check_display(f"{task}/{std_key}/unpert", shown["unpert"], eval_cell["clean"]["mean"], 2)
+        check_display(f"{task}/{std_key}/obs0.08", shown["obs"], eval_cell["pixels_std0.08"]["mean"], 2)
+        check_display(f"{task}/{std_key}/drop", shown["drop"], row["corruption_drop"], 2)
+        check_display(f"{task}/{std_key}/R_E", shown["radius_e"], row["encoder_view_pair_l2_norm_by_nn"], 3)
+        check_display(f"{task}/{std_key}/R_F", shown["radius_f"], row["pred_view_pair_l2_norm_by_transition"], 3)
+        check_display(f"{task}/{std_key}/R_F/R_E", shown["ratio"], row["basin_contraction_pair_norm"], 3)
+
+        expected_note = "base" if std_key == "0.0" else ("obs-best" if std_key == obs_best[task] else "")
+        if shown["note"] != expected_note:
+            fail(f"{task}/{std_key}/note mismatch: table has {shown['note']!r}, want {expected_note!r}")
+
+
 def check_pldm_acpc_basin_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -1030,6 +1110,7 @@ def main() -> int:
         ("acpc phase0 diagnostics json", check_acpc_phase0_diagnostics_json),
         ("blur baselines json", check_blur_baselines_json),
         ("acpc basin json", check_acpc_basin_json),
+        ("acpc basin full-grid table", check_acpc_basin_full_grid_table),
         ("pldm acpc basin json", check_pldm_acpc_basin_json),
         ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
         ("external baselines json", check_external_baselines_json),

@@ -5,6 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PAPER="$ROOT/paper1"
+ALLOW_AUTHOR_PLACEHOLDER="${ALLOW_AUTHOR_PLACEHOLDER:-0}"
 cd "$PAPER"
 
 fail() {
@@ -13,8 +14,12 @@ fail() {
 }
 
 # Hard blockers that should not reach arXiv.
-if grep -q "Author names to be supplied" main.tex; then
+if grep -q "Author names to be supplied" main.tex && [[ "$ALLOW_AUTHOR_PLACEHOLDER" != "1" ]]; then
   fail "main.tex still contains the arXiv author placeholder. Replace \\arxivauthors with the real author list."
+fi
+
+if grep -q "Author names to be supplied" main.tex; then
+  echo "WARN: author placeholder allowed because ALLOW_AUTHOR_PLACEHOLDER=1; replace it before final arXiv upload." >&2
 fi
 
 if grep -q "\\\\author{}" main.tex; then

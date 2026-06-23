@@ -89,11 +89,18 @@
 \newcommand{\idprobe}{ID probe $R^{2}$}
 \newcommand{\dataset}[1]{\codebrk{#1}}
 
-\title{\textbf{Diagnosing Visual Robustness in JEPA World Models\\through Action-Conditioned Predictive Consistency}}
-\author{}
+\newif\ifanonymous
+\anonymoustrue
+
+\title{\textbf{A Diagnostic Study of Gaussian Visual Robustness\\in JEPA Latent World Models}}
+\ifanonymous
+\author{Anonymous Authors}
+\else
+\author{Author names withheld in this draft}
+\fi
 \date{June 2026}
 \hypersetup{
-  pdftitle={Diagnosing Visual Robustness in JEPA World Models through Action-Conditioned Predictive Consistency},
+  pdftitle={A Diagnostic Study of Gaussian Visual Robustness in JEPA Latent World Models},
   pdfkeywords={visual world models, JEPA, action-conditioned predictive consistency, visual robustness, predictive-dynamics diagnostics}
 }
 
@@ -101,7 +108,7 @@
 \maketitle
 
 \begin{abstract}
-Latent predictive world models such as JEPAs predict future representations rather than pixels, but latent prediction alone does not define visual robustness for control. We study this gap through \emph{action-conditioned predictive consistency}: corrupted and unperturbed views of the same state may encode differently, but under the same action sequence they should induce consistent task-relevant future predictions while preserving action-relevant state distinctions. On PushT, TwoRoom, Reacher, and Cube, we evaluate 36 epoch-10 LeWorldModel checkpoints with 3 evaluation seeds $\times$ 100 trajectories per cell. This is a controlled diagnostic probe, not a proposed benchmark or an independent-training-seed study. Under observation-only Gaussian noise, no-noise LeWM drops from $86.33\%$ to $4.33\%$ on PushT and from $58.67\%$ to $18.33\%$ on Reacher. Full-sequence input-side noise augmentation recovers much of the loss, but behaves as a coarse task-dependent pressure. At the robust endpoints selected by direct closed-loop evaluation, paired Gaussian-noise basin probes show smaller same-action prediction radii (PushT $R_F$: $1.543 \to 0.088$). The paper contributes a diagnostic framing, paired proxy probes, and negative ablations that delimit simple fixes; it does not propose a new training algorithm.
+Latent predictive world models such as JEPAs predict future representations rather than pixels, but this design does not by itself define visual robustness for control. We study this gap as a controlled diagnostic problem in LeWM and PLDM under Gaussian pixel noise. The diagnostic lens is action-conditioned predictive consistency: corrupted and unperturbed views of the same state may encode differently, but under the same action sequence they should induce similar future predictions while preserving action-relevant state distinctions. On four tasks, we evaluate 36 epoch-10 LeWM checkpoints with three evaluation seeds and 100 trajectories per seed. Under observation-only Gaussian noise, no-noise LeWM falls from $86.33\%$ to $4.33\%$ success on PushT; full-sequence noise augmentation recovers the endpoint to $89.00\%$, while Reacher recovers from $18.33\%$ to $84.67\%$. At direct-evaluation-selected robust endpoints, paired Gaussian-noise basin probes show smaller same-action prediction radii (PushT $R_F$: $1.543 \to 0.088$). The study is diagnostic rather than algorithmic: it reports where input-side Gaussian noise helps, where pointwise diagnostics fail to predict the corruption gap, and what evidence is still missing for broader robustness claims.
 
 \smallskip
 \noindent\textbf{Keywords:} visual world models; JEPA; action-conditioned predictive consistency; visual robustness; predictive-dynamics diagnostics.
@@ -129,15 +136,15 @@ This reframing changes what counts as a robustness measurement. Encoder-level la
 
 \subsection{Existing corruption results as a controlled probe}\label{sec:intro-tension}
 
-A natural remedy is input-side noise augmentation. We sweep \stdmax{} $\in \{0.01,\dots,0.08\}$ across four tasks and find recovery, but not a single optimal setting: TwoRoom benefits from heavy noise, PushT's unperturbed and noisy-eval optima dissociate, Reacher has a broad plateau, and Cube responds weakly. This pattern is consistent with a coarse global pressure, not with a selective objective that knows which visual variation is nuisance and which controls future dynamics. We therefore use the sweep and diagnostics to motivate future predictive-consistency objectives. Appendix~\ref{sec:appendix-target-view} records a negative target-view ablation: perturbed-history $\to$ original-future denoising is not a sufficient closed-loop fix, so the retained empirical mainline is the full-sequence perturbed-target branch.
+A natural remedy is input-side noise augmentation. We sweep \stdmax{} $\in \{0.01,\dots,0.08\}$ across four tasks and find recovery, but the useful range varies: TwoRoom benefits from heavy noise, PushT's unperturbed and noisy-eval point-best checkpoints differ, Reacher has a broad plateau, and Cube responds weakly. A single Gaussian-noise strength therefore recovers performance unevenly across tasks. We use this sweep to motivate future predictive-consistency objectives, not to identify a universal training-noise level. Appendix~\ref{sec:appendix-target-view} records a negative target-view ablation: perturbed-history $\to$ original-future denoising is not a sufficient closed-loop fix, so the retained empirical branch is full-sequence perturbed-target training.
 
 \subsection{Contributions}\label{sec:intro-contributions}
 
 \paragraph{C1 --- Problem reframing.} We formulate a diagnostic lens for visual robustness in world-model control: action-conditioned predictive consistency plus an action-relevant discriminability countercondition, rather than encoder-level invariance.
 
-\paragraph{C2 --- Diagnostic evidence.} Across 36 LeWM checkpoints and a PLDM replication, we document severe corruption fragility and task-dependent recovery under input-side noise augmentation. Pointwise diagnostics are useful for mechanism localisation, but after conditioning on \stdmax{} the single-step \fragility{} does not explain the PushT corruption gap (partial Spearman $\rho = +0.19$, CI including $0$).
+\paragraph{C2 --- Controlled evidence.} Within a fixed Gaussian-noise protocol, we find severe no-noise LeWM corruption cliffs and task-dependent recovery under input-side noise augmentation. PLDM replication is used as a boundary check rather than a leaderboard comparison.
 
-\paragraph{C3 --- Paired probes and scope boundaries.} We report Gaussian-noise ACPC-basin probes on the LeWM and PLDM sweeps. Broader ACPC/PCC/CRA/MAF/ADM/SPRR rows remain exploratory, and two negative ablations constrain method claims: in our PushT heteroscedastic-loss ablation, error-based reweighting erases action-critical transitions, while perturbed-history $\to$ original-future denoising is not a sufficient closed-loop fix.
+\paragraph{C3 --- Release package and negative checks.} We release paired ACPC-basin artifacts, cross-checkpoint diagnostic tables, PLDM replication, a target-view ablation, and a heteroscedastic-loss failure case. These artifacts support mechanism localisation, while the partial-correlation and ablation results limit stronger claims.
 
 %% ===========================================================================
 \section{Related Work}\label{sec:related}
@@ -164,26 +171,7 @@ DrQ/DrQ-v2~\cite{kostrikov2020drq,yarats2022drqv2} and SODA/DMC-GB~\cite{hansen2
 Value-equivalent and value-aware models~\cite{grimm2020valueequivalence,voelcker2025calibratedvalueaware} argue that a model should serve downstream control rather than fit all dynamics equally. VIBR~\cite{dupuis2023vibr} similarly favours view-invariant value functions over invariant representations. We adopt the downstream-consequence principle, but apply it to predictive dynamics: same-state views should agree after action-conditioned prediction, while different action-relevant transitions stay distinct.
 
 \subsection{Representation diagnostics and collapse analysis}
-We use standard representation diagnostics: effective rank~\cite{roy2007effrank,jing2022dimcollapse,teoh2025nextlatent}, CKA~\cite{kornblith2019cka}, linear probes~\cite{alain2017linearprobes}, and anti-collapse context from VICReg~\cite{bardes2022vicreg}. RankMe~\cite{garrido2023rankme} motivates our cross-checkpoint question: after removing the sweep-level training-noise trend, does a label-free predictor-sensitivity diagnostic retain downstream control signal? The individual metrics are standard; our contribution is the control-facing protocol and its scope boundaries.
-
-\begin{table}[tbp]
-\centering
-\caption{Boundary to neighbouring consistency and control-representation work.}
-\label{tab:related-boundaries}
-\small
-\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.27\textwidth}>{\raggedright\arraybackslash}X}
-\toprule
-Neighbouring thread & Shared concern & Boundary in this paper \\
-\midrule
-ViGMO~\cite{vigmo} & Visual distractions and latent consistency & We do not propose a generic encoder-consistency regulariser; our diagnostic places consistency after action-conditioned rollout and adds a discriminability guard. \\
-Bisimulation / Bisim-JEPA~\cite{gelada2019deepmdp,zhang2021dbc,toso2026bisimjepa} & Control-relevant state abstraction & Same-state corrupted and unperturbed views need not share an encoder latent; agreement is required at the predictive-dynamics level. \\
-LeJEPA theory~\cite{klindt2026lejepaworldmodel} & Latent variables and latent planning & We do not claim identifiability; we test whether learned checkpoints preserve predictive consistency under visual perturbation. \\
-Group-action world models~\cite{wang2026groupactions} & Action-faithful rollout structure & We test same-action paired corruption consistency, not identity/inverse/composition consistency across action sequences. \\
-Value-aware models~\cite{grimm2020valueequivalence,voelcker2025calibratedvalueaware} & Models should serve downstream control & We make this operational as paired action-conditioned rollout agreement, not value equivalence or value prediction. \\
-V-JEPA family~\cite{bardes2024vjepa,assran2025vjepa2,huang2026vjepa} & Latent video prediction and noisy-environment probes & Representation recovery and closed-loop control stress different properties; our probe is control-facing and eval-only. \\
-\bottomrule
-\end{tabularx}
-\end{table}
+We use standard representation diagnostics: effective rank~\cite{roy2007effrank,jing2022dimcollapse,teoh2025nextlatent}, CKA~\cite{kornblith2019cka}, linear probes~\cite{alain2017linearprobes}, and anti-collapse context from VICReg~\cite{bardes2022vicreg}. RankMe~\cite{garrido2023rankme} motivates our cross-checkpoint question: after removing the sweep-level training-noise trend, does a label-free predictor-sensitivity diagnostic retain downstream control signal? The individual metrics are standard; our contribution is the protocol that ties them to closed-loop Gaussian-corruption evaluation. A compact boundary table is provided in Appendix~\ref{sec:appendix-related-boundaries}.
 
 %% ===========================================================================
 \section{Action-Conditioned Predictive Consistency}\label{sec:acpc}
@@ -208,7 +196,7 @@ Let $\Pi$ denote a \emph{task-relevant predictive readout} --- the full latent, 
   \qquad \alpha_k \ge 0 .
   \label{eq:acpc-h}
 \end{equation}
-In this diagnostic framing, robustness corresponds to $\mathrm{ACPC}_H$ being \emph{small} --- crucially \emph{not} to the encoder distance $d(z_t, \tilde z_t)$ being small. Encoder closeness is neither necessary (a large but task-irrelevant encoder shift can wash out through $F_\theta$ and $\Pi$) nor sufficient (a small encoder shift can still change the predicted future enough to flip the planned action).
+In this diagnostic framing, robustness corresponds to $\mathrm{ACPC}_H$ being small, not to the encoder distance $d(z_t, \tilde z_t)$ being small. Encoder closeness is neither necessary (a large but task-irrelevant encoder shift can wash out through $F_\theta$ and $\Pi$) nor sufficient (a small encoder shift can still change the predicted future enough to flip the planned action).
 
 \paragraph{Action-relevant discriminability (countercondition).} Consistency must be \emph{selective}. Let $Y^{H}(s,\mathbf a)$ denote a task-relevant future readout that is external to the learned predictor --- simulator state, cost-to-go, inverse-dynamics label, contact/keyframe tag, or another diagnostic proxy available in the dataset. For two genuinely different states $s_i, s_j$ (with latents $z_i, z_j$) that admit an action sequence under which this external future readout diverges,
 \begin{equation}
@@ -225,29 +213,9 @@ where $\Psi$ is a discriminability readout (latent, predicted delta, inverse-dyn
 
 \subsection{Operational consistency diagnostics}\label{sec:acpc-diag}
 
-\paragraph{Status.} Descriptive quantities support the main cross-checkpoint analysis; paired ACPC quantities define method-facing probes. The paper-facing paired result is the Gaussian-noise ACPC basin diagnostic on all 36 LeWM checkpoints (\Cref{sec:exp-acpc-basin}) with a full PLDM replication in Appendix~\ref{sec:appendix-pldm}. Appendix~\ref{sec:appendix-phase0} reports broader ACPC/PCC/CRA/MAF/ADM/SPRR probes under the auxiliary observation+goal stress condition as exploratory diagnostics. $\epsilon$ below is the constant from \Cref{eq:minimal-notation}.
+The main paper uses one fixed ACPC instance. For the Gaussian-noise basin diagnostic, $\Pi$ is the identity readout on the model inference/cost latent rollout, $d$ is Euclidean L2 over rollout tokens, and $H=8$. The reported quantities are $R_E$, the median same-state encoder-history spread normalised by the original-view nearest-neighbour L2 scale, and $R_F$, the median same-state rollout-latent spread normalised by the unperturbed transition L2 reference over the same horizon. $R_F/R_E$ is a descriptive contraction ratio.
 
-\begin{description}[style=nextline]
-  \item[Encoder perturbation difference (EPD), descriptive.] $\mathrm{EPD} = d(E(o), E(\tilde o))$. This is the Layer-1 encoder shift of \Cref{sec:bg-five-layers}, retained only as a \emph{descriptive} quantity: a large EPD is not in itself bad and a small EPD is not in itself good. It reports whether a perturbation enters the latent, not whether it matters for control.
-  \item[One-step consistency (ACPC-1), paired probe.] The one-step score compares same-action predictions:
-  \[
-    \mathrm{ACPC}_1 = d\!\big(F(E(o), a), F(E(\tilde o), a)\big).
-  \]
-  For cross-checkpoint comparisons we optionally divide by the natural transition magnitude $d(z_t, z_{t+1})+\epsilon$.
-  \item[Multi-step consistency (ACPC-$H$), paired probe.] Equation~\eqref{eq:acpc-h} with $H \in \{4, 8\}$. This is the principled, \emph{paired} version of the existing multi-step rollout-drift diagnostic: it measures disagreement between unperturbed and corrupted rollouts under the \emph{same} action sequence, not generic rollout drift.
-  \item[ACPC basin radii, reported proxy diagnostic.] For each state we evaluate the original view plus Gaussian-noised views at std $\in \{0.01,\dots,0.08\}$. In the main reported basin diagnostic, $\Pi$ is the identity on the model's inference/cost latent sequence, and $d$ is Euclidean L2 on those latent tokens. We report an encoder radius $R_E$ (median pairwise encoder-history L2 spread, normalised by the original-view NN L2 scale), a prediction radius $R_F$ (median pairwise $H=8$ rollout-latent L2 spread, normalised by the unperturbed transition L2 reference over the same horizon), and a contraction ratio $R_F/R_E$. This is the dense paired proxy released with the ACPC-basin artifacts; alternative readouts are generalisations used only in Appendix~\ref{sec:appendix-phase0} or future methods.
-  \item[Predictive cost consistency (PCC), downstream readout.] $\mathrm{PCC} = \big| J(F^{H}(E(o), \mathbf a), g) - J(F^{H}(E(\tilde o), \mathbf a), g) \big|$ for a cost/goal readout $J$ and goal $g$. PCC tests whether predictive mismatch changes the planning cost; it is a downstream readout, not the central definition.
-  \item[Candidate-ranking agreement (CRA), downstream readout.] For a candidate set $\mathcal A = \{\mathbf a^1, \dots, \mathbf a^K\}$ held identical across branches, the Spearman/Kendall agreement of the unperturbed and corrupted cost vectors. We treat CRA as a downstream readout, require the candidate set to be shared, and do not call it planning equivalence.
-  \item[Margin-conditioned action flip (MAF), downstream readout.] $\mathrm{MAF} = \mathbf{1}\big[u^\ast_{\text{orig}} \neq u^\ast_{\text{noise}},\ C_{(2)} - C_{(1)} > \delta\big]$: a flip of the selected action counts only when the unperturbed top-1/top-2 cost margin exceeds $\delta$, since a flip inside the noise margin need not be a failure.
-  \item[Action-relevant discriminability margin (ADM), paired probe.] Over action/transition-distinct pairs $P_{\mathrm{disc}}$ (differing inverse-dynamics labels, large original-view transition magnitude, contact/keyframe transitions, or large cost-to-go change), $\mathrm{ADM} = \operatorname{median}_{(i,j) \in P_{\mathrm{disc}}} d(\Psi_i, \Psi_j)$. A consistency method should reduce $\mathrm{ACPC}_H$ without materially reducing ADM. In this paper ADM is a proxy guard rather than a direct proof of the margin condition in \Cref{eq:acpc-disc}.
-  \item[Selective predictive robustness ratio (SPRR), summary probe.] A single summary of action-distinct discriminability relative to original/corrupted predictive inconsistency,
-  \[
-    \mathrm{SPRR} = \frac{\operatorname{median}_{(i,j) \in P_{\mathrm{disc}}} d(\Psi_i, \Psi_j)}{\operatorname{median}_{P_{\mathrm{pert}}} \mathrm{ACPC}_H + \epsilon}.
-  \]
-  We use it descriptively and do not claim it predicts success.
-\end{description}
-
-These diagnostics localise mechanisms and define method targets; consistent with the negative results in \Cref{sec:diag-cross}, we do not claim that any of them \emph{predict} robustness.
+The main text also keeps three non-ACPC measurements: closed-loop success, the encoder-shift ratio $R_E$, and proxy discriminability measurements such as effective rank, transition-resolution ratio, and inverse-dynamics probe $R^2$. Predictive cost consistency, candidate-ranking agreement, margin-conditioned action flips, ADM, and SPRR are exploratory downstream readouts defined in Appendix~\ref{sec:appendix-acpc-readouts}; they are not used for model selection or for the main robustness claim.
 
 %% ===========================================================================
 \section{Background and Diagnostic Framework}\label{sec:bg}
@@ -354,7 +322,7 @@ LeWM-base is strong on unperturbed images (especially TwoRoom and PushT), but ob
 
 PLDM provides a second-family boundary on this failure mode. Without noise augmentation, PLDM drops sharply on PushT ($75.33\% \pm 3.68$ unperturbed to $18.33\% \pm 2.05$ at observation-noise 0.08, $-57.00$\,pt) and TwoRoom ($96.67\% \pm 1.70$ to $67.00\% \pm 2.16$, $-29.67$\,pt), while Reacher and Cube have much smaller no-noise-training gaps ($-2.33$ and $-4.33$\,pt; \Cref{tab:pldm-base-cliff}). The noise-training signatures still carry over on the tasks with substantial cliffs: TwoRoom recovers into a high-noise plateau and PushT has a large $\stdmax{}~\approx 0.03$ recovery; Cube remains weakly responsive (\Cref{sec:appendix-pldm}).
 
-\subsection{Noise augmentation partly closes the gap as a coarse pressure}\label{sec:exp-sweep}
+\subsection{Noise augmentation partly closes the gap with task-dependent plateaus}\label{sec:exp-sweep}
 
 \Cref{tab:sweep-summary} summarises the sweep points needed for the main argument; the complete 8-level tables are in Appendix~\ref{sec:appendix-lewm-sweeps}. All entries use the unified $n = 3$ seeds (42/43/44) $\times$ 100 trajectories protocol.
 
@@ -380,7 +348,7 @@ Cube & $66.67 \pm 2.62$ & $47.00 \pm 6.38$ & $69.33 \pm 0.47$ (0.01) & $68.33 \p
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\linewidth]{fig2_sweep.png}
-\caption{Noise-training sweep across four tasks. Blue: unperturbed evaluation; red: observation-only Gaussian noise $\sigma=0.08$ with an unperturbed goal; green dashed: each task's corrupted-eval point-best \stdmax{}. The optima vary by task, showing a coarse global pressure rather than a single jointly optimal noise level.}
+\caption{Noise-training sweep across four tasks. Blue: unperturbed evaluation; red: observation-only Gaussian noise $\sigma=0.08$ with an unperturbed goal; green dashed: each task's corrupted-eval point-best \stdmax{}. The useful noise range varies by task, so a single scalar perturbation strength does not encode the nuisance/action distinction.}
 \label{fig:sweep}
 \end{figure}
 
@@ -394,7 +362,7 @@ We compute an eval-only ACPC basin diagnostic on the same 36 LeWM epoch-10 check
 
 For each checkpoint, let $R_E$ be the median pairwise spread among the original and noised encoder-history views, normalised by the original-view local NN L2 scale, and let $R_F$ be the median pairwise spread among their $H=8$ predicted rollout latents, normalised by the unperturbed transition L2 reference over the same horizon. Lower $R_F$ means the same-state perturbation views induce a tighter action-conditioned predictive basin; $R_F/R_E$ is a descriptive contraction ratio rather than a success predictor.
 
-Appendix~\ref{sec:appendix-phase0} provides an exploratory downstream check under the same shared-candidate action protocol: predictive cost consistency, candidate-ranking agreement, and margin-conditioned action flips move in the same direction at the fragile endpoints. We keep these readouts as mechanism-localisation evidence rather than robustness predictors.
+This comparison is diagnostic, not predictive: the robust endpoint is selected by direct closed-loop evaluation, and the basin radius is used afterward to localise what changed. Appendix~\ref{sec:appendix-phase0} provides an exploratory downstream check under the same shared-candidate action protocol.
 
 \begin{table}[tbp]
 \centering
@@ -424,13 +392,13 @@ Cube & noise $0.03$ & $68.33$ & $-3.33$ & $0.238$ & $0.115$ \\
 \label{fig:selective-contraction}
 \end{figure}
 
-The reading is deliberately narrow. The diagnostic supports the ACPC framing because the direct-eval-selected noise-trained endpoints have much smaller action-conditioned prediction radii under same-family visual perturbations: e.g., PushT reduces $R_F$ from $1.543$ to $0.088$, and TwoRoom from $0.785$ to $0.028$. \Cref{fig:selective-contraction} provides a representative PushT visualization of this contraction, but it should not be read as a standalone proof or a high-dimensional basin boundary; Appendix~\ref{sec:appendix-A-atlas} adds a projection-free local-atlas check of the same data. The result does \emph{not} support the stronger universal claim that encoder representations remain widely separated while predictions alone collapse them. In this Gaussian-noise setting, robust checkpoints usually shrink both the encoder radius and the predictive radius, with the predictor-space radius remaining the control-facing quantity. This is why we use the basin diagnostic to refine the mechanism claim, not to replace the behavioural corruption evaluation.
+The direct-evaluation-selected endpoints have much smaller same-action prediction radii under same-family visual perturbations: PushT reduces $R_F$ from $1.543$ to $0.088$, and TwoRoom from $0.785$ to $0.028$. \Cref{fig:selective-contraction} shows the representative PushT contraction, and Appendix~\ref{sec:appendix-A-atlas} adds a projection-free local-atlas check of the same data. The comparison should be read as post-hoc mechanism localisation. It does not supply a model-selection rule, and it does not show that encoder representations remain separated while only predictions contract. In this Gaussian-noise setting, robust checkpoints usually shrink both $R_E$ and $R_F$; the rollout radius is the quantity tied to the ACPC readout.
 
 The broader representation-level evidence appears next in \Cref{tab:diag-base-vs-best}.
 
-\subsection{Diagnostic analysis: why global noise is only a coarse pressure}\label{sec:exp-diag}
+\subsection{Diagnostic analysis: why one noise strength is only a coarse control}\label{sec:exp-diag}
 
-Where the per-task sweep evidence in \Cref{sec:exp-sweep} is the behavioural face of selective consistency, the diagnostics in this subsection are its representational face: which latent properties move under noise training, and whether the movement is bounded by each task's discriminability requirements. \Cref{tab:diag-base-vs-best} compares core diagnostic metrics on LeWM-base versus the per-task representative noise-trained diagnostic checkpoint.
+The per-task sweep shows where Gaussian noise helps. The diagnostics ask which latent properties move under noise training and whether basic action-relevant information survives. \Cref{tab:diag-base-vs-best} compares core diagnostic metrics on LeWM-base versus the per-task representative noise-trained diagnostic checkpoint.
 
 \begin{table}[tbp]
 \centering
@@ -461,6 +429,8 @@ Cube & 0.01 & $0.1856 \to 0.1879$ & $73.25 \to 71.83$ & $0.4847 \to 0.4629$ & $2
   \item \textbf{Cube.} Cube is moderately resolution-demanding but less fragile than PushT. The representative checkpoint leaves rank, transition resolution, controllability probe, and rollout drift almost unchanged, consistent with Cube's smaller visual-corruption cliff and the moderate residual signal of multi-step drift in Table~\ref{tab:partial-corr-4tasks}.
   \item \textbf{Predictor-rollout caveat.} A drop in multi-step predictor rollout drift is not unambiguously good news. It can also mean the latent has become more \emph{predictable} without being more \emph{controllable}: predictor stability bought by sacrificing resolution.
 \end{itemize}
+
+These proxy discriminability checks are the main-text guard against a collapse-only reading. PushT is the sharpest case: the robust input-noise representative keeps effective rank and ID probe essentially flat, while the heteroscedastic-loss ablation in Appendix~\ref{sec:appendix-D} shows the failure mode when error-based reweighting suppresses action-critical contact transitions. We therefore claim a proxy-level discriminability guard, not an oracle margin proof.
 
 \subsection{Cross-checkpoint correlation analysis}\label{sec:diag-cross}
 
@@ -606,7 +576,7 @@ This is compatible with VJEPA~\cite{huang2026vjepa}, which reports noisy-environ
 
 The selective-consistency demand --- contract nuisance perturbations of the same state, preserve action-relevant transitions --- has a task-specific signature in this paper. We use two qualitative task-property labels below: ``nuisance-contraction demand'' is the room to contract irrelevant visual variation, and ``control-discriminability demand'' is the action-relevant information that must survive. In TwoRoom, background wall colour and texture are largely redundant for the navigation objective, so reducing sensitivity to them does not impair success in our sweep; room, doorway, and goal-topology distinctions still need to remain separable. PushT is the opposite stress case: pixel changes during T-block and arm contact carry contact-relevant pose and configuration cues, so discarding them blinds the planner. Reacher sits in the middle as a low-dimensional continuous-control task whose visual encoding of joint angle requires moderate resolution. Cube also needs object-pose and grasp-point relations, but in this sweep it is less sensitive to global Gaussian noise, likely because the action sequence is structured and the visual--action coupling is more predictable.
 
-Task-specificity is why input-side noise behaves as a coarse global pressure rather than a single jointly optimal level. \Cref{tab:tradeoff-summary} consolidates the behavioural (\Cref{sec:exp-sweep}) and representational (\Cref{sec:exp-diag}) evidence into a compact per-task read. The entries are intentionally short; the surrounding text carries the interpretation.
+Task-specificity is why input-side noise behaves as a coarse training control rather than a single jointly best level. \Cref{tab:tradeoff-summary} consolidates the behavioural (\Cref{sec:exp-sweep}) and representational (\Cref{sec:exp-diag}) evidence into a compact per-task read. The entries are intentionally short; the surrounding text carries the interpretation.
 
 \begin{table}[tbp]
 \centering
@@ -634,29 +604,21 @@ Cube & Low--moderate nuisance contraction; moderate control discriminability. & 
 
 \subsection{When the diagnostic toolkit works --- and when it does not}\label{sec:disc-boundary}
 
-Three conditions bound the toolkit. First, within this fixed protocol it can help triage residual checkpoint quality after conditioning on \stdmax{}, but it does not isolate corruption-specific robustness: on PushT, \fragility{} retains signal for unperturbed and noisy success yet not for the unperturbed-to-corrupted gap. Second, tasks with little residual checkpoint spread after the sweep trend, such as Reacher and TwoRoom here, fall outside the strict diagnostic regime. Third, no static diagnostic can replace the training intervention itself; in this sweep, whether the model saw perturbations during training is the largest observed factor behind the corruption drop. The toolkit is therefore an unperturbed-evaluation auxiliary for mechanism localisation and checkpoint triage within a fixed protocol, not a robustness oracle.
+Three conditions bound the toolkit. First, within this fixed protocol it can help triage residual checkpoint quality after conditioning on \stdmax{}, but it does not isolate corruption-specific robustness: on PushT, \fragility{} retains signal for unperturbed and noisy success yet not for the unperturbed-to-corrupted gap. Second, tasks with little residual checkpoint spread after the sweep trend, such as Reacher and TwoRoom here, fall outside the strict diagnostic regime. Third, no static diagnostic can replace the training intervention itself; in this sweep, whether the model saw perturbations during training is the largest observed factor behind the corruption drop. The diagnostics are useful for triage within this protocol, but final model choice still requires closed-loop corruption evaluation.
 
 \subsection{Conservative use: choosing the training-noise ceiling}\label{sec:disc-practical}
 
-The diagnostics are best used as a screening tool before direct evaluation at both unperturbed and high-corruption endpoints. \fragility{}, effective rank, transition resolution, and task semantics should be checked together; none is a robustness oracle alone. Within the narrow Gaussian-noise protocol studied here, a coarse sweep such as \{0.01, 0.03, 0.05, 0.07\} is a reasonable starting point before refinement around the best unperturbed/corrupted candidates, but the final choice still requires closed-loop evaluation.
+The diagnostics are best used as a screening tool before direct evaluation at both unperturbed and high-corruption endpoints. \fragility{}, effective rank, transition resolution, and task semantics should be checked together. Within the Gaussian-noise protocol studied here, a coarse sweep such as \{0.01, 0.03, 0.05, 0.07\} is a reasonable starting point before refinement around strong unperturbed/corrupted candidates, but the final choice still requires closed-loop evaluation.
 
-\subsection{A target-view scope boundary for future objectives}\label{sec:disc-method}
+\subsection{What the target-view ablation rules out}\label{sec:disc-method}
 
 The completed prediction-target-view ablation is a negative scope check rather than a method contribution. It compares the retained full-sequence perturbed-target branch with perturbed-history $\to$ original-future prediction. The latter tests a tempting original-target denoising variant, but Appendix~\ref{sec:appendix-target-view} shows that this target change alone does not repair robustness: across the eight target-noise checkpoints, PushT remains at $6.75\%$ at observation-noise 0.08 and Reacher remains at $19.62\%$, while the matched full-sequence branch reaches $72.83\%$ and $76.17\%$ respectively.
 
-The result is consistent with a closed-loop train/eval consistency explanation rather than an eval-corruption implementation error. Training is a teacher-forced one-step denoising target (noisy real history $\to$ original future), whereas CEM evaluation feeds each predicted latent back as the next autoregressive input. Whether the prediction target lives on the original or perturbed latent manifold therefore changes the next-step input distribution at evaluation time. This is not a causal proof that the target manifold is the only mechanism; a stronger claim would require a rollout-consistent denoising or multi-step objective. A plausible method direction is therefore not another target-view toggle by itself, but adaptive predictive-dynamics consistency: regularise paired rollouts after the action-conditioned predictor and gate by action/transition sensitivity. The negative heteroscedastic result below is the warning: high prediction error can mark action-critical contact transitions, so prediction difficulty alone is the wrong gate.
+The result is consistent with a closed-loop train/eval consistency explanation rather than an eval-corruption implementation error. Training is a teacher-forced one-step denoising target (noisy real history $\to$ original future), whereas CEM evaluation feeds each predicted latent back as the next autoregressive input. Whether the prediction target lives on the original or perturbed latent manifold therefore changes the next-step input distribution at evaluation time. A stronger causal claim would require a rollout-consistent denoising or multi-step objective. A plausible method direction is therefore not another target-view toggle by itself, but adaptive predictive-dynamics consistency: regularise paired rollouts after the action-conditioned predictor and gate by action/transition sensitivity. The negative heteroscedastic result below is the warning: high prediction error can mark action-critical contact transitions, so prediction difficulty alone is the wrong gate.
 
 \subsection{Limitations and future directions}\label{sec:disc-limit}
 
-\paragraph{Limitation 1 --- architecture scope.} The main diagnostics are LeWM-centred; PLDM replicates task-level signatures, the PushT partial-correlation null, and the full Gaussian-noise ACPC basin pattern, but its internal recovery mechanism differs. EMA-target and variational JEPA variants remain open.
-
-\paragraph{Limitation 2 --- corruption scope.} Gaussian pixel noise is the controlled training axis. Blur stress tests in \Cref{sec:appendix-blur} show visual fragility beyond Gaussian noise, but also corruption-specific task ordering; blur-specific training remains follow-up work.
-
-\paragraph{Limitation 3 --- diagnostic scope.} The framework is empirical. Reacher and TwoRoom fail the partial-correlation criterion for all metrics, and we do not yet have a theory predicting which tasks support cross-checkpoint diagnostics.
-
-\paragraph{Limitation 4 --- method scope.} The dense paired ACPC basin diagnostic now covers the LeWM and PLDM Gaussian-noise sweeps, but only for two related JEPA-family world models and one corruption family. We therefore use it as a replication of the paired-basin pattern, not as a method-invariant theorem. Appendix~\ref{sec:appendix-phase0} broadens the probes under auxiliary observation+goal stress, but those rows are post-hoc, small-sample, and exploratory. Appendix~\ref{sec:appendix-target-view} adds the target-view ablation, which is negative; a method paper still needs a trained predictive-consistency objective.
-
-\paragraph{Limitation 5 --- training-run variability.} The sweep reports variability over evaluation seeds, not independent training seeds. Each \stdmax{} cell corresponds to one trained epoch-10 checkpoint. The grid is therefore best interpreted as a controlled intervention sweep over training corruption strength, not as an estimate of training-run variability.
+The main limitations are part of the claim definition. The canonical grid has no independent training seeds: each \stdmax{} cell is one trained epoch-10 checkpoint, and reported success-rate std values are population std across evaluation seeds. Gaussian pixel noise is the controlled training axis; blur is an eval-only sanity check in Appendix~\ref{sec:appendix-blur}. ACPC basin radii are post-hoc paired diagnostics, not a model-selection rule. The discriminability guard is proxy-level in this paper, using rank, transition resolution, and inverse-dynamics probes rather than task-specific oracle margins. Finally, the main mechanism claim is LeWM-centred; PLDM supports the task-level fragility/recovery and paired-basin pattern but has different internal diagnostic movement.
 
 \paragraph{Additional ablation --- hard $\ne$ nuisance.} A heteroscedastic NLL probe with a learned per-transition $\sigma$-head shows why error-based downweighting is unsafe in this setting: TwoRoom remains strong, but PushT unperturbed success collapses from $86.33\%$ to $13.33\%$ because contact-control transitions are high-error and action-critical. Full data are in \Cref{sec:appendix-D}.
 
@@ -669,13 +631,17 @@ The result is consistent with a closed-loop train/eval consistency explanation r
 %% ===========================================================================
 \section{Conclusion}\label{sec:conc}
 
-This paper offers a diagnostic reframing of visual robustness for JEPA world-model control as action-conditioned predictive consistency with an explicit discriminability countercondition. Controlled Gaussian corruptions indicate that latent prediction alone does not guarantee robustness; input-side noise augmentation recovers much of the lost control performance, but only as a coarse pressure with task-dependent plateaus. The paired ACPC basin diagnostic gives the control-facing reading: direct-eval-selected robust endpoints have smaller same-action prediction radii under same-state perturbations, while pointwise fragility does not isolate the corruption gap after conditioning on train-time noise.
+This paper studies Gaussian visual robustness in JEPA latent world-model control through action-conditioned predictive consistency with an explicit discriminability countercondition. Controlled Gaussian corruptions show that latent prediction alone does not guarantee closed-loop robustness. Input-side noise augmentation recovers much of the lost control performance, but with task-dependent plateaus. The paired ACPC basin diagnostic adds a local mechanism read: direct-eval-selected robust endpoints have smaller same-action prediction radii under same-state perturbations, while pointwise fragility does not isolate the corruption gap after conditioning on train-time noise.
 
-We do not propose a new training algorithm. The target-view ablation in Appendix~\ref{sec:appendix-target-view} rules out perturbed-history $\to$ original-future targets as a sufficient closed-loop fix and leaves full-sequence perturbed targets as the empirical mainline for this study. The remaining method hypothesis is paired predictive-dynamics consistency after the action-conditioned predictor, gated by action sensitivity and protected by discriminability.
+The target-view ablation in Appendix~\ref{sec:appendix-target-view} rules out perturbed-history $\to$ original-future targets as a sufficient closed-loop fix and leaves full-sequence perturbed targets as the empirical branch for this study. The next method question is paired predictive-dynamics consistency after the action-conditioned predictor, gated by action sensitivity and protected by discriminability.
 
 %% ===========================================================================
 \section*{Acknowledgements}
-The complete code and data are available at \url{https://github.com/qun-team/wm_exp}; paper-facing JSON artifact hashes are listed in the data manifest. We thank the LeWM authors for releasing the baseline framework on which this study builds.
+\ifanonymous
+The submitted supplementary material contains the code paths, canonical artifact hashes, and checker commands used for this anonymous version.
+\else
+The complete code and data are available at \url{https://github.com/qun-team/wm_exp}; JSON artifact hashes are listed in the data manifest. We thank the LeWM authors for releasing the baseline framework on which this study builds.
+\fi
 
 %% ===========================================================================
 \bibliographystyle{plain}
@@ -683,6 +649,27 @@ The complete code and data are available at \url{https://github.com/qun-team/wm_
 
 %% ===========================================================================
 \appendix
+\section{Related-work boundary table}\label{sec:appendix-related-boundaries}
+
+\begin{table}[H]
+\centering
+\caption{Boundary to neighbouring consistency and control-representation work.}
+\label{tab:related-boundaries}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.27\textwidth}>{\raggedright\arraybackslash}X}
+\toprule
+Neighbouring thread & Shared concern & Boundary in this paper \\
+\midrule
+ViGMO~\cite{vigmo} & Visual distractions and latent consistency & We do not propose a generic encoder-consistency regulariser; our diagnostic places consistency after action-conditioned rollout and adds a discriminability guard. \\
+Bisimulation / Bisim-JEPA~\cite{gelada2019deepmdp,zhang2021dbc,toso2026bisimjepa} & Control-relevant state abstraction & Same-state corrupted and unperturbed views need not share an encoder latent; agreement is required at the predictive-dynamics level. \\
+LeJEPA theory~\cite{klindt2026lejepaworldmodel} & Latent variables and latent planning & We do not claim identifiability; we test whether learned checkpoints preserve predictive consistency under visual perturbation. \\
+Group-action world models~\cite{wang2026groupactions} & Action-faithful rollout structure & We test same-action paired corruption consistency, not identity/inverse/composition consistency across action sequences. \\
+Value-aware models~\cite{grimm2020valueequivalence,voelcker2025calibratedvalueaware} & Models should serve downstream control & We make this operational as paired action-conditioned rollout agreement, not value equivalence or value prediction. \\
+V-JEPA family~\cite{bardes2024vjepa,assran2025vjepa2,huang2026vjepa} & Latent video prediction and noisy-environment probes & Representation recovery and closed-loop control stress different properties; our probe measures eval-time closed-loop behaviour. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 \section{Experimental details}\label{sec:appendix-A}
 
 \subsection{Environments}
@@ -777,7 +764,7 @@ Training runs on a single NVIDIA H800 (80\,GB) and follows the LeWM training sch
 \subsection{Main-figure rendering}
 \Cref{fig:sweep,fig:scatter} are produced by the main plot script listed in Appendix~\ref{sec:appendix-artifact-map}; no checkpoint or model loading is required.
 
-\Cref{fig:selective-contraction} is produced by \codebrk{tools/paper1\_selective\_contraction.py}. The paper-facing rendering command is:
+\Cref{fig:selective-contraction} is produced by \codebrk{tools/paper1\_selective\_contraction.py}. The rendering command used for this paper is:
 
 \begin{lstlisting}
 python -m tools.paper1_selective_contraction \
@@ -852,7 +839,7 @@ The main text uses reader-facing diagnostic names. Exact relative artifact paths
 
 \begin{table}[H]
 \centering
-\caption{Mapping from paper-facing names to released relative paths and implementation keys.}
+\caption{Mapping from paper names to released relative paths and implementation keys.}
 \label{tab:artifact-key-map}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -1083,7 +1070,7 @@ Cube & $52.67 \pm 3.30$ & $50.33 \pm 4.50$ & $48.33 \pm 4.50$ & $48.33 \pm 2.87$
 
 \paragraph{Method-specific details.} PLDM's PushT unperturbed point-best ($76.67\%$ at \stdmax{}~$= 0.03$) is lower than LeWM's ($89.67\%$ at \stdmax{}~$= 0.03$), so the external baseline is not a performance leaderboard. It is a robustness check: the cliff-and-recovery shape is reproduced, while the exact unperturbed/robust optimum location is method-dependent. In particular, the LeWM PushT optimum dissociation should be read as a LeWM-family signature, not a cross-method law.
 
-\paragraph{Cross-method partial correlations.} We repeat the \fragility{} partial-correlation analysis for PLDM on all four tasks. The headline PushT null replicates in the limited sense that we do not see stable evidence for a non-zero residual corruption-gap association: PLDM has unconditional $\rho(\text{metric}, \text{corruption drop}) = -0.75$ but partial $\rho(\text{metric}, \text{corruption drop}) \mid \stdmax{} = -0.05$ ($95\%$ bootstrap CI $[-0.92, +0.61]$), and the joint LeWM+PLDM PushT partial after conditioning on \stdmax{} and method is $+0.22$ ($95\%$ CI $[-0.59, +0.61]$). The intervals are wide and include zero. Other tasks show task-specific residuals, so we use the full table as a scope boundary rather than as a universal diagnostic claim.
+\paragraph{Cross-method partial correlations.} We repeat the \fragility{} partial-correlation analysis for PLDM on all four tasks. The headline PushT null replicates in the limited sense that we do not see stable evidence for a non-zero residual corruption-gap association: PLDM has unconditional $\rho(\text{metric}, \text{corruption drop}) = -0.75$ but partial $\rho(\text{metric}, \text{corruption drop}) \mid \stdmax{} = -0.05$ ($95\%$ bootstrap CI $[-0.92, +0.61]$), and the joint LeWM+PLDM PushT partial after conditioning on \stdmax{} and method is $+0.22$ ($95\%$ CI $[-0.59, +0.61]$). The intervals are wide and include zero. Other tasks show task-specific residuals, so the full table is evidence for a bounded diagnostic reading rather than a general robustness predictor.
 
 \begin{table}[H]
 \centering
@@ -1125,7 +1112,7 @@ Cube & noise $0.04$ & $54.67$ & $-0.67$ & $0.146$ & $0.054$ \\
 \end{tabular}
 \end{table}
 
-\paragraph{Reading.} The PLDM basin replication is directionally consistent with the LeWM ACPC-basin reading: the observation-noise 0.08 point-best checkpoint reduces $R_F$ on all four tasks, sharply on TwoRoom, PushT, and Cube. Reacher is the scope boundary: PLDM is already near-robust at the no-noise baseline, and both the behavioural drop and the basin change are small. The full 36-row artifact reduces the concern that the paired basin pattern is purely a LeWM artifact, but it does not upgrade the claim to a method-invariant mechanism because \Cref{tab:pldm-full-diag} shows different internal diagnostic movement.
+\paragraph{Reading.} The PLDM basin replication is directionally consistent with the LeWM ACPC-basin reading: the observation-noise 0.08 point-best checkpoint reduces $R_F$ on all four tasks, sharply on TwoRoom, PushT, and Cube. Reacher is the boundary case: PLDM is already near-robust at the no-noise baseline, and both the behavioural drop and the basin change are small. The full 36-row artifact reduces the concern that the paired basin pattern is purely a LeWM artifact, but it does not upgrade the claim to a method-invariant mechanism because \Cref{tab:pldm-full-diag} shows different internal diagnostic movement.
 
 \begin{figure}[p]
 \centering
@@ -1154,9 +1141,9 @@ Cube    & 0.04 & $134.80 \to 124.49$ & $0.6395 \to 0.6313$ & $0.5428 \to 0.5576$
 \end{tabularx}
 \end{table}
 
-\paragraph{What this strengthens, and what it does not.} PLDM reduces the concern that the four task signatures are tied to one LeWM checkpoint family. The full PLDM basin artifact, summarised in \Cref{tab:pldm-acpc-basin}, further supports the paired same-state perturbation reading at the baseline-vs-robust endpoints. It also supports the diagnostic-boundary claim: after removing the sweep-level \stdmax{} effect and the method offset on PushT, the local predictor-sensitivity diagnostic does not isolate corruption-specific robustness. The TwoRoom and Cube PLDM residuals are deliberately left visible in \Cref{tab:pldm-partial-corr}. They do not contradict the headline null: the intervals are wide, the noisy-eval ranges are small on the saturated tasks, and the residuals should not be converted into a robustness oracle.
+\paragraph{What this strengthens, and what it does not.} PLDM reduces the concern that the four task signatures are tied to one LeWM checkpoint family. The full PLDM basin artifact, summarised in \Cref{tab:pldm-acpc-basin}, further supports the paired same-state perturbation reading at the baseline-vs-robust endpoints. It also supports the diagnostic-boundary claim: after removing the sweep-level \stdmax{} effect and the method offset on PushT, the local predictor-sensitivity diagnostic does not isolate corruption-specific robustness. The TwoRoom and Cube PLDM residuals remain visible in \Cref{tab:pldm-partial-corr}. They do not contradict the headline null: the intervals are wide, the noisy-eval ranges are small on the saturated tasks, and the residuals should not be converted into a selection rule.
 
-\paragraph{Mechanism boundary.} \Cref{tab:pldm-full-diag} is the reason we do not promote any single internal mechanism to a universal theorem. On both families the most consistent representative-checkpoint movement is a strong reduction in multi-step rollout drift, but the residual movement is method-specific: LeWM compresses TwoRoom's effective rank where PLDM does not, and the two families place their weak residual partial-correlation signals on different tasks (\Cref{tab:partial-corr-4tasks,tab:pldm-partial-corr}). The shared conclusion is therefore about \emph{control-time visual fragility and noise-training recovery}; the internal diagnostic route is method-specific.
+\paragraph{Mechanism boundary.} \Cref{tab:pldm-full-diag} is the reason we do not promote any single internal mechanism to a general explanation. On both families the most consistent representative-checkpoint movement is a strong reduction in multi-step rollout drift, but the residual movement is method-specific: LeWM compresses TwoRoom's effective rank where PLDM does not, and the two families place their weak residual partial-correlation signals on different tasks (\Cref{tab:partial-corr-4tasks,tab:pldm-partial-corr}). The shared conclusion is therefore about \emph{control-time visual fragility and noise-training recovery}; the internal diagnostic route is method-specific.
 
 %% ===========================================================================
 \section{Cross-corruption sanity check: no-noise-trained blur evaluation}\label{sec:appendix-blur}
@@ -1192,7 +1179,31 @@ PLDM & Cube    & $52.67 \pm 3.30$ & $53.00 \pm 5.35$ & $53.00 \pm 2.83$ & $50.67
 %% ===========================================================================
 \section{Phase-0 paired ACPC diagnostics}\label{sec:appendix-phase0}
 
-This appendix records the first full-coverage run of the paired action-conditioned diagnostics defined in \Cref{sec:acpc-diag}. The released artifact covers 72 checkpoint rows: LeWM and PLDM, four tasks, and nine training-noise levels per task. All rows completed successfully. Each row uses $100$ sampled sequences, Gaussian observation+goal corruption at std $0.08$, rollout horizon $H=8$, and a shared candidate-action set of one dataset future plus $64$ random futures. Because this uses the auxiliary observation+goal stress endpoint rather than the paper's primary unperturbed-goal endpoint, it is reported as a broader exploratory sanity check rather than as the main ACPC evidence. PCC, CRA, and MAF are computed from the same original/noisy candidate-cost vectors. ADM and SPRR use an action-distance latent proxy, not an oracle state/keypoint margin.
+\subsection{Exploratory readout definitions}\label{sec:appendix-acpc-readouts}
+
+The main text fixes ACPC to the $H=8$ identity-readout rollout-latent basin diagnostic. The additional readouts below are exploratory and are not used for model selection.
+
+\begin{description}[style=nextline]
+  \item[Encoder perturbation difference (EPD).] $\mathrm{EPD} = d(E(o), E(\tilde o))$. This reports whether a perturbation enters the latent, not whether it matters for control.
+  \item[One-step consistency (ACPC-1).] The one-step paired score is
+  \[
+    \mathrm{ACPC}_1 = d\!\big(F(E(o), a), F(E(\tilde o), a)\big).
+  \]
+  For cross-checkpoint comparisons we optionally divide by the natural transition magnitude $d(z_t, z_{t+1})+\epsilon$.
+  \item[Multi-step consistency (ACPC-$H$).] Equation~\eqref{eq:acpc-h} with $H \in \{4, 8\}$ measures disagreement between unperturbed and corrupted rollouts under the same action sequence.
+  \item[Predictive cost consistency (PCC).] $\mathrm{PCC} = \big| J(F^{H}(E(o), \mathbf a), g) - J(F^{H}(E(\tilde o), \mathbf a), g) \big|$ for a cost/goal readout $J$ and goal $g$. PCC tests whether predictive mismatch changes the planning cost.
+  \item[Candidate-ranking agreement (CRA).] For a shared candidate set $\mathcal A = \{\mathbf a^1, \dots, \mathbf a^K\}$, CRA is the Spearman/Kendall agreement of the unperturbed and corrupted cost vectors.
+  \item[Margin-conditioned action flip (MAF).] $\mathrm{MAF} = \mathbf{1}\big[u^\ast_{\text{orig}} \neq u^\ast_{\text{noise}},\ C_{(2)} - C_{(1)} > \delta\big]$: a flip of the selected action counts only when the unperturbed top-1/top-2 cost margin exceeds $\delta$.
+  \item[Action-relevant discriminability margin (ADM).] Over action/transition-distinct pairs $P_{\mathrm{disc}}$, $\mathrm{ADM} = \operatorname{median}_{(i,j) \in P_{\mathrm{disc}}} d(\Psi_i, \Psi_j)$. In this paper ADM is a proxy guard rather than a direct proof of the margin condition in \Cref{eq:acpc-disc}.
+  \item[Selective predictive robustness ratio (SPRR).] A summary of action-distinct discriminability relative to original/corrupted predictive inconsistency,
+  \[
+    \mathrm{SPRR} = \frac{\operatorname{median}_{(i,j) \in P_{\mathrm{disc}}} d(\Psi_i, \Psi_j)}{\operatorname{median}_{P_{\mathrm{pert}}} \mathrm{ACPC}_H + \epsilon}.
+  \]
+\end{description}
+
+\subsection{Phase-0 table}
+
+This appendix records the first full-coverage run of these paired action-conditioned diagnostics. The released artifact covers 72 checkpoint rows: LeWM and PLDM, four tasks, and nine training-noise levels per task. All rows completed successfully. Each row uses $100$ sampled sequences, Gaussian observation+goal corruption at std $0.08$, rollout horizon $H=8$, and a shared candidate-action set of one dataset future plus $64$ random futures. Because this uses the auxiliary observation+goal stress endpoint rather than the paper's primary unperturbed-goal endpoint, it is reported as a broader exploratory sanity check rather than as the main ACPC evidence. PCC, CRA, and MAF are computed from the same original/noisy candidate-cost vectors. ADM and SPRR use an action-distance latent proxy, not an oracle state/keypoint margin.
 
 \begin{landscape}
 \begin{table}[p]
@@ -1218,7 +1229,7 @@ Cube & PLDM & 0.08 & $48.33 \to 56.33$ & $1.136 \to 0.034$ & $113.6 \to 3.0$ & $
 \end{table}
 \end{landscape}
 
-\paragraph{Reading.} The Phase-0 pass converts the ACPC definitions from a prospective protocol into a release artifact that behaves sensibly on the existing sweep. The largest Gaussian-noise cliffs (TwoRoom and PushT on both methods, Reacher/Cube on LeWM) coincide with large baseline ACPC-$H$, PCC, ranking disruption, and action flips, and the observation+goal point-best checkpoints reduce these quantities sharply. PLDM Reacher is the important scope boundary: it already has high observation+goal success at the no-noise baseline, and the paired diagnostics are correspondingly already close to the recovered checkpoint. Across the joint LeWM+PLDM sample within each task, partial Spearman correlations after conditioning on \stdmax{} and method remain task-specific: ACPC-$H$/transition vs.\ corruption drop is strong on PushT ($+0.67$) and Reacher ($+0.71$), but only modest on TwoRoom ($+0.21$) and Cube ($+0.33$). We therefore treat \Cref{tab:acpc-phase0} as a face-validity and mechanism-localisation check, not as evidence that ACPC-$H$, PCC, CRA, MAF, ADM, or SPRR can by themselves predict robustness.
+\paragraph{Reading.} The Phase-0 pass converts the ACPC definitions from a prospective protocol into a release artifact that behaves sensibly on the existing sweep. The largest Gaussian-noise cliffs (TwoRoom and PushT on both methods, Reacher/Cube on LeWM) coincide with large baseline ACPC-$H$, PCC, ranking disruption, and action flips, and the observation+goal point-best checkpoints reduce these quantities sharply. PLDM Reacher is the important boundary case: it already has high observation+goal success at the no-noise baseline, and the paired diagnostics are correspondingly already close to the recovered checkpoint. Across the joint LeWM+PLDM sample within each task, partial Spearman correlations after conditioning on \stdmax{} and method remain task-specific: ACPC-$H$/transition vs.\ corruption drop is strong on PushT ($+0.67$) and Reacher ($+0.71$), but only modest on TwoRoom ($+0.21$) and Cube ($+0.33$). We therefore treat \Cref{tab:acpc-phase0} as a face-validity and mechanism-localisation check, not as evidence that ACPC-$H$, PCC, CRA, MAF, ADM, or SPRR can by themselves predict robustness.
 
 %% ===========================================================================
 \section{Target-view ablation completion check}\label{sec:appendix-target-view}
@@ -1261,7 +1272,7 @@ Cube    & $59.83 \pm 5.55$ & $39.62 \pm 1.22$ & $+20.21$ \\
 \end{tabular}
 \end{table}
 
-\paragraph{Reading.} The ablation acts as a scope boundary and supports retaining the full-sequence empirical mainline. Simply changing the prediction target to the original future does not reproduce the recovery from input-side noise augmentation in \Cref{tab:sweep-px08}: PushT and Reacher remain close to their no-noise robustness cliffs, TwoRoom degrades under stronger eval noise despite high unperturbed success, and Cube does not improve over the main sweep.
+\paragraph{Reading.} The ablation acts as a negative boundary check and supports retaining the full-sequence empirical branch. Simply changing the prediction target to the original future does not reproduce the recovery from input-side noise augmentation in \Cref{tab:sweep-px08}: PushT and Reacher remain close to their no-noise robustness cliffs, TwoRoom degrades under stronger eval noise despite high unperturbed success, and Cube does not improve over the main sweep.
 
 A matched PushT 0to008 check shows the contrast: rerunning both branches' \stdmax{} $= 0.08$ checkpoints under the same fixed evaluation code and canonical seeds gives observation-noise 0.08 three-seed means of $86.33\%$ for the full-sequence checkpoint versus $8.67\%$ for the origin-target checkpoint (the canonical sweep value for the same full-sequence checkpoint in \Cref{tab:sweep-px08} is $89.00\%$; the difference is normal evaluation variance). We interpret this as evidence consistent with a closed-loop train/eval consistency explanation: full-sequence noise augmentation better matches the planner's latent autoregressive feedback, while one-step origin-target denoising does not. This is not evidence that arbitrary history mismatches are harmless; it says the target view alone is not the missing mechanism, and an explicit action-conditioned predictive-consistency objective is still needed.
 

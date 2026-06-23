@@ -10,8 +10,8 @@ Companion plan / storyline doc: `PLAN.md` (next to this README).
 
 ```
 paper1/
-├── main.tex          # the paper (article class, ~1,160 lines)
-├── references.bib    # 41 entries; final source audit is tracked in reference_audit.md
+├── main.tex          # the paper (article class)
+├── references.bib    # bibliography entries; final source audit is tracked in reference_audit.md
 ├── figures/          # symlink → ../assets/paper1_figs/
 ├── build.sh          # `bash build.sh` (uses latexmk if available, else pdflatex + bibtex)
 ├── .gitignore        # ignores LaTeX intermediates; main.pdf is tracked intentionally
@@ -46,6 +46,8 @@ cd .. && python -m tools.paper1_selective_contraction \
 Paper-specific tool usage is documented in `../tools/README_paper1.md`.
 
 ## Submitting to arXiv
+
+The current source is configured for anonymous review via `\anonymoustrue` in `main.tex`. For arXiv or another non-anonymous release, switch that flag, fill the real author block, and keep the public code/data URL in the acknowledgements.
 
 arXiv requires a single self-contained tarball. To prepare:
 

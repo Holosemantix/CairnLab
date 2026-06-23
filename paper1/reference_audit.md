@@ -1,6 +1,8 @@
 # Reference Audit
 
-Date: 2026-06-16
+Date: 2026-06-22
+
+2026-06-22 release-readiness pass: bibliography count rechecked after the submission-readiness review. `paper1/references.bib` contains 42 entries, and the README no longer hard-codes a count.
 
 2026-06-08 final pass: rechecked the temporally unstable 2025/2026 entries against official arXiv, OpenReview, Nature, ICLR, and PMLR pages. The main live checks covered `maes2026lewm`, `maes2026stableworldmodel`, `huang2026vjepa`, `klindt2026lejepaworldmodel`, `usjepa2025`, `njepa2025`, `toso2026bisimjepa`, `assran2025vjepa2`, `vigmo`, `ghaemi2025seqjepa`, `voelcker2025calibratedvalueaware`, `hafner2025dreamerv3`, `dupuis2023vibr`, `gelada2019deepmdp`, `hansen2024tdmpc2`, and `bsmpc`. 2026-06-10 targeted recheck updated `maes2026stableworldmodel` from the earlier workshop v1 record to the newer arXiv platform paper and removed an unsupported precise VJEPA noisy-distractor number.
 

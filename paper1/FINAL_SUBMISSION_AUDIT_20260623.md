@@ -44,7 +44,7 @@ Unsafe phrases:
 
 ---
 
-## 2. Remaining hard blockers
+## 2. Remaining blockers and final checks
 
 ### 2.1 Real author list
 
@@ -59,13 +59,16 @@ This must be replaced with the real arXiv author list before submission. Do not 
 
 ### 2.2 Final public URL
 
-The acknowledgement currently points to:
+The acknowledgement now points to the paper-facing branch:
 
 ```tex
-https://github.com/Holosemantix/le-wm
+https://github.com/Holosemantix/le-wm/tree/ag/dev
 ```
 
-Verify that this is the intended public code/data repository and that it contains the paper-facing source, artifacts, manifest, and hashes. If the final public location differs, update the acknowledgement.
+Public access was checked on 2026-06-23 with `git ls-remote`; the `ag/dev`
+branch is visible. The local repository contains the paper-facing source,
+`DATA_MANIFEST.md`, JSON artifacts, and manifest hashes. If the final public
+location differs, update the acknowledgement before submission.
 
 ### 2.3 Build and arXiv package
 
@@ -106,17 +109,17 @@ Remaining optional polish:
 
 ## 4. Final readiness status
 
-Ready after human metadata + build checks:
+Ready after human metadata + final build checks:
 
 - Theory bridge: ready.
 - Claim boundary: ready.
 - Full-grid transparency: ready.
 - Negative ablation framing: ready.
 - arXiv packaging script: ready.
+- Public branch URL: ready for `ag/dev`, subject to final human location choice.
 
 Not ready until completed:
 
 - Real author list replaces `\arxivauthors`.
-- Final public repository URL is verified.
 - `main.bbl` is generated and included in the arXiv source bundle.
 - `tools.check_paper1_consistency`, `paper1/build.sh --clean`, and `paper1/check_arxiv_ready.sh` pass in the final local environment.

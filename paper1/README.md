@@ -2,7 +2,7 @@
 
 Self-contained LaTeX source for the arXiv preprint.
 
-> *Diagnosing Visual Robustness in JEPA World Models through Action-Conditioned Predictive Consistency*
+> *A Diagnostic Study of Gaussian Visual Robustness in JEPA Latent World Models*
 
 Companion plan / storyline doc: `PLAN.md` (next to this README).
 
@@ -47,15 +47,30 @@ Paper-specific tool usage is documented in `../tools/README_paper1.md`.
 
 ## Submitting to arXiv
 
-The current source is configured for anonymous review via `\anonymoustrue` in `main.tex`. For arXiv or another non-anonymous release, switch that flag, fill the real author block, and keep the public code/data URL in the acknowledgements.
+The current source is configured as an arXiv-style non-anonymous draft. Before submitting, replace the `\arxivauthors` placeholder in `main.tex` with the real author list and verify the public code/data URL in the acknowledgements.
 
-arXiv requires a single self-contained tarball. To prepare:
+arXiv source upload should contain only files required to compile the paper. Do not upload `PLAN.md`, `CODEX_SUBMISSION_READINESS.md`, `ARXIV_V1_READINESS_PLAN.md`, checker logs, old PDFs, raw experiment JSON, or other internal planning files.
+
+To prepare a source tarball with only the figures referenced by `main.tex`:
 
 ```bash
-bash build.sh           # build once, ensure no errors
-tar -czf paper1.tar.gz main.tex references.bib main.bbl figures/
+cd paper1
+bash build.sh --clean
+rm -rf /tmp/paper1_arxiv_src
+mkdir -p /tmp/paper1_arxiv_src/figures/corruption
+cp main.tex references.bib main.bbl /tmp/paper1_arxiv_src/
+cp figures/fig1_concept.png /tmp/paper1_arxiv_src/figures/
+cp figures/fig2_sweep.png /tmp/paper1_arxiv_src/figures/
+cp figures/pusht_fullseq_selective_contraction_clusters.png /tmp/paper1_arxiv_src/figures/
+cp figures/pusht_fullseq_selective_contraction_atlas.png /tmp/paper1_arxiv_src/figures/
+cp figures/fig5_scatter.png /tmp/paper1_arxiv_src/figures/
+cp figures/pusht_pldm_noise_selective_contraction_clusters.png /tmp/paper1_arxiv_src/figures/
+cp figures/corruption/pusht_corruption_visualization.png /tmp/paper1_arxiv_src/figures/corruption/
+cp figures/corruption/tworoom_corruption_visualization.png /tmp/paper1_arxiv_src/figures/corruption/
+cp figures/corruption/reacher_corruption_visualization.png /tmp/paper1_arxiv_src/figures/corruption/
+cp figures/corruption/cube_corruption_visualization.png /tmp/paper1_arxiv_src/figures/corruption/
+tar -czf /tmp/paper1_arxiv_v1_src.tar.gz -C /tmp/paper1_arxiv_src .
+tar -tzf /tmp/paper1_arxiv_v1_src.tar.gz | sort
 ```
 
-The figures symlink expands into a real directory inside the tarball (use `-h` if your `tar` does not follow symlinks by default: `tar -czhf paper1.tar.gz ...`).
-
-Note: arXiv does not run BibTeX during build, so the `.bbl` file must be included alongside `main.tex`.
+The source package intentionally excludes `main.pdf`, unused figures, and local build products; the TeX source path includes `main.bbl`, whose basename matches `main.tex`.

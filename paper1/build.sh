@@ -20,21 +20,19 @@ if command -v latexmk >/dev/null 2>&1; then
   latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
 else
   pdflatex -interaction=nonstopmode -halt-on-error main.tex
-  if [[ -f references.bib ]]; then
-    bibtex main
-  fi
+  bibtex main
   pdflatex -interaction=nonstopmode -halt-on-error main.tex
   pdflatex -interaction=nonstopmode -halt-on-error main.tex
 fi
 
 if command -v rg >/dev/null 2>&1; then
-  if rg -n "Citation .* undefined|Reference .* undefined|There were undefined references|Undefined control sequence|Fatal error" main.log >/tmp/paper1_build_grep.log 2>/dev/null; then
+  if rg -n "Citation .* undefined|Reference .* undefined|There were undefined references|Undefined control sequence|Fatal error|No file main.bbl" main.log >/tmp/paper1_build_grep.log 2>/dev/null; then
     cat /tmp/paper1_build_grep.log
     echo "ERROR: unresolved LaTeX references/citations or fatal build diagnostics" >&2
     exit 1
   fi
 else
-  if grep -En "Citation .* undefined|Reference .* undefined|There were undefined references|Undefined control sequence|Fatal error" main.log >/tmp/paper1_build_grep.log 2>/dev/null; then
+  if grep -En "Citation .* undefined|Reference .* undefined|There were undefined references|Undefined control sequence|Fatal error|No file main.bbl" main.log >/tmp/paper1_build_grep.log 2>/dev/null; then
     cat /tmp/paper1_build_grep.log
     echo "ERROR: unresolved LaTeX references/citations or fatal build diagnostics" >&2
     exit 1

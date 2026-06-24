@@ -137,7 +137,7 @@ A natural remedy is input-side noise augmentation. We sweep \stdmax{} $\in \{0.0
 
 \subsection{Contributions}\label{sec:intro-contributions}
 
-\paragraph{C1 --- Diagnostic principle and planner link.} We formulate visual robustness for world-model control as action-conditioned predictive consistency with an action-relevant discriminability countercondition. On a fixed candidate set, bounded ACPC implies bounded candidate-cost drift and preserves the selected candidate under a clean action-margin condition.
+\paragraph{C1 --- Diagnostic principle and planner link.} We formulate visual robustness for world-model control as action-conditioned predictive consistency with an action-relevant discriminability countercondition. Under a Lipschitz cost readout, bounded ACPC bounds candidate-cost drift on a fixed candidate set; with a sufficiently large clean action margin, it preserves the selected candidate within that set.
 
 \paragraph{C2 --- Controlled evidence.} Within a fixed Gaussian-noise protocol, we find severe no-noise LeWM corruption cliffs and task-dependent recovery under input-side noise augmentation. PLDM replication checks whether the same signatures appear in a second model family.
 
@@ -268,7 +268,7 @@ Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}$ be a shared candidate set an
 Proposition~\ref{prop:cost-drift} gives $|C_h(\mathbf a^j,g)-C_{\tilde h}(\mathbf a^j,g)|\le L_J\epsilon$ for every candidate. Applying Proposition~\ref{prop:top1-stability} with $\eta=L_J\epsilon$ gives the result.
 \end{proof}
 
-The corollary is the formal reason that ACPC is a planning diagnostic rather than only a representation-distance measurement. It links paired predictive agreement to candidate-cost stability and then to action selection under a margin condition. Candidate-ranking agreement and margin-conditioned action flips are downstream readouts of this chain. The result is deliberately limited to a fixed candidate set; CEM resampling, repeated replanning, and environment feedback can still change the closed-loop trajectory.
+The corollary gives a formal link between ACPC and planning without turning the diagnostic into a closed-loop guarantee. It connects paired predictive agreement to candidate-cost stability and then to action selection under a margin condition. Candidate-ranking agreement and margin-conditioned action flips are downstream readouts of this chain. The result is limited to a fixed candidate set; CEM resampling, repeated replanning, and environment feedback can still change the closed-loop trajectory.
 
 Encoder closeness is not the right substitute for this condition. It is not necessary: a nuisance-subspace change can move $E_\theta(h)$ and $E_\theta(\tilde h)$ far apart while leaving $\Pi(F_\theta^{1:H}(\cdot,\mathbf a))$ and the cost unchanged. It is not sufficient either: a small encoder displacement can flip a low-margin cost ranking when the predictor or cost readout has high local sensitivity.
 
@@ -505,7 +505,7 @@ The target-view ablation in Appendix~\ref{sec:appendix-target-view} rules out pe
 
 %% ===========================================================================
 \section*{Acknowledgements}
-The complete code and data for this revision are available at \url{https://github.com/Holosemantix/le-wm/tree/ag/dev}; JSON artifact hashes are listed in the data manifest. We thank the LeWM authors for releasing the baseline framework on which this study builds.
+The complete code and data for this revision are available at \url{https://github.com/Anguo-star/le-wm/tree/ag/dev}; JSON artifact hashes are listed in the data manifest. We thank the LeWM authors for releasing the baseline framework on which this study builds.
 
 %% ===========================================================================
 \bibliographystyle{plain}

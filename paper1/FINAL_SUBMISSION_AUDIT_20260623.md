@@ -62,13 +62,14 @@ This must be replaced with the real arXiv author list before submission. Do not 
 The acknowledgement now points to the paper-facing branch:
 
 ```tex
-https://github.com/Holosemantix/le-wm/tree/ag/dev
+https://github.com/Anguo-star/le-wm/tree/ag/dev
 ```
 
-Public access was checked on 2026-06-23 with `git ls-remote`; the `ag/dev`
-branch is visible. The local repository contains the paper-facing source,
-`DATA_MANIFEST.md`, JSON artifacts, and manifest hashes. If the final public
-location differs, update the acknowledgement before submission.
+The public release target was changed on 2026-06-24 to the new open-source
+repository requested for Paper 1. The local repository contains the
+paper-facing source, `DATA_MANIFEST.md`, JSON artifacts, and manifest hashes.
+Before final upload, verify that the `ag/dev` branch is publicly visible after
+the migration push or replace the branch URL with a stable release/tag URL.
 
 ### 2.3 Build and arXiv package
 
@@ -116,7 +117,8 @@ Ready after human metadata + final build checks:
 - Full-grid transparency: ready.
 - Negative ablation framing: ready.
 - arXiv packaging script: ready.
-- Public branch URL: ready for `ag/dev`, subject to final human location choice.
+- Public branch URL: points to `Anguo-star/le-wm` `ag/dev`; verify public
+  visibility after the migration push, or replace with a stable release/tag URL.
 
 Not ready until completed:
 

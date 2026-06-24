@@ -58,6 +58,7 @@ SWEEP_VARS=(
     loss_hetero_enabled loss_hetero_mode loss_hetero_probe_weight loss_hetero_logvar_hidden_dim
     loss_hetero_s_min loss_hetero_s_max loss_hetero_tau_floor
     loss_generic_latent_consistency_enabled loss_snap_acpc_enabled loss_paired_view_control_enabled
+    loss_in_forward_noise_control_enabled
     loss_action_gate_enabled loss_action_gate_mode loss_action_gate_intervention
     loss_action_gate_delta_scale loss_action_gate_num_delta_samples
     loss_action_gate_warmup_epochs loss_action_gate_ema_momentum

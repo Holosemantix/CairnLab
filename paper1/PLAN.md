@@ -137,7 +137,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 
 ### 7.3 Paper 2 候选 — 由 Paper 1 motivating 的方向与已关闭 baseline
 
-下面条目是 Paper1 之后的候选方向与已关闭 baseline。Paper2 总控准备文档见 [`paper2/PLAN.md`](../paper2/PLAN.md)。GLC 与 one-step SNAP-ACPC 都是 adequacy baseline，不作为独立贡献；它们的负结果用于关闭过弱的一步 clean/noisy consistency 路线。AAAC/APDC 证据保留为归档路线，但当前不再作为 Paper2 下一主线，因为它不够简洁，也没有形成相对普通 noise training 的干净超越。
+下面条目是 Paper1 之后的候选方向与已关闭 baseline。Paper2 总控准备文档见 [`paper2/PLAN.md`](../paper2/PLAN.md)。GLC 与 one-step SNAP-ACPC 都是 adequacy baseline，不作为独立贡献；它们的负结果用于关闭过弱的一步 clean/noisy consistency 路线。paired no-aux control 进一步显示失败已出现在 paired in-forward training path 本身，下一步应先做 noisy-only in-forward control，而不是继续叠加新 auxiliary loss。AAAC/APDC 证据保留为归档路线，但当前不再作为 Paper2 下一主线，因为它不够简洁，也没有形成相对普通 noise training 的干净超越。
 
 #### 7.3.0 已关闭 baseline：generic latent consistency（GLC）
 
@@ -155,6 +155,14 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - **诊断读法**：std 0.08 all-frame clean/noisy angle 约 `80.81°`，CKA 约 `0.495`，predictor rollout T8 L2 约 `16.42`；普通 noise training 的对应 T8 L2 约 `0.252`。SNAP-ACPC 没有解决 visual perturbation transduced into rollout drift 的核心问题。
 - **Gate 判断**：关闭 one-step self-bounded SNAP-ACPC，不默认扩展到更大 sweep；下一步不能回到 AAAC/APDC 作为主线，而应先解释普通 noise training 为什么这么强，并提出更简洁、能在 matched-noise 下追平或超过它的机制。
 - **记录位置**：具体数值和 run provenance 见 [`experiments.md`](../experiments.md) 的 "Paper2 SNAP-ACPC PR-1A Negative Baseline" 小节；路线决策见 [`paper2/PLAN.md`](../paper2/PLAN.md)。
+
+#### 7.3.2 已关闭 control：paired no-aux
+
+- **核心问题**：确认 GLC / SNAP-ACPC 的失败是否来自 auxiliary loss，还是来自 paired clean/noisy in-forward training path 本身。
+- **Reacher 0.08 结果**：`reacher_lewm_paired_noaux_noise_0to008_p1` 配置已确认生效（`loss.paired_view_control.enabled=true`，GLC/SNAP 均关闭，`target_view=perturbed`，`image_noise.std_max=0.08`），但 `pixels_std0.08` / `pixels_goal_std0.08` 只有 `24.67` / `14.67`，远低于普通 noise training 的 `83.67` / `81.00`。
+- **诊断读法**：paired no-aux 的 predictor rollout T8 L2 约 `14.875`，max-std CKA 约 `0.433`，仍落在 GLC/SNAP 的失败簇中。
+- **Gate 判断**：auxiliary loss 不是主要嫌疑；下一步应实现 noisy-only in-forward control，拆分 `TransformDataset` vs forward-time perturbation semantics 以及 clean-anchor paired forward side effect。
+- **记录位置**：具体数值见 [`experiments.md`](../experiments.md) 的 "Paper2 Paired No-Aux Equivalence Control" 小节；下一步 gate 见 [`paper2/PLAN.md`](../paper2/PLAN.md)。
 
 #### 7.3.a Plan-side robust CEM
 

@@ -488,6 +488,10 @@ def paired_view_control_enabled(cfg) -> bool:
     return bool(cfg.loss.get("paired_view_control", {}).get("enabled", False))
 
 
+def in_forward_noise_control_enabled(cfg) -> bool:
+    return bool(cfg.loss.get("in_forward_noise_control", {}).get("enabled", False))
+
+
 def paired_view_method_enabled(cfg) -> bool:
     enabled_methods = [
         generic_latent_consistency_enabled(cfg),
@@ -650,9 +654,19 @@ def lejepa_forward(self, batch, stage, cfg):
     snap_enabled = snap_acpc_enabled(cfg)
     paired_control_enabled = paired_view_control_enabled(cfg)
     paired_view = paired_view_method_enabled(cfg)
+    in_forward_noise_enabled = in_forward_noise_control_enabled(cfg)
+    if paired_view and in_forward_noise_enabled:
+        raise ValueError(
+            "loss.in_forward_noise_control is mutually exclusive with paired-view "
+            "training methods."
+        )
     if paired_view and target_view != "perturbed":
         raise ValueError(
             "paired-view training methods require loss.pred.target_view=perturbed"
+        )
+    if in_forward_noise_enabled and target_view != "perturbed":
+        raise ValueError(
+            "loss.in_forward_noise_control requires loss.pred.target_view=perturbed"
         )
 
     origin_output = None
@@ -668,12 +682,22 @@ def lejepa_forward(self, batch, stage, cfg):
             perturbed_batch["pixels"] = perturbed_pixels
             output = self.model.encode(perturbed_batch)
         origin_emb = origin_output["emb"]
+    elif in_forward_noise_enabled:
+        perturbed_pixels = apply_configured_pixel_perturbation(batch, cfg, stage)
+        if perturbed_pixels is batch["pixels"]:
+            output = self.model.encode(batch)
+        else:
+            perturbed_batch = dict(batch)
+            perturbed_batch["pixels"] = perturbed_pixels
+            output = self.model.encode(perturbed_batch)
     else:
         output = self.model.encode(batch)
 
     emb = output["emb"]  # (B, T, D)
     act_emb = output["act_emb"]
     sigreg_emb = emb
+    if in_forward_noise_enabled:
+        output["in_forward_noise_active"] = emb.new_tensor(1.0)
 
     if paired_view:
         ctx_emb = emb[:, :ctx_len]
@@ -1089,6 +1113,7 @@ def lejepa_forward(self, batch, stage, cfg):
                 or k.startswith("glc_")
                 or k.startswith("snap_acpc_")
                 or k.startswith("paired_noaux_")
+                or k.startswith("in_forward_noise_")
                 or k.startswith("target_view_")
                 or k == "pred_loss_mse_equiv"
                 or k == "sigreg_warmup_active"
@@ -1140,12 +1165,27 @@ def run(cfg):
     )
     target_view = resolve_pred_target_view(cfg)
     paired_view = paired_view_method_enabled(cfg)
+    in_forward_noise = in_forward_noise_control_enabled(cfg)
+    if paired_view and in_forward_noise:
+        raise ValueError(
+            "loss.in_forward_noise_control is mutually exclusive with paired-view "
+            "training methods."
+        )
     if paired_view and target_view != "perturbed":
         raise ValueError(
             "paired-view training methods require loss.pred.target_view=perturbed"
         )
+    if in_forward_noise and target_view != "perturbed":
+        raise ValueError(
+            "loss.in_forward_noise_control requires loss.pred.target_view=perturbed"
+        )
     img_noise = get_img_noise_transform(cfg.get("image_noise"))
-    if img_noise is not None and target_view == "perturbed" and not paired_view:
+    if (
+        img_noise is not None
+        and target_view == "perturbed"
+        and not paired_view
+        and not in_forward_noise
+    ):
         train_set = TransformDataset(train_set, img_noise)
         if cfg.image_noise.get("apply_to_val", False):
             val_set = TransformDataset(val_set, img_noise)
@@ -1153,6 +1193,11 @@ def run(cfg):
         print(
             "[image_noise] paired-view method enabled: "
             "using in-forward clean/noisy branches"
+        )
+    elif img_noise is not None and in_forward_noise:
+        print(
+            "[image_noise] in-forward noise control enabled: "
+            "using noisy-only in-forward perturbation"
         )
     elif img_noise is not None:
         print(

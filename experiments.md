@@ -17,6 +17,8 @@ This log is organized by experiment phase:
     implementation and negative gate result.
 11. **Paper2 SNAP-ACPC PR-1A negative baseline**: Reacher one-step predictive
     consistency result and route decision.
+12. **Paper2 paired no-aux equivalence control**: Reacher paired-view
+    no-auxiliary diagnostic and next code-adaptation gate.
 
 ## 1. Current Working Summary
 
@@ -1318,3 +1320,135 @@ Decision:
 - before designing another loss, run `loss.paired_view_control.enabled=true` to
   test whether the paired clean/noisy in-forward path is equivalent to ordinary
   `TransformDataset` noise training when no auxiliary loss is added
+
+## 12. Paper2 Paired No-Aux Equivalence Control
+
+This section records the paired-view infrastructure check requested after
+GLC and SNAP-ACPC both failed. The purpose was to separate the auxiliary loss
+from the training path itself:
+
+- ordinary noise training applies configured image noise through
+  `TransformDataset`
+- GLC / SNAP-ACPC / paired no-aux bypass `TransformDataset` and apply image
+  noise inside `lejepa_forward`
+- paired no-aux still encodes a clean detached branch, but adds no auxiliary
+  loss
+
+Main run:
+
+```text
+/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_paired_noaux_noise_0to008_p1
+```
+
+### Config verification
+
+The rerun config is the intended one:
+
+```yaml
+output_model_name: reacher_lewm_paired_noaux_noise_0to008_p1
+image_noise:
+  type: gaussian_noise
+  std_min: 0.0
+  std_max: 0.08
+  noise_prob: 1.0
+  apply_to_val: false
+loss:
+  pred:
+    space: raw
+    target_view: perturbed
+  generic_latent_consistency:
+    enabled: false
+  snap_acpc:
+    enabled: false
+  paired_view_control:
+    enabled: true
+```
+
+Other relevant controls are off (`hetero`, `action_gate`,
+`adaptive_consistency`), and the run uses the standard Reacher LeWM settings
+(`trainer.max_epochs=10`, `loader.batch_size=128`, `seed=3072`,
+`wm.history_size=3`, `wm.num_preds=1`). The config therefore fully activates
+the intended no-aux paired-view path; no rerun is needed for config reasons.
+
+### Reacher 0.08 evaluation
+
+Closed-loop success comparison:
+
+| Model | `pixels_std0.08` | `pixels_goal_std0.08` | Read |
+|---|---:|---:|---|
+| normal noise training | 83.67 | 81.00 | strong |
+| BN-fix GLC 0.08 | 24.00 | 12.00 | failed |
+| SNAP-ACPC 0.08 | 24.67 | 19.67 | failed |
+| paired no-aux 0.08 | 24.67 | 14.67 | failed |
+
+Paired no-aux corruption sweep:
+
+| Condition | Success |
+|---|---:|
+| `pixels_std0.03` | 44.67 |
+| `pixels_std0.05` | 37.33 |
+| `pixels_std0.08` | 24.67 |
+| `pixels_goal_std0.03` | 49.33 |
+| `pixels_goal_std0.05` | 23.33 |
+| `pixels_goal_std0.08` | 14.67 |
+
+### Diagnostics
+
+Paired no-aux does not reproduce ordinary noise training. At std 0.08 the
+clean/noisy geometry remains in the same high-risk regime as GLC/SNAP:
+
+| Model | Rollout T8 L2 | CKA at max std | Geometry read |
+|---|---:|---:|---|
+| normal noise training | 0.357 | 0.997 | stable |
+| BN-fix GLC 0.08 | 17.779 | 0.361 | failed |
+| SNAP-ACPC 0.08 | 18.187 | 0.477 | failed |
+| paired no-aux 0.08 | 14.875 | 0.433 | failed |
+
+Additional paired no-aux summary:
+
+| Metric | Value |
+|---|---:|
+| `noise_robust_radius_std` | 0.01594 |
+| `noise_angle_slope_deg_per_std` | 753.23 |
+| `clean_effective_rank` | 60.56 |
+| `transition_resolution_ratio_cos` | 0.1355 |
+| `transition_resolution_ratio_l2` | 0.3694 |
+| `id_probe_r2` | 0.1650 |
+| `predictor_rollout_T8_l2` | 14.875 |
+| `latent_robust_radius_z` | 0.04164 |
+| `latent_noise_geometry` | ambient |
+
+At std 0.08, all-frame noise sensitivity remains high-risk:
+
+| View | Angle median | CKA | Noise-to-NN cosine ratio | Risk |
+|---|---:|---:|---:|---|
+| goal | 81.22 | 0.453 | 13.25 | high |
+| history | 80.94 | 0.437 | 117.19 | high |
+| all | 80.98 | 0.436 | 130.79 | high |
+
+Predictor sensitivity at std 0.08 also remains far from ordinary noise
+training: `target_l2=0.006247`, `rollout_T1_l2=13.964`,
+`rollout_T8_l2=13.601`, and `T8 angle=67.923`.
+
+### Gate decision
+
+Paired no-aux fails the equivalence gate.
+
+Interpretation:
+
+- GLC/SNAP failure cannot be attributed primarily to their auxiliary losses.
+- The failure appears already when paired-view infrastructure is enabled with
+  no auxiliary objective.
+- The next debug target is therefore the training data path, not another
+  consistency loss.
+
+Decision:
+
+- close paired no-aux as an equivalence-control failure
+- do not return to AAAC/APDC as the next mainline
+- add a narrower `in_forward_noise_control` path that applies the same
+  configured noise inside `lejepa_forward` but does **not** encode a clean
+  branch and does **not** add any auxiliary loss
+- use that noisy-only control to decide whether the issue is
+  `TransformDataset` versus in-forward perturbation semantics, or the extra
+  clean-anchor paired forward itself

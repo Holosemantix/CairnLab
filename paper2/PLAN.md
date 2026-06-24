@@ -1,15 +1,15 @@
 # Paper 2 Method Preparation Plan
 
-_Paper2 method-selection and code-adaptation gate. Last updated: 2026-06-22._
+_Paper2 method-selection and code-adaptation gate. Last updated: 2026-06-23._
 
 ---
 
 ## 1. Scope
 
 This document consolidates the Paper2 preparation state after the Paper1 ACPC
-diagnostics, the Reacher GLC adequacy baseline, and the one-step SNAP-ACPC
-negative result. It is a planning and gate document, not a replacement for the
-detailed experiment logs.
+diagnostics, the Reacher GLC adequacy baseline, the one-step SNAP-ACPC
+negative result, and the paired no-aux equivalence-control failure. It is a
+planning and gate document, not a replacement for the detailed experiment logs.
 
 Current role:
 
@@ -23,7 +23,7 @@ Source documents:
 | Source | Role |
 |---|---|
 | [`paper1/PLAN.md`](../paper1/PLAN.md) | Paper1 framing, ACPC definition, Paper2 route map |
-| [`experiments.md`](../experiments.md) | Experiment log, including the Reacher GLC and SNAP-ACPC adequacy results |
+| [`experiments.md`](../experiments.md) | Experiment log, including the Reacher GLC, SNAP-ACPC, and paired no-aux results |
 | [`plan_adaptive_resolution.md`](../plan_adaptive_resolution.md) | Archived AAAC / APDC evidence and ablations; not the next default route |
 | [`planner_side_robustification_experiment_plan.md`](../planner_side_robustification_experiment_plan.md) | Planner-side robust CEM plan |
 | [`train.py`](../train.py) | Current LeWM training implementation |
@@ -159,6 +159,48 @@ Decision:
 - treat normal noise training as the empirical bar that Paper2 must explain,
   simplify, or beat under matched settings
 
+### Paired no-aux equivalence-control result
+
+The paired no-aux control was run to test whether the paired clean/noisy
+in-forward path behaves like ordinary `TransformDataset` noise training when
+no auxiliary loss is added.
+
+Main Reacher run:
+
+```text
+/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_paired_noaux_noise_0to008_p1
+```
+
+The rerun config is correct: `loss.paired_view_control.enabled=true`,
+`loss.generic_latent_consistency.enabled=false`, `loss.snap_acpc.enabled=false`,
+`loss.pred.target_view=perturbed`, and `image_noise.std_max=0.08`.
+
+Behavior:
+
+| Model | `pixels_std0.08` | `pixels_goal_std0.08` | Read |
+|---|---:|---:|---|
+| normal noise training | 83.67 | 81.00 | strong |
+| BN-fix GLC | 24.00 | 12.00 | failed |
+| SNAP-ACPC PR-1A | 24.67 | 19.67 | failed |
+| paired no-aux | 24.67 | 14.67 | failed |
+
+Diagnostics:
+
+| Metric | Normal noise 0.08 | Paired no-aux |
+|---|---:|---:|
+| predictor rollout T8 L2 | 0.357 | 14.875 |
+| CKA at max std | 0.997 | 0.433 |
+| transition ratio L2 | 0.383 | 0.369 |
+| inverse-dynamics probe R2 | 0.177 | 0.165 |
+
+Decision:
+
+- close paired no-aux as an equivalence-control failure
+- do not attribute GLC/SNAP failure primarily to auxiliary-loss design
+- debug the training data path before adding another consistency objective
+- split the next control into noisy-only in-forward perturbation, without a
+  clean branch and without any auxiliary loss
+
 ## 3. Method decision flow
 
 ```mermaid
@@ -181,7 +223,10 @@ flowchart TB
 
     final_gate -->|Yes| scale_tasks[Scale task matrix]
     final_gate -->|No| close_snap[Close one-step SNAP-ACPC]
-    close_snap --> next_hypothesis[Study concise noise-training-level mechanism]
+    close_snap --> paired_noaux[Run paired no-aux control]
+    paired_noaux --> paired_gate{Matches ordinary noise training?}
+    paired_gate -->|Yes| next_hypothesis[Study concise noise-training-level mechanism]
+    paired_gate -->|No| noisy_forward[Run noisy-only in-forward control]
     planner_side --> planner_gate{Planner solves failure?}
     planner_gate -->|Yes| robust_mpc[Route to robust latent MPC]
     planner_gate -->|No| train_priority[Do not overclaim planner route]
@@ -191,8 +236,8 @@ flowchart TB
     classDef stop fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
     classDef success fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
 
-    class paper1_diag,glc_baseline,train_side,planner_side,snap_pr1,cpu_smoke,gpu_mve,next_hypothesis evidence
-    class glc_gate,final_gate,planner_gate decision
+    class paper1_diag,glc_baseline,train_side,planner_side,snap_pr1,cpu_smoke,gpu_mve,paired_noaux,next_hypothesis,noisy_forward evidence
+    class glc_gate,final_gate,paired_gate,planner_gate decision
     class stop_encoder,close_glc,close_snap stop
     class scale_tasks,robust_mpc,train_priority success
 ```
@@ -208,6 +253,7 @@ Current code already provides several pieces needed for the next step:
 | Dataset transform bypass | Available for paired-view methods | Keep clean anchor in-batch |
 | `snap_acpc` switch | Default-off one-step PR-1A path | Kept for negative-baseline reproducibility |
 | `paired_view_control` switch | Default-off paired clean/noisy no-aux path | Test paired-view path equivalence without auxiliary loss |
+| `in_forward_noise_control` switch | Default-off noisy-only in-forward path | Test `TransformDataset` versus forward-time perturbation semantics |
 | GLC metrics | Logged with `glc_` prefix | Kept separate from `snap_acpc_` metrics |
 | `adaptive_consistency` | Existing encoder consistency with action-gate weights | Archived AAAC route, not next mainline |
 | Runner passthrough | GLC/AAAC/SNAP-ACPC available | Kept for reproducibility and controlled reruns |
@@ -300,10 +346,10 @@ Optional smoke, only if imports and small data access are available:
 
 ```bash
 python train.py data=tworoom \
-  exp_name=debug_snap_acpc_tworoom \
+  exp_name=debug_in_forward_noise_tworoom \
   trainer.max_epochs=1 \
   loader.batch_size=8 \
-  loss.snap_acpc.enabled=true \
+  loss.in_forward_noise_control.enabled=true \
   image_noise.std_max=0.08
 ```
 
@@ -314,24 +360,26 @@ python train.py data=tworoom \
 | Should GLC continue? | No, except for table-completeness eval rows |
 | Should one-step SNAP-ACPC continue? | No, close as a negative baseline |
 | Should SNAP-ACPC move to multi-step automatically? | No, only with a new concise hypothesis |
-| Should paired-view infrastructure be checked? | Yes, run no-aux equivalence control first |
+| Should paired-view infrastructure be checked? | Already checked; paired no-aux failed |
+| Should the in-forward perturbation path be checked next? | Yes, run noisy-only in-forward control |
 | Should the route return to AAAC/APDC? | No, archived evidence only; not the next mainline |
 | Should robust CEM block train-side work? | No, but its result can change the paper framing |
 | Should `SNAP-ACPC` be the final method name? | Not yet; treat as a working name |
 
 ## 9. Immediate next step
 
-Record SNAP-ACPC PR-1A as a negative baseline and stop broadening it by default.
-Before proposing another loss, run the paired-view no-aux equivalence control
-with `loss.paired_view_control.enabled=true`. This isolates whether the
-in-forward clean/noisy branch is behaviorally equivalent to ordinary
-`TransformDataset` noise training when no auxiliary loss is added.
+Record paired no-aux as a failed equivalence control. Before proposing another
+loss, run the noisy-only in-forward control with
+`loss.in_forward_noise_control.enabled=true`. This isolates whether applying
+configured noise inside `lejepa_forward`, without a clean branch and without
+auxiliary loss, is behaviorally equivalent to ordinary `TransformDataset`
+noise training.
 
 Gate:
 
-- if paired no-aux matches ordinary noise training, the paired-view
-  infrastructure is not the cause of GLC/SNAP failure
-- if paired no-aux fails, debug the in-forward perturbation path before any
-  method work
-- only after that control should the next Paper2 step return to hypothesis
-  design around the ordinary noise-training mechanism
+- if noisy-only in-forward matches ordinary noise training, the next suspect is
+  the extra clean-anchor paired forward and its interaction with training
+- if noisy-only in-forward also fails, the issue is perturbation placement or
+  semantics versus `TransformDataset`
+- only after this control should the next Paper2 step return to method
+  hypothesis design around the ordinary noise-training mechanism

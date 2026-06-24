@@ -51,8 +51,8 @@ def patch_main_tex() -> None:
 
     text = replace_once(
         text,
-        "Task & unpert. base & obs 0.08 base & unpert. best & obs 0.08 best & Main reading \\\",
-        "Task & unpert. base & obs 0.08 base & unpert. high & obs 0.08 high & Main reading \\\",
+        "Task & unpert. base & obs 0.08 base & unpert. best & obs 0.08 best & Main reading \\\\",
+        "Task & unpert. base & obs 0.08 base & unpert. high & obs 0.08 high & Main reading \\\\",
         "LeWM sweep headers",
     )
 

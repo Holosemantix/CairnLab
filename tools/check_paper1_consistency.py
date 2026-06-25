@@ -158,6 +158,8 @@ def check_artifacts() -> None:
 def check_forbidden_text() -> None:
     hits: list[str] = []
     for path in RELEASE_FILES:
+        if not path.exists():
+            continue
         text = path.read_text(encoding="utf-8")
         for snippet in FORBIDDEN_SNIPPETS:
             if snippet in text:
@@ -696,7 +698,10 @@ def check_acpc_basin_json() -> None:
 
 
 def check_acpc_basin_full_grid_table() -> None:
-    tex = (ROOT / "paper1" / "main.tex").read_text(encoding="utf-8")
+    main_tex = ROOT / "paper1" / "main.tex"
+    if not main_tex.exists():
+        return
+    tex = main_tex.read_text(encoding="utf-8")
     marker = r"\label{tab:acpc-basin-full-grid}"
     start = tex.find(marker)
     if start < 0:

@@ -304,6 +304,10 @@ For a fixed candidate family $\mathcal A$, the stability condition can be summar
 \end{equation}
 When $d_H$ is a metric, $D_{\mathrm{ACPC}}^{\mathcal A}$ is a pseudo-metric on histories after passing through the encoder, predictor, and readout: distinct histories can have zero distance if all candidate rollouts are readout-equivalent. The useful object is therefore \emph{selective} predictive stability. Small $D_{\mathrm{ACPC}}^{\mathcal A}$ for same-state visual perturbations gives candidate-cost and top-1 stability under the preceding Lipschitz and margin assumptions; the same contraction is not desirable for state/action pairs whose external task readouts differ, which is why the discriminability guard is part of the definition rather than an auxiliary aesthetic check.
 
+\begin{corollary}[Selective predictive stability]\label{cor:selective-stability}
+Assume $D_{\mathrm{ACPC}}^{\mathcal A}(h,\tilde h)\le\epsilon$ for a same-state visual-corruption pair and that $J$ is $L_J$-Lipschitz on the rollout readout. If the clean candidate margin satisfies $\Delta>2L_J\epsilon$, then the clean and corrupted branches select the same top-1 candidate from the fixed set $\mathcal A$. If, in addition, action-, transition-, or cost-distinct pairs preserve a diagnostic margin as in \Cref{eq:acpc-disc}, the stability is selective under that proxy; without this second condition, the statement does not rule out collapse.
+\end{corollary}
+
 Encoder closeness is not the right substitute for this condition. It is not necessary: a nuisance-subspace change can move $E_\theta(h)$ and $E_\theta(\tilde h)$ far apart while leaving $\Pi(F_\theta^{1:H}(\cdot,\mathbf a))$ and the cost unchanged. It is not sufficient either: a small encoder displacement can flip a low-margin cost ranking when the predictor or cost readout has high local sensitivity.
 
 \begin{proposition}[ACPC alone permits collapse]\label{prop:acpc-collapse}
@@ -477,27 +481,9 @@ These proxy discriminability checks are the main-text guard against a collapse-o
 
 \subsection{Cross-checkpoint correlation analysis}\label{sec:diag-cross}
 
-\Cref{tab:corr-n9} reports unconditioned task-specific cross-checkpoint correlations on the LeWM $n = 9$ sweep using the unified 3-seed $\times$ 100 evaluation. These rows are included for transparency, not as the main diagnostic test; the relevant small-sample check is the partial Spearman analysis conditioned on \stdmax{} in \Cref{tab:partial-corr-4tasks}.
-
 We analyze two single-value-per-checkpoint diagnostic metrics that have full coverage on all 9 checkpoints per task: the \fragility{}, defined in Section~\ref{sec:bg-five-layers} as the single-step predictor target shift normalized by the nearest-neighbor cosine distance at the diagnostic's maximum injected std, and the corresponding multi-step rollout L2 drift. Both are pure checkpoint-level quantities derived from predictor-sensitivity diagnostics, independent of the evaluation protocol; exact artifact names are listed in Appendix~\ref{sec:appendix-artifact-map}.
 
-\begin{table}[tbp]
-\centering
-\caption{Unconditioned LeWM $n = 9$ sweep trends: per-task Pearson $r$ / Spearman $\rho$ vs corruption drop (unperturbed $-$ observation-noise 0.08, unperturbed goal). Eval values come from the unified 3-seed $\times$ 100 protocol; \Cref{tab:partial-corr-4tasks} is the main residual diagnostic check.}
-\label{tab:corr-n9}
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lrrrr}
-\toprule
-Metric & TwoRoom ($r$/$\rho$) & PushT ($r$/$\rho$) & Reacher ($r$/$\rho$) & Cube ($r$/$\rho$) \\
-\midrule
-\fragility{} & $+0.92$/$+0.20$ & $-0.55$/$-0.80$ & $+0.98$/$+0.55$ & $+0.39$/$+0.27$ \\
-rollout drift & $+0.81$/$+0.31$ & $+0.98$/$+0.93$ & $+0.99$/$+0.58$ & $+0.91$/$+0.48$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\paragraph{Reading.} Unconditioned correlations are large because both diagnostic metrics and the corruption drop are driven by the same upstream variable --- \stdmax{}. The relevant test is partial correlation conditioned on \stdmax{} (\Cref{tab:partial-corr-4tasks}).
+Unconditioned Pearson/Spearman sweep-trend correlations are reported in Appendix~\ref{sec:appendix-unconditioned-corr} for transparency, but they are dominated by the monotone training-noise sweep. The main residual check is therefore partial Spearman conditioned on \stdmax{}:
 
 \begin{table}[tbp]
 \centering
@@ -929,6 +915,27 @@ Latent cost-surface slope & 635.31 & 1.3886 & 599.45 & 0.6208 & goal latent cost
 \end{tabular}%
 \end{table}
 \end{landscape}
+
+%% ===========================================================================
+\section{Unconditioned sweep-trend correlations}\label{sec:appendix-unconditioned-corr}
+
+The main text uses partial Spearman conditioned on \stdmax{} as the residual cross-checkpoint diagnostic. \Cref{tab:corr-n9} reports the unconditioned LeWM $n=9$ trends only for transparency: both the diagnostics and the corruption drop move strongly with the upstream training-noise level, so these rows should not be read as metric-as-oracle evidence.
+
+\begin{table}[H]
+\centering
+\caption{Sweep-trend correlations before conditioning on training-noise level: unconditioned LeWM $n = 9$ per-task Pearson $r$ / Spearman $\rho$ versus corruption drop (unperturbed $-$ observation-noise 0.08, unperturbed goal). Eval values come from the unified 3-seed $\times$ 100 protocol; \Cref{tab:partial-corr-4tasks} is the main residual diagnostic check.}
+\label{tab:corr-n9}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrr}
+\toprule
+Metric & TwoRoom ($r$/$\rho$) & PushT ($r$/$\rho$) & Reacher ($r$/$\rho$) & Cube ($r$/$\rho$) \\
+\midrule
+\fragility{} & $+0.92$/$+0.20$ & $-0.55$/$-0.80$ & $+0.98$/$+0.55$ & $+0.39$/$+0.27$ \\
+rollout drift & $+0.81$/$+0.31$ & $+0.98$/$+0.93$ & $+0.99$/$+0.58$ & $+0.91$/$+0.48$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 %% ===========================================================================
 \section{PushT detailed partial-correlation view}\label{sec:appendix-pusht-partial}

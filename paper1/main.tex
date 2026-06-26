@@ -105,7 +105,7 @@
 \maketitle
 
 \begin{abstract}
-Latent predictive world models such as JEPAs avoid pixel reconstruction, but latent prediction alone does not define robustness for closed-loop control. We study Gaussian visual corruption as a controlled diagnostic stressor for JEPA world-model control. We formalize action-conditioned predictive consistency (ACPC): clean and corrupted views of the same state should induce similar rollout readouts under the same action sequence, while action-relevant state differences remain separable. On a fixed candidate set, bounded ACPC implies bounded candidate-cost drift and preserves the selected action under a clean margin condition; ACPC alone admits collapse, motivating a discriminability guard. Across PushT, TwoRoom, Reacher, and Cube, no-noise LeWM is fragile under observation-only Gaussian noise, e.g., PushT falls from $86.33\%$ to $4.33\%$ and Reacher from $58.67\%$ to $18.33\%$. Full-sequence input-side noise training supplies recovered checkpoints for diagnosis, with bounded replication in PLDM. Paired ACPC-basin probes localize recovery in rollout space (PushT $R_F$: $1.543\to0.088$), while rank, transition-resolution, and inverse-dynamics diagnostics check that contraction is not merely collapse. Negative target-view and heteroscedastic-loss ablations expose failure modes. The result is a diagnostic framework and release package, not a new training objective or a closed-loop guarantee.
+Latent predictive world models such as JEPAs avoid pixel reconstruction, but latent prediction alone does not define robustness for closed-loop control. We study Gaussian visual corruption as a controlled diagnostic stressor for JEPA world-model control. We formalize action-conditioned predictive consistency (ACPC): clean and corrupted views of the same state should induce similar rollout readouts under the same action sequence, while action-relevant state differences remain separable. On a fixed candidate set, bounded ACPC implies bounded candidate-cost drift and preserves the top-ranked candidate within that fixed set under a clean margin condition; ACPC alone admits collapse, motivating a discriminability guard. Across PushT, TwoRoom, Reacher, and Cube, no-noise LeWM is fragile under observation-only Gaussian noise, e.g., PushT falls from $86.33\%$ to $4.33\%$ and Reacher from $58.67\%$ to $18.33\%$. Full-sequence input-side noise training supplies recovered checkpoints for diagnosis, with bounded replication in PLDM. Paired ACPC-basin probes localize recovery in rollout space (PushT $R_F$: $1.543\to0.088$), while rank, transition-resolution, and inverse-dynamics diagnostics check that contraction is not merely collapse. Negative target-view and heteroscedastic-loss ablations expose failure modes. The result is a diagnostic framework and release package, not a new training objective or a closed-loop guarantee.
 
 \smallskip
 \noindent\textbf{Keywords:} visual world models; JEPA; action-conditioned predictive consistency; visual robustness; predictive-dynamics diagnostics.
@@ -150,7 +150,7 @@ We use input-side noise augmentation as the controlled intervention. The \stdmax
 JEPA~\cite{lecun2022path} predicts in latent space rather than reconstructing pixels; I-JEPA~\cite{assran2023ijepa} and V-JEPA~\cite{bardes2024vjepa,assran2025vjepa2} extend this idea to images and video. LeWM~\cite{maes2026lewm}, our baseline, stabilizes an end-to-end JEPA world model with SIGReg~\cite{eppspulley1983}. PLDM~\cite{sobal2022jointembeddingpredictivearchitectures,sobal2025stresstesting}, via \code{stable-worldmodel}~\cite{maes2026stableworldmodel}, supplies the second method family in Appendix~\ref{sec:appendix-pldm}. LeJEPA theory~\cite{klindt2026lejepaworldmodel} studies latent-variable recovery and latent planning; our diagnostic asks whether learned visual world-model checkpoints give paired clean/corrupted views consistent action-conditioned predictions.
 
 \subsection{Invariance, augmentation, and visual robustness}
-Augmentation and joint-embedding losses impose invariances only when their training signal identifies the right nuisance factors~\cite{wang2020alignuniform,tamkin2023featuredropout,zhang2022rethinkaug}. Van Assel et al.~\cite{vanassel2025jointembeddingreconstruction} show that joint-embedding prediction can reduce pressure to encode high-magnitude irrelevant features, but still needs augmentation or bias to decide which variations are irrelevant. In control, that decision is action- and transition-conditioned. Seq-JEPA~\cite{ghaemi2025seqjepa} addresses a related invariance--equivariance tension architecturally. DrQ/DrQ-v2~\cite{kostrikov2020drq,yarats2022drqv2}, SODA/DMC-GB~\cite{hansen2021soda}, DreamerV3~\cite{hafner2025dreamerv3}, TD-MPC2~\cite{hansen2024tdmpc2}, ViGMO~\cite{vigmo}, N-JEPA~\cite{njepa2025}, variational VJEPA~\cite{huang2026vjepa}, and US-JEPA~\cite{usjepa2025} provide visual-robustness and noisy-environment context; ACPC places the consistency requirement after action-conditioned rollout and pairs it with a discriminability guard.
+Augmentation and joint-embedding losses impose invariances only when their training signal identifies the right nuisance factors~\cite{wang2020alignuniform,tamkin2023featuredropout,zhang2022rethinkaug}. Recent theory clarifies why latent prediction can help with nuisance or noisy features but also why it is not enough for control. Van Assel et al.~\cite{vanassel2025jointembeddingreconstruction} derive closed-form SSL solutions showing that joint embedding imposes weaker alignment requirements than reconstruction when irrelevant features have large magnitude, while Littwin et al.~\cite{littwin2024jepaavoidsnoisyfeatures} analyze deep-linear self-distillation dynamics and a JEPA bias toward high-influence predictive features rather than merely high-variance features. These analyses are representation-level and do not address closed-loop action-conditioned rollout, candidate-cost stability, or the need to keep action-distinct states separable. ACPC is complementary: it asks whether same-state visual perturbations become equivalent after a fixed action intervention while action-, transition-, or cost-distinct cases remain discriminable. Seq-JEPA~\cite{ghaemi2025seqjepa} addresses a related invariance--equivariance tension architecturally. DrQ/DrQ-v2~\cite{kostrikov2020drq,yarats2022drqv2}, SODA/DMC-GB~\cite{hansen2021soda}, DreamerV3~\cite{hafner2025dreamerv3}, TD-MPC2~\cite{hansen2024tdmpc2}, ViGMO~\cite{vigmo}, N-JEPA~\cite{njepa2025}, variational VJEPA~\cite{huang2026vjepa}, and US-JEPA~\cite{usjepa2025} provide visual-robustness and noisy-environment context.
 
 \subsection{Control-relevant predictive representations}
 Bisimulation merges states with equivalent reward and transition behavior. DeepMDP~\cite{gelada2019deepmdp}, DBC~\cite{zhang2021dbc}, bisimulation-regularized MPC~\cite{bsmpc}, and Bisim-JEPA~\cite{toso2026bisimjepa} use this principle to learn control-relevant representations. Value-equivalent and value-aware models~\cite{grimm2020valueequivalence,voelcker2025calibratedvalueaware} and VIBR~\cite{dupuis2023vibr} likewise emphasize downstream control consequences. Wang et al.~\cite{wang2026groupactions} formalize action-conditioned video world modeling as a group action with identity, inverse, and composition-consistency metrics. These lines motivate our downstream-consequence view: same-state corrupted and unperturbed views should agree after prediction, while action-distinct transitions remain separable.
@@ -183,6 +183,13 @@ Let $\Pi$ denote a \emph{task-relevant predictive readout} --- the full latent, 
   \qquad \alpha_k \ge 0 .
   \label{eq:acpc-h}
 \end{equation}
+For the theoretical statements below, we use the induced horizon metric
+\begin{equation}
+  d_H\big((u_1,\ldots,u_H),(v_1,\ldots,v_H)\big)
+  = \sum_{k=1}^{H}\alpha_k d(u_k,v_k),
+  \label{eq:acpc-horizon-metric}
+\end{equation}
+so that \Cref{eq:acpc-h} is exactly the clean/corrupted rollout-readout distance under the shared action sequence. In experiments we instantiate this with the L2 distance over rollout tokens used by $R_F$.
 In this diagnostic framing, robustness corresponds to small $\mathrm{ACPC}_H$ together with action-relevant discriminability, not to the encoder distance $d(z_t, \tilde z_t)$ alone. Encoder closeness is a useful first-stage risk signal, but it is neither necessary (a large but task-irrelevant encoder shift can wash out through $F_\theta$ and $\Pi$) nor sufficient (a small encoder shift can still change the predicted future enough to flip the planned action).
 
 \paragraph{Action-relevant discriminability (countercondition).} Consistency must be \emph{selective}. Let $Y^{H}(s,\mathbf a)$ denote a task-relevant future readout that is external to the learned predictor --- simulator state, cost-to-go, inverse-dynamics label, contact/keyframe tag, or another diagnostic proxy available in the dataset. For two genuinely different states $s_i, s_j$ (with latents $z_i, z_j$) that admit an action sequence under which this external future readout diverges,
@@ -242,7 +249,7 @@ This is the local Lipschitz condition applied to the two encoded histories.
 This bound makes encoder geometry a first-stage risk signal: small encoder shifts imply small rollout disagreement only under local insensitivity, large shifts can be contracted by $G_{\mathbf a}$, and small shifts can be amplified by the predictor or cost readout. This is why the empirical analysis reports both encoder radii $R_E$ and rollout radii $R_F$.
 
 \begin{proposition}[ACPC controls candidate-cost drift]\label{prop:cost-drift}
-Assume that $J$ is $L_J$-Lipschitz in the rollout-readout sequence under metric $d_H$. If
+Assume that $J$ is locally $L_J$-Lipschitz on the clean/corrupted rollout-readout neighborhood evaluated by the fixed candidate set under metric $d_H$. If
 \[
  d_H\!\left(\Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a)),
              \Pi(F_\theta^{1:H}(E_\theta(\tilde h),\mathbf a))\right) \le \epsilon,
@@ -254,7 +261,7 @@ then
 \end{proposition}
 
 \begin{proof}
-The inequality is the Lipschitz condition applied directly to the clean and corrupted rollout-readout sequences.
+The inequality is the local Lipschitz condition applied directly to the clean and corrupted rollout-readout sequences.
 \end{proof}
 
 In the reported basin diagnostic, this condition is instantiated with the L2 rollout-token distance underlying $R_F$; other downstream readouts are treated only as exploratory diagnostics.
@@ -283,7 +290,7 @@ Thus every non-top candidate remains more costly than the clean top-1 candidate 
 \end{proof}
 
 \begin{corollary}[ACPC-margin condition for candidate stability]\label{cor:acpc-margin}
-Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}$ be a shared candidate set and assume the cost readout $J$ is $L_J$-Lipschitz as in Proposition~\ref{prop:cost-drift}. If every candidate in $\mathcal A$ has rollout-readout discrepancy at most $\epsilon$ between the clean and corrupted branches, and the clean branch has top-1/top-2 margin $\Delta > 2L_J\epsilon$, then the two branches select the same top-1 candidate from $\mathcal A$.
+Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}$ be a shared candidate set and assume the cost readout $J$ is locally $L_J$-Lipschitz as in Proposition~\ref{prop:cost-drift}. If every candidate in $\mathcal A$ has rollout-readout discrepancy at most $\epsilon$ between the clean and corrupted branches, and the clean branch has top-1/top-2 margin $\Delta > 2L_J\epsilon$, then the two branches select the same top-1 candidate from $\mathcal A$.
 \end{corollary}
 
 \begin{proof}
@@ -302,11 +309,17 @@ For a fixed candidate family $\mathcal A$, the stability condition can be summar
              \Pi(F_\theta^{1:H}(E_\theta(\tilde h),\mathbf a))\right).
   \label{eq:acpc-pseudometric}
 \end{equation}
-When $d_H$ is a metric, $D_{\mathrm{ACPC}}^{\mathcal A}$ is a pseudo-metric on histories after passing through the encoder, predictor, and readout: distinct histories can have zero distance if all candidate rollouts are readout-equivalent. The useful object is therefore \emph{selective} predictive stability. Small $D_{\mathrm{ACPC}}^{\mathcal A}$ for same-state visual perturbations gives candidate-cost and top-1 stability under the preceding Lipschitz and margin assumptions; the same contraction is not desirable for state/action pairs whose external task readouts differ, which is why the discriminability guard is part of the definition rather than an auxiliary aesthetic check.
+When $d_H$ is a metric, $D_{\mathrm{ACPC}}^{\mathcal A}$ is a pseudo-metric on histories after passing through the encoder, predictor, and readout: distinct histories can have zero distance if all candidate rollouts are readout-equivalent. This follows because each map $h\mapsto \Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a))$ pulls back $d_H$ to a pseudo-metric, and the pointwise maximum of pseudo-metrics is again a pseudo-metric. The useful object is therefore \emph{selective} predictive stability. Small $D_{\mathrm{ACPC}}^{\mathcal A}$ for same-state visual perturbations gives candidate-cost and top-1 stability under the preceding Lipschitz and margin assumptions; the same contraction is not desirable for state/action pairs whose external task readouts differ, which is why the discriminability guard is part of the definition rather than an auxiliary aesthetic check.
 
-\begin{corollary}[Selective predictive stability]\label{cor:selective-stability}
-Assume $D_{\mathrm{ACPC}}^{\mathcal A}(h,\tilde h)\le\epsilon$ for a same-state visual-corruption pair and that $J$ is $L_J$-Lipschitz on the rollout readout. If the clean candidate margin satisfies $\Delta>2L_J\epsilon$, then the clean and corrupted branches select the same top-1 candidate from the fixed set $\mathcal A$. If, in addition, action-, transition-, or cost-distinct pairs preserve a diagnostic margin as in \Cref{eq:acpc-disc}, the stability is selective under that proxy; without this second condition, the statement does not rule out collapse.
+\begin{corollary}[Fixed-candidate predictive stability]\label{cor:selective-stability}
+Assume $D_{\mathrm{ACPC}}^{\mathcal A}(h,\tilde h)\le\epsilon$ for a same-state visual-corruption pair and that $J$ is locally $L_J$-Lipschitz on the rollout readout. If the clean candidate margin satisfies $\Delta>2L_J\epsilon$, then the clean and corrupted branches select the same top-1 candidate from the fixed set $\mathcal A$.
 \end{corollary}
+
+\begin{proof}
+By definition of $D_{\mathrm{ACPC}}^{\mathcal A}$, every candidate in $\mathcal A$ has rollout-readout discrepancy at most $\epsilon$. Proposition~\ref{prop:cost-drift} bounds the cost drift of every candidate by $L_J\epsilon$, and Proposition~\ref{prop:top1-stability} gives top-1 stability when $\Delta>2L_J\epsilon$.
+\end{proof}
+
+The statement becomes selective only when it is paired with a discriminability condition such as \Cref{eq:acpc-disc}. Without that second condition, fixed-candidate predictive stability can still be achieved by a collapsed encoder--predictor, as shown next.
 
 Encoder closeness is not the right substitute for this condition. It is not necessary: a nuisance-subspace change can move $E_\theta(h)$ and $E_\theta(\tilde h)$ far apart while leaving $\Pi(F_\theta^{1:H}(\cdot,\mathbf a))$ and the cost unchanged. It is not sufficient either: a small encoder displacement can flip a low-margin cost ranking when the predictor or cost readout has high local sensitivity.
 

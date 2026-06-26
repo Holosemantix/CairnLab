@@ -2,9 +2,11 @@
 
 Date: 2026-06-22
 
-2026-06-22 release-readiness pass: bibliography count rechecked after the submission-readiness review. `paper1/references.bib` contains 42 entries, and the README no longer hard-codes a count.
+2026-06-22 release-readiness pass: bibliography count rechecked after the submission-readiness review. `paper1/references.bib` contains 43 entries, and the README no longer hard-codes a count.
 
 2026-06-26 targeted fix: corrected `kostrikov2020drq` author order to match the official OpenReview record (`Kostrikov, Yarats, Fergus`) after the strict reviewer audit.
+
+2026-06-26 post-theory validation pass: added `littwin2024jepaavoidsnoisyfeatures` after the post-modification theory audit identified it as a directly relevant JEPA noisy-features theory paper.
 
 2026-06-08 final pass: rechecked the temporally unstable 2025/2026 entries against official arXiv, OpenReview, Nature, ICLR, and PMLR pages. The main live checks covered `maes2026lewm`, `maes2026stableworldmodel`, `huang2026vjepa`, `klindt2026lejepaworldmodel`, `usjepa2025`, `njepa2025`, `toso2026bisimjepa`, `assran2025vjepa2`, `vigmo`, `ghaemi2025seqjepa`, `voelcker2025calibratedvalueaware`, `hafner2025dreamerv3`, `dupuis2023vibr`, `gelada2019deepmdp`, `hansen2024tdmpc2`, and `bsmpc`. 2026-06-10 targeted recheck updated `maes2026stableworldmodel` from the earlier workshop v1 record to the newer arXiv platform paper and removed an unsupported precise VJEPA noisy-distractor number.
 
@@ -12,7 +14,7 @@ Date: 2026-06-22
 
 2026-06-16 targeted collision check: added `wang2026groupactions` after checking the official arXiv record. Text-use remains bounded: the paper is cited for formalising action-conditioned video world modeling as a group action and for GAC/GAR-style action-faithfulness metrics; ACPC is explicitly separated as same-action paired visual-corruption predictive-consistency diagnostics with a discriminability guard.
 
-Scope: all 42 citation keys used in `paper1/main.tex`. Unused BibTeX entries were removed from `paper1/references.bib`, so every remaining entry is cited.
+Scope: all 43 citation keys used in `paper1/main.tex`. Unused BibTeX entries were removed from `paper1/references.bib`, so every remaining entry is cited.
 
 | Key | Official source checked | Metadata conclusion | Text-use conclusion |
 |---|---|---|---|
@@ -51,6 +53,7 @@ Scope: all 42 citation keys used in `paper1/main.tex`. Unused BibTeX entries wer
 | `ghaemi2025seqjepa` | https://openreview.net/forum?id=GKt3VRaCU1 | Fixed: retained NeurIPS 2025 OpenReview URL and avoided an unverified proceedings volume. | OK: cited for architectural handling of invariance/equivariance tension. |
 | `toso2026bisimjepa` | https://arxiv.org/abs/2602.18639 | Fixed: added arXiv eprint, DOI, class, and URL. | OK: cited for Bisim-JEPA/control-relevant invariant visual representations for planning. |
 | `vanassel2025jointembeddingreconstruction` | https://arxiv.org/abs/2505.12477 | OK: arXiv metadata, DOI, and URL match. | OK: cited for joint embedding reducing pressure to encode high-magnitude irrelevant features while still needing aligned augmentations/bias. |
+| `littwin2024jepaavoidsnoisyfeatures` | https://arxiv.org/abs/2407.03475 | Added 2026-06-26: official arXiv metadata, DOI, class, and URL recorded. | OK: cited for JEPA implicit bias toward high-influence predictive features rather than merely high-variance/noisy features; text separates this representation-level theory from action-conditioned rollout and candidate-cost stability. |
 | `klindt2026lejepaworldmodel` | https://arxiv.org/abs/2605.26379 | OK: arXiv metadata, DOI, and URL match. | OK: cited for LeJEPA latent-variable recovery/latent-planning theory. |
 | `grimm2020valueequivalence` | https://proceedings.neurips.cc/paper/2020/hash/3bb585ea00014b0e3ebe4c6dd165a358-Abstract.html | OK: NeurIPS 2020 metadata and URL match. | OK: cited for value-equivalent models serving downstream planning/control. |
 | `voelcker2025calibratedvalueaware` | https://proceedings.mlr.press/v267/voelcker25a.html | OK: ICML 2025 PMLR 267:61745--61768 metadata matches. | OK: cited for calibrated value-aware model learning. |

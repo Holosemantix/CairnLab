@@ -2,7 +2,7 @@
 
 Self-contained LaTeX source for the arXiv preprint.
 
-> *A Diagnostic Study of Gaussian Visual Robustness in JEPA Latent World Models*
+> *Action-Conditioned Predictive Consistency as a Diagnostic for Gaussian-Noise Robustness in JEPA World Models*
 
 Companion plan / storyline doc: `PLAN.md` (next to this README).
 

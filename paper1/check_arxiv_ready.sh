@@ -34,6 +34,22 @@ if grep -q "paper-facing\|method-facing" main.tex; then
   fail "main.tex still contains paper-facing/method-facing internal wording. Move such wording to tooling notes or rewrite for readers."
 fi
 
+if grep -q "tree/ag/dev\|tree/main" main.tex; then
+  fail "main.tex points to a branch-specific GitHub tree. Use the public repository root URL for arXiv."
+fi
+
+if grep -q "complete code and data" main.tex; then
+  fail "main.tex over-claims the release package as 'complete code and data'. Use code/artifacts/scripts/pointers wording."
+fi
+
+if ! grep -q "https://github.com/Anguo-star/le-wm" main.tex; then
+  fail "main.tex does not contain the intended public repository URL https://github.com/Anguo-star/le-wm."
+fi
+
+if ! grep -q "Drop is clean success minus observation-noise 0.08 success" main.tex; then
+  fail "main.tex should define the corruption-table drop direction explicitly."
+fi
+
 # Build first; build.sh also greps undefined refs/cites/fatal diagnostics.
 bash build.sh --clean
 

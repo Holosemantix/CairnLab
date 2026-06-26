@@ -4,6 +4,8 @@ Date: 2026-06-22
 
 2026-06-22 release-readiness pass: bibliography count rechecked after the submission-readiness review. `paper1/references.bib` contains 42 entries, and the README no longer hard-codes a count.
 
+2026-06-26 targeted fix: corrected `kostrikov2020drq` author order to match the official OpenReview record (`Kostrikov, Yarats, Fergus`) after the strict reviewer audit.
+
 2026-06-08 final pass: rechecked the temporally unstable 2025/2026 entries against official arXiv, OpenReview, Nature, ICLR, and PMLR pages. The main live checks covered `maes2026lewm`, `maes2026stableworldmodel`, `huang2026vjepa`, `klindt2026lejepaworldmodel`, `usjepa2025`, `njepa2025`, `toso2026bisimjepa`, `assran2025vjepa2`, `vigmo`, `ghaemi2025seqjepa`, `voelcker2025calibratedvalueaware`, `hafner2025dreamerv3`, `dupuis2023vibr`, `gelada2019deepmdp`, `hansen2024tdmpc2`, and `bsmpc`. 2026-06-10 targeted recheck updated `maes2026stableworldmodel` from the earlier workshop v1 record to the newer arXiv platform paper and removed an unsupported precise VJEPA noisy-distractor number.
 
 2026-06-11 targeted recheck: re-opened the official arXiv/OpenReview records for `maes2026lewm`, `maes2026stableworldmodel`, `huang2026vjepa`, `klindt2026lejepaworldmodel`, `toso2026bisimjepa`, `assran2025vjepa2`, `vigmo`, `usjepa2025`, `njepa2025`, and `bardes2024vjepa`. No bibliography metadata changes were needed. Text-use remains bounded: V-JEPA 2 is cited for understanding/prediction/planning; Huang VJEPA is cited only for noisy-environment nuisance filtering without a precise numeric claim; ViGMO is cited for visual distractions and latent consistency; Bisim-JEPA is cited for control-relevant invariant visual representations, with the main text now explicitly stating that ACPC is not a learned bisimulation metric.
@@ -43,7 +45,7 @@ Scope: all 42 citation keys used in `paper1/main.tex`. Unused BibTeX entries wer
 | `garcia1989mpc` | https://doi.org/10.1016/0005-1098(89)90002-2 | Fixed: added DOI and DOI URL. | OK: cited for MPC background. |
 | `wang2020alignuniform` | https://proceedings.mlr.press/v119/wang20k.html | Fixed: added ICML/PMLR volume, pages, publisher, and URL. | OK: cited for alignment/uniformity and augmentation-induced invariance. |
 | `garrido2023rankme` | https://proceedings.mlr.press/v202/garrido23a.html | Fixed: added ICML/PMLR volume, pages, publisher, URL, and protected `RankMe` casing. | OK: cited for rank as label-free representation-quality diagnostic motivation. |
-| `kostrikov2020drq` | https://openreview.net/forum?id=GY6-6sTvGaf | Fixed: added official OpenReview URL. | OK: cited for DrQ/data augmentation in pixel RL. |
+| `kostrikov2020drq` | https://openreview.net/forum?id=GY6-6sTvGaf | Fixed: added official OpenReview URL; 2026-06-26 author order corrected to `Kostrikov, Yarats, Fergus`. | OK: cited for DrQ/data augmentation in pixel RL. |
 | `yarats2022drqv2` | https://openreview.net/forum?id=_SJ-_yyes8 | Fixed: added official OpenReview URL. | OK: cited for DrQ-v2 visual continuous-control augmentation baseline. |
 | `hansen2021soda` | https://doi.org/10.1109/ICRA48506.2021.9561103 | Fixed: added ICRA pages 13611--13617, DOI, and DOI URL. | OK: cited for SODA/DMC-GB visual robustness through soft data augmentation. |
 | `ghaemi2025seqjepa` | https://openreview.net/forum?id=GKt3VRaCU1 | Fixed: retained NeurIPS 2025 OpenReview URL and avoided an unverified proceedings volume. | OK: cited for architectural handling of invariance/equivariance tension. |

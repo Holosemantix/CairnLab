@@ -774,7 +774,7 @@ def check_acpc_basin_full_grid_table() -> None:
         check_display(f"{task}/{std_key}/R_F", shown["radius_f"], row["pred_view_pair_l2_norm_by_transition"], 3)
         check_display(f"{task}/{std_key}/R_F/R_E", shown["ratio"], row["basin_contraction_pair_norm"], 3)
 
-        expected_note = "base" if std_key == "0.0" else ("obs-high" if std_key == obs_best[task] else "")
+        expected_note = "base" if std_key == "0.0" else ("obs0.08 ref" if std_key == obs_best[task] else "")
         if shown["note"] != expected_note:
             fail(f"{task}/{std_key}/note mismatch: table has {shown['note']!r}, want {expected_note!r}")
 

@@ -42,8 +42,8 @@ if grep -q "complete code and data" main.tex; then
   fail "main.tex over-claims the release package as 'complete code and data'. Use code/artifacts/scripts/pointers wording."
 fi
 
-if ! grep -q "https://github.com/Anguo-star/le-wm" main.tex; then
-  fail "main.tex does not contain the intended public repository URL https://github.com/Anguo-star/le-wm."
+if ! grep -q "https://github.com/Anguo-star/lewm-acpc-diagnostics" main.tex; then
+  fail "main.tex does not contain the intended public repository URL https://github.com/Anguo-star/lewm-acpc-diagnostics."
 fi
 
 if ! grep -q "Drop is clean success minus observation-noise 0.08 success" main.tex; then

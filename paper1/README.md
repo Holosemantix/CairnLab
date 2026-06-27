@@ -47,7 +47,9 @@ Paper-specific tool usage is documented in `../tools/README_paper1.md`.
 
 ## Submitting to arXiv
 
-The current source is configured as an arXiv-style non-anonymous draft. Before submitting, replace the `\arxivauthors` placeholder in `main.tex` with the real author list and verify the public code/data URL in the acknowledgements.
+The current source is configured as an arXiv-style non-anonymous draft. Before submitting, replace the `\arxivauthors` placeholder in `main.tex` with the real author list and verify the public code/data URL printed after the abstract.
+
+Current public companion repository: `https://github.com/Anguo-star/lewm-acpc-diagnostics`.
 
 For a double-blind conference variant, prepare a separate anonymized source package rather than reusing this arXiv package directly. That variant should remove author names, acknowledgements, public GitHub URLs, self-identifying artifact pointers, and any repository metadata that reveals authorship, while preserving enough anonymous reproducibility instructions for reviewers.
 

@@ -110,6 +110,46 @@ theta_hat = argmin S_hybrid(theta), among eligible checkpoints
 tie-breaker = smaller std_max
 ```
 
+Theory-to-diagnostic mapping:
+
+The current theory section in `main.tex` is sufficient for this lockbox plan if
+the claim remains diagnostic. It gives sufficient conditions for
+fixed-candidate planning stability:
+
+1. Bounded same-action rollout disagreement bounds candidate-cost drift under a
+   local Lipschitz cost readout.
+2. Bounded candidate-cost drift plus a clean top-1/top-2 margin preserves the
+   selected candidate within a shared candidate set.
+3. Low predictive disagreement is not meaningful without a discriminability
+   guard, because collapsed representations can make ACPC zero while destroying
+   action-relevant distinctions.
+
+The hybrid selector is a finite-sample proxy for those sufficient conditions,
+not a theorem that a checkpoint must lie in the closed-loop robustness plateau:
+
+| Selector component | Theory role | Interpretation |
+|---|---|---|
+| `pred_view_pair_l2_norm_by_transition` | ACPC rollout disagreement proxy | Smaller values approximate the `epsilon` term in the fixed-candidate stability corollary. |
+| `pred_to_clean_l2_norm_by_transition_p90` | Tail-risk rollout disagreement proxy | Penalizes checkpoints whose typical median is small but high-disagreement pairs remain large. |
+| `pcc_abs_p90` | Candidate-cost drift proxy | Empirical downstream counterpart of the Lipschitz cost-drift bound. |
+| `cra_spearman_median` | Candidate-ranking stability proxy | Tests whether the clean/noisy branches keep similar candidate orderings. |
+| `elite_overlap_mean` | Top-set stability proxy | Weaker than top-1 equality but more stable under noisy finite candidate samples. |
+| `maf_flip_rate` | Margin-conditioned action-stability proxy | Directly mirrors the top-1 stability proposition under observed clean margins. |
+| clean guard, effective rank, transition resolution, ID probe | Discriminability guard | Prevents selecting over-contracted checkpoints that are stable only because they collapsed action-relevant distinctions. |
+
+Therefore the lockbox success criterion should be written as:
+
+> The theory motivates a frozen diagnostic score for the sufficient conditions
+> of fixed-candidate stability. The closed-loop robust plateau remains an
+> empirical target because CEM resampling, repeated replanning, unknown local
+> Lipschitz constants, and environment feedback are outside the theorem.
+
+Do not add another theorem unless the empirical protocol changes. More formal
+claims would require estimating candidate margins/Lipschitz constants on the
+actual planner distribution, or proving stability under CEM resampling and
+closed-loop feedback. That is not needed for the present diagnostic contribution
+and would likely overpromise.
+
 Required diagnostic rerun before final lockbox analysis:
 
 ```bash

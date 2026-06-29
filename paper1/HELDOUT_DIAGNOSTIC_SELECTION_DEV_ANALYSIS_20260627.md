@@ -39,6 +39,32 @@ Not yet supported:
 
 Verdict: the first step does meet the expected direction and is worth continuing, provided the paper frames the contribution as **controlled-stressor diagnostic triage into a robust plateau**, not as a universal robustness oracle or exact hyperparameter optimizer. The two new training seeds are therefore not just extra statistics; they are the lockbox test that determines whether this claim can move into the main paper.
 
+## Theory-to-Diagnostic Mapping
+
+The current theory section is adequate for the next experiment if the claim is
+kept at the diagnostic-selection level. It does not prove that a selected
+checkpoint must be in the robust plateau. Instead, it justifies the shape of the
+selector:
+
+- ACPC rollout disagreement corresponds to the `epsilon` term in the
+  fixed-candidate stability corollary.
+- PCC is the empirical candidate-cost drift readout implied by the Lipschitz
+  cost-drift proposition.
+- CRA, elite overlap, and MAF test whether small cost drift is reflected in
+  stable candidate ordering and fewer margin-conditioned action flips.
+- The clean-performance guard plus rank, transition-resolution, and
+  inverse-dynamics probes implement the discriminability countercondition,
+  preventing a low-ACPC collapsed model from being selected.
+
+Thus the theory supports the diagnostic score as a proxy for sufficient
+conditions of fixed-candidate planning stability. The plateau label remains an
+empirical closed-loop evaluation target. This distinction is important:
+unknown local Lipschitz constants, CEM resampling, repeated replanning, and
+environment feedback are outside the theorem. The lockbox experiment is
+therefore not trying to prove a new robustness theorem; it tests whether the
+theory-motivated proxy identifies high-performing plateau checkpoints before
+looking at the target corrupted closed-loop metric.
+
 ## Available Artifacts Used
 
 All analysis below is computed from existing JSON artifacts. No checkpoint files are required.

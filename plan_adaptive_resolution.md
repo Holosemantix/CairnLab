@@ -389,8 +389,8 @@ C1 给出了 per-task tuning cost 的边界；要走到 per-token controller，�
 
 | Task | Run name | SwanLab ID | Local output |
 |---|---|---|---|
-| TwoRoom | `tworoom_lewm_hetero_default` | `gps6asjv22tmflag9af5m` | `/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_lewm_hetero_default` |
-| PushT | `pusht_lewm_hetero_default` | `tge50bhmtws06xc7n4wtq` | `/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_hetero_default` |
+| TwoRoom | `tworoom_lewm_hetero_default` | `gps6asjv22tmflag9af5m` | `dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_lewm_hetero_default` |
+| PushT | `pusht_lewm_hetero_default` | `tge50bhmtws06xc7n4wtq` | `dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_hetero_default` |
 
 #### 3.3.1 训练曲线
 
@@ -1254,28 +1254,28 @@ DGC 在工程上更轻，但**这两个不是"同一个 routing 信号的两种�
 
 ```bash
 # PushT
-STABLEWM_HOME=/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll
+STABLEWM_HOME=dataset/ag_data/data/world_model/quentinll
 python -m tools.repr_analysis.dgc_offline \
-  --ckpt /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_hetero_probe_action_gate_consist001_shuffle_action/pusht_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt \
+  --ckpt dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_hetero_probe_action_gate_consist001_shuffle_action/pusht_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt \
   --dataset pusht --data-name pusht_expert_train --frameskip 5 \
   --save-dir /tmp/dgc_offline/pusht
 
 # TwoRoom
 python -m tools.repr_analysis.dgc_offline \
-  --ckpt /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_lewm_hetero_probe_action_gate_consist001_shuffle_action/tworoom_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt \
+  --ckpt dataset/ag_data/data/world_model/quentinll/lewm-tworooms/ckpt/tworoom_lewm_hetero_probe_action_gate_consist001_shuffle_action/tworoom_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt \
   --dataset tworoom --frameskip 5 \
   --save-dir /tmp/dgc_offline/tworoom
 
 # Reacher
 python -m tools.repr_analysis.dgc_offline \
-  --ckpt /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_hetero_probe_action_gate_consist001_constant_w/reacher_lewm_hetero_probe_action_gate_consist001_constant_w_epoch_10_object.ckpt \
+  --ckpt dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_hetero_probe_action_gate_consist001_constant_w/reacher_lewm_hetero_probe_action_gate_consist001_constant_w_epoch_10_object.ckpt \
   --dataset reacher --frameskip 5 \
   --save-dir /tmp/dgc_offline/reacher
 
 # Cube
-STABLEWM_HOME=/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-cube/ogbench
+STABLEWM_HOME=dataset/ag_data/data/world_model/quentinll/lewm-cube/ogbench
 python -m tools.repr_analysis.dgc_offline \
-  --ckpt /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_lewm_hetero_probe_action_gate_consist001_shuffle_action/cube_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt \
+  --ckpt dataset/ag_data/data/world_model/quentinll/lewm-cube/ckpt/cube_lewm_hetero_probe_action_gate_consist001_shuffle_action/cube_lewm_hetero_probe_action_gate_consist001_shuffle_action_epoch_10_object.ckpt \
   --dataset cube --data-name cube_single_expert --frameskip 5 \
   --save-dir /tmp/dgc_offline/cube
 ```
@@ -1622,7 +1622,7 @@ Buggy 版的 SwanLab run id（供历史追溯，**不要用于 reproducibility**
 | LeWM-0to007-p1 | `tworoom_lewm_noise_0to007_p1` | `pusht_lewm_noise_0to007_p1` |
 | LeWM-0to008-p1 | `tworoom_lewm_noise_0to008_p1` | `pusht_lewm_noise_0to008_p1` |
 
-> 完整路径模板：`/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/<task>/ckpt/<subdir>/`。每个 ckpt 目录下含 `eval_results/eval_summary.csv`（3-seed 聚合）或 `summary.txt` / `clean_metrics_300.txt`（single-seed × 300）。
+> 完整路径模板：`dataset/ag_data/data/world_model/quentinll/<task>/ckpt/<subdir>/`。每个 ckpt 目录下含 `eval_results/eval_summary.csv`（3-seed 聚合）或 `summary.txt` / `clean_metrics_300.txt`（single-seed × 300）。
 
 **实验配置：**
 - Trainer config: `config/train/lewm.yaml`，`image_noise.std_min=0.0`、`image_noise.std_max={0.01,...,0.08}`、`image_noise.noise_prob=1.0`。

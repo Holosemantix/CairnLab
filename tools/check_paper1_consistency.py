@@ -31,7 +31,7 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm.json",
     ROOT / "assets" / "paper1_data" / "canonical_full_diagnostics_pldm_20260523.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
-    ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
+    ROOT / "assets" / "paper1_data" / "acpc_phase0_clean_goal_seed9101.json",
     ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json",
 ]
 
@@ -53,7 +53,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json",
     ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics_pldm.json",
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
-    ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json",
+    ROOT / "assets" / "paper1_data" / "acpc_phase0_clean_goal_seed9101.json",
     ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json",
     ROOT / "DATA_MANIFEST.md",
 ]
@@ -527,7 +527,7 @@ def check_pldm_full_diagnostics_json() -> None:
 
 
 def check_acpc_phase0_diagnostics_json() -> None:
-    path = ROOT / "assets" / "paper1_data" / "acpc_phase0_diagnostics.json"
+    path = ROOT / "assets" / "paper1_data" / "acpc_phase0_clean_goal_seed9101.json"
     data = json.loads(path.read_text(encoding="utf-8"))
 
     meta = data.get("metadata", {})
@@ -541,6 +541,8 @@ def check_acpc_phase0_diagnostics_json() -> None:
         fail(f"ACPC Phase-0 std keys mismatch: {meta.get('std_keys')}")
     if meta.get("dry_run") is not False:
         fail("ACPC Phase-0 artifact must be from a real run, not dry-run")
+    if meta.get("corrupt_goal") is not False:
+        fail("ACPC Phase-0 artifact must use clean-goal observation-noise diagnostics")
 
     rows = data.get("rows")
     if not isinstance(rows, list) or len(rows) != len(EXPECTED_METHODS) * len(EXPECTED_TASKS) * len(EXPECTED_CONFIGS):
@@ -565,6 +567,8 @@ def check_acpc_phase0_diagnostics_json() -> None:
             fail(f"ACPC Phase-0 row {key} unexpected n_sequences: {row.get('n_sequences')}")
         if abs(float(row.get("noise_std", float("nan"))) - 0.08) > TOL:
             fail(f"ACPC Phase-0 row {key} unexpected noise_std: {row.get('noise_std')}")
+        if row.get("corrupt_goal") is not False:
+            fail(f"ACPC Phase-0 row {key} must keep the goal clean")
         missing = EXPECTED_ACPC_PHASE0_METRICS - set(row)
         if missing:
             fail(f"ACPC Phase-0 row {key} missing metrics: {sorted(missing)}")

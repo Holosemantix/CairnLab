@@ -15,7 +15,7 @@ This manifest documents the released evaluation aggregate for Paper 1:
 - **Cross-method correlations**: `assets/paper1_data/cross_method_corr_pldm_20260522.json` (within-LeWM / within-PLDM / joint partial Spearman; consumed by the PLDM appendix)
 - **PLDM full ACPC basin replication**: `assets/paper1_data/acpc_basin_diagnostics_pldm.json` (36 rows: 4 tasks × 9 PLDM configs)
 - **Partial-correlation bootstrap CIs**: `assets/paper1_data/partial_corr_bootstrap_20260523.json` (95% percentile bootstrap intervals for the LeWM, PLDM, and joint partial-correlation tables)
-- **Phase-0 paired ACPC diagnostics**: `assets/paper1_data/acpc_phase0_diagnostics.json` (72 rows: LeWM + PLDM, 4 tasks × 9 configs; consumed by the Phase-0 appendix)
+- **Phase-0 paired ACPC diagnostics**: `assets/paper1_data/acpc_phase0_clean_goal_seed9101.json` (72 rows: LeWM + PLDM, 4 tasks × 9 configs; clean-goal observation-noise run consumed by the Phase-0 appendix)
 - **Gaussian-noise ACPC basin diagnostics**: `assets/paper1_data/acpc_basin_diagnostics.json` (LeWM 36 ckpts, epoch-10 model objects, paired clean/noised views at Gaussian std 0.01..0.08; source for the ACPC basin table)
 - **No-noise-baseline blur sanity check**: `assets/paper1_data/canonical_blur_baselines_20260523.json` (LeWM + PLDM baselines trained without input-noise augmentation, 4 tasks, blur eval only)
 - **No-noise-baseline blur schema**: `assets/paper1_data/canonical_blur_baselines_20260523.schema.json`
@@ -25,8 +25,8 @@ This manifest documents the released evaluation aggregate for Paper 1:
 
 ## Release Provenance Notes
 
-- Paper-facing main evidence: `canonical_evals_20260517.json`, `canonical_diagnostics_20260517.json`, `acpc_basin_diagnostics.json`, `canonical_evals_pldm_20260522.json`, `canonical_diagnostics_pldm_20260522.json`, `canonical_full_diagnostics_pldm_20260523.json`, `acpc_basin_diagnostics_pldm.json`, and `partial_corr_bootstrap_20260523.json`.
-- Scope-boundary / sanity artifacts: `canonical_blur_baselines_20260523.json` is eval-only blur stress; `acpc_phase0_diagnostics.json` is exploratory paired-readout evidence under observation+goal stress; `target_view_closed_loop_summary.json` is a negative target-view ablation; `canonical_external_baselines_20260520.json` is retained for backward-compatible sanity checks.
+- Paper-facing main evidence: `canonical_evals_20260517.json`, `canonical_diagnostics_20260517.json`, `acpc_basin_diagnostics.json`, `canonical_evals_pldm_20260522.json`, `canonical_diagnostics_pldm_20260522.json`, `canonical_full_diagnostics_pldm_20260523.json`, `acpc_basin_diagnostics_pldm.json`, `partial_corr_bootstrap_20260523.json`, and `acpc_phase0_clean_goal_seed9101.json`.
+- Scope-boundary / sanity artifacts: `canonical_blur_baselines_20260523.json` is eval-only blur stress; `acpc_phase0_diagnostics.json` is the archived observation+goal Phase-0 sanity run; `target_view_closed_loop_summary.json` is a negative target-view ablation; `canonical_external_baselines_20260520.json` is retained for backward-compatible sanity checks.
 - Contamination fix: the 2026-06-10 audit found that the TwoRoom and PushT representative diagnostic rows in `canonical_diagnostics_20260517.json` duplicated heteroscedastic-loss diagnostics. The affected representative fields were re-extracted from the intended per-checkpoint `diagnostics_summary.json` files. The release checker now guards these values so the PushT noise-sweep row cannot regress to the heteroscedastic `rank 76.4 -> 42.9` narrative.
 - Manual revision status: no released JSON artifact is hand-edited for paper prose. The only documented corrective revision is the representative-diagnostics re-extraction above, recorded in JSON metadata and checked by `tools/check_paper1_consistency.py`.
 
@@ -40,7 +40,10 @@ This manifest documents the released evaluation aggregate for Paper 1:
 | `canonical_full_diagnostics_pldm_20260523.json` | PLDM five-layer diagnostics | `6a5b2ae47b09b4bd6fd6fba87846e7d9484e6beea2cfe24f75380c238c73fc7d` |
 | `acpc_basin_diagnostics_pldm.json` | PLDM Gaussian ACPC basin | `dd6aeaa3e793ce09294b049b31ff2f7791c7b83fe0a6a375e6adba806f23e6e2` |
 | `partial_corr_bootstrap_20260523.json` | Bootstrap CI aggregate | `e6cbba0893defd152b540150dcf86ee091fbe5cf4061131871228b6a59d51465` |
-| `acpc_phase0_diagnostics.json` | Exploratory paired ACPC/PCC/CRA/MAF diagnostics | `9654759b576216b7249a3bf5e2ee7b778318cf4de22babf3395a0757b3e644fd` |
+| `acpc_phase0_clean_goal_seed9101.json` | Clean-goal Phase-0 ACPC/PCC/CRA/MAF diagnostics | `0207daddc972bfd66829d5a521101284daed3cc60933046fa13766da73cde021` |
+| `heldout_selection_phase0_seed9101.json` | LeWM component for clean-goal Phase-0 diagnostics | `4d8daf17a0d43b57c996bd3fc0ab4b1cba830844c9bbb8dae0b002cee2fb409c` |
+| `heldout_selection_phase0_pldm_seed9101.json` | PLDM component for clean-goal Phase-0 diagnostics | `e46db5f49011ca199f213096a813db1ca69c2c6023ffde123d11f60dce751f91` |
+| `acpc_phase0_diagnostics.json` | Archived observation+goal Phase-0 sanity run | `9654759b576216b7249a3bf5e2ee7b778318cf4de22babf3395a0757b3e644fd` |
 | `target_view_closed_loop_summary.json` | Negative target-view ablation | `04f75ad72543fb98d51304a6dec12ceb1b2dc099e915e24a49862ed3451744d0` |
 | `canonical_blur_baselines_20260523.json` | Eval-only blur sanity check | `8e4c18d9f354a585770e6eb389e4ceb1b449eea7a5e7758af40a324878e0700b` |
 
@@ -144,7 +147,7 @@ artifacts can be moved between machines.
 - `canonical_full_diagnostics_pldm_20260523.json` stores the full `diagnostics_summary.json` row for every PLDM checkpoint and a compact base-vs-representative table used by the PLDM appendix. It is interpreted as a mechanism-boundary check: PLDM replicates the task-level fragility/recovery signature but does not reuse LeWM's exact compression-chain profile.
 - `acpc_basin_diagnostics_pldm.json` stores the full PLDM 4 tasks × 9 configs Gaussian ACPC basin replication. It uses the same same-state clean/noised view protocol as `acpc_basin_diagnostics.json`; the PLDM appendix reports a compact baseline-vs-pixels-0.08-point-best summary from this full artifact.
 - `partial_corr_bootstrap_20260523.json` stores the 95% percentile bootstrap CIs for the LeWM, PLDM, and joint partial-correlation claims quoted in the main text and PLDM appendix. It is generated by `tools/build_partial_corr_bootstrap.py` from the canonical eval/diagnostic JSONs.
-- `acpc_phase0_diagnostics.json` stores the Phase-0 paired ACPC diagnostics (ACPC-1/H, PCC, CRA, MAF, ADM action-distance proxy, SPRR) for the LeWM and PLDM full sweep. It is an exploratory diagnostic artifact for the Phase-0 appendix, not a method-result file or a robustness-predictor benchmark.
+- `acpc_phase0_clean_goal_seed9101.json` stores the clean-goal Phase-0 paired ACPC diagnostics (ACPC-1/H, PCC, CRA, MAF, ADM action-distance proxy, SPRR) for the LeWM and PLDM full sweep. It uses Gaussian observation-history noise at std 0.08 while keeping the goal image clean, matching the paper's primary `pixels_std0.08` endpoint. It is an exploratory diagnostic artifact for the Phase-0 appendix, not a method-result file or a robustness-predictor benchmark. The two component files `heldout_selection_phase0_seed9101.json` and `heldout_selection_phase0_pldm_seed9101.json` record the separate LeWM and PLDM runs merged into this release artifact. The older `acpc_phase0_diagnostics.json` is retained as an archived observation+goal sanity run.
 - `acpc_basin_diagnostics.json` stores the paired Gaussian-noise ACPC basin diagnostic for all 36 LeWM canonical checkpoints. For each checkpoint it uses clean plus noised views at std 0.01..0.08, all rolled out under the same recorded action sequence. The main summary fields are `encoder_view_pair_l2_norm_by_nn`, `pred_view_pair_l2_norm_by_transition`, and `basin_contraction_pair_norm`. This artifact is intentionally Gaussian-noise-only to match the training sweep family; blur/resize are not mixed into the ACPC basin evidence.
 - Some released JSON rows retain the absolute checkpoint paths from the machine that produced the artifact. Treat those fields as historical provenance only. Portable reruns should resolve checkpoints from `DATA_ROOT` plus the relative task roots above.
 - `canonical_blur_baselines_20260523.json` stores blur evals of LeWM/PLDM baselines trained without input-noise augmentation for kernel sizes 3/7/11/15 on `pixels`, `goal`, and `pixels_goal`. This is an eval-only cross-corruption sanity check for the blur appendix; it is not a blur-training sweep and is not mixed into the Gaussian-noise canonical tables.
@@ -157,7 +160,7 @@ artifacts can be moved between machines.
   - the full PLDM aggregate is 4 tasks × 9 configs, contains required eval metrics, and recomputes means/stds from the three released seed values
   - the PLDM full-diagnostics aggregate is 4 tasks × 9 configs and contains the required five-layer diagnostic fields
   - the bootstrap CI aggregate exists, has the expected n=9 / n=18 scopes, and reproduces the headline PushT CI values quoted in the paper
-  - the Phase-0 ACPC aggregate is 2 methods × 4 tasks × 9 configs, all rows are `ok`, and the paired diagnostic fields used by the Phase-0 appendix are finite
+  - the clean-goal Phase-0 ACPC aggregate is 2 methods × 4 tasks × 9 configs, all rows are `ok`, `corrupt_goal=false`, and the paired diagnostic fields used by the Phase-0 appendix are finite
   - the ACPC basin artifact covers LeWM 4 tasks × 9 configs, contains only Gaussian-noise std 0.01..0.08 variants, and stores finite encoder/prediction basin radii
   - the PLDM ACPC basin replication covers the full 4 tasks × 9 configs grid, all `ok`
   - the blur sanity-check aggregate covers 2 methods × 4 tasks × 12 blur conditions and recomputes means/stds/worst-blur drops from the three seed values

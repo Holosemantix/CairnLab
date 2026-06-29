@@ -2,7 +2,7 @@
 
 > Source of truth: `paper1/main.tex`. 数值、表格、图和 artifact 以论文正文与 `assets/paper1_data/` 为准。
 > Reframing 执行依据：`paper1/paper1_acpc_rewrite_execution_plan.md`。
-> Last updated: 2026-06-10（second three-round review: Table-6 hetero-contamination data correction, PLDM appendix qualitative figure, local-atlas figure, checker regression guard）。
+> Last updated: 2026-06-29（Phase-0 appendix switched to clean-goal paired ACPC/PCC/CRA/MAF artifact aligned with the primary observation-noise endpoint）。
 
 ---
 
@@ -14,7 +14,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 三个负结果限定 claim 边界：(i) 控制掉训练噪声后，single-step encoder/predictor fragility 不能稳定解释 corruption gap（PushT LeWM partial ρ=+0.19，CI 含 0；PLDM −0.05；joint n=18 +0.22），multi-step predictor drift 在 clean-goal observation-noise endpoint 下也只剩弱残差信号（Reacher partial ρ=+0.37，CI 很宽）；(ii) heteroscedastic σ-head 用 prediction error 下采样 hard transitions，让 PushT clean 从 86% 崩到 13%——说明 **hard ≠ nuisance**；(iii) target-view ablation 显示 perturbed-history → original-future one-step denoising 不是 sufficient closed-loop fix，fixed eval 后 PushT pixels 0.08 仍只有 6.75%，而 matched full-sequence perturbed-target branch 是 72.83%。诊断工具只做 mechanism localization 与 checkpoint selection，**不预测** robustness。
 
-本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，并补充 dense Gaussian-noise ACPC basin diagnostic：在同一 state、同一 action sequence 下比较 clean/noised views 的 encoder radius 与 rollout prediction radius。该诊断是主文 paired evidence，只使用 Gaussian noise eval grid（0.01..0.08），与 noise sweep 训练 family 一致；blur/resize 不混入 ACPC 主证据。Phase 0 full-sweep ACPC artifact 保留为 Phase-0 appendix exploratory sanity check，说明 ACPC-H / PCC / CRA / MAF 等 paired probes 可计算且 face-valid，但不写成 universal robustness predictor。target-view ablation 只作为 target-view appendix negative scope check，不作为独立贡献；它支持把 **full-sequence perturbed-target training** 保留为当前 empirical mainline。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
+本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，并补充 dense Gaussian-noise ACPC basin diagnostic：在同一 state、同一 action sequence 下比较 clean/noised views 的 encoder radius 与 rollout prediction radius。该诊断是主文 paired evidence，只使用 Gaussian noise eval grid（0.01..0.08），与 noise sweep 训练 family 一致；blur/resize 不混入 ACPC 主证据。Phase 0 clean-goal full-sweep ACPC/PCC/CRA/MAF artifact 保留为 Phase-0 appendix exploratory sanity check，说明 shared-candidate paired probes 在 primary observation-noise endpoint 下可计算且 face-valid，但不写成 universal robustness predictor。target-view ablation 只作为 target-view appendix negative scope check，不作为独立贡献；它支持把 **full-sequence perturbed-target training** 保留为当前 empirical mainline。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
 
 ---
 
@@ -56,7 +56,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 
 - **C1 — Problem reframing。** 视觉鲁棒性应定义为 action-conditioned predictive consistency + discriminability countercondition，而非 encoder-level latent invariance。main.tex §3（`sec:acpc`）给出形式化与 downstream readout 的边界。
 - **C2 — Diagnostic evidence。** 统一 4 task × 9 configs（base + 8 noise levels）× 3 seeds × 100 traj（PLDM 复现）下：visual perturbation 造成 closed-loop failure；noise augmentation 只是 coarse global pressure；pointwise single-step fragility 不够（控 std_max 后 PushT partial ρ=+0.19，PLDM −0.05，joint +0.22，CI 均不支持稳定 predictor），multi-step predictor drift 在 clean-goal observation-noise endpoint 下也只剩弱残差（Reacher +0.37）。
-- **C3 — Selective-consistency diagnostics and scope boundaries。** 定义 ACPC-1 / ACPC-H / PCC / CRA / MAF / ADM / SPRR，比较同一动作序列下 clean/corrupted predictions 并单独度量 action-relevant discriminability。当前正文已报告 Gaussian-noise ACPC basin diagnostic（`assets/paper1_data/acpc_basin_diagnostics.json`）：LeWM 36 ckpts、epoch-10、clean + noise std 0.01..0.08 views，输出 encoder radius / prediction radius / contraction。Phase 0 也已对 LeWM+PLDM full sweep 出数（`assets/paper1_data/acpc_phase0_diagnostics.json`，72/72 rows ok），作为 Phase-0 appendix face-validity / mechanism-localization evidence；不能写成单指标预测 robustness。hetero σ-head 负结果和 target-view negative result 只用于约束 method-design claim：error-based gate 错，simple clean-target denoising 不足；二者不是完成的方法贡献。
+- **C3 — Selective-consistency diagnostics and scope boundaries。** 定义 ACPC-1 / ACPC-H / PCC / CRA / MAF / ADM / SPRR，比较同一动作序列下 clean/corrupted predictions 并单独度量 action-relevant discriminability。当前正文已报告 Gaussian-noise ACPC basin diagnostic（`assets/paper1_data/acpc_basin_diagnostics.json`）：LeWM 36 ckpts、epoch-10、clean + noise std 0.01..0.08 views，输出 encoder radius / prediction radius / contraction。Phase 0 也已对 LeWM+PLDM full sweep 出 clean-goal shared-candidate 诊断（`assets/paper1_data/acpc_phase0_clean_goal_seed9101.json`，72/72 rows ok），作为 Phase-0 appendix face-validity / mechanism-localization evidence；不能写成单指标预测 robustness。hetero σ-head 负结果和 target-view negative result 只用于约束 method-design claim：error-based gate 错，simple clean-target denoising 不足；二者不是完成的方法贡献。
 
 ## 4. 写作立场
 
@@ -91,7 +91,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 
 - 框架已 reframe：title / abstract / intro / related work / §3 ACPC 概念+诊断 / discussion / conclusion 已围绕 action-conditioned predictive consistency 重写；新增 §4.x Gaussian-noise ACPC basin table；main-text radar / mechanism schematic 已移除，避免证据弱图压低严谨性。
 - ACPC 主文 empirical evidence 现在是 **Gaussian-noise basin radius**：`tools/paper1_acpc_basin.py` 从 canonical eval manifest 解析 LeWM 36 个 epoch-10 checkpoints，在 clean + Gaussian noise std 0.01..0.08 views 上计算 encoder radius / prediction radius / contraction，输出 `assets/paper1_data/acpc_basin_diagnostics.json`。PLDM 已补 full 4 tasks × 9 configs replication：`assets/paper1_data/acpc_basin_diagnostics_pldm.json`，用于 PLDM appendix 边界验证；正文只展示 baseline-vs-pixels-0.08-point-best summary。
-- ACPC 系列 paired probes（ACPC-1/H、PCC、CRA、MAF、ADM、SPRR）已有 full-sweep Phase 0 artifact：`assets/paper1_data/acpc_phase0_diagnostics.json`，72 rows = 2 methods × 4 tasks × 9 std levels，全部 `status=ok`。当前只作为 Phase-0 appendix face-validity / mechanism-localization evidence，不能声称预测 robustness。
+- ACPC 系列 paired probes（ACPC-1/H、PCC、CRA、MAF、ADM、SPRR）已有 clean-goal full-sweep Phase 0 artifact：`assets/paper1_data/acpc_phase0_clean_goal_seed9101.json`，72 rows = 2 methods × 4 tasks × 9 std levels，全部 `status=ok` 且 `corrupt_goal=false`。当前只作为 Phase-0 appendix face-validity / mechanism-localization evidence，不能声称预测 robustness。旧 `acpc_phase0_diagnostics.json` 保留为 observation+goal archived sanity run。
 - target-view ablation 已完成并作为 target-view appendix negative result 纳入：`assets/paper1_data/target_view_closed_loop_summary.json` 记录四任务八个 target-noise checkpoints，支持 full-sequence perturbed-target branch 作为当前 empirical mainline，但不作为独立贡献或因果证明。
 - related work 已明确 ViGMO / Bisim-JEPA / LeJEPA theory 的边界；2026-06-10 targeted reference recheck 已更新 `maes2026stableworldmodel` 到 arXiv:2605.21800，并删除 VJEPA unsupported precise noisy-distractor number（见 `paper1/reference_audit.md`）。
 - `paper1/main.pdf` 可 clean build；`tools/check_paper1_consistency.py` 通过；`git diff --check` 通过；最终 LaTeX log 无 overfull/underfull、undefined citation/reference、缺图或 fatal error。

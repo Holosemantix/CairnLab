@@ -161,9 +161,12 @@ python -m tools.paper1_phase0_acpc \
   --out assets/paper1_data/heldout_selection_phase0_seed9101.json
 ```
 
-The existing Phase-0 artifact mixes observation+goal corruption; the lockbox
-selector should use observation-only corruption with a clean goal to match the
-primary target.
+The archived Phase-0 artifact `assets/paper1_data/acpc_phase0_diagnostics.json`
+mixes observation+goal corruption. The seed-3072 clean-goal rerun is complete
+for LeWM and PLDM and merged at
+`assets/paper1_data/acpc_phase0_clean_goal_seed9101.json`. Any lockbox rerun on
+new training seeds should keep the same observation-only corruption with a clean
+goal to match the primary target.
 
 ## 5. Analysis Outputs To Produce
 
@@ -412,7 +415,7 @@ already serving training, eval, and diagnostics across several projects.
 
 - Wait for LeWM seeds 3073/3074 to finish.
 - Build canonical eval JSONs for the new seeds.
-- Rerun Phase-0 diagnostics with `--clean-goal`.
+- Rerun Phase-0 diagnostics with `--clean-goal` for 3073/3074 once their canonical eval JSONs and checkpoint roots exist.
 - Apply the frozen selector without further tuning.
 - Write a lockbox result note before touching `main.tex`.
 - Decide whether the result qualifies for main-text integration.

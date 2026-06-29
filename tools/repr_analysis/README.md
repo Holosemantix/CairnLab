@@ -206,14 +206,14 @@ Example:
 
 ```bash
 python -m tools.repr_analysis.analyze_repr \
-  --dataset /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/pusht_expert_train \
+  --dataset dataset/ag_data/data/world_model/quentinll/lewm-pusht/pusht_expert_train \
   --future-steps 8 \
-  --save-dir /opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/repr_analysis/pusht_batch_compare \
+  --save-dir dataset/ag_data/data/world_model/quentinll/lewm-pusht/repr_analysis/pusht_batch_compare \
   --plot-projections pca \
   --compare-projections pca \
   --color-dims 0 1 \
-  --model "SIGReg=/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_20260416/pusht_lewm_20260416_epoch_9_object.ckpt" \
-  --model "BN+uniformity=/opt/huawei/explorer-env/dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_swm_v0_mlp_bn_uniform_lambda_0p1_t_2_emb_dim_192_20260417/pusht_swm_v0_mlp_bn_uniform_lambda_0p1_t_2_emb_dim_192_20260417_epoch_9_object.ckpt"
+  --model "SIGReg=dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_lewm_20260416/pusht_lewm_20260416_epoch_9_object.ckpt" \
+  --model "BN+uniformity=dataset/ag_data/data/world_model/quentinll/lewm-pusht/ckpt/pusht_swm_v0_mlp_bn_uniform_lambda_0p1_t_2_emb_dim_192_20260417/pusht_swm_v0_mlp_bn_uniform_lambda_0p1_t_2_emb_dim_192_20260417_epoch_9_object.ckpt"
 ```
 
 Batch outputs:

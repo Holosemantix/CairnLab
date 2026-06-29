@@ -1125,7 +1125,7 @@ Relevant commits:
 Main BN-fix run:
 
 ```text
-/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_reacher_lewm_glc_bnfix_noise_0to008_p1
+dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_reacher_lewm_glc_bnfix_noise_0to008_p1
 ```
 
 Run notes:
@@ -1228,7 +1228,7 @@ Relevant commit:
 Main run:
 
 ```text
-/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_snap_acpc_noise_0to008_p1
+dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_snap_acpc_noise_0to008_p1
 ```
 
 Run notes:
@@ -1337,7 +1337,7 @@ from the training path itself:
 Main run:
 
 ```text
-/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_paired_noaux_noise_0to008_p1
+dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_paired_noaux_noise_0to008_p1
 ```
 
 ### Config verification

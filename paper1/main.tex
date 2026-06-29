@@ -455,7 +455,7 @@ Cube & noise $0.03$ & $68.33$ & $-3.33$ & $0.238$ & $0.115$ \\
 
 The compact rows show the characteristic basin movement in the high-noise regime: $R_F$ is much smaller than at the no-noise baseline on the tasks with large recovery, with PushT decreasing from $1.543$ to $0.088$ and TwoRoom from $0.785$ to $0.028$. \Cref{fig:selective-contraction} shows the representative PushT contraction, and Appendix~\ref{sec:appendix-A-atlas} adds a projection-free local-atlas check. The comparison localizes a joint contraction pattern after the closed-loop sweep: robust checkpoints usually shrink both $R_E$ and $R_F$, so the result supports rollout-basin localization rather than an encoder-versus-predictor separation.
 
-The basin contraction is not treated as sufficient evidence of robustness. It is paired with the next table's rank, transition-resolution, inverse-dynamics, and heteroscedastic-loss checks to rule out the trivial explanation that the model simply collapsed action-relevant state distinctions. A separate shared-candidate sanity check in Appendix~\ref{sec:appendix-phase0} follows the same direction on the auxiliary observation+goal stress endpoint: for LeWM PushT, ACPC-$H$/transition drops from $2.740$ to $0.149$, PCC from $67.3$ to $4.6$, candidate-ranking agreement rises from $0.323$ to $0.986$, and margin-conditioned action flips drop from $0.96$ to $0.08$. Because this check uses the auxiliary observation+goal endpoint and random candidate sets, we keep it as face-validity evidence rather than as the main robustness claim.
+The basin contraction is not treated as sufficient evidence of robustness. It is paired with the next table's rank, transition-resolution, inverse-dynamics, and heteroscedastic-loss checks to rule out the trivial explanation that the model simply collapsed action-relevant state distinctions. A separate shared-candidate sanity check in Appendix~\ref{sec:appendix-phase0} follows the same direction on the primary observation-noise endpoint with an unperturbed goal: for LeWM PushT, ACPC-$H$/transition drops from $2.625$ to $0.146$, PCC from $56.6$ to $2.6$, candidate-ranking agreement rises from $0.412$ to $0.997$, and margin-conditioned action flips drop from $0.98$ to $0.08$. Because this check uses random candidate sets and representative rows known from the closed-loop sweep, we keep it as face-validity evidence rather than as the main robustness claim.
 
 The broader representation-level evidence appears next in \Cref{tab:diag-base-vs-repr}.
 
@@ -826,7 +826,7 @@ canonical diagnostic artifact & \codebrk{assets/paper1\_data/canonical\_diagnost
 partial-correlation bootstrap artifact & \codebrk{assets/paper1\_data/partial\_corr\_bootstrap\_20260523.json} \\
 LeWM ACPC-basin artifact & \codebrk{assets/paper1\_data/acpc\_basin\_diagnostics.json} \\
 PLDM ACPC-basin artifact & \codebrk{assets/paper1\_data/acpc\_basin\_diagnostics\_pldm.json} \\
-Phase-0 paired ACPC artifact & \codebrk{assets/paper1\_data/acpc\_phase0\_diagnostics.json} \\
+Phase-0 paired ACPC artifact & \codebrk{assets/paper1\_data/acpc\_phase0\_clean\_goal\_seed9101.json} \\
 blur baseline artifact & \codebrk{assets/paper1\_data/canonical\_blur\_baselines\_20260523.json} \\
 target-view ablation artifact & \codebrk{assets/paper1\_data/target\_view\_closed\_loop\_summary.json} \\
 PLDM full-diagnostic artifact & \codebrk{assets/paper1\_data/canonical\_full\_diagnostics\_pldm\_20260523.json} \\
@@ -1298,33 +1298,33 @@ The main text fixes ACPC to the $H=8$ identity-readout rollout-latent basin diag
 
 \subsection{Phase-0 table}
 
-This appendix records the first full-coverage run of these paired action-conditioned diagnostics. The released artifact covers 72 checkpoint rows: LeWM and PLDM, four tasks, and nine training-noise levels per task. All rows completed successfully. Each row uses $100$ sampled sequences, Gaussian observation+goal noise at std $0.08$, rollout horizon $H=8$, and a shared candidate-action set of one dataset future plus $64$ random futures. Because this uses the auxiliary observation+goal stress endpoint rather than the paper's primary unperturbed-goal endpoint, it is reported as a broader exploratory sanity check rather than as the main ACPC evidence. PCC, CRA, and MAF are computed from the same original/noisy candidate-cost vectors. ADM and SPRR use an action-distance latent proxy, not an oracle state/keypoint margin.
+This appendix records the full-coverage clean-goal run of these paired action-conditioned diagnostics. The released artifact covers 72 checkpoint rows: LeWM and PLDM, four tasks, and nine training-noise levels per task. All rows completed successfully. Each row uses $100$ sampled sequences, Gaussian observation-history noise at std $0.08$ with the goal image kept clean, rollout horizon $H=8$, and a shared candidate-action set of one dataset future plus $64$ random futures. This matches the paper's primary observation-noise endpoint rather than the auxiliary observation+goal stress condition. PCC, CRA, and MAF are computed from the same original/noisy candidate-cost vectors. ADM and SPRR use an action-distance latent proxy, not an oracle state/keypoint margin.
 
 \begin{landscape}
 \begin{table}[p]
 \centering
-\caption{Phase-0 paired ACPC diagnostics, no-noise baseline $\to$ representative high observation+goal 0.08 checkpoint. Lower is better for ACPC-$H$/transition, PCC, and MAF; higher is better for CRA and top-8 overlap. Values are exploratory diagnostics.}
+\caption{Phase-0 paired ACPC diagnostics, no-noise baseline $\to$ representative high observation-noise 0.08 checkpoint with an unperturbed goal. Lower is better for ACPC-$H$/transition, PCC, and MAF; higher is better for CRA and top-8 overlap. Values are exploratory diagnostics.}
 \label{tab:acpc-phase0}
 \small
 \setlength{\tabcolsep}{5pt}
 \begin{tabular}{lllrrrrrr}
 \toprule
-Task & Method & robust \stdmax{} & obs+goal success & ACPC-$H$/trans. & PCC & CRA & top-8 & MAF \\
+Task & Method & robust \stdmax{} & obs-noise success & ACPC-$H$/trans. & PCC & CRA & top-8 & MAF \\
 \midrule
-TwoRoom & LeWM & 0.08 & $50.00 \to 98.67$ & $1.254 \to 0.042$ & $176.6 \to 7.0$ & $0.157 \to 0.990$ & $0.201 \to 0.952$ & $0.92 \to 0.06$ \\
-TwoRoom & PLDM & 0.05 & $51.67 \to 98.33$ & $1.062 \to 0.063$ & $164.3 \to 7.1$ & $0.367 \to 0.982$ & $0.287 \to 0.911$ & $0.85 \to 0.05$ \\
-PushT & LeWM & 0.06 & $4.67 \to 87.00$ & $2.740 \to 0.149$ & $67.3 \to 4.6$ & $0.323 \to 0.986$ & $0.213 \to 0.914$ & $0.96 \to 0.08$ \\
-PushT & PLDM & 0.03 & $10.00 \to 72.00$ & $1.682 \to 0.162$ & $52.0 \to 8.1$ & $0.300 \to 0.967$ & $0.286 \to 0.869$ & $0.90 \to 0.08$ \\
-Reacher & LeWM & 0.02 & $15.00 \to 85.67$ & $1.922 \to 0.023$ & $528.0 \to 1.2$ & $0.242 \to 0.999$ & $0.219 \to 0.990$ & $0.97 \to 0.01$ \\
-Reacher & PLDM & 0.04 & $79.33 \to 81.33$ & $0.104 \to 0.063$ & $11.7 \to 6.3$ & $0.965 \to 0.987$ & $0.930 \to 0.949$ & $0.13 \to 0.10$ \\
-Cube & LeWM & 0.07 & $46.33 \to 68.00$ & $1.944 \to 0.055$ & $88.8 \to 4.1$ & $0.337 \to 0.996$ & $0.266 \to 0.951$ & $0.88 \to 0.00$ \\
-Cube & PLDM & 0.08 & $48.33 \to 56.33$ & $1.136 \to 0.034$ & $113.6 \to 3.0$ & $0.663 \to 0.997$ & $0.512 \to 0.967$ & $0.74 \to 0.01$ \\
+TwoRoom & LeWM & 0.08 & $65.67 \to 97.67$ & $1.178 \to 0.041$ & $42.0 \to 1.0$ & $0.364 \to 0.999$ & $0.330 \to 0.971$ & $0.81 \to 0.04$ \\
+TwoRoom & PLDM & 0.06 & $67.00 \to 98.00$ & $1.100 \to 0.049$ & $33.6 \to 0.7$ & $0.416 \to 0.998$ & $0.335 \to 0.959$ & $0.79 \to 0.06$ \\
+PushT & LeWM & 0.06 & $4.33 \to 87.67$ & $2.625 \to 0.146$ & $56.6 \to 2.6$ & $0.412 \to 0.997$ & $0.214 \to 0.931$ & $0.98 \to 0.08$ \\
+PushT & PLDM & 0.03 & $18.33 \to 73.00$ & $1.495 \to 0.140$ & $23.2 \to 2.7$ & $0.593 \to 0.987$ & $0.444 \to 0.909$ & $0.69 \to 0.06$ \\
+Reacher & LeWM & 0.02 & $18.33 \to 83.67$ & $2.092 \to 0.029$ & $72.2 \to 0.5$ & $0.278 \to 1.000$ & $0.360 \to 0.989$ & $0.91 \to 0.01$ \\
+Reacher & PLDM & 0.03 & $80.33 \to 81.67$ & $0.122 \to 0.074$ & $1.9 \to 1.3$ & $0.994 \to 0.997$ & $0.955 \to 0.974$ & $0.13 \to 0.06$ \\
+Cube & LeWM & 0.07 & $47.00 \to 67.33$ & $1.979 \to 0.058$ & $63.7 \to 1.3$ & $0.274 \to 0.999$ & $0.256 \to 0.970$ & $0.89 \to 0.00$ \\
+Cube & PLDM & 0.04 & $48.33 \to 54.67$ & $1.175 \to 0.170$ & $27.1 \to 3.9$ & $0.739 \to 0.990$ & $0.536 \to 0.916$ & $0.74 \to 0.08$ \\
 \bottomrule
 \end{tabular}%
 \end{table}
 \end{landscape}
 
-\paragraph{Reading.} The Phase-0 pass converts the ACPC definitions from a prospective protocol into a release artifact that behaves sensibly on the existing sweep. The largest Gaussian-noise cliffs (TwoRoom and PushT on both methods, Reacher/Cube on LeWM) coincide with large baseline ACPC-$H$, PCC, ranking disruption, and action flips, and the representative high observation+goal checkpoints reduce these quantities sharply. PLDM Reacher is the important boundary case: it already has high observation+goal success at the no-noise baseline, and the paired diagnostics are correspondingly already close to the recovered checkpoint. Across the joint LeWM+PLDM sample within each task, partial Spearman correlations after conditioning on \stdmax{} and method remain task-specific: ACPC-$H$/transition vs.\ noise drop is strong on PushT ($+0.67$) and Reacher ($+0.71$), but only modest on TwoRoom ($+0.21$) and Cube ($+0.33$). We therefore treat \Cref{tab:acpc-phase0} as a face-validity and local-diagnostic check, not as evidence that ACPC-$H$, PCC, CRA, MAF, ADM, or SPRR can by themselves predict robustness.
+\paragraph{Reading.} The Phase-0 pass converts the ACPC definitions from a prospective protocol into a release artifact that behaves sensibly on the existing sweep under the same clean-goal stressor used for the primary closed-loop endpoint. The largest Gaussian-noise cliffs (TwoRoom and PushT on both methods, Reacher/Cube on LeWM) coincide with large baseline ACPC-$H$, PCC, ranking disruption, and action flips, and the representative high observation-noise checkpoints reduce these quantities sharply. PLDM Reacher is the important boundary case: it is already robust at the no-noise baseline, and the paired diagnostics are correspondingly already close to the recovered checkpoint. We therefore treat \Cref{tab:acpc-phase0} as a face-validity and local-diagnostic check, not as evidence that ACPC-$H$, PCC, CRA, MAF, ADM, or SPRR can by themselves predict robustness.
 
 %% ===========================================================================
 \section{Target-view ablation completion check}\label{sec:appendix-target-view}

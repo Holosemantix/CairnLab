@@ -128,7 +128,7 @@ term matches the noisy predicted latent to a detached clean predicted latent.
 Main Reacher run:
 
 ```text
-/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_snap_acpc_noise_0to008_p1
+dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_snap_acpc_noise_0to008_p1
 ```
 
 Behavior at `image_noise.std_max=0.08`:
@@ -168,7 +168,7 @@ no auxiliary loss is added.
 Main Reacher run:
 
 ```text
-/home/ag/dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_paired_noaux_noise_0to008_p1
+dataset/ag_data/data/world_model/quentinll/lewm-reacher/ckpt/reacher_lewm_paired_noaux_noise_0to008_p1
 ```
 
 The rerun config is correct: `loss.paired_view_control.enabled=true`,

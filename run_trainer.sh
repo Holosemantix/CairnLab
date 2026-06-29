@@ -396,7 +396,15 @@ fi
 # ---------- 3. Eval / Noise 通用准备 ----------
 if [ -n "${ckpt_override:-}" ]; then
     ckpt_abs="${ckpt_override}"
-    ckpt_rel="$(basename "${ckpt_abs}" _object.ckpt)"
+    if [[ "${ckpt_abs}" != /* ]]; then
+        ckpt_abs="${SCRIPT_DIR}/${ckpt_abs}"
+    fi
+    if [[ "${ckpt_abs}" == "${STABLEWM_HOME}/"* ]]; then
+        ckpt_rel="${ckpt_abs#${STABLEWM_HOME}/}"
+        ckpt_rel="${ckpt_rel%_object.ckpt}"
+    else
+        ckpt_rel="$(basename "${ckpt_abs}" _object.ckpt)"
+    fi
     results_dir="${STABLEWM_HOME}/ckpt/${output_model_name}/eval_results"
 else
     ckpt_rel="ckpt/${output_model_name}/${output_model_name}_epoch_${eval_epoch}"
@@ -441,6 +449,7 @@ fi
 
 run_eval_sweep=0
 run_diagnostics=0
+eval_sweep_status=0
 case "${post_train_eval_mode}" in
     full)
         [ "${skip_eval_sweep:-0}" != "1" ] && run_eval_sweep=1
@@ -556,6 +565,7 @@ run_one_eval() {
     else
         echo "[eval] FAIL   gpu=${gpu} label=${label} (rc=${rc}; see ${results_dir}/${label}.log)"
     fi
+    return $rc
 }
 
 if [ "${run_eval_sweep}" = "1" ]; then
@@ -628,7 +638,9 @@ if [ "${run_eval_sweep}" = "1" ]; then
             ((i++))
         done
         for pid in "${pids[@]}"; do
-            wait "$pid" || true
+            if ! wait "$pid"; then
+                eval_sweep_status=1
+            fi
         done
     done
 fi
@@ -882,3 +894,8 @@ echo "==================================================="
 
 # ---------- 7. Cleanup ----------
 rm -rf "${STABLEWM_HOME}/ckpt/${output_model_name}"/*.mp4
+
+if [ "${eval_sweep_status:-0}" != "0" ]; then
+    echo "[eval sweep] one or more eval jobs failed; see ${results_dir}/*.log"
+    exit 1
+fi

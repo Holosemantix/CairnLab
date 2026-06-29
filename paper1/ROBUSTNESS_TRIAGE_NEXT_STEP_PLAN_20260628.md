@@ -254,7 +254,7 @@ finishes on any machine.
 | R1 | Independent LeWM training seeds 3073/3074 | In progress | Main-conference reviewers will not accept evaluation seeds as a substitute for training-run variability. |
 | R2 | Frozen seed-3072 robustness-triage selector | Development analysis done; selector frozen in this document | Converts ACPC/CRA/MAF from post-hoc explanation into a testable plateau-triage protocol. |
 | R3 | Lockbox application to 3073/3074 | Pending new seed artifacts | This is the confirmatory test. Do not tune the selector after looking at these results. |
-| R4 | Seed-3072 unseen-perturbation pilot | Pending | Tests whether the protocol is Gaussian-specific or reusable with a different paired-corruption operator. |
+| R4 | Seed-3072 unseen-perturbation pilot | TwoRoom strongest-stress formal pilot complete; Reacher/Cube running; PushT deprioritized after weak smoke signal | Tests whether the protocol is Gaussian-specific or reusable with a different paired-corruption operator. |
 | R5 | Unseen-perturbation lockbox on new seeds | Conditional | Only needed if R4 shows interpretable signal and R3 is strong enough to justify expansion. |
 | R6 | Training-objective follow-up | Paper2 / future work | Existing negative controls make naive consistency losses unsafe for Paper1. |
 
@@ -312,6 +312,21 @@ Interpretation levels:
 - Negative but useful: neither transfers; report stressor specificity.
 
 Do not claim cross-perturbation generality from this pilot alone.
+
+Fast smoke status (2026-06-29): a reduced `std=0.0` vs `std=0.08` check on
+PushT and TwoRoom used strongest-severity blur/resize only and `30 x 3` eval
+episodes. PushT showed little or no cross-stressor gain, while TwoRoom showed a
+large positive signal for `std=0.08` under both blur and resize. This justifies a
+formal strongest-stress `100 x 3` eval pass for `std=0.0` and `std=0.08`
+(no-op plus `gaussian_blur` kernel 15 and `resize` factor 0.25); it does not by
+itself justify a claim of general cross-perturbation robustness.
+
+TwoRoom formal strongest-stress result (2026-06-29): under `100 x 3` eval
+episodes, `std=0.08` improved `gaussian_blur` kernel-15 success from 41.00 to
+96.67 (+55.67 pp) and `resize` factor-0.25 success from 44.33 to 96.67 (+52.33
+pp), while origin success changed from 93.67 to 97.00 (+3.33 pp). This supports
+continuing the unseen-stressor pilot with Reacher and Cube, but it remains seed
+3072 development evidence until lockbox seeds are evaluated.
 
 ## 11. Eval-Logic Recommendation
 

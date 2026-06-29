@@ -80,6 +80,9 @@ python -m tools.paper1_unseen_eval_grid --dry-run
 DATA_ROOT=/path/to/world_model/quentinll \
 python -m tools.paper1_unseen_eval_grid --only-missing
 
+DATA_ROOT=/path/to/world_model/quentinll \
+bash run_paper1_unseen_origin_vs_std008_eval.sh
+
 python -m tools.build_paper1_unseen_eval_artifact \
   --manifest assets/paper1_data/unseen_perturbation_pilot_seed3072_manifest.json \
   --out assets/paper1_data/unseen_perturbation_pilot_seed3072.json \
@@ -100,6 +103,31 @@ transfer under `gaussian_blur` and `resize`. If the pilot shows a meaningful
 plateau/ranking signal, rerun a smaller representative subset with
 `--diagnostics` before making any manuscript claim. The generated artifact is a
 review artifact, not an automatic paper-facing source.
+
+Seed-3072 fast smoke result (2026-06-29): `PushT` and `TwoRoom`, `std_max` in
+`{0.0, 0.08}`, strongest-severity only (`gaussian_blur` kernel 15 and `resize`
+factor 0.25), `30 x 3` eval episodes. The output artifact was
+`assets/paper1_data/unseen_origin_vs_std008_fast.json`. PushT did not show a
+clear cross-stressor gain (`std=0.08` vs `std=0.0`: blur +2.22 pp, resize 0.00
+pp), while TwoRoom showed a large positive smoke signal (blur +56.67 pp, resize
++55.56 pp) with no clean-performance tradeoff. Treat this as a development smoke
+check only; the next eval pass should use `100 x 3` episodes and the dedicated
+`run_paper1_unseen_origin_vs_std008_eval.sh` launcher. The launcher intentionally
+runs only no-op plus strongest stress (`gaussian_blur=1,15`, `resize=1.0,0.25`)
+because the next question is whether `std=0.08` helps, not to estimate a full
+severity curve. It writes to a separate
+`paper1_unseen_origin_vs_std008_s3072_strongest_*` output prefix so fast-run rows
+do not mix with formal eval rows.
+
+TwoRoom formal strongest-stress pilot result (2026-06-29): `100 x 3` eval
+episodes, `std_max` in `{0.0, 0.08}`, no-op plus strongest stress only. The
+review artifact is `assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json`
+with manifest `assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom_manifest.json`.
+The `std=0.08` checkpoint preserved performance under both unseen stressors:
+`gaussian_blur` kernel 15 improved from 41.00 to 96.67 success (+55.67 pp), and
+`resize` factor 0.25 improved from 44.33 to 96.67 success (+52.33 pp), while
+origin performance changed from 93.67 to 97.00 (+3.33 pp). This is a strong
+seed-3072 development-pilot signal for TwoRoom, not a lockbox claim.
 
 Optional PLDM sanity plots can use the same runner without changing paper-facing claims:
 

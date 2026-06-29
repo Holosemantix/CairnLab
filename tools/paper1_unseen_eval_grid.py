@@ -177,6 +177,13 @@ def _diagnostics_dir(result_dir: Path, family: str) -> Path:
     return result_dir / f"diagnostics_{family}"
 
 
+def _eval_summary_has_rows(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    with path.open() as f:
+        return sum(1 for _ in f) > 1
+
+
 def build_jobs(args: argparse.Namespace) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     canonical_path = _resolve_repo_path(args.canonical)
     canonical = _load_json(canonical_path)
@@ -189,6 +196,8 @@ def build_jobs(args: argparse.Namespace) -> tuple[dict[str, Any], list[dict[str,
         if family not in FAMILY_META:
             raise ValueError(f"unknown corruption family {family!r}; expected one of {sorted(FAMILY_META)}")
 
+    output_prefix = args.output_prefix or f"paper1_unseen_s{args.train_seed}"
+
     jobs: list[dict[str, Any]] = []
     for task in tasks:
         meta = TASK_META[task]
@@ -199,7 +208,7 @@ def build_jobs(args: argparse.Namespace) -> tuple[dict[str, Any], list[dict[str,
             ckpt_rel = Path(meta["dataset_dir"]) / "ckpt" / subdir / f"{subdir}_epoch_{args.epoch}_object.ckpt"
             ckpt_path = root / ckpt_rel
             for family in families:
-                output_suffix = f"paper1_unseen_s{args.train_seed}_{family}_std{_slug(std_key)}"
+                output_suffix = f"{output_prefix}_{family}_std{_slug(std_key)}"
                 final_output_model_name = f"{meta['dataset_name']}_{output_suffix}"
                 result_dir_rel = Path(meta["dataset_dir"]) / "ckpt" / final_output_model_name / "eval_results"
                 result_dir = root / result_dir_rel
@@ -243,7 +252,7 @@ def build_jobs(args: argparse.Namespace) -> tuple[dict[str, Any], list[dict[str,
 
                 eval_summary = result_dir / "eval_summary.csv"
                 diagnostics_summary = diag_dir / "diagnostics_summary.json"
-                complete = eval_summary.is_file() and (
+                complete = _eval_summary_has_rows(eval_summary) and (
                     not args.diagnostics or diagnostics_summary.is_file()
                 )
                 jobs.append(
@@ -286,6 +295,7 @@ def build_jobs(args: argparse.Namespace) -> tuple[dict[str, Any], list[dict[str,
             "root_env_order": ["PAPER1_DATA_ROOT", "DATA_ROOT", "STABLEWM_HOME"],
             "root_note": "Set --root or DATA_ROOT/PAPER1_DATA_ROOT/STABLEWM_HOME on each machine.",
             "train_seed": int(args.train_seed),
+            "output_prefix": output_prefix,
             "epoch": int(args.epoch),
             "tasks": tasks,
             "families": list(families),
@@ -364,6 +374,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Override magnitudes, e.g. gaussian_blur=1,3,7 or resize=1.0,0.75.",
     )
     p.add_argument("--train-seed", type=int, default=3072)
+    p.add_argument("--output-prefix", default=None, help="Output suffix prefix; defaults to paper1_unseen_s<train_seed>.")
     p.add_argument("--epoch", type=int, default=10)
     p.add_argument("--num-eval", type=int, default=300)
     p.add_argument("--eval-seeds", type=int, default=3)

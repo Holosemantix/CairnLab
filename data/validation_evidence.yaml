@@ -1,5 +1,5 @@
 version: 1
-updated_at: "2026-06-09"
+updated_at: "2026-06-17"
 systems_sampled:
   - name: autoresearchclaw
     real_or_fixture: real
@@ -16,7 +16,7 @@ systems_sampled:
         task: task:arc-ml03
         real_or_fixture: real
         artifacts:
-          - /opt/huawei/explorer-env/dataset/ag_data/code/AutoResearchClaw/experiments/arc_bench/results/e2e/ML03/e2e-ML03-20260604-093524/pipeline_summary.json
+          - root:autoresearchclaw_repo:experiments/arc_bench/results/e2e/ML03/e2e-ML03-20260604-093524/pipeline_summary.json
         notes: "Real AutoResearchClaw ML03 run directory exists with paused/degraded pipeline summary evidence."
   - name: aris
     real_or_fixture: fixture_contract
@@ -28,6 +28,18 @@ systems_sampled:
           - tests/fixtures/aris_e2e_smoke/paper/PAPER_CLAIM_AUDIT.json
           - tests/fixtures/aris_e2e_smoke/research-wiki/claims/C1.md
         notes: "Exercises real ARIS helper output shapes, but remains a fixture/contract validation case."
+  - name: wm_exp_paper1
+    real_or_fixture: real
+    runs:
+      - id: wm-exp-paper1-review-20260617
+        task: task:wm-exp-paper1
+        real_or_fixture: real
+        artifacts:
+          - data/external_runs/wm_exp_paper1/cairn_external_run.yaml
+          - reports/reviews/wm_exp_paper1_review.md
+          - root:wm_exp_repo:assets/paper1_data/canonical_evals_20260517.json
+          - root:wm_exp_repo:assets/paper1_data/acpc_basin_diagnostics.json
+        notes: "Real wm_exp Paper 1 release review passed the deterministic consistency checker but found local model-level reruns blocked by missing checkpoint objects under the configured wm_exp_data prefix."
 
 tasks:
   - id: task:arc-ml01
@@ -45,6 +57,11 @@ tasks:
     real_or_fixture: fixture_contract
     claims_recorded: 1
     material_claims_recorded: 1
+  - id: task:wm-exp-paper1
+    source_system: wm_exp_paper1
+    real_or_fixture: real
+    claims_recorded: 3
+    material_claims_recorded: 3
 
 claims:
   - id: claim:arc-ml01.failed_experiment_but_paper_claims
@@ -82,6 +99,38 @@ claims:
     benchmark_would_capture: false
     failure_classes:
       - downstream_claim_not_release_authorized
+  - id: claim:wm-exp-paper1.release_package_self_consistent
+    source_system: wm_exp_paper1
+    task: task:wm-exp-paper1
+    real_or_fixture: real
+    materiality: high
+    upstream_observed_state: consistency_checker_passed
+    cairnlab_counterfactual_state: verified_evidence_only
+    changed_release_decision: false
+    benchmark_would_capture: false
+    failure_classes: []
+  - id: claim:wm-exp-paper1.path_prefix_drift
+    source_system: wm_exp_paper1
+    task: task:wm-exp-paper1
+    real_or_fixture: real
+    materiality: high
+    upstream_observed_state: paper1_helpers_defaulted_to_old_machine_prefix
+    cairnlab_counterfactual_state: requires_explicit_artifact_path_binding
+    changed_release_decision: true
+    benchmark_would_capture: false
+    failure_classes:
+      - portable_path_prefix_drift
+  - id: claim:wm-exp-paper1.missing_checkpoint_objects
+    source_system: wm_exp_paper1
+    task: task:wm-exp-paper1
+    real_or_fixture: real
+    materiality: high
+    upstream_observed_state: canonical_artifacts_available_but_model_rerun_inputs_missing
+    cairnlab_counterfactual_state: challenged
+    changed_release_decision: true
+    benchmark_would_capture: false
+    failure_classes:
+      - model_checkpoint_artifacts_unavailable_for_rerun
 
 failure_classes:
   - name: experiment_run_failed_but_paper_claims_written
@@ -112,5 +161,17 @@ failure_classes:
     real_occurrences: 1
     systems_seen:
       - autoresearchclaw
+    release_control_relevant: true
+    plausibly_reduced_by_cairnlab: true
+  - name: portable_path_prefix_drift
+    real_occurrences: 1
+    systems_seen:
+      - wm_exp_paper1
+    release_control_relevant: true
+    plausibly_reduced_by_cairnlab: true
+  - name: model_checkpoint_artifacts_unavailable_for_rerun
+    real_occurrences: 1
+    systems_seen:
+      - wm_exp_paper1
     release_control_relevant: true
     plausibly_reduced_by_cairnlab: true

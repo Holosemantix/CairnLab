@@ -124,6 +124,13 @@ normalized to CairnLab `critical`. Reviewer verdicts are always marked as
 non-authority evidence; unresolved material dissent is imported as a critical
 challenge and release blocker for the transition authority.
 
+Manifests may also define `path_prefixes` and then use per-item root aliases
+with relative paths. This keeps external project records portable across
+machines: the adapter resolves the configured prefix for hashing but stores
+portable evidence URIs like `root:wm_exp_repo:assets/paper1_data/result.json`.
+Large external data roots can be referenced with a `root:*` URI and no `path`
+when hashing the full tree would be too broad for the review.
+
 `autoresearchclaw-e2e-run` is a resolver layer for the real AutoResearchClaw
 e2e directory shape observed in validation:
 

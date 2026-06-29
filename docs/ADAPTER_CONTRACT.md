@@ -310,6 +310,31 @@ URI and hash provenance; it never executes them. External relation criticality
 aliases such as `material`, `blocking`, and `required` are normalized to
 CairnLab `critical` relation criticality.
 
+For portable external records, manifests may define top-level `path_prefixes`
+and then use root aliases on individual evidence, stage, reviewer, or dissent
+items:
+
+```yaml
+path_prefixes:
+  external_repo: ../../external_repo
+  dataset_root: ../../data/world_model
+
+evidence:
+  - id: artifact:result
+    type: artifact
+    root: external_repo
+    path: artifacts/result.json
+  - id: data:large_root
+    type: dataset
+    uri: root:dataset_root:.
+```
+
+The adapter resolves `root` plus relative `path` for hashing, while storing a
+portable URI such as `root:external_repo:artifacts/result.json`. Moving the same
+record to another machine should require changing only the prefix path, not
+every evidence item. Very large external trees can be referenced with `uri`
+only, as shown above, to avoid hashing an entire dataset root during import.
+
 The generic manifest still does not authorize release. A passing verifier can
 support `verified`; release remains blocked until CairnLab transition authority
 sees the required risk assessment, human gate, accountability, and no unresolved

@@ -77,6 +77,48 @@ relations:
     assert evidence["evidence:eval_metric_directory"].hash == second_evidence["evidence:eval_metric_directory"].hash
 
 
+def test_external_run_manifest_resolves_prefixed_relative_paths(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    manifest_dir = project / "manifests" / "paper1"
+    artifact_root = project / "external" / "wm_exp"
+    artifact_root.mkdir(parents=True)
+    manifest_dir.mkdir(parents=True)
+    (artifact_root / "result.json").write_text('{"ok": true}\n', encoding="utf-8")
+    manifest = manifest_dir / "cairn_external_run.yaml"
+    manifest.write_text(
+        """
+manifest_type: cairn.external_run.v1
+case_id: external-run:prefixed-paths
+source_system: external-runner
+stage: release_review
+path_prefixes:
+  wm_exp_repo: ../../external/wm_exp
+claims:
+  - id: claim:C1
+    text: "External result exists."
+    state: evidence_attached
+evidence:
+  - id: artifact:result
+    type: artifact
+    root: wm_exp_repo
+    path: result.json
+relations:
+  - source: artifact:result
+    target: claim:C1
+    type: supports
+    criticality: critical
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = ExternalRunManifestAdapter().export_case(manifest)
+    evidence = {item.id: item for item in result.case.evidence}
+
+    assert not result.diagnostics
+    assert evidence["artifact:result"].uri == "root:wm_exp_repo:result.json"
+    assert evidence["artifact:result"].hash.startswith("sha256:")
+
+
 def test_external_run_manifest_adapter_exports_cross_stage_case() -> None:
     result = ExternalRunManifestAdapter().export_case(FIXTURE)
     case = result.case

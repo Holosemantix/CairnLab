@@ -28,6 +28,10 @@ Current real evidence is intentionally conservative:
 
 - AutoResearchClaw ML01 and ML03 runs provide real external-system evidence for
   paper/experiment/provenance gaps that affect whether claims should be released;
+- wm_exp Paper 1 provides a real release-package review case: deterministic
+  consistency checks pass for the released canonical artifacts, while current
+  machine path drift and missing checkpoint objects block local model-level
+  reruns until the checkpoint evidence is restored;
 - ARIS evidence currently includes fixture/contract coverage for real helper
   output shapes, but it is not counted as a real framework run in the go/no-go
   gate.

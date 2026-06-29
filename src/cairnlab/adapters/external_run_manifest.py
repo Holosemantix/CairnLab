@@ -55,6 +55,7 @@ class ExternalRunManifestAdapter:
             raise ValueError(f"External run manifest must set manifest_type={self.manifest_type!r}")
 
         project_root = manifest_path.parent if root.is_file() else root
+        path_prefixes = self._path_prefixes(manifest, project_root, manifest_path)
         source_system = str(manifest.get("source_system") or "external")
         stage = str(manifest.get("stage") or "external_stage")
         builder = ClaimCaseBuilder(
@@ -83,11 +84,11 @@ class ExternalRunManifestAdapter:
         builder.expected_cairnlab_behavior.update(self._mapping(manifest.get("expected_cairnlab_behavior")))
 
         self._add_claims(builder, manifest, diagnostics)
-        self._add_stages(builder, manifest, project_root, manifest_path)
-        self._add_evidence(builder, manifest, project_root, manifest_path, diagnostics)
+        self._add_stages(builder, manifest, project_root, manifest_path, path_prefixes)
+        self._add_evidence(builder, manifest, project_root, manifest_path, path_prefixes, diagnostics)
         self._add_verifier_certificates(builder, manifest, diagnostics)
-        self._add_reviewers(builder, manifest, project_root, manifest_path, diagnostics)
-        self._add_material_dissent(builder, manifest, project_root, manifest_path, diagnostics)
+        self._add_reviewers(builder, manifest, project_root, manifest_path, path_prefixes, diagnostics)
+        self._add_material_dissent(builder, manifest, project_root, manifest_path, path_prefixes, diagnostics)
         self._add_human_gates(builder, manifest, diagnostics)
         self._add_release_decisions(builder, manifest, diagnostics)
         self._add_governance(builder, manifest, diagnostics)
@@ -131,11 +132,12 @@ class ExternalRunManifestAdapter:
         manifest: dict[str, Any],
         project_root: Path,
         manifest_path: Path,
+        path_prefixes: dict[str, Path],
     ) -> None:
         for index, stage in enumerate(self._list_of_mappings(manifest.get("stages")), start=1):
             phase = str(stage.get("phase") or stage.get("name") or f"stage_{index}")
             stage_id = str(stage.get("id") or f"run:{self._slug(phase)}")
-            uri, digest = self._uri_and_hash(project_root, stage, manifest_path)
+            uri, digest = self._uri_and_hash(project_root, stage, manifest_path, path_prefixes)
             metadata = {
                 "adapter": self.name,
                 "source_system": manifest.get("source_system"),
@@ -161,6 +163,7 @@ class ExternalRunManifestAdapter:
         manifest: dict[str, Any],
         project_root: Path,
         manifest_path: Path,
+        path_prefixes: dict[str, Path],
         diagnostics: list[AdapterDiagnostic],
     ) -> None:
         for index, evidence in enumerate(self._list_of_mappings(manifest.get("evidence")), start=1):
@@ -168,7 +171,7 @@ class ExternalRunManifestAdapter:
             if not evidence_id:
                 diagnostics.append(AdapterDiagnostic(level="warning", message=f"Skipping evidence without id at evidence[{index}]."))
                 continue
-            uri, digest = self._uri_and_hash(project_root, evidence, manifest_path)
+            uri, digest = self._uri_and_hash(project_root, evidence, manifest_path, path_prefixes)
             builder.add_evidence(
                 str(evidence_id),
                 str(evidence.get("type") or evidence.get("evidence_type") or "artifact"),
@@ -205,6 +208,7 @@ class ExternalRunManifestAdapter:
         manifest: dict[str, Any],
         project_root: Path,
         manifest_path: Path,
+        path_prefixes: dict[str, Path],
         diagnostics: list[AdapterDiagnostic],
     ) -> None:
         for index, review in enumerate(self._list_of_mappings(manifest.get("reviewer_verdicts")), start=1):
@@ -212,7 +216,7 @@ class ExternalRunManifestAdapter:
             if not review_id:
                 diagnostics.append(AdapterDiagnostic(level="warning", message=f"Skipping reviewer verdict without id at reviewer_verdicts[{index}]."))
                 continue
-            uri, digest = self._uri_and_hash(project_root, review, manifest_path)
+            uri, digest = self._uri_and_hash(project_root, review, manifest_path, path_prefixes)
             builder.add_evidence(
                 str(review_id),
                 "reviewer_verdict",
@@ -242,6 +246,7 @@ class ExternalRunManifestAdapter:
         manifest: dict[str, Any],
         project_root: Path,
         manifest_path: Path,
+        path_prefixes: dict[str, Path],
         diagnostics: list[AdapterDiagnostic],
     ) -> None:
         for index, dissent in enumerate(self._list_of_mappings(manifest.get("material_dissent")), start=1):
@@ -250,7 +255,7 @@ class ExternalRunManifestAdapter:
             if not dissent_id or not claim_id:
                 diagnostics.append(AdapterDiagnostic(level="warning", message=f"Skipping material dissent without id or claim at material_dissent[{index}]."))
                 continue
-            uri, digest = self._uri_and_hash(project_root, dissent, manifest_path)
+            uri, digest = self._uri_and_hash(project_root, dissent, manifest_path, path_prefixes)
             builder.add_evidence(
                 str(dissent_id),
                 "material_dissent",
@@ -373,25 +378,41 @@ class ExternalRunManifestAdapter:
             return None
         return data
 
-    def _uri_and_hash(self, root: Path, payload: dict[str, Any], manifest_path: Path) -> tuple[str | None, str | None]:
+    def _uri_and_hash(
+        self,
+        root: Path,
+        payload: dict[str, Any],
+        manifest_path: Path,
+        path_prefixes: dict[str, Path],
+    ) -> tuple[str | None, str | None]:
         uri = payload.get("uri")
         path_value = payload.get("path")
         if not path_value:
             return str(uri) if uri else None, None
-        path = self._resolve_payload_path(root, str(path_value), manifest_path)
+        root_name = self._payload_root_name(payload)
+        path = self._resolve_payload_path(root, str(path_value), manifest_path, path_prefixes, root_name)
         if not path.exists():
             return str(uri) if uri else None, None
-        evidence_uri = str(uri) if uri else self._evidence_uri(root, str(path_value), path)
+        evidence_uri = str(uri) if uri else self._evidence_uri(root, str(path_value), path, root_name)
         try:
             digest = self._path_sha256(path)
         except OSError:
             return evidence_uri, None
         return evidence_uri, digest
 
-    def _resolve_payload_path(self, root: Path, path_value: str, manifest_path: Path) -> Path:
+    def _resolve_payload_path(
+        self,
+        root: Path,
+        path_value: str,
+        manifest_path: Path,
+        path_prefixes: dict[str, Path],
+        root_name: str | None,
+    ) -> Path:
         path = Path(path_value)
         if path.is_absolute():
             return path
+        if root_name and root_name in path_prefixes:
+            return path_prefixes[root_name] / path
 
         candidates = [root / path, manifest_path.parent / path]
         candidates.extend(parent / path for parent in manifest_path.parents)
@@ -405,14 +426,46 @@ class ExternalRunManifestAdapter:
                 return candidate
         return root / path
 
-    def _evidence_uri(self, root: Path, path_value: str, path: Path) -> str:
+    def _evidence_uri(self, root: Path, path_value: str, path: Path, root_name: str | None) -> str:
         authored_path = Path(path_value)
+        if root_name:
+            return f"root:{root_name}:{authored_path.as_posix()}"
         if not authored_path.is_absolute():
             return authored_path.as_posix()
         try:
             return path.relative_to(root).as_posix()
         except ValueError:
             return path.resolve().as_uri()
+
+    def _payload_root_name(self, payload: dict[str, Any]) -> str | None:
+        root_name = payload.get("root") or payload.get("path_prefix") or payload.get("path_root")
+        return str(root_name) if root_name else None
+
+    def _path_prefixes(self, manifest: dict[str, Any], root: Path, manifest_path: Path) -> dict[str, Path]:
+        prefixes = manifest.get("path_prefixes") or manifest.get("path_roots") or {}
+        if not isinstance(prefixes, dict):
+            return {}
+        resolved: dict[str, Path] = {}
+        for name, value in prefixes.items():
+            if isinstance(value, dict):
+                path_value = value.get("path")
+            else:
+                path_value = value
+            if not path_value:
+                continue
+            resolved[str(name)] = self._resolve_prefix_path(root, str(path_value), manifest_path)
+        return resolved
+
+    def _resolve_prefix_path(self, root: Path, path_value: str, manifest_path: Path) -> Path:
+        path = Path(path_value).expanduser()
+        if path.is_absolute():
+            return path
+        candidates = [manifest_path.parent / path, root / path]
+        candidates.extend(parent / path for parent in manifest_path.parents)
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return manifest_path.parent / path
 
     def _list_of_mappings(self, value: Any) -> list[dict[str, Any]]:
         if not isinstance(value, list):

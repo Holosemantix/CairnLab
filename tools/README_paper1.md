@@ -27,6 +27,8 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 | `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / prediction radius / contraction | LeWM/PLDM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；PLDM appendix 的 full-sweep replication 用 `assets/paper1_data/acpc_basin_diagnostics_pldm.json` |
 | `tools/paper1_phase0_acpc.py` | 低频 paired ACPC 诊断 runner：ACPC-1/H、PCC、CRA、MAF、ADM proxy、SPRR | LeWM/PLDM canonical eval manifest + 本地 loadable model checkpoints | `assets/paper1_data/acpc_phase0_diagnostics.json`；保留作后续 PCC/CRA/ADM 扩展，不作为当前主文 ACPC-basin source |
 | `tools/paper1_selective_contraction.py` | Phase-1 前的 selective-contraction branch probe；可选渲染同 state clean/noised cluster 图 | ACPC basin + Phase-0 diagnostics；plot 模式还需要本地 checkpoint/data | `assets/paper1_data/selective_contraction_fullseq_branch.*`；cluster 图默认输出到 `assets/phase1_figs/selective_contraction_clusters/`，paper-facing 输出可用 `--cluster-out-dir assets/paper1_figs` 生成 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；用 repeated perturbation samples，默认用 fixed-seed random anchors 选点并绘制低权重的 90% 2-D covariance ellipse，只作 qualitative visualization |
+| `tools/paper1_unseen_eval_grid.py` | Seed-3072 unseen-perturbation pilot launcher；只包装 `run_trainer.sh`，默认 eval-only，按需加 `--diagnostics` | `assets/paper1_data/canonical_evals_20260517.json` + `$DATA_ROOT/lewm-*/ckpt/*epoch_10_object.ckpt` | `assets/paper1_data/unseen_perturbation_pilot_seed3072_manifest.json` |
+| `tools/build_paper1_unseen_eval_artifact.py` | 汇总 unseen-perturbation pilot 的 `eval_summary.csv` 和可选 diagnostics summary | `tools/paper1_unseen_eval_grid.py` 写出的 manifest + 本地 eval 输出 | `assets/paper1_data/unseen_perturbation_pilot_seed3072.json`；进入正文前必须人工审查 |
 
 常用重生成命令：
 
@@ -71,6 +73,17 @@ python -m tools.paper1_selective_contraction \
   --view-stds 0.0 0.01 0.04 0.08 \
   --cluster-perturb-repeats 6 \
   --cluster-envelope ellipse --cluster-envelope-coverage 0.90
+
+DATA_ROOT=/path/to/world_model/quentinll \
+python -m tools.paper1_unseen_eval_grid --dry-run
+
+DATA_ROOT=/path/to/world_model/quentinll \
+python -m tools.paper1_unseen_eval_grid --only-missing
+
+python -m tools.build_paper1_unseen_eval_artifact \
+  --manifest assets/paper1_data/unseen_perturbation_pilot_seed3072_manifest.json \
+  --out assets/paper1_data/unseen_perturbation_pilot_seed3072.json \
+  --allow-missing
 ```
 
 95% CI 的口径：脚本对 checkpoint rows 做 with-replacement bootstrap。within-LeWM 和 within-PLDM 是每个 task 的 9 个 checkpoint rows；joint 分析是 LeWM+PLDM 共 18 个 rows，并在 partial correlation 中同时 conditioning on `std_max` 和 `method`。CI 是 bootstrap 分布的 2.5/97.5 percentile，不是额外 evaluation seed 的置信区间。
@@ -80,6 +93,13 @@ ACPC basin runner 默认只接受 Gaussian-noise corruption specs，并使用 de
 Phase 0 ACPC runner 的 `--dry-run` 只解析 manifest 和 checkpoint 路径，不需要 `torch`；shell wrapper `run_phase0_acpc.sh --dry-run` 输出到 `/tmp/acpc_phase0_dry_run.json`，避免覆盖 canonical artifact。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 canonical eval 里的 `path` 或 `--model-root` 下存在可 `torch.load` 的 model object checkpoint。当前 ADM 是 action-distance latent proxy，不是 oracle state/keypoint ADM。
 
 Selective-contraction cluster plots are paper-facing qualitative illustrations, not standalone proof. The default paper-facing path selects colored anchors by a fixed-seed random subset and writes the selected indices to the sidecar JSON; neither t-SNE coordinates nor high-D statistics are used for anchor selection. The small panel summaries (`median r/NN`, `r < NN`, `disjoint balls`) are computed in the original high-D feature space and must not be replaced by bottom-of-figure screenshot tables or in-axis legend boxes. The low-opacity 90% covariance ellipses are 2-D t-SNE visual summaries only, not high-D basin boundaries. Use `--cluster-envelope none` for point-only audits, `--cluster-envelope circle` only to reproduce the legacy max-distance circle view, and `--cluster-envelope hull` only as a sample hull.
+
+The unseen-perturbation pilot is deliberately staged. Run
+`paper1_unseen_eval_grid.py` without `--diagnostics` first to test closed-loop
+transfer under `gaussian_blur` and `resize`. If the pilot shows a meaningful
+plateau/ranking signal, rerun a smaller representative subset with
+`--diagnostics` before making any manuscript claim. The generated artifact is a
+review artifact, not an automatic paper-facing source.
 
 Optional PLDM sanity plots can use the same runner without changing paper-facing claims:
 

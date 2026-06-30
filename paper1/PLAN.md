@@ -2,7 +2,7 @@
 
 > Source of truth: `paper1/main.tex`. 数值、表格、图和 artifact 以论文正文与 `assets/paper1_data/` 为准。
 > Reframing 执行依据：`paper1/paper1_acpc_rewrite_execution_plan.md`。
-> Last updated: 2026-06-29（Phase-0 appendix switched to clean-goal paired ACPC/PCC/CRA/MAF artifact aligned with the primary observation-noise endpoint）。
+> Last updated: 2026-06-30（Phase-0 appendix aligned to clean-goal paired diagnostics; seed-3072 strongest-only blur/resize pilot recorded as development evidence, not a main-paper claim）。
 
 ---
 
@@ -14,7 +14,7 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 三个负结果限定 claim 边界：(i) 控制掉训练噪声后，single-step encoder/predictor fragility 不能稳定解释 corruption gap（PushT LeWM partial ρ=+0.19，CI 含 0；PLDM −0.05；joint n=18 +0.22），multi-step predictor drift 在 clean-goal observation-noise endpoint 下也只剩弱残差信号（Reacher partial ρ=+0.37，CI 很宽）；(ii) heteroscedastic σ-head 用 prediction error 下采样 hard transitions，让 PushT clean 从 86% 崩到 13%——说明 **hard ≠ nuisance**；(iii) target-view ablation 显示 perturbed-history → original-future one-step denoising 不是 sufficient closed-loop fix，fixed eval 后 PushT pixels 0.08 仍只有 6.75%，而 matched full-sequence perturbed-target branch 是 72.83%。诊断工具只做 mechanism localization 与 checkpoint selection，**不预测** robustness。
 
-本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，并补充 dense Gaussian-noise ACPC basin diagnostic：在同一 state、同一 action sequence 下比较 clean/noised views 的 encoder radius 与 rollout prediction radius。该诊断是主文 paired evidence，只使用 Gaussian noise eval grid（0.01..0.08），与 noise sweep 训练 family 一致；blur/resize 不混入 ACPC 主证据。Phase 0 clean-goal full-sweep ACPC/PCC/CRA/MAF artifact 保留为 Phase-0 appendix exploratory sanity check，说明 shared-candidate paired probes 在 primary observation-noise endpoint 下可计算且 face-valid，但不写成 universal robustness predictor。target-view ablation 只作为 target-view appendix negative scope check，不作为独立贡献；它支持把 **full-sequence perturbed-target training** 保留为当前 empirical mainline。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
+本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，并补充 dense Gaussian-noise ACPC basin diagnostic：在同一 state、同一 action sequence 下比较 clean/noised views 的 encoder radius 与 rollout prediction radius。该诊断是主文 paired evidence，只使用 Gaussian noise eval grid（0.01..0.08），与 noise sweep 训练 family 一致；blur/resize 不混入 ACPC 主证据。Phase 0 clean-goal full-sweep ACPC/PCC/CRA/MAF artifact 保留为 Phase-0 appendix exploratory sanity check，说明 shared-candidate paired probes 在 primary observation-noise endpoint 下可计算且 face-valid，但不写成 universal robustness predictor。seed-3072 strongest-only blur/resize pilot 可作为后续 lockbox 追踪线索：TwoRoom/Reacher 有正向 transfer，PushT weak/mixed，Cube neutral；在 3073/3074 复现前不进主文 claim。target-view ablation 只作为 target-view appendix negative scope check，不作为独立贡献；它支持把 **full-sequence perturbed-target training** 保留为当前 empirical mainline。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
 
 ---
 
@@ -80,7 +80,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - 不要说任何 diagnostic universally predicts robustness（含 ACPC-H / PCC / CRA / MAF / SPRR / basin contraction）；它们 localize mechanism、motivate method target。
 - 不要把 perturbed-history → original-future 写成改进方法；它在 target-view ablation 中失败，主要价值是暴露 closed-loop train/eval consistency 边界。
 - 不要把 Phase 0 ACPC 写成方法结果或因果证据；它是 post-hoc checkpoint diagnostic，且 ADM 目前是 action-distance proxy，不是 oracle task-state margin。
-- 不要把 ACPC basin 写成跨 corruption-family 结果：主证据只覆盖 Gaussian noise eval，且与 Gaussian-noise training sweep 匹配。blur/resize 仍只是 blur appendix 的 eval-only stress test，不能和 ACPC basin 混写。
+- 不要把 ACPC basin 写成跨 corruption-family 结果：主证据只覆盖 Gaussian noise eval，且与 Gaussian-noise training sweep 匹配。blur/resize 仍只是 blur appendix 的 eval-only stress test和 seed-3072 development pilot，不能和 ACPC basin 混写，也不能写成 universal transfer claim。
 - 不要过强声称“encoder 仍明显分散但 predict 聚合”普遍成立；dense noise diagnostic 显示 robust checkpoints 通常是 encoder basin 与 prediction basin 同时缩小，prediction radius 是 control-facing readout。
 - 不要声称证明或加强 LeJEPA identifiability。
 - 不要说所有 JEPA 都会同样崩溃；不要把 PLDM mechanism 写成 LeWM 的简单复制；不要把 blur eval-only 写成 blur training conclusion（blur collapse 主要集中在 TwoRoom，task ordering 是 corruption-specific）。
@@ -92,6 +92,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - 框架已 reframe：title / abstract / intro / related work / §3 ACPC 概念+诊断 / discussion / conclusion 已围绕 action-conditioned predictive consistency 重写；新增 §4.x Gaussian-noise ACPC basin table；main-text radar / mechanism schematic 已移除，避免证据弱图压低严谨性。
 - ACPC 主文 empirical evidence 现在是 **Gaussian-noise basin radius**：`tools/paper1_acpc_basin.py` 从 canonical eval manifest 解析 LeWM 36 个 epoch-10 checkpoints，在 clean + Gaussian noise std 0.01..0.08 views 上计算 encoder radius / prediction radius / contraction，输出 `assets/paper1_data/acpc_basin_diagnostics.json`。PLDM 已补 full 4 tasks × 9 configs replication：`assets/paper1_data/acpc_basin_diagnostics_pldm.json`，用于 PLDM appendix 边界验证；正文只展示 baseline-vs-pixels-0.08-point-best summary。
 - ACPC 系列 paired probes（ACPC-1/H、PCC、CRA、MAF、ADM、SPRR）已有 clean-goal full-sweep Phase 0 artifact：`assets/paper1_data/acpc_phase0_clean_goal_seed9101.json`，72 rows = 2 methods × 4 tasks × 9 std levels，全部 `status=ok` 且 `corrupt_goal=false`。当前只作为 Phase-0 appendix face-validity / mechanism-localization evidence，不能声称预测 robustness。旧 `acpc_phase0_diagnostics.json` 保留为 observation+goal archived sanity run。
+- Seed-3072 strongest-only unseen-perturbation pilot 已完成：`assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json` 覆盖 TwoRoom，`assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json` 覆盖 Reacher/Cube/PushT；`std=0.08` 对 TwoRoom 和 Reacher 在 blur k=15 / resize 0.25 下有正向 transfer，PushT weak/mixed，Cube neutral。它只说明值得在 3073/3074 lockbox 上复查，不更新主文结果。
 - target-view ablation 已完成并作为 target-view appendix negative result 纳入：`assets/paper1_data/target_view_closed_loop_summary.json` 记录四任务八个 target-noise checkpoints，支持 full-sequence perturbed-target branch 作为当前 empirical mainline，但不作为独立贡献或因果证明。
 - related work 已明确 ViGMO / Bisim-JEPA / LeJEPA theory 的边界；2026-06-10 targeted reference recheck 已更新 `maes2026stableworldmodel` 到 arXiv:2605.21800，并删除 VJEPA unsupported precise noisy-distractor number（见 `paper1/reference_audit.md`）。
 - `paper1/main.pdf` 可 clean build；`tools/check_paper1_consistency.py` 通过；`git diff --check` 通过；最终 LaTeX log 无 overfull/underfull、undefined citation/reference、缺图或 fatal error。

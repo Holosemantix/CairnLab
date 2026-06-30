@@ -19,6 +19,7 @@ This manifest documents the released evaluation aggregate for Paper 1:
 - **Gaussian-noise ACPC basin diagnostics**: `assets/paper1_data/acpc_basin_diagnostics.json` (LeWM 36 ckpts, epoch-10 model objects, paired clean/noised views at Gaussian std 0.01..0.08; source for the ACPC basin table)
 - **No-noise-baseline blur sanity check**: `assets/paper1_data/canonical_blur_baselines_20260523.json` (LeWM + PLDM baselines trained without input-noise augmentation, 4 tasks, blur eval only)
 - **No-noise-baseline blur schema**: `assets/paper1_data/canonical_blur_baselines_20260523.schema.json`
+- **Seed-3072 strongest-only unseen-perturbation pilot**: `assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json` and `assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json` (review artifacts, not paper-facing release evidence; together cover 4 tasks × 2 std keys × 2 stress families with no-op plus blur k=15 / resize factor 0.25)
 - Scope: 36 LeWM checkpoints = 4 tasks × 9 configs (`base` + `std_max` 0.01..0.08); 36 PLDM checkpoints on the same grid
 - Evaluation protocol: **3 evaluation seeds** (`42`, `43`, `44`) × **100 trajectories per seed**
 - Important clarification: these are **evaluation seeds**, not 3 independently trained models per configuration
@@ -26,7 +27,7 @@ This manifest documents the released evaluation aggregate for Paper 1:
 ## Release Provenance Notes
 
 - Paper-facing main evidence: `canonical_evals_20260517.json`, `canonical_diagnostics_20260517.json`, `acpc_basin_diagnostics.json`, `canonical_evals_pldm_20260522.json`, `canonical_diagnostics_pldm_20260522.json`, `canonical_full_diagnostics_pldm_20260523.json`, `acpc_basin_diagnostics_pldm.json`, `partial_corr_bootstrap_20260523.json`, and `acpc_phase0_clean_goal_seed9101.json`.
-- Scope-boundary / sanity artifacts: `canonical_blur_baselines_20260523.json` is eval-only blur stress; `acpc_phase0_diagnostics.json` is the archived observation+goal Phase-0 sanity run; `target_view_closed_loop_summary.json` is a negative target-view ablation; `canonical_external_baselines_20260520.json` is retained for backward-compatible sanity checks.
+- Scope-boundary / sanity artifacts: `canonical_blur_baselines_20260523.json` is eval-only blur stress; `acpc_phase0_diagnostics.json` is the archived observation+goal Phase-0 sanity run; `target_view_closed_loop_summary.json` is a negative target-view ablation; `canonical_external_baselines_20260520.json` is retained for backward-compatible sanity checks. The strongest-only unseen-perturbation artifacts are seed-3072 development review outputs and should not be cited as paper-facing release evidence without independent training-seed confirmation.
 - Contamination fix: the 2026-06-10 audit found that the TwoRoom and PushT representative diagnostic rows in `canonical_diagnostics_20260517.json` duplicated heteroscedastic-loss diagnostics. The affected representative fields were re-extracted from the intended per-checkpoint `diagnostics_summary.json` files. The release checker now guards these values so the PushT noise-sweep row cannot regress to the heteroscedastic `rank 76.4 -> 42.9` narrative.
 - Manual revision status: no released JSON artifact is hand-edited for paper prose. The only documented corrective revision is the representative-diagnostics re-extraction above, recorded in JSON metadata and checked by `tools/check_paper1_consistency.py`.
 
@@ -46,6 +47,8 @@ This manifest documents the released evaluation aggregate for Paper 1:
 | `acpc_phase0_diagnostics.json` | Archived observation+goal Phase-0 sanity run | `9654759b576216b7249a3bf5e2ee7b778318cf4de22babf3395a0757b3e644fd` |
 | `target_view_closed_loop_summary.json` | Negative target-view ablation | `04f75ad72543fb98d51304a6dec12ceb1b2dc099e915e24a49862ed3451744d0` |
 | `canonical_blur_baselines_20260523.json` | Eval-only blur sanity check | `8e4c18d9f354a585770e6eb389e4ceb1b449eea7a5e7758af40a324878e0700b` |
+| `unseen_origin_vs_std008_strongest_tworoom.json` | Seed-3072 strongest-only unseen pilot, TwoRoom | `e64640cd902e65c40215dd54670120efa46e78c3215c88d8c5fcb5dd818b02c4` |
+| `unseen_origin_vs_std008_strongest_reacher.json` | Seed-3072 strongest-only unseen pilot, Reacher/Cube/PushT | `8a9ae1a9a058770c647535e8ea4bb5b9f3cc1eb5b977499e0b26aba2f94bf34a` |
 
 ## Data Semantics
 

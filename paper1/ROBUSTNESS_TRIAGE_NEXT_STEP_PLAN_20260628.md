@@ -257,17 +257,17 @@ finishes on any machine.
 | R1 | Independent LeWM training seeds 3073/3074 | In progress | Main-conference reviewers will not accept evaluation seeds as a substitute for training-run variability. |
 | R2 | Frozen seed-3072 robustness-triage selector | Development analysis done; selector frozen in this document | Converts ACPC/CRA/MAF from post-hoc explanation into a testable plateau-triage protocol. |
 | R3 | Lockbox application to 3073/3074 | Pending new seed artifacts | This is the confirmatory test. Do not tune the selector after looking at these results. |
-| R4 | Seed-3072 unseen-perturbation pilot | TwoRoom strongest-stress formal pilot complete; Reacher/Cube running; PushT deprioritized after weak smoke signal | Tests whether the protocol is Gaussian-specific or reusable with a different paired-corruption operator. |
+| R4 | Seed-3072 unseen-perturbation pilot | Four-task strongest-only formal pass complete; TwoRoom/Reacher positive, PushT weak/mixed, Cube neutral | Tests whether the protocol is Gaussian-specific or reusable with a different paired-corruption operator. |
 | R5 | Unseen-perturbation lockbox on new seeds | Conditional | Only needed if R4 shows interpretable signal and R3 is strong enough to justify expansion. |
 | R6 | Training-objective follow-up | Paper2 / future work | Existing negative controls make naive consistency losses unsafe for Paper1. |
 
 Recommended execution order:
 
 1. Finish R1.
-2. Run R4 on seed 3072 while R1 is finishing.
-3. Freeze the unseen-perturbation pilot protocol if R4 shows a usable signal.
-4. Apply R2 exactly as written to 3073/3074 once the artifacts exist.
-5. Decide whether R5 is worth the compute after seeing R3 and the R4 pilot.
+2. Treat R4 as complete for seed 3072 and freeze its strongest-only readout as
+   development evidence, not a paper-facing lockbox claim.
+3. Apply R2 exactly as written to 3073/3074 once the artifacts exist.
+4. Decide whether R5 is worth the compute after seeing R3 and the R4 pilot.
 
 ## 10. Seed-3072 Unseen-Perturbation Pilot
 
@@ -319,17 +319,38 @@ Do not claim cross-perturbation generality from this pilot alone.
 Fast smoke status (2026-06-29): a reduced `std=0.0` vs `std=0.08` check on
 PushT and TwoRoom used strongest-severity blur/resize only and `30 x 3` eval
 episodes. PushT showed little or no cross-stressor gain, while TwoRoom showed a
-large positive signal for `std=0.08` under both blur and resize. This justifies a
-formal strongest-stress `100 x 3` eval pass for `std=0.0` and `std=0.08`
-(no-op plus `gaussian_blur` kernel 15 and `resize` factor 0.25); it does not by
-itself justify a claim of general cross-perturbation robustness.
+large positive signal for `std=0.08` under both blur and resize. This justified
+the formal strongest-only pass below, but did not by itself justify a claim of
+general cross-perturbation robustness.
 
-TwoRoom formal strongest-stress result (2026-06-29): under `100 x 3` eval
-episodes, `std=0.08` improved `gaussian_blur` kernel-15 success from 41.00 to
-96.67 (+55.67 pp) and `resize` factor-0.25 success from 44.33 to 96.67 (+52.33
-pp), while origin success changed from 93.67 to 97.00 (+3.33 pp). This supports
-continuing the unseen-stressor pilot with Reacher and Cube, but it remains seed
-3072 development evidence until lockbox seeds are evaluated.
+Formal strongest-only status (2026-06-29): the four-task `std=0.0` vs
+`std=0.08` pass used `num_eval=300` total episodes (`100` per seed for eval seeds
+42/43/44), no-op plus `gaussian_blur` kernel 15 and `resize` factor 0.25. The
+review artifacts are
+`assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json` and
+`assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json`; together
+they cover all 16 task/std/family eval summaries with `missing=0`.
+
+| Task | Strongest stress | `std=0.0` | `std=0.08` | Stress delta | Origin delta | Drop improvement |
+|---|---:|---:|---:|---:|---:|---:|
+| TwoRoom | blur k=15 | 41.00 | 96.67 | +55.67 | +3.33 | +52.33 |
+| TwoRoom | resize 0.25 | 44.33 | 96.67 | +52.33 | +3.33 | +49.00 |
+| Reacher | blur k=15 | 19.00 | 69.67 | +50.67 | +16.00 | +34.67 |
+| Reacher | resize 0.25 | 44.67 | 74.33 | +29.67 | +16.00 | +13.67 |
+| Cube | blur k=15 | 53.67 | 51.00 | -2.67 | -4.67 | +2.00 |
+| Cube | resize 0.25 | 54.33 | 55.33 | +1.00 | -4.67 | +5.67 |
+| PushT | blur k=15 | 61.33 | 72.00 | +10.67 | +6.33 | +4.33 |
+| PushT | resize 0.25 | 71.67 | 75.67 | +4.00 | +6.00 | -2.00 |
+
+Interpretation: TwoRoom is the cleanest positive transfer signal: both unseen
+stressors move from roughly 40--45% to 96.67%, and origin performance also
+improves slightly. Reacher is also positive, but the origin checkpoint improves
+by +16.00 pp, so the more conservative robustness readout is the residual drop
+improvement: +34.67 pp under blur and +13.67 pp under resize. PushT is weak/mixed
+and Cube is effectively neutral under this protocol. The correct conclusion is
+task-dependent transfer on seed 3072, not a universal robustness recipe. Do not
+promote this to the main paper claim unless independent training seeds reproduce
+the TwoRoom/Reacher pattern.
 
 ## 11. Eval-Logic Recommendation
 

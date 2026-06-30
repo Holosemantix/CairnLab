@@ -113,23 +113,43 @@ factor 0.25), `30 x 3` eval episodes. The output artifact was
 clear cross-stressor gain (`std=0.08` vs `std=0.0`: blur +2.22 pp, resize 0.00
 pp), while TwoRoom showed a large positive smoke signal (blur +56.67 pp, resize
 +55.56 pp) with no clean-performance tradeoff. Treat this as a development smoke
-check only; the next eval pass should use `100 x 3` episodes and the dedicated
-`run_paper1_unseen_origin_vs_std008_eval.sh` launcher. The launcher intentionally
-runs only no-op plus strongest stress (`gaussian_blur=1,15`, `resize=1.0,0.25`)
-because the next question is whether `std=0.08` helps, not to estimate a full
-severity curve. It writes to a separate
+check only. The formal pass uses `num_eval=300` total episodes (`100` per seed
+for 3 eval seeds) and the dedicated
+`run_paper1_unseen_origin_vs_std008_eval.sh` launcher. The launcher
+intentionally runs only no-op plus strongest stress (`gaussian_blur=1,15`,
+`resize=1.0,0.25`) because the next question is whether `std=0.08` helps, not
+to estimate a full severity curve. It writes to a separate
 `paper1_unseen_origin_vs_std008_s3072_strongest_*` output prefix so fast-run rows
 do not mix with formal eval rows.
 
-TwoRoom formal strongest-stress pilot result (2026-06-29): `100 x 3` eval
-episodes, `std_max` in `{0.0, 0.08}`, no-op plus strongest stress only. The
-review artifact is `assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json`
-with manifest `assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom_manifest.json`.
-The `std=0.08` checkpoint preserved performance under both unseen stressors:
-`gaussian_blur` kernel 15 improved from 41.00 to 96.67 success (+55.67 pp), and
-`resize` factor 0.25 improved from 44.33 to 96.67 success (+52.33 pp), while
-origin performance changed from 93.67 to 97.00 (+3.33 pp). This is a strong
-seed-3072 development-pilot signal for TwoRoom, not a lockbox claim.
+Four-task formal strongest-only pilot result (2026-06-29): `num_eval=300` total
+episodes (`100` per seed for 3 eval seeds), `std_max` in `{0.0, 0.08}`, no-op
+plus strongest stress only. The review artifacts are
+`assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json` with
+`assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom_manifest.json`
+for TwoRoom, and `assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json`
+with `assets/paper1_data/unseen_origin_vs_std008_strongest_reacher_manifest.json`
+for Reacher/Cube/PushT. Both artifacts report `missing=0`; the primary stress
+groups are `pixels_blur_ks15` and `pixels_rs_factor0.25`.
+
+| Task | Strongest stress | `std=0.0` | `std=0.08` | Stress delta | Origin delta | Drop improvement |
+|---|---:|---:|---:|---:|---:|---:|
+| TwoRoom | blur k=15 | 41.00 | 96.67 | +55.67 | +3.33 | +52.33 |
+| TwoRoom | resize 0.25 | 44.33 | 96.67 | +52.33 | +3.33 | +49.00 |
+| Reacher | blur k=15 | 19.00 | 69.67 | +50.67 | +16.00 | +34.67 |
+| Reacher | resize 0.25 | 44.67 | 74.33 | +29.67 | +16.00 | +13.67 |
+| Cube | blur k=15 | 53.67 | 51.00 | -2.67 | -4.67 | +2.00 |
+| Cube | resize 0.25 | 54.33 | 55.33 | +1.00 | -4.67 | +5.67 |
+| PushT | blur k=15 | 61.33 | 72.00 | +10.67 | +6.33 | +4.33 |
+| PushT | resize 0.25 | 71.67 | 75.67 | +4.00 | +6.00 | -2.00 |
+
+Interpretation: TwoRoom is a strong positive seed-3072 pilot signal. Reacher is
+also positive, but part of the gain is a better origin checkpoint, so the
+drop-improvement columns are the cleaner robustness readout. PushT is weak/mixed
+and Cube is effectively neutral under this strongest-only check. This supports a
+task-dependent transfer reading, not a universal cross-perturbation robustness
+claim; keep it out of paper-facing claims until independent training seeds are
+evaluated.
 
 Optional PLDM sanity plots can use the same runner without changing paper-facing claims:
 

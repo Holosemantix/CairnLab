@@ -45,35 +45,35 @@
 
 设一次 MPC/CEM 评估中从 proposal distribution `q` 采样了 \(K\) 个 candidate action sequences：
 
-\[
+$$
 \mathcal A = \{\mathbf a^1,\ldots,\mathbf a^K\}\sim q^K.
-\]
+$$
 
 对每个 candidate 定义 rollout discrepancy：
 
-\[
+$$
 D_j = d_H\!\left(
 \Pi(F^{1:H}(E(h),\mathbf a^j)),
 \Pi(F^{1:H}(E(\tilde h),\mathbf a^j))
 \right).
-\]
+$$
 
 假设 cost readout \(J\) 在该 neighborhood 上是 \(L_J\)-Lipschitz，并且对单个 sampled candidate 有 tail bound：
 
-\[
+$$
 \Pr_{\mathbf a\sim q}[D(\mathbf a)>\epsilon] \le \delta.
-\]
+$$
 
 令 sampled pool 上 clean branch 的 top-1/top-2 margin 为：
 
-\[
+$$
 \Delta_{\mathcal A}
 = C_h(\mathbf a^{(2)},g)-C_h(\mathbf a^{(1)},g).
-\]
+$$
 
 则一次 sampled candidate-pool top-1 选择在 clean/noisy branches 间发生 flip 的概率满足：
 
-\[
+$$
 \Pr_{\mathcal A}\!\left[
 \arg\min_j C_h(\mathbf a^j,g)
 \neq
@@ -81,7 +81,7 @@ D_j = d_H\!\left(
 \right]
 \le
 K\delta + \Pr_{\mathcal A}[\Delta_{\mathcal A}\le 2L_J\epsilon].
-\]
+$$
 
 证明思路：
 
@@ -109,15 +109,15 @@ K\delta + \Pr_{\mathcal A}[\Delta_{\mathcal A}\le 2L_J\epsilon].
 
 如果第 \(t\) 次 replanning 的 sampled-pool flip probability 上界为
 
-\[
+$$
 r_t = K_t\delta_t + \Pr[\Delta_{\mathcal A_t}\le 2L_J\epsilon_t],
-\]
+$$
 
 则在 \(T\) 次 replanning 中至少一次 action selection flip 的概率满足：
 
-\[
+$$
 \Pr[\exists t\le T: \text{flip at }t] \le \sum_{t=1}^T r_t.
-\]
+$$
 
 如果想再加环境动力学 deviation bound，可放 appendix，不建议主文展开。
 
@@ -135,21 +135,21 @@ r_t = K_t\delta_t + \Pr[\Delta_{\mathcal A_t}\le 2L_J\epsilon_t],
 
 令
 
-\[
+$$
 G_{\mathbf a}(z)=\Pi(F^{1:H}(z,\mathbf a)).
-\]
+$$
 
 对 pixel noise \(\xi\sim\mathcal N(0,\sigma^2 I)\)，设 \(\tilde o=o+\xi\)。若 \(E\) 和 \(G_{\mathbf a}\) 在局部可微且二阶项有界，则小噪声下：
 
-\[
+$$
 G_{\mathbf a}(E(o+\xi))-G_{\mathbf a}(E(o))
 \approx
 J_{G_{\mathbf a}}(E(o))J_E(o)\xi.
-\]
+$$
 
 因此：
 
-\[
+$$
 \mathbb E_{\xi}\left[
 \left\|G_{\mathbf a}(E(o+\xi))-G_{\mathbf a}(E(o))\right\|_2^2
 \right]
@@ -157,7 +157,7 @@ J_{G_{\mathbf a}}(E(o))J_E(o)\xi.
 \sigma^2
 \left\|J_{G_{\mathbf a}}(E(o))J_E(o)\right\|_F^2
 + O(\sigma^3).
-\]
+$$
 
 主文解释：
 
@@ -178,24 +178,24 @@ J_{G_{\mathbf a}}(E(o))J_E(o)\xi.
 
 令 nuisance perturbation directions 为 \(\mathcal N\)，semantic/action-relevant directions 为 \(\mathcal S\)。理想选择性目标不是让全部 sensitivity 下降，而是：
 
-\[
+$$
 \|J_{G_{\mathbf a}}J_E v\| \text{ small for } v\in\mathcal N,
-\]
+$$
 
 同时对 action-relevant state difference \(u\in\mathcal S\)：
 
-\[
+$$
 \|G_{\mathbf a}(E(s+u))-G_{\mathbf a}(E(s))\| > m.
-\]
+$$
 
 将其连接到 empirical pass event：
 
-\[
+$$
 M = \mathbf 1\left[
  d_{\mathrm{semantic\ diff}}
  > d_{\mathrm{same\ state\ noise}} + \delta_m
 \right].
-\]
+$$
 
 当前主文表格用 \(\delta_m=0\)。建议在文中明确说这是 **state-proxy semantic margin**，不是 oracle semantic proof。
 
@@ -205,16 +205,16 @@ M = \mathbf 1\left[
 
 若 \(n\) 个 sampled pairs 的 empirical pass-rate 为 \(\hat p\)，独立抽样近似下 Hoeffding 给出：
 
-\[
+$$
 p \ge \hat p - \sqrt{\frac{\log(1/\alpha)}{2n}}
 \quad \text{with probability } 1-\alpha.
-\]
+$$
 
 如果每 task/endpoint 聚合三训练种子，每种子 100 pairs，则 \(n=300\)。当 \(\hat p=1.00\)、\(\alpha=0.05\) 时：
 
-\[
+$$
 1-\sqrt{\frac{\log 20}{600}} \approx 0.929.
-\]
+$$
 
 推荐写法：
 
@@ -228,27 +228,27 @@ p \ge \hat p - \sqrt{\frac{\log(1/\alpha)}{2n}}
 
 One-step 情况下，定义：
 
-\[
+$$
 \hat z_{t+1}=F(E(h_t),a_t), \quad
 \hat{\tilde z}_{t+1}=F(E(\tilde h_t),a_t),
-\]
+$$
 
 clean/noisy target latents：
 
-\[
+$$
 z_{t+1}=E(h_{t+1}), \quad
 \tilde z_{t+1}=E(\tilde h_{t+1}).
-\]
+$$
 
 由三角不等式：
 
-\[
+$$
 d(\hat z_{t+1},\hat{\tilde z}_{t+1})
 \le
  d(\hat z_{t+1},z_{t+1})
  + d(z_{t+1},\tilde z_{t+1})
  + d(\tilde z_{t+1},\hat{\tilde z}_{t+1}).
-\]
+$$
 
 解释：
 

@@ -21,12 +21,12 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 
 | 脚本 | 作用 | 输入 | 输出 / 用途 |
 |---|---|---|---|
-| `tools/paper1_figs.py` | 渲染主文中由脚本生成的图 | `assets/paper1_data/canonical_evals_20260517.json`, `assets/paper1_data/canonical_diagnostics_20260517.json` | 默认输出 `assets/paper1_figs/fig2_sweep.png`, `fig5_scatter.png`；已下线的 `fig3_pareto.png`, `fig4_radar.png`, `fig6_mechanism.png` 仍可用 `--only` 生成但当前不进正文 |
+| `tools/paper1_figs.py` | 渲染主文中由脚本生成的图 | `assets/paper1_data/canonical_evals_20260517.json`, `assets/paper1_data/canonical_diagnostics_20260517.json` | 默认只输出 `assets/paper1_figs/fig2_sweep.png`；已下线的 `fig3_pareto.png`, `fig4_radar.png`, `fig5_scatter.png`, `fig6_mechanism.png` 仍可用 `--only` 生成但当前不进正文 |
 | `tools/build_partial_corr_bootstrap.py` | 为 partial Spearman 相关计算 95% percentile bootstrap CI | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/partial_corr_bootstrap_20260523.json`，用于主文 partial-correlation tables 和 PLDM appendix |
 | `tools/pldm_correlation_analysis.py` | 复算 LeWM/PLDM within-method 与 joint partial correlation | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/cross_method_corr_pldm_20260522.json`，用于 PLDM appendix 和 consistency checker |
 | `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / prediction radius / contraction | LeWM/PLDM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；PLDM appendix 的 full-sweep replication 用 `assets/paper1_data/acpc_basin_diagnostics_pldm.json` |
 | `tools/paper1_phase0_acpc.py` | 低频 paired ACPC 诊断 runner：ACPC-1/H、PCC、CRA、MAF、ADM proxy、SPRR | LeWM/PLDM canonical eval manifest + 本地 loadable model checkpoints | `assets/paper1_data/acpc_phase0_clean_goal_seed9101.json`；当前 Phase-0 appendix source，旧 `acpc_phase0_diagnostics.json` 仅作 observation+goal archived sanity |
-| `tools/paper1_selective_contraction.py` | Phase-1 前的 selective-contraction branch probe；可选渲染同 state clean/noised cluster 图 | ACPC basin + Phase-0 diagnostics；plot 模式还需要本地 checkpoint/data | `assets/paper1_data/selective_contraction_fullseq_branch.*`；cluster 图默认输出到 `assets/phase1_figs/selective_contraction_clusters/`，paper-facing 输出可用 `--cluster-out-dir assets/paper1_figs` 生成 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；用 repeated perturbation samples，默认用 fixed-seed random anchors 选点并绘制低权重的 90% 2-D covariance ellipse，只作 qualitative visualization |
+| `tools/paper1_selective_contraction.py` | Phase-1 前的 selective-contraction branch probe；可选渲染同 state clean/noised rollout cluster 图 | ACPC basin + Phase-0 diagnostics；plot 模式还需要本地 checkpoint/data | `assets/paper1_data/selective_contraction_fullseq_branch.*`；cluster 图默认输出到 `assets/phase1_figs/selective_contraction_clusters/`，paper-facing 输出可用 `--cluster-out-dir assets/paper1_figs` 生成 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；用 repeated perturbation samples，默认用 fixed-seed random anchors 选点并绘制低权重的 90% 2-D covariance ellipse，只作 qualitative visualization |
 | `tools/paper1_unseen_eval_grid.py` / `run_paper1_unseen_origin_vs_std008_seeded.sh` | unseen-perturbation pilot / lockbox launcher；只包装 `run_trainer.sh`，默认 eval-only，按需加 `--diagnostics` | canonical eval JSON or seed-remapped temporary canonical + `$DATA_ROOT/lewm-*/ckpt/*epoch_10_object.ckpt` | seed-specific `unseen_origin_vs_std008_strongest_s<seed>*.json` review artifacts |
 | `tools/build_paper1_unseen_eval_artifact.py` | 汇总 unseen-perturbation pilot 的 `eval_summary.csv` 和可选 diagnostics summary | `tools/paper1_unseen_eval_grid.py` 写出的 manifest + 本地 eval 输出 | `assets/paper1_data/unseen_perturbation_pilot_seed3072.json`；进入正文前必须人工审查 |
 
@@ -74,6 +74,8 @@ python -m tools.paper1_selective_contraction \
   --n-sequences 128 --cluster-anchor-count 16 \
   --view-stds 0.0 0.01 0.04 0.08 \
   --cluster-perturb-repeats 6 \
+  --feature-cache-dir /tmp/paper1_selective_contraction_cache \
+  --cluster-out-dir assets/paper1_figs \
   --cluster-envelope ellipse --cluster-envelope-coverage 0.90
 
 DATA_ROOT=/path/to/world_model/quentinll \
@@ -98,6 +100,8 @@ ACPC basin runner 默认只接受 Gaussian-noise corruption specs，并使用 de
 Phase 0 ACPC runner 的 `--dry-run` 只解析 manifest 和 checkpoint 路径，不需要 `torch`；shell wrapper `run_phase0_acpc.sh --dry-run` 输出到 `/tmp/acpc_phase0_dry_run.json`，避免覆盖 canonical artifact。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 canonical eval 里的 `path` 或 `--model-root` 下存在可 `torch.load` 的 model object checkpoint。当前 ADM 是 action-distance latent proxy，不是 oracle state/keypoint ADM。
 
 Selective-contraction cluster plots are paper-facing qualitative illustrations, not standalone proof. The default paper-facing path selects colored anchors by a fixed-seed random subset and writes the selected indices to the sidecar JSON; neither t-SNE coordinates nor high-D statistics are used for anchor selection. The small panel summaries (`median r/NN`, `r < NN`, `disjoint balls`) are computed in the original high-D feature space and must not be replaced by bottom-of-figure screenshot tables or in-axis legend boxes. The low-opacity 90% covariance ellipses are 2-D t-SNE visual summaries only, not high-D basin boundaries. Use `--cluster-envelope none` for point-only audits, `--cluster-envelope circle` only to reproduce the legacy max-distance circle view, and `--cluster-envelope hull` only as a sample hull.
+
+For label/style-only redraws of these figures, pass `--feature-cache-dir /tmp/paper1_selective_contraction_cache`. The first run writes cached encoder/8-step-rollout feature arrays keyed by task, method, checkpoints, view stds, seed, and rendering sample parameters; later runs with the same parameters reuse the cache and do not reload checkpoints. Use `--refresh-feature-cache` only when the checkpoints, sampled windows, or feature-extraction parameters intentionally change. Do not commit the cache directory.
 
 The unseen-perturbation pilot is deliberately staged. Run
 `paper1_unseen_eval_grid.py` without `--diagnostics` first to test closed-loop
@@ -145,11 +149,10 @@ groups are `pixels_blur_ks15` and `pixels_rs_factor0.25`.
 
 Interpretation: TwoRoom is a strong positive seed-3072 pilot signal. Reacher is
 also positive, but part of the gain is a better origin checkpoint, so the
-drop-improvement columns are the cleaner robustness readout. PushT is weak/mixed
-and Cube is effectively neutral under this strongest-only check. This supports a
-task-dependent transfer reading, not a universal cross-perturbation robustness
-claim; keep it out of paper-facing claims until independent training seeds are
-evaluated.
+drop-improvement columns are the cleaner robustness readout. PushT and Cube have score movements small enough to read as no clear effect
+under this strongest-only check. This supports a task-dependent transfer reading,
+not a universal cross-perturbation robustness claim; keep it out of paper-facing
+claims until independent training seeds are evaluated.
 
 Seed-3073/3074 strongest-only lockbox result (2026-07-03): both independent
 training seeds completed the same four-task pass through
@@ -158,10 +161,10 @@ training seeds completed the same four-task pass through
 `assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json` with
 `missing=0`. Averaged across the two seeds, TwoRoom remains strongly positive
 under blur and resize (stress delta about +37 pp), Reacher remains strongly
-positive (+42.58 pp averaged across the two families), PushT is weak/mixed
-(+4.00 pp averaged, with one negative resize row), and Cube is neutral to
-slightly negative (-1.08 pp averaged). Treat these artifacts as bounded
-cross-stressor development evidence, not universal robustness.
+positive (+42.58 pp averaged across the two families), while PushT (+4.00 pp
+averaged, with one negative resize row) and Cube (-1.08 pp averaged) should be
+read as no clear effect at this evaluation variance. Treat these artifacts as
+bounded cross-stressor development evidence, not universal robustness.
 
 Representative unseen Phase-0 ACPC subset (2026-07-03):
 `run_paper1_unseen_phase0_acpc_subset.sh` reruns clean-goal Phase-0 paired
@@ -170,8 +173,9 @@ ACPC/PCC/CRA/MAF on selected positive and boundary cases, then
 completed unseen eval artifacts. The artifact is
 `assets/paper1_data/unseen_phase0_acpc_subset.json` (`missing=0`, 8 case rows /
 16 diagnostic rows). TwoRoom blur and Reacher blur show score gains and
-diagnostic improvements in the same direction; Cube resize remains a negative
-boundary; PushT resize is seed-sensitive and therefore stays mixed.
+diagnostic improvements in the same direction; Cube resize and PushT resize
+remain no-clear-effect boundary cases rather than negative or mixed-transfer
+claims.
 
 Optional PLDM sanity plots can use the same runner without changing paper-facing claims:
 
@@ -180,6 +184,7 @@ python -m tools.paper1_selective_contraction \
   --method PLDM \
   --acpc-basin assets/paper1_data/acpc_basin_diagnostics_pldm.json \
   --plot-clusters --plot-tasks PushT \
+  --feature-cache-dir /tmp/paper1_selective_contraction_cache \
   --cluster-out-dir assets/phase1_figs/selective_contraction_clusters \
   --cluster-envelope ellipse --cluster-envelope-coverage 0.90
 ```
@@ -194,6 +199,7 @@ STABLEWM_HOME=<dataset-root> python -m tools.paper1_selective_contraction \
   --n-sequences 128 --cluster-anchor-count 16 \
   --view-stds 0.0 0.01 0.04 0.08 \
   --cluster-perturb-repeats 6 \
+  --feature-cache-dir /tmp/paper1_selective_contraction_cache \
   --cluster-out-dir assets/paper1_figs \
   --cluster-envelope ellipse --cluster-envelope-coverage 0.90
 ```
@@ -205,6 +211,7 @@ STABLEWM_HOME=<dataset-root> python -m tools.paper1_selective_contraction \
   --plot-atlas --plot-tasks PushT \
   --n-sequences 128 --atlas-anchor-count 16 \
   --view-stds 0.0 0.01 0.04 0.08 \
+  --feature-cache-dir /tmp/paper1_selective_contraction_cache \
   --atlas-out-dir assets/paper1_figs
 ```
 
@@ -223,7 +230,7 @@ $DATA_ROOT
 | 脚本 | 作用 | 输出 |
 |---|---|---|
 | `tools/build_canonical_evals_pldm.py` | 从 PLDM 4 tasks x 9 checkpoints 的 `eval_results` 聚合 unperturbed（artifact key: `clean`）/ goal / observation-noise / observation+goal eval，3 evaluation seeds x 100 trajectories，population std | `assets/paper1_data/canonical_evals_pldm_20260522.json` |
-| `tools/build_canonical_diagnostics_pldm.py` | 聚合 PLDM full-coverage predictor metrics：fragility ratio 和 T8 drift | `assets/paper1_data/canonical_diagnostics_pldm_20260522.json` |
+| `tools/build_canonical_diagnostics_pldm.py` | 聚合 PLDM full-coverage predictor metrics：fragility ratio 和 8-step rollout drift | `assets/paper1_data/canonical_diagnostics_pldm_20260522.json` |
 | `tools/build_canonical_full_diagnostics_pldm.py` | 聚合 PLDM five-layer diagnostics summary rows，并生成 schema | `assets/paper1_data/canonical_full_diagnostics_pldm_20260523.json` |
 | `tools/build_canonical_blur_baselines.py` | 聚合 LeWM/PLDM no-noise baseline 的 blur eval-only 结果 | `assets/paper1_data/canonical_blur_baselines_20260523.json` |
 

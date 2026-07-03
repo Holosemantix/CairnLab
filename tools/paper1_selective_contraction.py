@@ -9,7 +9,7 @@ perturbed-target checkpoints:
 
 The default path only reads released JSON artifacts and writes a compact branch
 table.  The optional plotting paths load checkpoints and dataset windows to
-render real encoder/predictor feature clouds, so they are eval-only but not
+render real encoder/rollout feature clouds, so they are eval-only but not
 artifact-only.  Cluster envelopes are visualization summaries in a 2-D
 projection; the printed panel statistics remain the high-D evidence.
 """
@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import math
 from dataclasses import dataclass
@@ -271,7 +272,7 @@ def _readable_conclusion(
     adm_best: float,
 ) -> str:
     same_state = (
-        "same-state encoder/predictor radii contract"
+        "same-state encoder/rollout radii contract"
         if re_best < re_base and rf_best < rf_base
         else "same-state radius contraction is not monotone"
     )
@@ -891,6 +892,95 @@ def _extract_view_features(
     return np.stack(encoder_views, axis=0), np.stack(predictor_views, axis=0)
 
 
+def _feature_cache_metadata(
+    *,
+    task: str,
+    summary: Mapping[str, Any],
+    acpc_basin_path: Path,
+    specs: Sequence[CkptSpec],
+    n_sequences: int,
+    view_stds: Sequence[float],
+    rollout_horizon: int,
+    seed: int,
+    img_size: int,
+    frameskip: int,
+) -> dict[str, Any]:
+    spec_meta = []
+    for spec in specs:
+        stat = spec.model_file.stat() if spec.model_file.exists() else None
+        spec_meta.append(
+            {
+                "label": spec.label,
+                "task": spec.task,
+                "std_key": spec.std_key,
+                "subdir": spec.subdir,
+                "model_file": str(spec.model_file),
+                "model_size": None if stat is None else int(stat.st_size),
+                "model_mtime_ns": None if stat is None else int(stat.st_mtime_ns),
+            }
+        )
+    return {
+        "schema_version": "paper1-selective-contraction-features-0.1",
+        "task": task,
+        "method": str(summary.get("metadata", {}).get("method", "LeWM")),
+        "branch": _branch_slug(summary),
+        "acpc_basin": _artifact_path(acpc_basin_path),
+        "n_sequences": int(n_sequences),
+        "view_stds": [float(x) for x in view_stds],
+        "rollout_horizon": int(rollout_horizon),
+        "seed": int(seed),
+        "img_size": int(img_size),
+        "frameskip": int(frameskip),
+        "specs": spec_meta,
+    }
+
+
+def _feature_cache_path(cache_dir: Path, metadata: Mapping[str, Any]) -> Path:
+    payload = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha1(payload.encode("utf-8")).hexdigest()[:12]
+    task = str(metadata["task"]).lower()
+    method = str(metadata["method"]).lower()
+    branch = str(metadata["branch"]).lower()
+    return cache_dir / f"{task}_{method}_{branch}_features_{digest}.npz"
+
+
+def _load_feature_cache(
+    path: Path, metadata: Mapping[str, Any]
+) -> dict[str, dict[str, np.ndarray]] | None:
+    if not path.exists():
+        return None
+    with np.load(path, allow_pickle=False) as data:
+        stored = json.loads(str(data["metadata"].item()))
+        if stored != dict(metadata):
+            return None
+        return {
+            "base": {
+                "encoder": np.asarray(data["base_encoder"]),
+                "predictor": np.asarray(data["base_predictor"]),
+            },
+            "fullseq_robust": {
+                "encoder": np.asarray(data["fullseq_robust_encoder"]),
+                "predictor": np.asarray(data["fullseq_robust_predictor"]),
+            },
+        }
+
+
+def _write_feature_cache(
+    path: Path,
+    metadata: Mapping[str, Any],
+    encoded: Mapping[str, Mapping[str, np.ndarray]],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        path,
+        metadata=np.asarray(json.dumps(metadata, sort_keys=True)),
+        base_encoder=np.asarray(encoded["base"]["encoder"]),
+        base_predictor=np.asarray(encoded["base"]["predictor"]),
+        fullseq_robust_encoder=np.asarray(encoded["fullseq_robust"]["encoder"]),
+        fullseq_robust_predictor=np.asarray(encoded["fullseq_robust"]["predictor"]),
+    )
+
+
 def _load_task_features(
     *,
     task: str,
@@ -903,10 +993,33 @@ def _load_task_features(
     device: str | None,
     img_size: int,
     frameskip: int,
+    feature_cache_dir: Path | None,
+    refresh_feature_cache: bool,
 ) -> tuple[dict[str, dict[str, np.ndarray]], list[CkptSpec]]:
-    phase0 = _ensure_runtime_deps()
     device_value = device or "cpu"
     specs = _checkpoint_specs(task=task, summary=summary, acpc_basin_path=acpc_basin_path)
+    cache_path: Path | None = None
+    if feature_cache_dir is not None:
+        metadata = _feature_cache_metadata(
+            task=task,
+            summary=summary,
+            acpc_basin_path=acpc_basin_path,
+            specs=specs,
+            n_sequences=n_sequences,
+            view_stds=view_stds,
+            rollout_horizon=rollout_horizon,
+            seed=seed,
+            img_size=img_size,
+            frameskip=frameskip,
+        )
+        cache_path = _feature_cache_path(feature_cache_dir, metadata)
+        if not refresh_feature_cache:
+            cached = _load_feature_cache(cache_path, metadata)
+            if cached is not None:
+                print(f"[selective-contraction] loaded feature cache {cache_path}")
+                return cached, specs
+
+    phase0 = _ensure_runtime_deps()
 
     encoded: dict[str, dict[str, np.ndarray]] = {}
     batch_cache: dict[tuple[int, int], Mapping[str, Any]] = {}
@@ -942,6 +1055,9 @@ def _load_task_features(
                 embedding_space=embedding_space,
             )
             encoded[spec.label] = {"encoder": enc, "predictor": pred}
+    if cache_path is not None:
+        _write_feature_cache(cache_path, metadata, encoded)
+        print(f"[selective-contraction] wrote feature cache {cache_path}")
     return encoded, specs
 
 
@@ -958,6 +1074,8 @@ def render_2d_task(
     device: str | None,
     img_size: int,
     frameskip: int,
+    feature_cache_dir: Path | None,
+    refresh_feature_cache: bool,
     anchor_count: int,
 ) -> Path:
     plt = _ensure_plot_deps()
@@ -972,6 +1090,8 @@ def render_2d_task(
         device=device,
         img_size=img_size,
         frameskip=frameskip,
+        feature_cache_dir=feature_cache_dir,
+        refresh_feature_cache=refresh_feature_cache,
     )
 
     enc_pca = _pca_fit_transform_2d([encoded["base"]["encoder"], encoded["fullseq_robust"]["encoder"]])
@@ -993,9 +1113,9 @@ def render_2d_task(
     fig, axes = plt.subplots(2, 2, figsize=(13.5, 10.5), sharex="col", sharey="col")
     panels = [
         ("base", "encoder_2d", "Encoder features"),
-        ("base", "predictor_2d", "Predictor H8 features"),
+        ("base", "predictor_2d", "8-step rollout features"),
         ("fullseq_robust", "encoder_2d", "Encoder features"),
-        ("fullseq_robust", "predictor_2d", "Predictor H8 features"),
+        ("fullseq_robust", "predictor_2d", "8-step rollout features"),
     ]
     for ax, (label, feature, title) in zip(axes.reshape(-1), panels):
         arr = encoded[label][feature]
@@ -1051,6 +1171,8 @@ def render_atlas_task(
     device: str | None,
     img_size: int,
     frameskip: int,
+    feature_cache_dir: Path | None,
+    refresh_feature_cache: bool,
     anchor_count: int,
     neighbor_count: int,
 ) -> Path:
@@ -1066,6 +1188,8 @@ def render_atlas_task(
         device=device,
         img_size=img_size,
         frameskip=frameskip,
+        feature_cache_dir=feature_cache_dir,
+        refresh_feature_cache=refresh_feature_cache,
     )
 
     anchors = _select_spread_anchors(encoded["fullseq_robust"]["predictor"][0], anchor_count)
@@ -1073,7 +1197,7 @@ def render_atlas_task(
     label_by_spec = _display_labels(summary, specs[1].std_key)
     feature_by_name = {
         "encoder": "Encoder",
-        "predictor": "Predictor H8",
+        "predictor": "8-step rollout",
     }
 
     fig, axes = plt.subplots(2, 2, figsize=(7.4, 7.2))
@@ -1129,6 +1253,8 @@ def render_cluster_task(
     device: str | None,
     img_size: int,
     frameskip: int,
+    feature_cache_dir: Path | None,
+    refresh_feature_cache: bool,
     anchor_count: int,
     perplexity: float,
     tsne_max_iter: int,
@@ -1150,12 +1276,14 @@ def render_cluster_task(
         device=device,
         img_size=img_size,
         frameskip=frameskip,
+        feature_cache_dir=feature_cache_dir,
+        refresh_feature_cache=refresh_feature_cache,
     )
 
     label_by_spec = _display_labels(summary, specs[1].std_key)
     feature_by_name = {
         "encoder": "Encoder features",
-        "predictor": "Predictor H8 features",
+        "predictor": "8-step rollout features",
     }
     panels = [
         ("base", "encoder"),
@@ -1274,7 +1402,7 @@ def render_cluster_task(
         ax.grid(True, color="#EEEEEE", linewidth=0.45)
         ax.set_aspect("equal", adjustable="box")
     fig.suptitle(
-        f"{task}: same-state perturbation clusters in encoder and H8 predictor spaces",
+        f"{task}: same-state perturbation clusters in encoder and 8-step rollout spaces",
         y=0.975,
         fontsize=9.2,
     )
@@ -1343,6 +1471,8 @@ def render_3d_task(
     device: str | None,
     img_size: int,
     frameskip: int,
+    feature_cache_dir: Path | None,
+    refresh_feature_cache: bool,
     anchor_count: int,
 ) -> Path:
     plt = _ensure_plot_deps()
@@ -1357,6 +1487,8 @@ def render_3d_task(
         device=device,
         img_size=img_size,
         frameskip=frameskip,
+        feature_cache_dir=feature_cache_dir,
+        refresh_feature_cache=refresh_feature_cache,
     )
 
     enc_pca = _pca_fit_transform([encoded["base"]["encoder"], encoded["fullseq_robust"]["encoder"]])
@@ -1396,9 +1528,9 @@ def render_3d_task(
     fig = plt.figure(figsize=(12, 9))
     panels = [
         ("base", "encoder_3d", "Encoder"),
-        ("base", "predictor_3d", "Predictor H8"),
+        ("base", "predictor_3d", "8-step rollout"),
         ("fullseq_robust", "encoder_3d", "Encoder"),
-        ("fullseq_robust", "predictor_3d", "Predictor H8"),
+        ("fullseq_robust", "predictor_3d", "8-step rollout"),
     ]
     for i, (label, feature, title) in enumerate(panels, start=1):
         ax = fig.add_subplot(2, 2, i, projection="3d")
@@ -1490,6 +1622,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--device", default=None, help="Default: cpu, to avoid interfering with active training.")
     p.add_argument("--img-size", type=int, default=224)
     p.add_argument("--frameskip", type=int, default=5)
+    p.add_argument(
+        "--feature-cache-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Optional directory for cached encoder/rollout feature arrays. "
+            "Use this for label/style-only redraws without reloading checkpoints."
+        ),
+    )
+    p.add_argument(
+        "--refresh-feature-cache",
+        action="store_true",
+        help="Recompute and overwrite feature cache entries instead of reusing them.",
+    )
     p.add_argument("--anchor-count", type=int, default=8)
     p.add_argument("--cluster-anchor-count", type=int, default=24)
     p.add_argument("--cluster-perplexity", type=float, default=35.0)
@@ -1533,6 +1679,8 @@ def main() -> None:
                 device=args.device,
                 img_size=args.img_size,
                 frameskip=args.frameskip,
+                feature_cache_dir=args.feature_cache_dir,
+                refresh_feature_cache=args.refresh_feature_cache,
                 anchor_count=args.anchor_count,
             )
             print(f"[selective-contraction] wrote {out}")
@@ -1551,6 +1699,8 @@ def main() -> None:
                 device=args.device,
                 img_size=args.img_size,
                 frameskip=args.frameskip,
+                feature_cache_dir=args.feature_cache_dir,
+                refresh_feature_cache=args.refresh_feature_cache,
                 anchor_count=args.atlas_anchor_count,
                 neighbor_count=args.atlas_neighbor_count,
             )
@@ -1570,6 +1720,8 @@ def main() -> None:
                 device=args.device,
                 img_size=args.img_size,
                 frameskip=args.frameskip,
+                feature_cache_dir=args.feature_cache_dir,
+                refresh_feature_cache=args.refresh_feature_cache,
                 anchor_count=args.cluster_anchor_count,
                 perplexity=args.cluster_perplexity,
                 tsne_max_iter=args.cluster_tsne_max_iter,
@@ -1594,6 +1746,8 @@ def main() -> None:
                 device=args.device,
                 img_size=args.img_size,
                 frameskip=args.frameskip,
+                feature_cache_dir=args.feature_cache_dir,
+                refresh_feature_cache=args.refresh_feature_cache,
                 anchor_count=args.anchor_count,
             )
             print(f"[selective-contraction] wrote {out}")

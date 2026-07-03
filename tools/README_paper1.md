@@ -27,7 +27,7 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 | `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / prediction radius / contraction | LeWM/PLDM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；PLDM appendix 的 full-sweep replication 用 `assets/paper1_data/acpc_basin_diagnostics_pldm.json` |
 | `tools/paper1_phase0_acpc.py` | 低频 paired ACPC 诊断 runner：ACPC-1/H、PCC、CRA、MAF、ADM proxy、SPRR | LeWM/PLDM canonical eval manifest + 本地 loadable model checkpoints | `assets/paper1_data/acpc_phase0_clean_goal_seed9101.json`；当前 Phase-0 appendix source，旧 `acpc_phase0_diagnostics.json` 仅作 observation+goal archived sanity |
 | `tools/paper1_selective_contraction.py` | Phase-1 前的 selective-contraction branch probe；可选渲染同 state clean/noised cluster 图 | ACPC basin + Phase-0 diagnostics；plot 模式还需要本地 checkpoint/data | `assets/paper1_data/selective_contraction_fullseq_branch.*`；cluster 图默认输出到 `assets/phase1_figs/selective_contraction_clusters/`，paper-facing 输出可用 `--cluster-out-dir assets/paper1_figs` 生成 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；用 repeated perturbation samples，默认用 fixed-seed random anchors 选点并绘制低权重的 90% 2-D covariance ellipse，只作 qualitative visualization |
-| `tools/paper1_unseen_eval_grid.py` | Seed-3072 unseen-perturbation pilot launcher；只包装 `run_trainer.sh`，默认 eval-only，按需加 `--diagnostics` | `assets/paper1_data/canonical_evals_20260517.json` + `$DATA_ROOT/lewm-*/ckpt/*epoch_10_object.ckpt` | `assets/paper1_data/unseen_perturbation_pilot_seed3072_manifest.json` |
+| `tools/paper1_unseen_eval_grid.py` / `run_paper1_unseen_origin_vs_std008_seeded.sh` | unseen-perturbation pilot / lockbox launcher；只包装 `run_trainer.sh`，默认 eval-only，按需加 `--diagnostics` | canonical eval JSON or seed-remapped temporary canonical + `$DATA_ROOT/lewm-*/ckpt/*epoch_10_object.ckpt` | seed-specific `unseen_origin_vs_std008_strongest_s<seed>*.json` review artifacts |
 | `tools/build_paper1_unseen_eval_artifact.py` | 汇总 unseen-perturbation pilot 的 `eval_summary.csv` 和可选 diagnostics summary | `tools/paper1_unseen_eval_grid.py` 写出的 manifest + 本地 eval 输出 | `assets/paper1_data/unseen_perturbation_pilot_seed3072.json`；进入正文前必须人工审查 |
 
 常用重生成命令：
@@ -150,6 +150,28 @@ and Cube is effectively neutral under this strongest-only check. This supports a
 task-dependent transfer reading, not a universal cross-perturbation robustness
 claim; keep it out of paper-facing claims until independent training seeds are
 evaluated.
+
+Seed-3073/3074 strongest-only lockbox result (2026-07-03): both independent
+training seeds completed the same four-task pass through
+`run_paper1_unseen_origin_vs_std008_seeded.sh`, producing
+`assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json` and
+`assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json` with
+`missing=0`. Averaged across the two seeds, TwoRoom remains strongly positive
+under blur and resize (stress delta about +37 pp), Reacher remains strongly
+positive (+42.58 pp averaged across the two families), PushT is weak/mixed
+(+4.00 pp averaged, with one negative resize row), and Cube is neutral to
+slightly negative (-1.08 pp averaged). Treat these artifacts as bounded
+cross-stressor development evidence, not universal robustness.
+
+Representative unseen Phase-0 ACPC subset (2026-07-03):
+`run_paper1_unseen_phase0_acpc_subset.sh` reruns clean-goal Phase-0 paired
+ACPC/PCC/CRA/MAF on selected positive and boundary cases, then
+`tools/build_paper1_unseen_phase0_acpc_subset.py` joins those rows with the
+completed unseen eval artifacts. The artifact is
+`assets/paper1_data/unseen_phase0_acpc_subset.json` (`missing=0`, 8 case rows /
+16 diagnostic rows). TwoRoom blur and Reacher blur show score gains and
+diagnostic improvements in the same direction; Cube resize remains a negative
+boundary; PushT resize is seed-sensitive and therefore stays mixed.
 
 Optional PLDM sanity plots can use the same runner without changing paper-facing claims:
 

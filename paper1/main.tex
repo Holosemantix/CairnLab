@@ -827,6 +827,7 @@ partial-correlation bootstrap artifact & \codebrk{assets/paper1\_data/partial\_c
 LeWM ACPC-basin artifact & \codebrk{assets/paper1\_data/acpc\_basin\_diagnostics.json} \\
 PLDM ACPC-basin artifact & \codebrk{assets/paper1\_data/acpc\_basin\_diagnostics\_pldm.json} \\
 Phase-0 paired ACPC artifact & \codebrk{assets/paper1\_data/acpc\_phase0\_clean\_goal\_seed9101.json} \\
+unseen Phase-0 ACPC subset artifact & \codebrk{assets/paper1\_data/unseen\_phase0\_acpc\_subset.json} \\
 blur baseline artifact & \codebrk{assets/paper1\_data/canonical\_blur\_baselines\_20260523.json} \\
 target-view ablation artifact & \codebrk{assets/paper1\_data/target\_view\_closed\_loop\_summary.json} \\
 PLDM full-diagnostic artifact & \codebrk{assets/paper1\_data/canonical\_full\_diagnostics\_pldm\_20260523.json} \\
@@ -1270,6 +1271,31 @@ PLDM & Cube    & $52.67 \pm 3.30$ & $53.00 \pm 5.35$ & $53.00 \pm 2.83$ & $50.67
 \end{landscape}
 
 \paragraph{Reading.} Blur is a different failure mode from Gaussian pixel noise. The clear collapse is TwoRoom: it falls below $40\%$ already at $k=3$ on both LeWM and PLDM and then saturates around $28$--$33\%$ for $k=7$--$15$. This reverses the Gaussian-noise ordering, where PushT is the most fragile task. The other tasks are more stable under blur: PLDM PushT, PLDM Reacher, and both Cube baselines lose at most about $15$\,pt at the strongest endpoint, while LeWM PushT degrades gradually and LeWM Reacher drops sharply only at $k=15$. We therefore use blur only as an eval-only cross-perturbation sanity check: visual fragility is not unique to Gaussian noise, but the task ordering and recovery profile are perturbation-specific. Because this appendix does not train blur-robust checkpoints or test Gaussian-trained checkpoints under blur, it does not establish cross-perturbation transfer.
+
+%% ===========================================================================
+\section{Independent-seed unseen transfer boundary}\label{sec:appendix-unseen-transfer}
+
+After the Gaussian lockbox was frozen, we ran a review-only strongest-severity check on two independent LeWM training seeds (3073 and 3074), comparing no-noise training to \stdmax{} $=0.08$ under two unseen visual stressors: Gaussian blur with kernel size 15 and resize/down-upsample with factor 0.25. This appendix does not change the main Gaussian-noise claim. It asks whether the Gaussian-trained endpoint transfers to non-Gaussian stressors, and whether the Phase-0 paired diagnostics move in the same direction on representative positive and boundary cases. The selected diagnostics subset uses TwoRoom/Reacher blur as positive-transfer cases and PushT/Cube resize as boundary cases; the full review artifact is listed in Appendix~\ref{sec:appendix-artifact-map}.
+
+\begin{table}[p]
+\centering
+\caption{Independent-seed unseen transfer boundary with selected Phase-0 paired diagnostics. Values are averages over training seeds 3073 and 3074. Stress delta is \stdmax{} $=0.08$ minus the no-noise baseline at the strongest unseen stress. Drop improvement is the reduction in clean-to-stress drop. Negative $\Delta$ is better for ACPC-$H$/transition, PCC, and MAF; positive $\Delta$ is better for CRA.}
+\label{tab:unseen-phase0-boundary}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrrrl}
+\toprule
+Task & stress & stress $\Delta$ & drop impr. & $\Delta$ ACPC & $\Delta$ PCC & $\Delta$ CRA & reading \\
+\midrule
+TwoRoom & blur $k=15$ & $+36.83$ & $+35.17$ & $-0.590$ & $-42.7$ & $+0.567$ & aligned \\
+Reacher & blur $k=15$ & $+48.50$ & $+28.00$ & $-1.770$ & $-47.0$ & $+0.568$ & aligned \\
+PushT & resize $0.25$ & $+2.33$ & $-4.67$ & $-0.249$ & $-6.4$ & $+0.009$ & mixed \\
+Cube & resize $0.25$ & $-1.83$ & $+1.33$ & $+0.088$ & $-0.1$ & $-0.042$ & boundary \\
+\bottomrule
+\end{tabular}%
+\end{table}
+
+\paragraph{Reading.} TwoRoom and Reacher show the desired agreement: the unseen stress scores improve strongly and ACPC-$H$/transition, PCC, CRA, and MAF move in the better direction. Cube is the useful negative boundary: the unseen score does not improve and ACPC/CRA/MAF do not improve. PushT is seed-sensitive: seed 3073 aligns, but seed 3074 loses resize stress performance, so the seed average remains weak even though some local diagnostic terms improve. We therefore treat this as bounded appendix evidence for diagnostic localization under selected unseen stressors, not as evidence that ACPC is a universal cross-perturbation robustness predictor.
 
 %% ===========================================================================
 \section{Phase-0 paired ACPC diagnostics}\label{sec:appendix-phase0}

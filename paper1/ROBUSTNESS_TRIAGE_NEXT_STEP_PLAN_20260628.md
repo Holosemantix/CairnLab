@@ -254,20 +254,23 @@ finishes on any machine.
 
 | ID | Item | Current status | Why it matters |
 |---|---|---|---|
-| R1 | Independent LeWM training seeds 3073/3074 | In progress | Main-conference reviewers will not accept evaluation seeds as a substitute for training-run variability. |
+| R1 | Independent LeWM training seeds 3073/3074 | Complete; 4 tasks x 9 std grid available for both seeds | Main-conference reviewers will not accept evaluation seeds as a substitute for training-run variability. |
 | R2 | Frozen seed-3072 robustness-triage selector | Development analysis done; selector frozen in this document | Converts ACPC/CRA/MAF from post-hoc explanation into a testable plateau-triage protocol. |
-| R3 | Lockbox application to 3073/3074 | Pending new seed artifacts | This is the confirmatory test. Do not tune the selector after looking at these results. |
+| R3 | Gaussian lockbox application to 3073/3074 | Complete; see `paper1/LOCKBOX_RESULTS_20260703.md` | Confirms the no-noise cliff, noise-training recovery, and broad plateau reading under independent training seeds. |
 | R4 | Seed-3072 unseen-perturbation pilot | Four-task strongest-only formal pass complete; TwoRoom/Reacher positive, PushT weak/mixed, Cube neutral | Tests whether the protocol is Gaussian-specific or reusable with a different paired-corruption operator. |
-| R5 | Unseen-perturbation lockbox on new seeds | Conditional | Only needed if R4 shows interpretable signal and R3 is strong enough to justify expansion. |
-| R6 | Training-objective follow-up | Paper2 / future work | Existing negative controls make naive consistency losses unsafe for Paper1. |
+| R5 | Unseen-perturbation lockbox on new seeds | Complete for strongest-only blur/resize; bounded positive transfer on TwoRoom/Reacher, weak/mixed PushT, neutral Cube | Checks whether the Gaussian-trained endpoint transfers to non-Gaussian visual stressors without upgrading the claim to universal robustness. |
+| R6 | Representative unseen Phase-0 ACPC subset | Complete; `assets/paper1_data/unseen_phase0_acpc_subset.json`, `missing=0` | Tests whether selected unseen score movements also have paired ACPC/PCC/CRA/MAF movement; supports TwoRoom/Reacher, bounds Cube, leaves PushT mixed. |
+| R7 | Training-objective follow-up | Paper2 / future work | Existing negative controls make naive consistency losses unsafe for Paper1. |
 
-Recommended execution order:
+Recommended execution order status:
 
-1. Finish R1.
-2. Treat R4 as complete for seed 3072 and freeze its strongest-only readout as
-   development evidence, not a paper-facing lockbox claim.
-3. Apply R2 exactly as written to 3073/3074 once the artifacts exist.
-4. Decide whether R5 is worth the compute after seeing R3 and the R4 pilot.
+1. R1 is complete for seeds 3073/3074.
+2. R4 remains development evidence and its seed-3072 readout is frozen.
+3. R3 is complete and supports the Gaussian plateau-recovery claim.
+4. R5 is complete for strongest-only blur/resize and remains bounded
+   cross-stressor evidence.
+5. R6 is complete and supports an appendix/boundary reading: TwoRoom/Reacher
+   align, Cube bounds the claim, and PushT remains seed-sensitive.
 
 ## 10. Seed-3072 Unseen-Perturbation Pilot
 
@@ -352,6 +355,55 @@ task-dependent transfer on seed 3072, not a universal robustness recipe. Do not
 promote this to the main paper claim unless independent training seeds reproduce
 the TwoRoom/Reacher pattern.
 
+## 10.1 Seed-3073/3074 Lockbox Result
+
+Final status (2026-07-03): the independent training-seed lockbox is complete.
+The detailed result note is `paper1/LOCKBOX_RESULTS_20260703.md`.
+
+Gaussian lockbox summary, averaged across seeds 3073 and 3074:
+
+| Task | baseline obs 0.08 | std 0.08 obs 0.08 | std 0.08 gain | best obs 0.08 | std 0.08 regret to best |
+|---|---:|---:|---:|---:|---:|
+| TwoRoom | 70.33 | 96.83 | +26.50 | 97.67 | 0.83 |
+| PushT | 8.67 | 84.17 | +75.50 | 87.00 | 2.83 |
+| Reacher | 18.17 | 81.33 | +63.17 | 83.33 | 2.00 |
+| Cube | 41.17 | 62.83 | +21.67 | 65.50 | 2.67 |
+
+The same runs preserve the main diagnostic reading: baseline-to-std0.08
+predictor rollout T8 drift drops by roughly 17.7x--51.2x, and clean/noisy CKA
+rises to about 0.984--0.997. This is strong evidence for mechanism
+localization and plateau triage, not a universal robustness-oracle claim.
+
+Strongest-only unseen perturbation summary, averaged across seeds and both
+families where relevant:
+
+| Task | base stress | std 0.08 stress | stress delta | positive rows |
+|---|---:|---:|---:|---:|
+| TwoRoom | 51.58 | 88.58 | +37.00 | 4/4 |
+| PushT | 59.08 | 63.08 | +4.00 | 3/4 |
+| Reacher | 31.42 | 74.00 | +42.58 | 4/4 |
+| Cube | 57.08 | 56.00 | -1.08 | 1/4 |
+
+Interpretation: TwoRoom and Reacher replicate the positive transfer pattern;
+PushT remains weak/mixed; Cube is neutral to slightly negative. This confirms
+that blur/resize transfer is task-dependent. The representative unseen
+Phase-0 ACPC subset below is now complete, so the result can be written as
+bounded appendix evidence rather than a pending diagnostic question.
+
+Representative unseen Phase-0 ACPC subset (2026-07-03):
+
+| Task | stress | stress delta | drop improvement | delta ACPC-H/trans. | delta PCC | delta CRA | reading |
+|---|---|---:|---:|---:|---:|---:|---|
+| TwoRoom | blur k=15 | +36.83 | +35.17 | -0.590 | -42.7 | +0.567 | aligned |
+| Reacher | blur k=15 | +48.50 | +28.00 | -1.770 | -47.0 | +0.568 | aligned |
+| PushT | resize 0.25 | +2.33 | -4.67 | -0.249 | -6.4 | +0.009 | mixed |
+| Cube | resize 0.25 | -1.83 | +1.33 | +0.088 | -0.1 | -0.042 | boundary |
+
+Artifact: `assets/paper1_data/unseen_phase0_acpc_subset.json`. The subset keeps
+goal images clean and applies blur/resize only to observation history. It
+strengthens the TwoRoom/Reacher appendix story, but Cube and PushT prevent any
+universal cross-perturbation predictor claim.
+
 ## 11. Eval-Logic Recommendation
 
 Do not rewrite `run_trainer.sh` into a paper-specific grid runner. Keep it as
@@ -434,14 +486,12 @@ already serving training, eval, and diagnostics across several projects.
 
 ## 12. Immediate Checklist
 
-- Wait for LeWM seeds 3073/3074 to finish.
-- Build canonical eval JSONs for the new seeds.
-- Rerun Phase-0 diagnostics with `--clean-goal` for 3073/3074 once their canonical eval JSONs and checkpoint roots exist.
-- Apply the frozen selector without further tuning.
-- Write a lockbox result note before touching `main.tex`.
-- Decide whether the result qualifies for main-text integration.
-- In parallel, run the seed-3072 unseen-perturbation pilot through a wrapper
-  around `run_trainer.sh`, not by changing the training/eval entrypoint.
-- Use `tools/paper1_unseen_eval_grid.py --dry-run` first, then run the same
-  wrapper without `--dry-run`; aggregate with
-  `tools/build_paper1_unseen_eval_artifact.py`.
+- Seeds 3073/3074 Gaussian eval grid is complete.
+- Strongest-only unseen perturbation artifacts for seeds 3073/3074 are complete.
+- Lockbox result note has been written: `paper1/LOCKBOX_RESULTS_20260703.md`.
+- Before touching `main.tex`, run a claim audit deciding whether the lockbox
+  belongs in the main text, appendix, or rebuttal package.
+- Representative unseen diagnostics subset is complete:
+  `assets/paper1_data/unseen_phase0_acpc_subset.json` (`missing=0`).
+- Do not change `run_trainer.sh`; continue using the Paper1 wrappers and artifact
+  builders for paper-specific orchestration.

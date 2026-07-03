@@ -4,6 +4,8 @@ Status: standalone development note, not yet integrated into `main.tex`.
 
 Purpose: decide whether the ACPC/CRA/MAF diagnostics are worth strengthening into a prospective checkpoint-selection experiment for the main-conference version. This document uses existing seed-3072 artifacts only as a development/smoke-test set. It must not be described as held-out evidence in the paper.
 
+Postscript 2026-07-03: the independent training-seed lockbox for seeds 3073/3074 is now complete. The Gaussian sweep strongly reproduces the cliff/recovery and plateau pattern; the strongest-only blur/resize lockbox is positive on TwoRoom/Reacher, weak/mixed on PushT, and neutral on Cube. A representative unseen Phase-0 ACPC subset is also complete: TwoRoom/Reacher show score-plus-diagnostic alignment, Cube remains a negative boundary, and PushT is seed-sensitive. See `paper1/LOCKBOX_RESULTS_20260703.md` for the result note. The frozen protocol below remains the historical development protocol and should not be retroactively tuned.
+
 ## Executive Decision
 
 Proceed with the held-out diagnostic-selection direction, but keep the claim boundary strict.

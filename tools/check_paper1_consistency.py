@@ -90,6 +90,12 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "regret $8.33$ pp",
     "We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods",
     "not an oracle near-boundary semantic proof",
+    "Sampled-pool ACPC stability",
+    "ACPC-tail and clean-margin terms",
+    "action-conditioned encoder--predictor sensitivity",
+    "not a convergence theorem for adaptive multi-round CEM",
+    "Hoeffding gives",
+    "Proofs and calibration for ACPC diagnostics",
 ]
 
 FORBIDDEN_SNIPPETS = [

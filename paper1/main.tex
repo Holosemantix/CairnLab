@@ -10,6 +10,7 @@
 %% --- Math / typography helpers ----------------------------------------------
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{bm}
+\newtheorem{theorem}{Theorem}
 \newtheorem{proposition}{Proposition}
 \newtheorem{corollary}{Corollary}
 
@@ -110,7 +111,7 @@
 \maketitle
 
 \begin{abstract}
-Latent predictive world models such as JEPAs avoid pixel reconstruction, but latent prediction alone does not define robustness for closed-loop control. We study additive Gaussian pixel noise as a controlled diagnostic stressor for JEPA world-model control and formalize action-conditioned predictive consistency (ACPC): clean and noised views of the same state should induce similar rollout readouts under the same action sequence, while action-relevant state differences remain separable. On a fixed candidate set, bounded ACPC links to bounded candidate-cost drift under a clean margin condition, and the separability condition rules out collapse. Across PushT, TwoRoom, Reacher, and Cube, no-noise LeWM is fragile under observation-only Gaussian noise, e.g., PushT falls from $86.33\%$ to $4.33\%$ and Reacher from $58.67\%$ to $18.33\%$. Full-sequence input-side noise training supplies recovered checkpoints for diagnosis, and the Gaussian closed-loop pattern replicates across three training seeds (3072/3073/3074). We fix an ACPC/PCC/CRA/MAF ranking rule on the seed-3072 development grid and evaluate it on held-out training seeds 3073/3074: the rule selects a checkpoint within 5 points of the closed-loop best in 7/8 held-out task-seed blocks (10/12 over all three seeds), with held-out mean regret $2.21\pm1.83$ points. A task-state proxy margin pass-rate further checks selective consistency: at the fixed $\stdmax=0.08$ endpoint it is approximately $1.00$ on all four tasks, compared with $0.25$--$0.58$ for no-noise baselines. Appendix ablations document failure modes. The result is a compact diagnostic framework for matched Gaussian-noise stress tests; the main text focuses on the three evidence layers above.
+Latent predictive world models such as JEPAs avoid pixel reconstruction, but latent prediction alone does not define robustness for closed-loop control. We study additive Gaussian pixel noise as a controlled diagnostic stressor for JEPA world-model control and formalize action-conditioned predictive consistency (ACPC): clean and noised views of the same state should induce similar rollout readouts under the same action sequence, while action-relevant state differences remain separable. On fixed and sampled candidate pools, bounded ACPC links to candidate-cost drift and a top-1 flip bound with explicit ACPC-tail and clean-margin terms; a local Gaussian linearization shows that the measured basin radius estimates action-conditioned encoder--predictor sensitivity rather than encoder invariance alone. Across PushT, TwoRoom, Reacher, and Cube, no-noise LeWM is fragile under observation-only Gaussian noise, e.g., PushT falls from $86.33\%$ to $4.33\%$ and Reacher from $58.67\%$ to $18.33\%$. Full-sequence input-side noise training supplies recovered checkpoints for diagnosis, and the Gaussian closed-loop pattern replicates across three training seeds (3072/3073/3074). We fix an ACPC/PCC/CRA/MAF ranking rule on the seed-3072 development grid and evaluate it on held-out training seeds 3073/3074: the rule selects a checkpoint within 5 points of the closed-loop best in 7/8 held-out task-seed blocks (10/12 over all three seeds), with held-out mean regret $2.21\pm1.83$ points. A task-state proxy margin pass-rate further checks selective consistency: at the fixed $\stdmax=0.08$ endpoint it is approximately $1.00$ on all four tasks, compared with $0.25$--$0.58$ for no-noise baselines. Appendix ablations document failure modes. The result is a compact diagnostic framework for matched Gaussian-noise stress tests; the main text focuses on the three evidence layers above.
 
 \smallskip
 \noindent\textbf{Keywords:} visual world models; JEPA; action-conditioned predictive consistency; visual robustness; predictive-dynamics diagnostics.
@@ -151,7 +152,7 @@ We use input-side noise augmentation as the controlled intervention. The \stdmax
 
 \paragraph{C1 --- Multi-stage diagnostic principle.} We operationalize visual robustness for JEPA world-model control as a multi-stage diagnostic rather than an encoder-invariance score alone. Encoder perturbation geometry measures whether visual noise enters and reshapes the latent state; action-conditioned predictive consistency measures whether that shift changes predicted futures and candidate costs; the discriminability countercondition prevents contraction from erasing action-relevant distinctions.
 
-\paragraph{C2 --- Planner link and controlled evidence.} Under a Lipschitz cost readout, bounded rollout disagreement bounds candidate-cost drift on a fixed candidate set, and a sufficiently large clean action margin preserves the top-ranked candidate within that fixed set. This fixed-candidate argument supports the diagnostics while leaving CEM resampling, repeated replanning, and closed-loop trajectories to empirical evaluation. We use a fixed Gaussian-noise protocol to probe the encoder--predictor--planner chain on LeWM, with PLDM as a bounded second-family replication check.
+\paragraph{C2 --- Planner link and controlled evidence.} Under a Lipschitz cost readout, bounded rollout disagreement bounds candidate-cost drift on a fixed candidate set. For a once-sampled candidate pool, the top-1 flip probability is controlled by two explicit terms: ACPC tails and clean candidate-margin tails. A local Gaussian linearization shows that the measured ACPC basin radius estimates action-conditioned encoder--predictor sensitivity $\|J_GJ_E\|_F$, not encoder invariance alone. These results support the diagnostics while leaving adaptive CEM resampling, repeated replanning, and closed-loop trajectories to empirical evaluation. We use a fixed Gaussian-noise protocol to probe the encoder--predictor--planner chain on LeWM, with PLDM as a bounded second-family replication check.
 
 \paragraph{C3 --- Three-seed validation and release.} We report three main empirical readouts: training-seed robustness, held-out fixed-rule diagnostic triage over the full three-seed grid, and task-state proxy margin pass-rate. Appendices keep the larger LeWM/PLDM grids, blur/resize scope checks, ablations, and implementation key maps out of the main narrative.
 
@@ -327,6 +328,71 @@ Proposition~\ref{prop:cost-drift} gives $|C_h(\mathbf a^j,g)-C_{\tilde h}(\mathb
 \end{proof}
 
 The corollary gives a formal link between ACPC and planning without turning the diagnostic into a closed-loop guarantee. It connects paired predictive agreement to candidate-cost stability and then to action selection under a margin condition. Candidate-ranking agreement and margin-conditioned action flips are downstream readouts of this chain. The result is limited to a fixed candidate set; CEM resampling, repeated replanning, and environment feedback can still change the closed-loop trajectory.
+
+
+\subsection{Sampled-pool stability and Gaussian sensitivity}\label{sec:acpc-sampled-gaussian}
+
+The fixed-candidate statement is the deterministic core. A single MPC or CEM iteration, however, evaluates a sampled candidate pool. The next bound keeps the same diagnostic scope while exposing the two terms the empirical readouts estimate: ACPC tails and clean-margin tails.
+
+\begin{theorem}[Sampled-pool ACPC stability]\label{thm:sampled-pool-acpc}
+Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}\sim q^K$ be a once-sampled candidate pool, and use deterministic tie-breaking for $\arg\min$. For each sampled candidate define
+\[
+D_j = d_H\!\left(\Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a^j)),
+                  \Pi(F_\theta^{1:H}(E_\theta(\tilde h),\mathbf a^j))\right).
+\]
+Assume $J$ is locally $L_J$-Lipschitz on the evaluated rollout-readout neighborhood and that a single draw from $q$ satisfies
+\[
+\Pr_{\mathbf a\sim q}[D(\mathbf a)>\epsilon]\le \delta .
+\]
+Let $\Delta_{\mathcal A}=C_h(\mathbf a^{(2)},g)-C_h(\mathbf a^{(1)},g)$ be the clean branch top-1/top-2 margin inside the sampled pool. Then
+\[
+\Pr_{\mathcal A}\!\left[
+\arg\min_j C_h(\mathbf a^j,g) \ne
+\arg\min_j C_{\tilde h}(\mathbf a^j,g)
+\right]
+\le
+K\delta + \Pr_{\mathcal A}[\Delta_{\mathcal A}\le 2L_J\epsilon].
+\]
+\end{theorem}
+
+\Cref{thm:sampled-pool-acpc} is not a convergence theorem for adaptive multi-round CEM. It controls the instability of one sampled candidate pool. The first term is the probability that at least one candidate has a large clean/noisy rollout discrepancy; the second term is the probability that the clean candidate pool has too small a top-1 margin. This is why the shared-candidate diagnostics are reported as a family rather than a single scalar: ACPC-$H$ and PCC estimate rollout/cost drift, CRA estimates ranking stability, and MAF estimates the high-margin flip failure term. A repeated replanning episode simply accumulates such risks unless additional assumptions are made.
+
+\begin{corollary}[Replanning union bound]\label{cor:replanning-union}
+If replanning step $t$ has sampled-pool flip-probability bound
+\[
+r_t=K_t\delta_t+\Pr[\Delta_{\mathcal A_t}\le 2L_J\epsilon_t],
+\]
+then over $T$ replanning steps,
+\[
+\Pr[\exists t\le T:\ \text{the sampled-pool top-1 flips at step }t]
+\le \sum_{t=1}^{T} r_t .
+\]
+\end{corollary}
+
+The Gaussian stressor also has a local sensitivity interpretation. Let $G_{\mathbf a}(z)=\Pi(F_\theta^{1:H}(z,\mathbf a))$ and let $\tilde o=o+\xi$ with $\xi\sim\mathcal N(0,\sigma^2 I)$.
+
+\begin{proposition}[Local Gaussian ACPC sensitivity]\label{prop:gaussian-sensitivity}
+If $E_\theta$ and $G_{\mathbf a}$ are locally twice differentiable around $o$ and $E_\theta(o)$ with bounded second-order remainders, then for small $\sigma$,
+\[
+G_{\mathbf a}(E_\theta(o+\xi))-G_{\mathbf a}(E_\theta(o))
+=
+J_{G_{\mathbf a}}(E_\theta(o))J_E(o)\xi + R_\xi,
+\]
+where the remainder contributes higher-order terms, and
+\[
+\mathbb E_\xi\!\left[
+\left\|G_{\mathbf a}(E_\theta(o+\xi))-G_{\mathbf a}(E_\theta(o))\right\|_2^2
+\right]
+=
+\sigma^2\left\|J_{G_{\mathbf a}}(E_\theta(o))J_E(o)\right\|_F^2 + O(\sigma^3).
+\]
+\end{proposition}
+
+Thus Gaussian ACPC measures action-conditioned encoder--predictor sensitivity, not encoder invariance alone. Small encoder shifts can still be amplified by $J_{G_{\mathbf a}}$, while large nuisance shifts can become harmless after rollout if the product $J_{G_{\mathbf a}}J_E$ is small in those directions. The selective target is therefore asymmetric: the product should be small along nuisance perturbation directions, while rollout readouts for action-relevant state differences remain separated. The task-state proxy margin pass event used later is
+\[
+M=\mathbf 1\!\left[d_{\mathrm{proxy\ diff}}>d_{\mathrm{same\ state\ noise}}+\delta_m\right],
+\]
+with $\delta_m=0$ in the reported table. It is a finite state-proxy selective-consistency certificate, not a full semantic-label coverage guarantee.
 
 \paragraph{Selective ACPC pseudo-metric.}
 For a nonempty fixed candidate family $\mathcal A$, the stability condition can be summarized by
@@ -567,7 +633,7 @@ Cube & $47.00 \to 67.33$ & $1.979 \to 0.058$ & $63.7 \to 1.3$ & $0.274 \to 0.999
 \end{tabular}
 \end{table}
 
-The table strengthens the interpretation of $R_F$ as a control-facing localization signal: on all four LeWM tasks, smaller paired rollout disagreement is accompanied by lower candidate-cost drift, higher candidate-ranking agreement, and fewer high-margin action flips. This is the empirical counterpart of the fixed-candidate stability statement: PCC measures candidate-cost drift, CRA measures ranking stability, and MAF is the margin-conditioned action-flip readout after high-margin filtering. Together with \Cref{tab:three-seed-diagnostic-split,tab:three-seed-diagnostic-validation}, these rollout/cost readouts provide triage signal beyond encoder radius while still leaving closed-loop evaluation as the final authority.
+The table strengthens the interpretation of $R_F$ as a control-facing localization signal: on all four LeWM tasks, smaller paired rollout disagreement is accompanied by lower candidate-cost drift, higher candidate-ranking agreement, and fewer high-margin action flips. This is the empirical counterpart of \Cref{thm:sampled-pool-acpc}: ACPC-$H$ and PCC estimate the drift/tail side of the bound, CRA checks whether sampled candidate rankings remain aligned, and MAF estimates the high-margin flip failure term after margin filtering. The fixed-rule validation in \Cref{tab:three-seed-diagnostic-split,tab:three-seed-diagnostic-validation} uses the same theory-matched readout family for no-retraining triage, while closed-loop evaluation remains the final authority.
 
 \subsection{Selective consistency and failure checks}\label{sec:exp-diag}
 
@@ -616,7 +682,7 @@ Cube & 0.08 & $1.00 \pm 0.00$ & $0.49 \pm 0.05$ & $16.59 \pm 0.24$ & $15.99 \pm 
 \end{tabular}
 \end{table}
 
-The task-state proxy margin supplies the missing selective half of ACPC more directly than rank or ID probes alone, while staying below an oracle semantic-label claim. The high-noise endpoint keeps state-proxy-different rollouts separated while shrinking same-state noisy rollouts on all four tasks; the no-noise baselines often fail this margin, especially PushT and Cube. The heteroscedastic-loss ablation in Appendix~\ref{sec:appendix-D} remains the failure case that motivates the guard: PushT transition L2 falls from $0.3015$ to $0.1023$, the ID probe falls from $0.7739$ to $0.2678$, and unperturbed success collapses to $13.33\%$. The longer representation, rollout-drift, latent-noise, and task-by-task mechanism diagnostics remain in Appendix~\ref{sec:appendix-diagnostic-framework}--\ref{sec:appendix-mech-attribution}.
+The task-state proxy margin supplies the missing selective half of ACPC more directly than rank or ID probes alone, while staying below an oracle semantic-label claim. The high-noise endpoint keeps state-proxy-different rollouts separated while shrinking same-state noisy rollouts on all four tasks; the no-noise baselines often fail this margin, especially PushT and Cube. Each task/endpoint aggregates 100 sampled pairs per training seed and three training seeds. Treating these 300 pairs as independent only for calibration, Hoeffding gives $p \ge \hat p-\sqrt{\log(1/\alpha)/(2n)}$; for $\hat p=1.00$, $n=300$, and $\alpha=0.05$, the lower confidence bound is about $0.929$. Nearby dataset windows may be dependent, so we use this as a finite-sample calibration rather than a dataset-wide formal guarantee. The heteroscedastic-loss ablation in Appendix~\ref{sec:appendix-D} remains the failure case that motivates the guard: PushT transition L2 falls from $0.3015$ to $0.1023$, the ID probe falls from $0.7739$ to $0.2678$, and unperturbed success collapses to $13.33\%$. The longer representation, rollout-drift, latent-noise, and task-by-task mechanism diagnostics remain in Appendix~\ref{sec:appendix-diagnostic-framework}--\ref{sec:appendix-mech-attribution}.
 
 %% ===========================================================================
 \section{Discussion and limitations}\label{sec:disc}
@@ -625,7 +691,7 @@ The task-state proxy margin supplies the missing selective half of ACPC more dir
 This paper is a controlled diagnostic study with three primary evidence layers: seed-level Gaussian behavior, three-seed fixed-rule diagnostic validation, and task-state proxy margin pass-rate. The three-training-seed Gaussian replication (canonical seed 3072 plus independent seeds 3073/3074) is the primary behavior statistic; evaluation-seed variance is kept as the within-seed measurement scale. Gaussian pixel noise remains the training/evaluation axis. Blur/resize scores, PLDM replication, and failure-case ablations are scope checks rather than additional main claims. We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods; the contribution is a no-retraining diagnostic for JEPA latent world-model checkpoints under a controlled Gaussian stressor.
 
 \paragraph{Interpretation.}
-The data challenge a too-strong reading of latent prediction: predicting future latents does not by itself guarantee robustness to visual noise. Encoder invariance is useful but incomplete. The useful target is agreement of action-conditioned predictions in task-relevant coordinates while retaining distinctions that affect actions, costs, or transitions. This reading is compatible with the task variation: TwoRoom can tolerate substantial nuisance contraction, PushT contact control needs fine pose resolution, Reacher sits in a lower-dimensional continuous regime, and Cube is less sensitive to global Gaussian noise in this sweep.
+The data challenge a too-strong reading of latent prediction: predicting future latents does not by itself guarantee robustness to visual noise. Encoder invariance is useful but incomplete. The sampled-pool bound identifies ACPC tails and clean margin tails as the diagnostic failure modes for one candidate pool, while the Gaussian linearization identifies the local object being measured as $J_{G_{\mathbf a}}J_E$. The useful target is agreement of action-conditioned predictions in task-relevant coordinates while retaining distinctions that affect actions, costs, or transitions. This reading is compatible with the task variation: TwoRoom can tolerate substantial nuisance contraction, PushT contact control needs fine pose resolution, Reacher sits in a lower-dimensional continuous regime, and Cube is less sensitive to global Gaussian noise in this sweep.
 
 \paragraph{Using the diagnostics.}
 The diagnostics are used as a ranked evidence chain, not as a single scalar. Closed-loop evaluation establishes the behavior; $R_F$ and the rollout/cost readouts localize the predictive-dynamics change; the seed-3072-fixed rule prioritizes candidate checkpoints on held-out seeds without replacing closed-loop evaluation; and the task-state proxy margin checks whether contraction preserves coarse action-relevant distinctions. Cube remains the useful boundary case, so point-best \stdmax{} values are interpreted as plateau context rather than as a fine-grained ranking target.
@@ -643,7 +709,7 @@ These requirements are broader than additive Gaussian noise. They are prerequisi
 
 This paper studies Gaussian-noise robustness in JEPA latent world-model control as a multi-stage diagnostic problem. Encoder geometry shows how visual perturbations enter the latent state, action-conditioned rollout consistency shows whether they affect predicted futures and candidate costs, and a task-state proxy margin checks whether robustness is bought by erasing coarse action-relevant distinctions. Controlled additive-noise tests show that latent prediction alone does not guarantee closed-loop robustness. Input-side noise augmentation supplies recovered checkpoints for analyzing this failure mode, and the closed-loop recovery replicates across three training seeds.
 
-The paired ACPC basin diagnostic localizes the recovery in rollout space; the seed-3072-fixed ACPC/PCC/CRA/MAF rule gives a no-retraining triage signal on held-out training seeds; and the task-state proxy pass-rate checks that the recovered endpoint preserves state-proxy-different rollout separation while shrinking same-state noisy radii. The target-view ablation in Appendix~\ref{sec:appendix-target-view} rules out perturbed-history $\to$ original-future targets as a sufficient closed-loop fix and leaves full-sequence perturbed targets as the empirical branch for this study. The broader implication is diagnostic rather than solved generalization: more generalizable world models need control-relevant representations and action-conditioned predictive dynamics that stay stable under nuisance variation without collapsing distinctions needed for planning. A paired predictive-dynamics training objective is the separate method-paper path suggested by these diagnostics.
+The paired ACPC basin diagnostic localizes the recovery in rollout space; the seed-3072-fixed ACPC/PCC/CRA/MAF rule gives a no-retraining triage signal on held-out training seeds; and the task-state proxy pass-rate checks that the recovered endpoint preserves state-proxy-different rollout separation while shrinking same-state noisy radii. The theory is deliberately diagnostic: fixed-candidate ACPC bounds cost drift, sampled-pool ACPC exposes ACPC-tail and clean-margin failure modes, and local Gaussian linearization connects the measured basin radius to action-conditioned encoder--predictor sensitivity. The target-view ablation in Appendix~\ref{sec:appendix-target-view} rules out perturbed-history $\to$ original-future targets as a sufficient closed-loop fix and leaves full-sequence perturbed targets as the empirical branch for this study. The broader implication is diagnostic rather than solved generalization: more generalizable world models need control-relevant representations and action-conditioned predictive dynamics that stay stable under nuisance variation without collapsing distinctions needed for planning. A paired predictive-dynamics training objective is the separate method-paper path suggested by these diagnostics.
 
 %% ===========================================================================
 \ifdefined\blindsubmission
@@ -657,6 +723,83 @@ The paired ACPC basin diagnostic localizes the recovery in rollout space; the se
 
 %% ===========================================================================
 \appendix
+\section{Proofs and calibration for ACPC diagnostics}\label{sec:appendix-acpc-proofs}
+
+\paragraph{Proof of \Cref{thm:sampled-pool-acpc}.}
+Let $\mathcal E$ be the event that every sampled candidate satisfies $D_j\le\epsilon$. By the single-candidate tail assumption and a union bound,
+\[
+\Pr_{\mathcal A}[\mathcal E^c]
+\le \sum_{j=1}^K \Pr[D_j>\epsilon]
+\le K\delta .
+\]
+On $\mathcal E$, Proposition~\ref{prop:cost-drift} gives
+$|C_h(\mathbf a^j,g)-C_{\tilde h}(\mathbf a^j,g)|\le L_J\epsilon$
+for all candidates in the sampled pool. If also $\Delta_{\mathcal A}>2L_J\epsilon$, Proposition~\ref{prop:top1-stability} implies that the clean top-1 candidate remains top-1 on the perturbed branch. Therefore a flip can occur only if either $\mathcal E^c$ occurs or the sampled clean margin is at most $2L_J\epsilon$:
+\[
+\Pr[\mathrm{flip}]
+\le
+\Pr[\mathcal E^c]+\Pr[\Delta_{\mathcal A}\le2L_J\epsilon]
+\le
+K\delta+\Pr[\Delta_{\mathcal A}\le2L_J\epsilon].
+\]
+
+\paragraph{Proof of \Cref{cor:replanning-union}.}
+Let $F_t$ be the event that the clean and perturbed branches select different top-1 candidates at replanning step $t$ for the sampled pool at that step. The sampled-pool theorem gives $\Pr[F_t]\le r_t$ under the stated per-step assumptions. The probability of at least one flip is bounded by another union bound:
+\[
+\Pr[\exists t\le T:F_t]
+\le \sum_{t=1}^T\Pr[F_t]
+\le \sum_{t=1}^T r_t .
+\]
+No independence across replanning steps is required for this bound. It is intentionally loose and does not account for environment feedback after a flip.
+
+\paragraph{Derivation of \Cref{prop:gaussian-sensitivity}.}
+By Taylor expansion of the encoder around $o$,
+\[
+E_\theta(o+\xi)=E_\theta(o)+J_E(o)\xi+R_E(\xi),
+\qquad \|R_E(\xi)\|=O(\|\xi\|^2).
+\]
+Expanding $G_{\mathbf a}$ around $E_\theta(o)$ and substituting the encoder expansion gives
+\[
+G_{\mathbf a}(E_\theta(o+\xi))-G_{\mathbf a}(E_\theta(o))
+=
+J_{G_{\mathbf a}}(E_\theta(o))J_E(o)\xi+R_\xi,
+\]
+with $\|R_\xi\|=O(\|\xi\|^2)$ under the bounded second-order remainder assumptions. For $\xi\sim\mathcal N(0,\sigma^2I)$ and $A=J_{G_{\mathbf a}}(E_\theta(o))J_E(o)$,
+\[
+\mathbb E\|A\xi\|_2^2
+=\mathrm{tr}(A\,\mathbb E[\xi\xi^\top]A^\top)
+=\sigma^2\|A\|_F^2.
+\]
+The cross and remainder terms are higher order because $\mathbb E\|\xi\|^3=O(\sigma^3)$ and $\mathbb E\|\xi\|^4=O(\sigma^4)$, yielding the stated expansion. This is a local small-noise calibration, not a finite-noise robustness theorem.
+
+\paragraph{Hoeffding calibration for the task-state proxy margin.}
+Let $M_i\in\{0,1\}$ denote the pass event
+$M_i=\mathbf 1[d_{\mathrm{proxy\ diff},i}>d_{\mathrm{same\ state\ noise},i}+\delta_m]$
+for sampled pair $i$, and let $\hat p=n^{-1}\sum_i M_i$. Under independent-pair calibration, Hoeffding's inequality gives
+\[
+\Pr[p<\hat p-\epsilon]\le \exp(-2n\epsilon^2),
+\]
+so with probability at least $1-\alpha$,
+\[
+p\ge \hat p-\sqrt{\frac{\log(1/\alpha)}{2n}}.
+\]
+For the reported high-noise endpoints, each task/endpoint has $n=300$ pairs after aggregating 100 pairs over three training seeds. A pass-rate $\hat p=1.00$ gives $1-\sqrt{\log 20/600}=0.929$ at $95\%$ confidence. Because adjacent dataset windows can be dependent, the main text uses this as calibration rather than as a dataset-wide guarantee.
+
+\paragraph{One-step prediction-loss triangle.}
+For one-step predictions, write
+$\hat z_{t+1}=F_\theta(E_\theta(h_t),a_t)$,
+$\hat{\tilde z}_{t+1}=F_\theta(E_\theta(\tilde h_t),a_t)$,
+$z_{t+1}=E_\theta(h_{t+1})$, and
+$\tilde z_{t+1}=E_\theta(\tilde h_{t+1})$. Any metric $d$ satisfies
+\[
+ d(\hat z_{t+1},\hat{\tilde z}_{t+1})
+\le
+ d(\hat z_{t+1},z_{t+1})
+ + d(z_{t+1},\tilde z_{t+1})
+ + d(\tilde z_{t+1},\hat{\tilde z}_{t+1}).
+\]
+Thus clean prediction error, noisy-branch prediction error, and target-future nuisance stability jointly upper-bound one-step predictive disagreement. This teacher-forced one-step inequality does not guarantee rollout stability or closed-loop robustness; the target-view ablation in Appendix~\ref{sec:appendix-target-view} shows that perturbed-history to original-future denoising is not sufficient in this study.
+
 \section{Related-work boundary table}\label{sec:appendix-related-boundaries}
 
 \begin{table}[H]

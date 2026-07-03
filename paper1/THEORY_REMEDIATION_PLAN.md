@@ -4,6 +4,18 @@
 >
 > 适用范围：`paper1/main.tex` 当前 `ag/dev` 版本。本文档给 Codex 执行用，优先做低风险、可快速合入的理论增强，不把论文扩展成完整方法论文。
 
+## 2026-07-03 执行状态
+
+已完成的无重训理论整改：
+
+- 主文新增 sampled-pool ACPC stability theorem，把固定候选集链条扩展为一次 sampled candidate pool 的 top-1 flip probability bound，显式暴露 ACPC-tail 与 clean-margin tail 两个失败项。
+- 主文新增 replanning union-bound corollary，但明确不证明 adaptive CEM 收敛或 closed-loop robustness。
+- 主文新增 local Gaussian ACPC sensitivity proposition，说明 Gaussian ACPC basin 估计的是 action-conditioned encoder--predictor sensitivity $\|J_GJ_E\|_F$，不是 encoder invariance alone。
+- 主文和 appendix 新增 task-state proxy margin 的 Hoeffding finite-sample calibration：$n=300, \hat p=1.00, \alpha=0.05$ 时 lower bound 约 $0.929$；明确这只是 independent-pair calibration，不是 dataset-wide guarantee。
+- Appendix 新增 `Proofs and calibration for ACPC diagnostics`，包含 sampled-pool theorem、replanning union bound、Gaussian sensitivity、Hoeffding calibration 和 one-step prediction-loss triangle。
+- fixed-rule / PCC / CRA / MAF 段落已显式连接到 theorem terms：ACPC-H/PCC 对应 drift/tail，CRA 对应 ranking stability，MAF 对应 high-margin flip failure。
+- 未新增 margin-conditioned flip curve：现有 release artifact 提供 checkpoint-level `margin_clean_q50/q90`、`acpc_h_l2_p90` 和 `maf_flip_rate`，但没有 per-candidate margin-bin 原始数据；为避免制造不一致口径，保留 theory-to-MAF 解释和 appendix artifact provenance。
+
 ## 0. 当前问题诊断
 
 当前理论部分是正确的，但审稿观感偏薄：
@@ -11,14 +23,14 @@
 1. **Planner link 太理想化。** 当前主要是固定候选集上：ACPC 小 → candidate-cost drift 小 → clean top-1/top-2 margin 足够大则 top-1 不变。这个链条基本是 Lipschitz + margin argument，容易被认为是常识性引理。
 2. **与实际 CEM/MPC 存在缝隙。** LeWM 实际 inference 用 CEM / latent-space MPC，但当前理论明确不覆盖 CEM resampling、repeated replanning、closed-loop trajectory。
 3. **Gaussian stressor 的机制解释不足。** 论文主轴是 Gaussian pixel noise，但理论没有解释为什么 ACPC basin contraction 对应 action-conditioned noise sensitivity 的下降。
-4. **semantic margin 结果还缺一个理论证书表述。** 新版已经补了 task-semantic margin pass-rate，但可加有限样本下界或 calibration，让它更像“selective consistency certificate”。
+4. **task-state proxy margin 结果还缺一个理论证书表述。** 新版已经补了 task-state proxy margin pass-rate，但可加有限样本下界或 calibration，让它更像“selective consistency certificate”。
 5. **训练目标与 ACPC 的关系还未形式化。** 可加一个小 lemma 解释 prediction loss / target consistency / ACPC 的三角关系，但必须避免 claim target-view ablation 已解决。
 
 整改原则：
 
 - 不声称完整 CEM 收敛或 closed-loop robustness theorem。
 - 不声称 ACPC rule 可以替代 closed-loop evaluation。
-- 不把 semantic margin 说成 oracle semantic proof；用 “state-proxy semantic margin”。
+- 不把 task-state proxy margin 说成 oracle semantic proof；使用 “task-state proxy margin / state-proxy margin”。
 - 主文只加 1.5–2 页理论增强，完整证明放 appendix。
 
 ## 1. 推荐的主文理论结构
@@ -197,7 +209,7 @@ M = \mathbf 1\left[
 \right].
 $$
 
-当前主文表格用 \(\delta_m=0\)。建议在文中明确说这是 **state-proxy semantic margin**，不是 oracle semantic proof。
+当前主文表格用 \(\delta_m=0\)。建议在文中明确说这是 **task-state proxy margin**，不是 oracle semantic proof。
 
 ### 1.6 Finite-sample semantic margin certificate
 
@@ -363,18 +375,18 @@ Contributions 中 C2 可改为：
 
 ### 必做
 
-- [ ] 在 main theory section 中新增 sampled-candidate theorem。
-- [ ] 新增 local Gaussian sensitivity proposition。
-- [ ] 新增 semantic margin finite-sample calibration。
-- [ ] 在 appendix 中补完整证明。
-- [ ] 更新 abstract / contributions / discussion 的理论表述。
-- [ ] 确保所有 claim 都维持 diagnostic scope。
+- [x] 在 main theory section 中新增 sampled-candidate theorem。
+- [x] 新增 local Gaussian sensitivity proposition。
+- [x] 新增 task-state proxy margin finite-sample calibration。
+- [x] 在 appendix 中补完整证明。
+- [x] 更新 abstract / contributions / discussion 的理论表述。
+- [x] 确保所有 claim 都维持 diagnostic scope。
 
 ### 推荐做
 
-- [ ] 从现有 artifacts 生成 margin-conditioned flip curve 或 table。
-- [ ] 在 fixed-rule validation 段落显式连接 ACPC/PCC/CRA/MAF 与 theorem terms。
-- [ ] 将 “semantic margin” 全文统一为 “state-proxy semantic margin” 或首次出现时这样定义。
+- [ ] 从现有 artifacts 生成 margin-conditioned flip curve 或 table。当前 release artifacts 缺少 per-candidate margin-bin 原始数据，暂不新增，以免混淆口径。
+- [x] 在 fixed-rule validation 段落显式连接 ACPC/PCC/CRA/MAF 与 theorem terms。
+- [x] 将主文 “semantic margin” 降调为 “task-state proxy margin / state-proxy” 并保留 artifact key 名称。
 
 ### 暂不做
 

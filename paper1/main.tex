@@ -91,10 +91,15 @@
 \newcommand{\idprobe}{ID probe $R^{2}$}
 \newcommand{\dataset}[1]{\codebrk{#1}}
 
-\newcommand{\arxivauthors}{Author names to be supplied for arXiv v1}
+\ifdefined\blindsubmission
+  \newcommand{\paperauthors}{Anonymous Authors}
+\else
+  \input{arxiv_metadata.tex}
+  \newcommand{\paperauthors}{\arxivauthors}
+\fi
 
 \title{\textbf{Action-Conditioned Predictive Consistency\\as a Diagnostic for Gaussian-Noise Robustness\\in JEPA World Models}}
-\author{\arxivauthors}
+\author{\paperauthors}
 \date{June 2026}
 \hypersetup{
   pdftitle={Action-Conditioned Predictive Consistency as a Diagnostic for Gaussian-Noise Robustness in JEPA World Models},
@@ -112,7 +117,11 @@ Latent predictive world models such as JEPAs avoid pixel reconstruction, but lat
 \end{abstract}
 
 \smallskip
-\noindent\textbf{Code and data release:} \url{https://github.com/Anguo-star/lewm-acpc-diagnostics}
+\ifdefined\blindsubmission
+\noindent\textbf{Anonymous reproducibility note:} identifying code and artifact links are withheld for double-blind review; the submission package includes the aggregate artifacts and scripts needed to reproduce the reported tables.
+\else
+\noindent\textbf{Code and data release:} \url{\paperpubliccodeurl}
+\fi
 
 %% ===========================================================================
 \section{Introduction}\label{sec:intro}
@@ -637,8 +646,10 @@ This paper studies Gaussian-noise robustness in JEPA latent world-model control 
 The paired ACPC basin diagnostic localizes the recovery in rollout space; the seed-3072-fixed ACPC/PCC/CRA/MAF rule gives a no-retraining triage signal on held-out training seeds; and the task-semantic pass-rate verifies that the recovered endpoint preserves semantic-different rollout separation while shrinking same-state noisy radii. The target-view ablation in Appendix~\ref{sec:appendix-target-view} rules out perturbed-history $\to$ original-future targets as a sufficient closed-loop fix and leaves full-sequence perturbed targets as the empirical branch for this study. The broader implication is diagnostic rather than solved generalization: more generalizable world models need control-relevant representations and action-conditioned predictive dynamics that stay stable under nuisance variation without collapsing distinctions needed for planning. A paired predictive-dynamics training objective is the separate method-paper path suggested by these diagnostics.
 
 %% ===========================================================================
-\section*{Acknowledgements}
-The public repository contains code, aggregate evaluation files, rendering scripts, and data/checkpoint pointers for this revision; JSON hashes are listed in the data manifest. We thank the LeWM authors for releasing the baseline framework on which this study builds.
+\ifdefined\blindsubmission
+\else
+\input{arxiv_release_notes.tex}
+\fi
 
 %% ===========================================================================
 \bibliographystyle{plain}

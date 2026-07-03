@@ -14,11 +14,11 @@ fail() {
 }
 
 # Hard blockers that should not reach arXiv.
-if grep -q "Author names to be supplied" main.tex && [[ "$ALLOW_AUTHOR_PLACEHOLDER" != "1" ]]; then
+if grep -q "Author names to be supplied" arxiv_metadata.tex && [[ "$ALLOW_AUTHOR_PLACEHOLDER" != "1" ]]; then
   fail "main.tex still contains the arXiv author placeholder. Replace \\arxivauthors with the real author list."
 fi
 
-if grep -q "Author names to be supplied" main.tex; then
+if grep -q "Author names to be supplied" arxiv_metadata.tex; then
   echo "WARN: author placeholder allowed because ALLOW_AUTHOR_PLACEHOLDER=1; replace it before final arXiv upload." >&2
 fi
 
@@ -34,15 +34,15 @@ if grep -q "paper-facing\|method-facing" main.tex; then
   fail "main.tex still contains paper-facing/method-facing internal wording. Move such wording to tooling notes or rewrite for readers."
 fi
 
-if grep -q "tree/ag/dev\|tree/main" main.tex; then
+if grep -q "tree/ag/dev\|tree/main" main.tex arxiv_metadata.tex; then
   fail "main.tex points to a branch-specific GitHub tree. Use the public repository root URL for arXiv."
 fi
 
-if grep -q "complete code and data" main.tex; then
+if grep -q "complete code and data" main.tex arxiv_metadata.tex arxiv_release_notes.tex; then
   fail "main.tex over-claims the release package as 'complete code and data'. Use code/artifacts/scripts/pointers wording."
 fi
 
-if ! grep -q "https://github.com/Anguo-star/lewm-acpc-diagnostics" main.tex; then
+if ! grep -q "https://github.com/Anguo-star/lewm-acpc-diagnostics" arxiv_metadata.tex; then
   fail "main.tex does not contain the intended public repository URL https://github.com/Anguo-star/lewm-acpc-diagnostics."
 fi
 
@@ -58,7 +58,7 @@ bash build.sh --clean
 # Prepare a minimal arXiv source bundle in /tmp and audit obvious internal files.
 rm -rf /tmp/paper1_arxiv_src
 mkdir -p /tmp/paper1_arxiv_src/figures/corruption
-cp main.tex references.bib main.bbl /tmp/paper1_arxiv_src/
+cp main.tex arxiv_metadata.tex arxiv_release_notes.tex references.bib main.bbl /tmp/paper1_arxiv_src/
 
 # Keep this list aligned with figure inclusions in main.tex.
 cp figures/fig2_sweep.png /tmp/paper1_arxiv_src/figures/

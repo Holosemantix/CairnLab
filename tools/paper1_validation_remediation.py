@@ -17,6 +17,8 @@ DATA_DIR = ROOT / "assets" / "paper1_data"
 TRAINING_SEED_LOCKBOX = DATA_DIR / "training_seed_gaussian_lockbox.json"
 UNSEEN_PHASE0 = DATA_DIR / "unseen_phase0_acpc_subset.json"
 NO_RETRAIN_AUDIT = DATA_DIR / "no_retrain_diagnostic_audit.json"
+THREE_SEED_DIAGNOSTIC_VALIDATION = DATA_DIR / "three_seed_diagnostic_validation.json"
+SEMANTIC_MARGIN_PASSRATE = DATA_DIR / "semantic_margin_passrate_lewm_three_seed.json"
 UNSEEN_SCORE_ARTIFACTS = [
     DATA_DIR / "unseen_origin_vs_std008_strongest_tworoom.json",
     DATA_DIR / "unseen_origin_vs_std008_strongest_reacher.json",
@@ -49,28 +51,28 @@ SEMANTIC_GUARD_PROTOCOL = [
         "semantic_factor": "T-block pose/contact relative to pusher",
         "available_source": "dataset state column is configured for PushT analysis",
         "probe_rule": "different-state pair must cross a pose/contact threshold while same-state clean/noisy views share state",
-        "release_status": "protocol frozen; state-margin run still required for a result table",
+        "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work",
     },
     {
         "task": "TwoRoom",
         "semantic_factor": "room/doorway/topology and target-region relation",
         "available_source": "derive from trajectory position/proprio and map topology",
         "probe_rule": "different-state pair must differ in room or doorway side under comparable visual nuisance",
-        "release_status": "protocol frozen; task-topology extraction still required for a result table",
+        "release_status": "reported with pos_agent proxy in semantic_margin_passrate_lewm_three_seed.json; topology-specific extraction remains future work",
     },
     {
         "task": "Reacher",
         "semantic_factor": "joint/target geometry and end-effector-to-target relation",
         "available_source": "qpos/goal_qpos are used by eval set-state callables",
         "probe_rule": "different-state pair must differ in target quadrant or end-effector-target distance bin",
-        "release_status": "protocol frozen; state-margin run still required for a result table",
+        "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work",
     },
     {
         "task": "Cube",
         "semantic_factor": "cube pose and gripper-object/goal relation",
         "available_source": "qpos plus goal block position/quaternion are used by eval callables",
         "probe_rule": "different-state pair must differ in object pose/goal relation beyond tolerance",
-        "release_status": "protocol frozen; state-margin run still required for a result table",
+        "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work",
     },
 ]
 
@@ -268,22 +270,30 @@ def build_payload() -> dict:
     training = _load(TRAINING_SEED_LOCKBOX)
     unseen = _load(UNSEEN_PHASE0)
     no_retrain = _load(NO_RETRAIN_AUDIT)
+    three_seed_diag = _load(THREE_SEED_DIAGNOSTIC_VALIDATION)
+    semantic_margin = _load(SEMANTIC_MARGIN_PASSRATE)
     heldout_rows, topk = _heldout_metric_rows(unseen)
     return {
         "metadata": {
-            "schema_version": "paper1-validation-remediation-0.1",
+            "schema_version": "paper1-validation-remediation-0.2",
             "source_artifacts": [
                 str(TRAINING_SEED_LOCKBOX.relative_to(ROOT)),
+                str(THREE_SEED_DIAGNOSTIC_VALIDATION.relative_to(ROOT)),
+                str(SEMANTIC_MARGIN_PASSRATE.relative_to(ROOT)),
                 str(UNSEEN_PHASE0.relative_to(ROOT)),
                 str(NO_RETRAIN_AUDIT.relative_to(ROOT)),
                 *[str(path.relative_to(ROOT)) for path in UNSEEN_SCORE_ARTIFACTS],
             ],
-            "scope": "No model loading or retraining. Summarizes completed three-training-seed Gaussian behavior, three-training-seed unseen scores, a held-out training-seed/unseen-perturbation diagnostic slice, and the semantic-guard protocol ledger.",
+            "scope": "No retraining. Summarizes completed three-training-seed Gaussian behavior, full-grid three-seed fixed-rule diagnostic validation, semantic margin pass-rate, and bounded unseen-stressor scope checks.",
         },
         "three_training_seed_gaussian_summary": training["task_summary_rows"],
+        "three_seed_full_grid_diagnostic_validation": three_seed_diag["summary"],
+        "three_seed_diagnostic_selection_rows": three_seed_diag["selection_rows"],
+        "semantic_margin_passrate": semantic_margin["summary_rows"],
+        "semantic_margin_coverage": semantic_margin["coverage"],
         "three_seed_unseen_score_summary": _three_seed_unseen_score_summary(),
         "heldout_unseen_validation": {
-            "split": "training seeds 3073/3074; unseen perturbation families gaussian_blur and resize; fixed std_max comparison 0.0 vs 0.08",
+            "split": "appendix scope check: training seeds 3073/3074; unseen perturbation families gaussian_blur and resize; fixed std_max comparison 0.0 vs 0.08",
             "n_rows": len(unseen["rows"]),
             "metric_rows": heldout_rows,
             "topk_summary": topk,
@@ -292,9 +302,9 @@ def build_payload() -> dict:
         "existing_full_grid_frozen_rule_audit": no_retrain["summary"],
         "semantic_discriminability_protocol": SEMANTIC_GUARD_PROTOCOL,
         "remaining_validation_work": [
-            "Run the fixed ACPC/PCC/CRA/MAF rule on full held-out training-seed checkpoint grids, not only the current matched diagnostic slice.",
-            "Run the task-semantic state-margin probes defined in this artifact and report pass rates before claiming semantic discriminability results.",
-            "Use the three-training-seed Gaussian table as the primary behavior statistic; keep evaluation-seed variance as a secondary decomposition.",
+            "Extend the fixed diagnostic rule to additional perturbation families and method families after this three-seed Gaussian validation.",
+            "Broaden semantic-pair construction beyond one state proxy per task if the claim is expanded beyond matched Gaussian diagnostics.",
+            "Keep training-seed uncertainty as the primary behavior statistic and evaluation-seed variance as the secondary decomposition.",
         ],
     }
 
@@ -303,11 +313,11 @@ def _write_markdown(path: Path, payload: dict) -> None:
     lines = [
         "# Prospective Validation Remediation Summary",
         "",
-        "This artifact separates completed validation evidence from the protocol pieces that are now frozen but still require state-margin or full held-out-grid runs.",
+        "This artifact separates main completed validation evidence from appendix scope checks and reproducibility details.",
         "",
         "## Three-seed unseen score aggregate",
         "",
-        "Scores include training seeds 3072/3073/3074. Diagnostics below remain the matched 3073/3074 slice because matching Phase-0 diagnostic rows are released for those lockbox seeds.",
+        "Scores include training seeds 3072/3073/3074 and are treated as a bounded unseen-stressor scope check.",
         "",
         "| Task | selected stress | baseline stress | std0.08 stress | stress delta | drop improvement |",
         "|---|---|---:|---:|---:|---:|",
@@ -327,6 +337,47 @@ def _write_markdown(path: Path, payload: dict) -> None:
                 drop_sd=_fmt(row["drop_improvement_pstdev"]),
             )
         )
+
+    lines.extend(
+        [
+            "",
+            "## Three-seed fixed-rule Gaussian diagnostic validation",
+            "",
+        ]
+    )
+    diag = payload["three_seed_full_grid_diagnostic_validation"]
+    lines.append(
+        "Exact best hits: {exact}/{blocks}; within-5pp hits: {within}/{blocks}; mean regret to best: {regret} +/- {regret_sd} pp.".format(
+            exact=diag["exact_best_hits"],
+            within=diag["within_5pp_hits"],
+            blocks=diag["n_task_seed_blocks"],
+            regret=_fmt(diag["mean_selected_regret_to_best_pp"]),
+            regret_sd=_fmt(diag["pstdev_selected_regret_to_best_pp"]),
+        )
+    )
+    lines.extend(
+        [
+            "",
+            "## Semantic margin pass-rate",
+            "",
+            "| Task | std | pass-rate | ratio | margin |",
+            "|---|---:|---:|---:|---:|",
+        ]
+    )
+    for row in payload["semantic_margin_passrate"]:
+        lines.append(
+            "| {task} | {std} | {pass_rate} +/- {pass_sd} | {ratio} +/- {ratio_sd} | {margin} +/- {margin_sd} |".format(
+                task=row["task"],
+                std=row["std_key"],
+                pass_rate=_fmt(row["semantic_margin_pass_rate_mean"]),
+                pass_sd=_fmt(row["semantic_margin_pass_rate_pstdev"]),
+                ratio=_fmt(row["semantic_discriminability_ratio_mean"]),
+                ratio_sd=_fmt(row["semantic_discriminability_ratio_pstdev"]),
+                margin=_fmt(row["semantic_margin_median_mean"]),
+                margin_sd=_fmt(row["semantic_margin_median_pstdev"]),
+            )
+        )
+
     lines.extend(
         [
             "",
@@ -355,9 +406,9 @@ def _write_markdown(path: Path, payload: dict) -> None:
             "",
             f"Top-{topk['k']} agreement: composite signed-rank top-k hits {topk['stress_success_delta_topk_hit_count']}/{topk['stress_success_delta_topk_total']} for stress-success delta and {topk['drop_improvement_topk_hit_count']}/{topk['drop_improvement_topk_total']} for drop improvement.",
             "",
-            "## Semantic discriminability protocol ledger",
+            "## Semantic state proxies",
             "",
-            "| Task | semantic factor | available source | release status |",
+            "| Task | semantic factor | available source | status |",
             "|---|---|---|---|",
         ]
     )

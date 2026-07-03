@@ -25,7 +25,10 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 | `tools/build_partial_corr_bootstrap.py` | 为 partial Spearman 相关计算 95% percentile bootstrap CI | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/partial_corr_bootstrap_20260523.json`，用于主文 partial-correlation tables 和 PLDM appendix |
 | `tools/pldm_correlation_analysis.py` | 复算 LeWM/PLDM within-method 与 joint partial correlation | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/cross_method_corr_pldm_20260522.json`，用于 PLDM appendix 和 consistency checker |
 | `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / prediction radius / contraction | LeWM/PLDM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；PLDM appendix 的 full-sweep replication 用 `assets/paper1_data/acpc_basin_diagnostics_pldm.json` |
-| `tools/paper1_phase0_acpc.py` | 低频 paired ACPC 诊断 runner：ACPC-1/H、PCC、CRA、MAF、ADM proxy、SPRR | LeWM/PLDM canonical eval manifest + 本地 loadable model checkpoints | `assets/paper1_data/acpc_phase0_clean_goal_seed9101.json`；当前 Phase-0 appendix source，旧 `acpc_phase0_diagnostics.json` 仅作 observation+goal archived sanity |
+| `tools/paper1_phase0_acpc.py` | 低频 paired ACPC 诊断 runner：ACPC-1/H、PCC、CRA、MAF、ADM proxy、SPRR | LeWM/PLDM canonical eval manifest + 本地 loadable model checkpoints | `assets/paper1_data/acpc_phase0_clean_goal_seed9101.json`；three-seed LeWM run 输出 `assets/paper1_data/acpc_phase0_lewm_three_seed.json`，旧 `acpc_phase0_diagnostics.json` 仅作 observation+goal archived sanity |
+| `tools/paper1_training_seed_eval_manifests.py` | 生成 LeWM seed 3072/3073/3074 的 canonical-shaped eval manifests | canonical seed-3072 JSON + seed3073/3074 checkpoint `eval_summary.csv` | `assets/paper1_data/training_seed_eval_manifests/lewm_seed*_evals.json` |
+| `tools/paper1_three_seed_diagnostic_validation.py` | 固定 ACPC/PCC/CRA/MAF rank rule 并汇总 three-seed full-grid validation | `assets/paper1_data/acpc_phase0_lewm_three_seed.json` | `assets/paper1_data/three_seed_diagnostic_validation.json` / `.md` |
+| `tools/paper1_semantic_margin.py` | 任务语义 margin pass-rate：same-state noisy radius vs semantic-different rollout distance | seed-specific eval manifests + 本地 ckpt/data | `assets/paper1_data/semantic_margin_passrate_lewm_three_seed.json` / `.md` |
 | `tools/paper1_selective_contraction.py` | Phase-1 前的 selective-contraction branch probe；可选渲染同 state clean/noised rollout cluster 图 | ACPC basin + Phase-0 diagnostics；plot 模式还需要本地 checkpoint/data | `assets/paper1_data/selective_contraction_fullseq_branch.*`；cluster 图默认输出到 `assets/phase1_figs/selective_contraction_clusters/`，paper-facing 输出可用 `--cluster-out-dir assets/paper1_figs` 生成 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；用 repeated perturbation samples，默认用 fixed-seed random anchors 选点并绘制低权重的 90% 2-D covariance ellipse，只作 qualitative visualization |
 | `tools/paper1_unseen_eval_grid.py` / `run_paper1_unseen_origin_vs_std008_seeded.sh` | unseen-perturbation pilot / lockbox launcher；只包装 `run_trainer.sh`，默认 eval-only，按需加 `--diagnostics` | canonical eval JSON or seed-remapped temporary canonical + `$DATA_ROOT/lewm-*/ckpt/*epoch_10_object.ckpt` | seed-specific `unseen_origin_vs_std008_strongest_s<seed>*.json` review artifacts |
 | `tools/build_paper1_unseen_eval_artifact.py` | 汇总 unseen-perturbation pilot 的 `eval_summary.csv` 和可选 diagnostics summary | `tools/paper1_unseen_eval_grid.py` 写出的 manifest + 本地 eval 输出 | `assets/paper1_data/unseen_perturbation_pilot_seed3072.json`；进入正文前必须人工审查 |
@@ -67,6 +70,20 @@ python -m tools.paper1_phase0_acpc \
   --noise-std 0.08 --clean-goal --seed 9101 \
   --n-sequences 100 --random-action-trials 64 \
   --out assets/paper1_data/acpc_phase0_clean_goal_seed9101.json
+
+python -m tools.paper1_training_seed_eval_manifests
+
+STABLEWM_HOME=/tmp/paper1_stablewm_home CUDA_VISIBLE_DEVICES=0 \
+python -m tools.paper1_phase0_acpc \
+  --methods LeWM --evals-lewm assets/paper1_data/training_seed_eval_manifests/lewm_seed3072_evals.json \
+  --clean-goal --seed 9101 --out assets/paper1_data/acpc_phase0_lewm_seed3072.json
+# repeat for seeds 3073/3074, then merge component files into acpc_phase0_lewm_three_seed.json
+
+python -m tools.paper1_three_seed_diagnostic_validation
+
+STABLEWM_HOME=/tmp/paper1_stablewm_home CUDA_VISIBLE_DEVICES=3 \
+python -m tools.paper1_semantic_margin --seeds 3072 --out /tmp/semantic_margin_seed3072.json
+# repeat/merge for seeds 3073/3074 to regenerate semantic_margin_passrate_lewm_three_seed.json
 
 OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/mplconfig \
 python -m tools.paper1_selective_contraction \

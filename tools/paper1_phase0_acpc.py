@@ -605,7 +605,8 @@ def run_checkpoint(
         )
 
         clean_success = _mean_metric(entry, "clean")
-        corrupted_success = _mean_metric(entry, "pixels_goal_std0.08")
+        pixels_success = _mean_metric(entry, "pixels_std0.08")
+        pixels_goal_success = _mean_metric(entry, "pixels_goal_std0.08")
         return {
             "status": "ok",
             "method": method,
@@ -615,8 +616,10 @@ def run_checkpoint(
             "run_path": entry.get("path"),
             "model_file": str(model_file),
             "clean_success": clean_success,
-            "pixels_goal_std0.08_success": corrupted_success,
-            "corruption_drop": clean_success - corrupted_success,
+            "pixels_std0.08_success": pixels_success,
+            "pixels_goal_std0.08_success": pixels_goal_success,
+            "corruption_drop": clean_success - pixels_success,
+            "pixels_goal_corruption_drop": clean_success - pixels_goal_success,
             "noise_std": float(args.noise_std),
             "corruption_type": args.corruption_type,
             "corrupt_goal": bool(args.corrupt_goal),
@@ -721,6 +724,7 @@ def main() -> None:
                     "model_file": str(model_file) if model_file else None,
                     "model_search_dirs": tried,
                     "clean_success": _mean_metric(entry, "clean"),
+                    "pixels_std0.08_success": _mean_metric(entry, "pixels_std0.08"),
                     "pixels_goal_std0.08_success": _mean_metric(entry, "pixels_goal_std0.08"),
                 }
             )

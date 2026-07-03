@@ -1,8 +1,10 @@
 {
   "metadata": {
-    "schema_version": "paper1-validation-remediation-0.1",
+    "schema_version": "paper1-validation-remediation-0.2",
     "source_artifacts": [
       "assets/paper1_data/training_seed_gaussian_lockbox.json",
+      "assets/paper1_data/three_seed_diagnostic_validation.json",
+      "assets/paper1_data/semantic_margin_passrate_lewm_three_seed.json",
       "assets/paper1_data/unseen_phase0_acpc_subset.json",
       "assets/paper1_data/no_retrain_diagnostic_audit.json",
       "assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json",
@@ -10,7 +12,7 @@
       "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json",
       "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json"
     ],
-    "scope": "No model loading or retraining. Summarizes completed three-training-seed Gaussian behavior, three-training-seed unseen scores, a held-out training-seed/unseen-perturbation diagnostic slice, and the semantic-guard protocol ledger."
+    "scope": "No retraining. Summarizes completed three-training-seed Gaussian behavior, full-grid three-seed fixed-rule diagnostic validation, semantic margin pass-rate, and bounded unseen-stressor scope checks."
   },
   "three_training_seed_gaussian_summary": [
     {
@@ -114,6 +116,455 @@
       "best_std_range": "0.03--0.05"
     }
   ],
+  "three_seed_full_grid_diagnostic_validation": {
+    "n_task_seed_blocks": 12,
+    "training_seeds": [
+      3072,
+      3073,
+      3074
+    ],
+    "checkpoint_candidates_per_block": 8,
+    "exact_best_hits": 2,
+    "within_5pp_hits": 10,
+    "mean_selected_regret_to_best_pp": 2.250000027777778,
+    "pstdev_selected_regret_to_best_pp": 2.5060112997070227,
+    "mean_top2_overlap": 0.75,
+    "top2_total_per_block": 2
+  },
+  "three_seed_diagnostic_selection_rows": [
+    {
+      "task": "TwoRoom",
+      "training_seed": 3072,
+      "baseline_px08_success": 65.66666666666667,
+      "selected_std": "0.08",
+      "selected_px08_success": 97.66666666666667,
+      "closed_loop_best_std": "0.08",
+      "closed_loop_best_px08_success": 97.66666666666667,
+      "selected_regret_to_best_pp": 0.0,
+      "selected_within_5pp_of_best": true,
+      "selected_exact_best": true,
+      "top2_overlap": 1,
+      "top2_total": 2,
+      "selected_rank_score": 2.0,
+      "selected_acpc_h_norm_by_transition": 0.041273009052478486,
+      "selected_pcc_abs_median": 0.975677490234375,
+      "selected_cra_spearman_mean": 0.9968850016593933,
+      "selected_maf_flip_rate": 0.03999999910593033
+    },
+    {
+      "task": "TwoRoom",
+      "training_seed": 3073,
+      "baseline_px08_success": 71.666667,
+      "selected_std": "0.08",
+      "selected_px08_success": 97.333333,
+      "closed_loop_best_std": "0.06",
+      "closed_loop_best_px08_success": 97.333333,
+      "selected_regret_to_best_pp": 0.0,
+      "selected_within_5pp_of_best": true,
+      "selected_exact_best": false,
+      "top2_overlap": 1,
+      "top2_total": 2,
+      "selected_rank_score": 0.0,
+      "selected_acpc_h_norm_by_transition": 0.042506712999701365,
+      "selected_pcc_abs_median": 1.11785888671875,
+      "selected_cra_spearman_mean": 0.9952215552330017,
+      "selected_maf_flip_rate": 0.05000000074505806
+    },
+    {
+      "task": "TwoRoom",
+      "training_seed": 3074,
+      "baseline_px08_success": 69.0,
+      "selected_std": "0.08",
+      "selected_px08_success": 96.333333,
+      "closed_loop_best_std": "0.05",
+      "closed_loop_best_px08_success": 98.0,
+      "selected_regret_to_best_pp": 1.666667000000004,
+      "selected_within_5pp_of_best": true,
+      "selected_exact_best": false,
+      "top2_overlap": 0,
+      "top2_total": 2,
+      "selected_rank_score": 1.0,
+      "selected_acpc_h_norm_by_transition": 0.03917642731438668,
+      "selected_pcc_abs_median": 0.8929300308227539,
+      "selected_cra_spearman_mean": 0.9947310090065002,
+      "selected_maf_flip_rate": 0.029999999329447746
+    },
+    {
+      "task": "PushT",
+      "training_seed": 3072,
+      "baseline_px08_success": 4.333333333333333,
+      "selected_std": "0.08",
+      "selected_px08_success": 89.0,
+      "closed_loop_best_std": "0.08",
+      "closed_loop_best_px08_success": 89.0,
+      "selected_regret_to_best_pp": 0.0,
+      "selected_within_5pp_of_best": true,
+      "selected_exact_best": true,
+      "top2_overlap": 1,
+      "top2_total": 2,
+      "selected_rank_score": 0.0,
+      "selected_acpc_h_norm_by_transition": 0.11287221576188135,
+      "selected_pcc_abs_median": 1.864837646484375,
+      "selected_cra_spearman_mean": 0.9963735938072205,
+      "selected_maf_flip_rate": 0.019999999552965164
+    },
+    {
+      "task": "PushT",
+      "training_seed": 3073,
+      "baseline_px08_success": 2.0,
+      "selected_std": "0.08",
+      "selected_px08_success": 81.0,
+      "closed_loop_best_std": "0.04",
+      "closed_loop_best_px08_success": 86.666667,
+      "selected_regret_to_best_pp": 5.666667000000004,
+      "selected_within_5pp_of_best": false,
+      "selected_exact_best": false,
+      "top2_overlap": 0,
+      "top2_total": 2,
+      "selected_rank_score": 0.0,
+      "selected_acpc_h_norm_by_transition": 0.11149586704602645,
+      "selected_pcc_abs_median": 2.1136627197265625,
+      "selected_cra_spearman_mean": 0.995859682559967,
+      "selected_maf_flip_rate": 0.019999999552965164
+    },
+    {
+      "task": "PushT",
+      "training_seed": 3074,
+      "baseline_px08_success": 15.333333,
+      "selected_std": "0.06",
+      "selected_px08_success": 86.333333,
+      "closed_loop_best_std": "0.08",
+      "closed_loop_best_px08_success": 87.333333,
+      "selected_regret_to_best_pp": 1.0,
+      "selected_within_5pp_of_best": true,
+      "selected_exact_best": false,
+      "top2_overlap": 1,
+      "top2_total": 2,
+      "selected_rank_score": 3.0,
+      "selected_acpc_h_norm_by_transition": 0.12011377586545399,
+      "selected_pcc_abs_median": 2.2631072998046875,
+      "selected_cra_spearman_mean": 0.9958640336990356,
+      "selected_maf_flip_rate": 0.009999999776482582
+    },
+    {
+      "task": "Reacher",
+      "training_seed": 3072,
+      "baseline_px08_success": 18.333333333333332,
+      "selected_std": "0.02",
+      "selected_px08_success": 83.66666666666667,
+      "closed_loop_best_std": "0.07",
+      "closed_loop_best_px08_success": 84.66666666666667,
+      "selected_regret_to_best_pp": 1.0,
+      "selected_within_5pp_of_best": true,
+      "selected_exact_best": false,
+      "top2_overlap": 2,
+      "top2_total": 2,
+      "selected_rank_score": 3.0,
+      "selected_acpc_h_norm_by_transition": 0.02859689512559197,
+      "selected_pcc_abs_median": 0.5315093994140625,
+      "selected_cra_spearman_mean": 0.9992958307266235,
+      "selected_maf_flip_rate": 0.009999999776482582
+    },
+    {
+      "task": "Reacher",
+      "training_seed": 3073,
+      "baseline_px08_success": 17.666667,
+      "selected_std": "0.08",
+      "selected_px08_success": 82.333333,
+      "closed_loop_best_std": "0.07",
+      "closed_loop_best_px08_success": 83.333333,
+      "selected_regret_to_best_pp": 1.0,
+      "selected_within_5pp_of_best": true,
+      "selected_exact_best": false,
+      "top2_overlap": 2,
+      "top2_total": 2,
+      "selected_rank_score": 1.0,
+      "selected_acpc_h_norm_by_transition": 0.03967019850769718,
+      "selected_pcc_abs_median": 0.785430908203125,
+      "selected_cra_spearman_mean": 0.9989855289459229,
+      "selected_maf_flip_rate": 0.009999999776482582
+    },
+    {
+      "task": "Reacher",
+      "training_seed": 3074,
+      "baseline_px08_success": 18.666667,
+      "selected_std": "0.08",
+      "selected_px08_success": 80.333333,
+      "closed_loop_best_std": "0.05",
+      "closed_loop_best_px08_success": 83.333333,
+      "selected_regret_to_best_pp": 3.0,
+      "selected_within_5pp_of_best": true,
+      "selected_exact_best": false,
+      "top2_overlap": 1,
+      "top2_total": 2,
+      "selected_rank_score": 1.5,
+      "selected_acpc_h_norm_by_transition": 0.04197983047420726,
+      "selected_pcc_abs_median": 0.8364410400390625,
+      "selected_cra_spearman_mean": 0.9989562034606934,
+      "selected_maf_flip_rate": 0.009999999776482582
+    },
+    {
+      "task": "Cube",
+      "training_seed": 3072,
+      "baseline_px08_success": 47.0,
+      "selected_std": "0.05",
+      "selected_px08_success": 60.0,
+      "closed_loop_best_std": "0.03",
+      "closed_loop_best_px08_success": 68.33333333333333,
+      "selected_regret_to_best_pp": 8.333333333333329,
+      "selected_within_5pp_of_best": false,
+      "selected_exact_best": false,
+      "top2_overlap": 0,
+      "top2_total": 2,
+      "selected_rank_score": 1.5,
+      "selected_acpc_h_norm_by_transition": 0.01367515339034509,
+      "selected_pcc_abs_median": 0.3953094482421875,
+      "selected_cra_spearman_mean": 0.9994959831237793,
+      "selected_maf_flip_rate": 0.0
+    },
+    {
+      "task": "Cube",
+      "training_seed": 3073,
+      "baseline_px08_success": 39.0,
+      "selected_std": "0.08",
+      "selected_px08_success": 64.666667,
+      "closed_loop_best_std": "0.05",
+      "closed_loop_best_px08_success": 65.666667,
+      "selected_regret_to_best_pp": 1.0,
+      "selected_within_5pp_of_best": true,
+      "selected_exact_best": false,
+      "top2_overlap": 0,
+      "top2_total": 2,
+      "selected_rank_score": 1.0,
+      "selected_acpc_h_norm_by_transition": 0.05900276925666271,
+      "selected_pcc_abs_median": 1.276611328125,
+      "selected_cra_spearman_mean": 0.9979321956634521,
+      "selected_maf_flip_rate": 0.0
+    },
+    {
+      "task": "Cube",
+      "training_seed": 3074,
+      "baseline_px08_success": 43.333333,
+      "selected_std": "0.08",
+      "selected_px08_success": 61.0,
+      "closed_loop_best_std": "0.03",
+      "closed_loop_best_px08_success": 65.333333,
+      "selected_regret_to_best_pp": 4.333332999999996,
+      "selected_within_5pp_of_best": true,
+      "selected_exact_best": false,
+      "top2_overlap": 0,
+      "top2_total": 2,
+      "selected_rank_score": 0.5,
+      "selected_acpc_h_norm_by_transition": 0.06162649570706692,
+      "selected_pcc_abs_median": 1.2800369262695312,
+      "selected_cra_spearman_mean": 0.9980239868164062,
+      "selected_maf_flip_rate": 0.0
+    }
+  ],
+  "semantic_margin_passrate": [
+    {
+      "task": "TwoRoom",
+      "std_key": "0.0",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "semantic_margin_pass_rate_mean": 0.44333332777023315,
+      "semantic_margin_pass_rate_pstdev": 0.061282577890183265,
+      "semantic_discriminability_ratio_mean": 0.9797347613619541,
+      "semantic_discriminability_ratio_pstdev": 0.04018545510337398,
+      "same_state_noisy_radius_median_mean": 17.43429183959961,
+      "same_state_noisy_radius_median_pstdev": 0.6464636242898008,
+      "semantic_diff_l2_median_mean": 17.055362701416016,
+      "semantic_diff_l2_median_pstdev": 0.1143210354196124,
+      "semantic_margin_median_mean": -0.7056142489115397,
+      "semantic_margin_median_pstdev": 0.7703817467310169
+    },
+    {
+      "task": "TwoRoom",
+      "std_key": "0.08",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "semantic_margin_pass_rate_mean": 0.9966666499773661,
+      "semantic_margin_pass_rate_pstdev": 0.004714068810145483,
+      "semantic_discriminability_ratio_mean": 29.20756632946826,
+      "semantic_discriminability_ratio_pstdev": 1.4601745798817336,
+      "same_state_noisy_radius_median_mean": 0.5627621213595072,
+      "same_state_noisy_radius_median_pstdev": 0.02469485012225296,
+      "semantic_diff_l2_median_mean": 16.402806599934895,
+      "semantic_diff_l2_median_pstdev": 0.2485384369543253,
+      "semantic_margin_median_mean": 15.76979923248291,
+      "semantic_margin_median_pstdev": 0.2739962464062665
+    },
+    {
+      "task": "PushT",
+      "std_key": "0.0",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "semantic_margin_pass_rate_mean": 0.26999999086062115,
+      "semantic_margin_pass_rate_pstdev": 0.13735597605964595,
+      "semantic_discriminability_ratio_mean": 0.8661248611522137,
+      "semantic_discriminability_ratio_pstdev": 0.06700453318163117,
+      "same_state_noisy_radius_median_mean": 18.353740692138672,
+      "same_state_noisy_radius_median_pstdev": 1.2106026129806577,
+      "semantic_diff_l2_median_mean": 15.815516153971354,
+      "semantic_diff_l2_median_pstdev": 0.20479146554211125,
+      "semantic_margin_median_mean": -2.48225736618042,
+      "semantic_margin_median_pstdev": 1.6550633479058965
+    },
+    {
+      "task": "PushT",
+      "std_key": "0.08",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "semantic_margin_pass_rate_mean": 1.0,
+      "semantic_margin_pass_rate_pstdev": 0.0,
+      "semantic_discriminability_ratio_mean": 23.663089335788143,
+      "semantic_discriminability_ratio_pstdev": 2.2849673785513933,
+      "same_state_noisy_radius_median_mean": 0.6923978726069132,
+      "same_state_noisy_radius_median_pstdev": 0.06496051522311087,
+      "semantic_diff_l2_median_mean": 16.23617108662923,
+      "semantic_diff_l2_median_pstdev": 0.023598137042696102,
+      "semantic_margin_median_mean": 15.056004842122396,
+      "semantic_margin_median_pstdev": 0.13029940170442192
+    },
+    {
+      "task": "Reacher",
+      "std_key": "0.0",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "semantic_margin_pass_rate_mean": 0.5833333333333334,
+      "semantic_margin_pass_rate_pstdev": 0.026246695638500152,
+      "semantic_discriminability_ratio_mean": 1.1176684804384012,
+      "semantic_discriminability_ratio_pstdev": 0.02906584245700675,
+      "same_state_noisy_radius_median_mean": 15.435619354248047,
+      "same_state_noisy_radius_median_pstdev": 0.5080788957008702,
+      "semantic_diff_l2_median_mean": 17.23722966512044,
+      "semantic_diff_l2_median_pstdev": 0.13235845555195158,
+      "semantic_margin_median_mean": 0.8318307399749756,
+      "semantic_margin_median_pstdev": 0.36725689415269264
+    },
+    {
+      "task": "Reacher",
+      "std_key": "0.08",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "semantic_margin_pass_rate_mean": 1.0,
+      "semantic_margin_pass_rate_pstdev": 0.0,
+      "semantic_discriminability_ratio_mean": 61.25701578756786,
+      "semantic_discriminability_ratio_pstdev": 3.3676309808374887,
+      "same_state_noisy_radius_median_mean": 0.27458781997362774,
+      "same_state_noisy_radius_median_pstdev": 0.017848113124732754,
+      "semantic_diff_l2_median_mean": 16.760351181030273,
+      "semantic_diff_l2_median_pstdev": 0.21195814091252677,
+      "semantic_margin_median_mean": 16.501698176066082,
+      "semantic_margin_median_pstdev": 0.22674215477121387
+    },
+    {
+      "task": "Cube",
+      "std_key": "0.0",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "semantic_margin_pass_rate_mean": 0.24999999006589255,
+      "semantic_margin_pass_rate_pstdev": 0.063770416830008,
+      "semantic_discriminability_ratio_mean": 0.8515242035940239,
+      "semantic_discriminability_ratio_pstdev": 0.010821187443756253,
+      "same_state_noisy_radius_median_mean": 19.332434972127277,
+      "same_state_noisy_radius_median_pstdev": 0.15353277795209438,
+      "semantic_diff_l2_median_mean": 16.460726420084637,
+      "semantic_diff_l2_median_pstdev": 0.13398738716467715,
+      "semantic_margin_median_mean": -3.3229737281799316,
+      "semantic_margin_median_pstdev": 0.18940956149334232
+    },
+    {
+      "task": "Cube",
+      "std_key": "0.08",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "semantic_margin_pass_rate_mean": 1.0,
+      "semantic_margin_pass_rate_pstdev": 0.0,
+      "semantic_discriminability_ratio_mean": 34.43646184510838,
+      "semantic_discriminability_ratio_pstdev": 4.016506347767717,
+      "same_state_noisy_radius_median_mean": 0.48788092533747357,
+      "same_state_noisy_radius_median_pstdev": 0.05289973837369041,
+      "semantic_diff_l2_median_mean": 16.58942222595215,
+      "semantic_diff_l2_median_pstdev": 0.240281453891881,
+      "semantic_margin_median_mean": 15.99127197265625,
+      "semantic_margin_median_pstdev": 0.28083952454527306
+    }
+  ],
+  "semantic_margin_coverage": {
+    "TwoRoom:0.0": [
+      3072,
+      3073,
+      3074
+    ],
+    "TwoRoom:0.08": [
+      3072,
+      3073,
+      3074
+    ],
+    "PushT:0.0": [
+      3072,
+      3073,
+      3074
+    ],
+    "PushT:0.08": [
+      3072,
+      3073,
+      3074
+    ],
+    "Reacher:0.0": [
+      3072,
+      3073,
+      3074
+    ],
+    "Reacher:0.08": [
+      3072,
+      3073,
+      3074
+    ],
+    "Cube:0.0": [
+      3072,
+      3073,
+      3074
+    ],
+    "Cube:0.08": [
+      3072,
+      3073,
+      3074
+    ]
+  },
   "three_seed_unseen_score_summary": {
     "scope": "unseen score aggregate over training seeds 3072/3073/3074; each seed point is the mean over eval seeds 42/43/44 from source artifacts with num_eval=300",
     "selected_stress_policy": {
@@ -676,7 +1127,7 @@
     }
   },
   "heldout_unseen_validation": {
-    "split": "training seeds 3073/3074; unseen perturbation families gaussian_blur and resize; fixed std_max comparison 0.0 vs 0.08",
+    "split": "appendix scope check: training seeds 3073/3074; unseen perturbation families gaussian_blur and resize; fixed std_max comparison 0.0 vs 0.08",
     "n_rows": 8,
     "metric_rows": [
       {
@@ -804,33 +1255,33 @@
       "semantic_factor": "T-block pose/contact relative to pusher",
       "available_source": "dataset state column is configured for PushT analysis",
       "probe_rule": "different-state pair must cross a pose/contact threshold while same-state clean/noisy views share state",
-      "release_status": "protocol frozen; state-margin run still required for a result table"
+      "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work"
     },
     {
       "task": "TwoRoom",
       "semantic_factor": "room/doorway/topology and target-region relation",
       "available_source": "derive from trajectory position/proprio and map topology",
       "probe_rule": "different-state pair must differ in room or doorway side under comparable visual nuisance",
-      "release_status": "protocol frozen; task-topology extraction still required for a result table"
+      "release_status": "reported with pos_agent proxy in semantic_margin_passrate_lewm_three_seed.json; topology-specific extraction remains future work"
     },
     {
       "task": "Reacher",
       "semantic_factor": "joint/target geometry and end-effector-to-target relation",
       "available_source": "qpos/goal_qpos are used by eval set-state callables",
       "probe_rule": "different-state pair must differ in target quadrant or end-effector-target distance bin",
-      "release_status": "protocol frozen; state-margin run still required for a result table"
+      "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work"
     },
     {
       "task": "Cube",
       "semantic_factor": "cube pose and gripper-object/goal relation",
       "available_source": "qpos plus goal block position/quaternion are used by eval callables",
       "probe_rule": "different-state pair must differ in object pose/goal relation beyond tolerance",
-      "release_status": "protocol frozen; state-margin run still required for a result table"
+      "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work"
     }
   ],
   "remaining_validation_work": [
-    "Run the fixed ACPC/PCC/CRA/MAF rule on full held-out training-seed checkpoint grids, not only the current matched diagnostic slice.",
-    "Run the task-semantic state-margin probes defined in this artifact and report pass rates before claiming semantic discriminability results.",
-    "Use the three-training-seed Gaussian table as the primary behavior statistic; keep evaluation-seed variance as a secondary decomposition."
+    "Extend the fixed diagnostic rule to additional perturbation families and method families after this three-seed Gaussian validation.",
+    "Broaden semantic-pair construction beyond one state proxy per task if the claim is expanded beyond matched Gaussian diagnostics.",
+    "Keep training-seed uncertainty as the primary behavior statistic and evaluation-seed variance as the secondary decomposition."
   ]
 }

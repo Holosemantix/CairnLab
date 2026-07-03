@@ -19,7 +19,7 @@ LaTeX caption is the single source of truth and figure numbers cannot drift.
 Data sources (no new computation needed):
 
 - Eval tables (§4.2, §4.3): assets/paper1_data/canonical_evals_20260517.json
-- Diagnostic tables / scatter predictor metrics:
+- Diagnostic tables / scatter rollout metrics:
   assets/paper1_data/canonical_diagnostics_20260517.json
 """
 from __future__ import annotations
@@ -423,7 +423,7 @@ def fig5_mechanism(out_path: Path):
     box_hw, box_hh = 0.085, 0.07
     box_y = 0.50
     box_centers = [0.10, 0.36, 0.62, 0.88]
-    box_labels = ["pixels\n(noise +)", "encoder $f$", "predictor $g$", "CEM /\nplanner"]
+    box_labels = ["pixels\n(noise +)", "encoder $f$", "rollout\nreadout", "CEM /\nplanner"]
     box_colors = ["#FDE7E9", "#E7F0FA", "#FCEFD8", "#E8F4EA"]
 
     for x, lab, color in zip(box_centers, box_labels, box_colors):
@@ -441,7 +441,7 @@ def fig5_mechanism(out_path: Path):
 
     layer_labels = [
         "encoder shift",
-        "predictor drift",
+        "multi-step rollout drift",
         "planning-time action selection",
     ]
     layer_x = [
@@ -464,7 +464,7 @@ def fig5_mechanism(out_path: Path):
 
     ax.text(
         0.50, 0.20,
-        "Quantitative attribution in §4.6.2 uses the two full-coverage LeWM n=9 predictor metrics.\n"
+        "Quantitative attribution in §4.6.2 uses the two full-coverage LeWM n=9 rollout metrics.\n"
         "After conditioning on std_max, Reacher's multi-step drift is the only non-trivial residual signal.",
         ha="center", va="center", fontsize=8.8,
         bbox=dict(boxstyle="round,pad=0.4", facecolor="#F5F5F5",
@@ -473,7 +473,7 @@ def fig5_mechanism(out_path: Path):
 
     ax.text(
         0.50, 0.06,
-        "Interpretation: the common qualitative path is encoder shift transduced by the predictor;\n"
+        "Interpretation: the common qualitative path is encoder shift visible in rollout readouts;\n"
         "the cost function alone is unlikely to explain the collapse.",
         ha="center", va="center", fontsize=9.2
     )

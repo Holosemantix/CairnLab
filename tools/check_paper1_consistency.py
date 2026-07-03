@@ -35,6 +35,9 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json",
     ROOT / "assets" / "paper1_data" / "training_seed_gaussian_lockbox.json",
     ROOT / "assets" / "paper1_data" / "prospective_validation_summary.json",
+    ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_three_seed.json",
+    ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.json",
+    ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
 ]
 
 REQUIRED_ARTIFACTS = [
@@ -66,6 +69,17 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "training_seed_gaussian_lockbox.md",
     ROOT / "assets" / "paper1_data" / "prospective_validation_summary.json",
     ROOT / "assets" / "paper1_data" / "prospective_validation_summary.md",
+    ROOT / "assets" / "paper1_data" / "training_seed_eval_manifests" / "lewm_seed3072_evals.json",
+    ROOT / "assets" / "paper1_data" / "training_seed_eval_manifests" / "lewm_seed3073_evals.json",
+    ROOT / "assets" / "paper1_data" / "training_seed_eval_manifests" / "lewm_seed3074_evals.json",
+    ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_seed3072.json",
+    ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_seed3073.json",
+    ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_seed3074.json",
+    ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_three_seed.json",
+    ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.json",
+    ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.md",
+    ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
+    ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.md",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -1140,9 +1154,104 @@ def check_prospective_validation_summary_json() -> None:
     topk = heldout.get("topk_summary", {})
     if topk.get("stress_success_delta_topk_hit_count") != 4 or topk.get("drop_improvement_topk_hit_count") != 4:
         fail("prospective validation top-4 agreement must remain 4/4 for stress delta and drop improvement")
-    semantic = data.get("semantic_discriminability_protocol", [])
-    if {row.get("task") for row in semantic} != EXPECTED_TASKS:
-        fail("semantic discriminability protocol must cover all four tasks")
+    diag = data.get("three_seed_full_grid_diagnostic_validation", {})
+    if diag.get("n_task_seed_blocks") != 12 or diag.get("within_5pp_hits") != 10:
+        fail("prospective validation summary must include completed three-seed full-grid diagnostic validation")
+    semantic_rows = data.get("semantic_margin_passrate", [])
+    if len(semantic_rows) != 8:
+        fail("prospective validation summary must include completed semantic margin pass-rate rows")
+    semantic_cov = data.get("semantic_margin_coverage", {})
+    expected_semantic_cov = {
+        f"{task}:{std}": [3072, 3073, 3074]
+        for task in ("TwoRoom", "PushT", "Reacher", "Cube")
+        for std in ("0.0", "0.08")
+    }
+    if semantic_cov != expected_semantic_cov:
+        fail(f"prospective validation semantic coverage mismatch: {semantic_cov}")
+
+
+
+def check_three_seed_diagnostic_validation_json() -> None:
+    phase0_path = ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_three_seed.json"
+    phase0 = json.loads(phase0_path.read_text(encoding="utf-8"))
+    rows = phase0.get("rows", [])
+    if len(rows) != 108 or any(row.get("status") != "ok" for row in rows):
+        fail("three-seed Phase-0 LeWM artifact must contain 108 ok rows")
+    expected = {
+        (task, seed, std)
+        for task in EXPECTED_TASKS
+        for seed in (3072, 3073, 3074)
+        for std in EXPECTED_CONFIGS
+    }
+    got = {(row.get("task"), int(row.get("training_seed")), str(row.get("std_key"))) for row in rows}
+    if got != expected:
+        fail(f"three-seed Phase-0 coverage mismatch: missing={sorted(expected - got)[:5]}")
+    required_fields = {
+        "pixels_std0.08_success",
+        "pixels_goal_std0.08_success",
+        "corruption_drop",
+        "acpc_h_norm_by_transition",
+        "pcc_abs_median",
+        "cra_spearman_mean",
+        "maf_flip_rate",
+    }
+    for row in rows:
+        missing = required_fields - set(row)
+        if missing:
+            fail(f"three-seed Phase-0 row missing fields {missing}: {row.get('task')} {row.get('training_seed')} {row.get('std_key')}")
+
+    validation_path = ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.json"
+    validation = json.loads(validation_path.read_text(encoding="utf-8"))
+    summary = validation.get("summary", {})
+    expected_summary = {
+        "n_task_seed_blocks": 12,
+        "exact_best_hits": 2,
+        "within_5pp_hits": 10,
+        "checkpoint_candidates_per_block": 8,
+    }
+    for key, want in expected_summary.items():
+        if summary.get(key) != want:
+            fail(f"three-seed diagnostic validation {key} mismatch: {summary.get(key)} != {want}")
+    if round2(float(summary.get("mean_selected_regret_to_best_pp"))) != 2.25:
+        fail("three-seed diagnostic validation mean regret changed")
+    selection = validation.get("selection_rows", [])
+    if len(selection) != 12:
+        fail("three-seed diagnostic validation must contain 12 selection rows")
+    if sorted({int(row["training_seed"]) for row in selection}) != [3072, 3073, 3074]:
+        fail("three-seed diagnostic validation must cover seeds 3072/3073/3074")
+
+
+def check_semantic_margin_passrate_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rows = data.get("rows", [])
+    if len(rows) != 24 or any(row.get("status") != "ok" for row in rows):
+        fail("semantic margin pass-rate artifact must contain 24 ok rows")
+    coverage = data.get("coverage", {})
+    expected_coverage = {
+        f"{task}:{std}": [3072, 3073, 3074]
+        for task in ("TwoRoom", "PushT", "Reacher", "Cube")
+        for std in ("0.0", "0.08")
+    }
+    if coverage != expected_coverage:
+        fail(f"semantic margin coverage mismatch: {coverage}")
+    summary = {(row["task"], row["std_key"]): row for row in data.get("summary_rows", [])}
+    expected_pass = {
+        ("TwoRoom", "0.0"): 0.44,
+        ("TwoRoom", "0.08"): 1.00,
+        ("PushT", "0.0"): 0.27,
+        ("PushT", "0.08"): 1.00,
+        ("Reacher", "0.0"): 0.58,
+        ("Reacher", "0.08"): 1.00,
+        ("Cube", "0.0"): 0.25,
+        ("Cube", "0.08"): 1.00,
+    }
+    if set(summary) != set(expected_pass):
+        fail(f"semantic margin summary rows mismatch: {sorted(summary)}")
+    for key, want in expected_pass.items():
+        got = round2(float(summary[key]["semantic_margin_pass_rate_mean"]))
+        if got != want:
+            fail(f"semantic margin pass-rate mismatch for {key}: got {got}, want {want}")
 
 def check_target_view_closed_loop_summary_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json"
@@ -1270,6 +1379,8 @@ def main() -> int:
         ("pldm acpc basin json", check_pldm_acpc_basin_json),
         ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
         ("training-seed Gaussian lockbox json", check_training_seed_gaussian_lockbox_json),
+        ("three-seed diagnostic validation json", check_three_seed_diagnostic_validation_json),
+        ("semantic margin pass-rate json", check_semantic_margin_passrate_json),
         ("prospective validation summary json", check_prospective_validation_summary_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),

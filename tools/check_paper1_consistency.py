@@ -58,6 +58,10 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "acpc_phase0_clean_goal_seed9101.json",
     ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json",
     ROOT / "assets" / "paper1_data" / "no_retrain_diagnostic_audit.json",
+    ROOT / "assets" / "paper1_data" / "unseen_origin_vs_std008_strongest_tworoom.json",
+    ROOT / "assets" / "paper1_data" / "unseen_origin_vs_std008_strongest_reacher.json",
+    ROOT / "assets" / "paper1_data" / "unseen_origin_vs_std008_strongest_s3073.json",
+    ROOT / "assets" / "paper1_data" / "unseen_origin_vs_std008_strongest_s3074.json",
     ROOT / "assets" / "paper1_data" / "training_seed_gaussian_lockbox.json",
     ROOT / "assets" / "paper1_data" / "training_seed_gaussian_lockbox.md",
     ROOT / "assets" / "paper1_data" / "prospective_validation_summary.json",
@@ -1056,6 +1060,66 @@ def check_training_seed_gaussian_lockbox_json() -> None:
 def check_prospective_validation_summary_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "prospective_validation_summary.json"
     data = json.loads(path.read_text(encoding="utf-8"))
+
+    required_sources = {
+        "assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json",
+        "assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json",
+        "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json",
+        "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json",
+    }
+    sources = set(data.get("metadata", {}).get("source_artifacts", []))
+    if not required_sources.issubset(sources):
+        fail("prospective validation summary must cite all three-seed unseen score artifacts")
+    for source in required_sources:
+        source_data = json.loads((ROOT / source).read_text(encoding="utf-8"))
+        status = source_data.get("metadata", {}).get("status", "")
+        if "audited score artifact" not in status:
+            fail(f"{source} must be marked as an audited unseen score artifact")
+
+    score_summary = data.get("three_seed_unseen_score_summary", {})
+    selected_policy = {
+        "TwoRoom": "gaussian_blur",
+        "PushT": "resize",
+        "Reacher": "gaussian_blur",
+        "Cube": "resize",
+    }
+    if score_summary.get("selected_stress_policy") != selected_policy:
+        fail("three-seed unseen score summary selected-stress policy changed")
+
+    coverage = score_summary.get("coverage", {})
+    expected_coverage = {
+        f"{task}:{family}": [3072, 3073, 3074]
+        for task in ("TwoRoom", "PushT", "Reacher", "Cube")
+        for family in ("gaussian_blur", "resize")
+    }
+    if coverage != expected_coverage:
+        fail(f"three-seed unseen score coverage mismatch: {coverage}")
+
+    selected = {
+        (row.get("task"), row.get("family")): row
+        for row in score_summary.get("selected_stress_rows", [])
+    }
+    expected_selected = {
+        ("TwoRoom", "gaussian_blur"): (47.67, 90.78, 43.11, 40.89),
+        ("PushT", "resize"): (63.44, 66.33, 2.89, -3.78),
+        ("Reacher", "gaussian_blur"): (22.00, 71.22, 49.22, 30.22),
+        ("Cube", "resize"): (57.00, 56.11, -0.89, 2.78),
+    }
+    if set(selected) != set(expected_selected):
+        fail(f"three-seed unseen selected rows mismatch: {sorted(selected)}")
+    for row_key, expected_values in expected_selected.items():
+        row = selected[row_key]
+        if row.get("training_seeds") != [3072, 3073, 3074] or row.get("n_training_seeds") != 3:
+            fail(f"{row_key} unseen score row must use training seeds 3072/3073/3074")
+        got_values = (
+            round2(float(row["baseline_stress_success_mean"])),
+            round2(float(row["std008_stress_success_mean"])),
+            round2(float(row["stress_success_delta_mean"])),
+            round2(float(row["drop_improvement_mean"])),
+        )
+        if got_values != expected_values:
+            fail(f"{row_key} three-seed unseen score mismatch: got {got_values}, want {expected_values}")
+
     heldout = data.get("heldout_unseen_validation", {})
     if heldout.get("n_rows") != 8:
         fail("prospective validation summary must contain the 8-row held-out unseen slice")

@@ -17,6 +17,23 @@ DATA_DIR = ROOT / "assets" / "paper1_data"
 TRAINING_SEED_LOCKBOX = DATA_DIR / "training_seed_gaussian_lockbox.json"
 UNSEEN_PHASE0 = DATA_DIR / "unseen_phase0_acpc_subset.json"
 NO_RETRAIN_AUDIT = DATA_DIR / "no_retrain_diagnostic_audit.json"
+UNSEEN_SCORE_ARTIFACTS = [
+    DATA_DIR / "unseen_origin_vs_std008_strongest_tworoom.json",
+    DATA_DIR / "unseen_origin_vs_std008_strongest_reacher.json",
+    DATA_DIR / "unseen_origin_vs_std008_strongest_s3073.json",
+    DATA_DIR / "unseen_origin_vs_std008_strongest_s3074.json",
+]
+UNSEEN_STRESS_KEYS = {
+    "gaussian_blur": "pixels_blur_ks15",
+    "resize": "pixels_rs_factor0.25",
+}
+SELECTED_UNSEEN_STRESS = {
+    "TwoRoom": "gaussian_blur",
+    "Reacher": "gaussian_blur",
+    "PushT": "resize",
+    "Cube": "resize",
+}
+TASKS = ["TwoRoom", "PushT", "Reacher", "Cube"]
 DEFAULT_OUT_JSON = DATA_DIR / "prospective_validation_summary.json"
 DEFAULT_OUT_MD = DATA_DIR / "prospective_validation_summary.md"
 
@@ -101,6 +118,100 @@ def _fmt(value: float, digits: int = 2) -> str:
     return f"{float(value):.{digits}f}"
 
 
+def _mean(values: Sequence[float]) -> float:
+    return sum(float(v) for v in values) / len(values)
+
+
+def _pstdev(values: Sequence[float]) -> float:
+    mu = _mean(values)
+    return math.sqrt(sum((float(v) - mu) ** 2 for v in values) / len(values))
+
+
+def _success(entry: dict, group: str) -> float:
+    return float(entry["eval"][group]["success_rate"]["mean"])
+
+
+def _three_seed_unseen_score_summary() -> dict:
+    rows = []
+    for artifact in UNSEEN_SCORE_ARTIFACTS:
+        data = _load(artifact)
+        seed = int(data["metadata"]["train_seed"])
+        for task, task_block in data["results"].items():
+            for family, stress_key in UNSEEN_STRESS_KEYS.items():
+                if family not in task_block.get("0.0", {}) or family not in task_block.get("0.08", {}):
+                    continue
+                baseline = task_block["0.0"][family]
+                robust = task_block["0.08"][family]
+                base_origin = _success(baseline, "origin")
+                base_stress = _success(baseline, stress_key)
+                robust_origin = _success(robust, "origin")
+                robust_stress = _success(robust, stress_key)
+                rows.append(
+                    {
+                        "task": task,
+                        "family": family,
+                        "training_seed": seed,
+                        "baseline_origin_success": base_origin,
+                        "baseline_stress_success": base_stress,
+                        "std008_origin_success": robust_origin,
+                        "std008_stress_success": robust_stress,
+                        "stress_success_delta": robust_stress - base_stress,
+                        "drop_improvement": (base_origin - base_stress) - (robust_origin - robust_stress),
+                        "source": str(artifact.relative_to(ROOT)),
+                    }
+                )
+
+    coverage = {
+        f"{task}:{family}": sorted(
+            int(row["training_seed"])
+            for row in rows
+            if row["task"] == task and row["family"] == family
+        )
+        for task in TASKS
+        for family in UNSEEN_STRESS_KEYS
+    }
+    missing = {key: seeds for key, seeds in coverage.items() if seeds != [3072, 3073, 3074]}
+    if missing:
+        raise ValueError(f"Unexpected three-seed unseen coverage: {missing}")
+
+    def summarize(task_rows: list[dict], task: str, family: str) -> dict:
+        out = {
+            "task": task,
+            "family": family,
+            "training_seeds": sorted(int(row["training_seed"]) for row in task_rows),
+            "n_training_seeds": len(task_rows),
+        }
+        for key in (
+            "baseline_stress_success",
+            "std008_stress_success",
+            "stress_success_delta",
+            "drop_improvement",
+        ):
+            values = [float(row[key]) for row in task_rows]
+            out[f"{key}_mean"] = _mean(values)
+            out[f"{key}_pstdev"] = _pstdev(values)
+        return out
+
+    selected_rows = []
+    task_family_rows = []
+    for task in TASKS:
+        for family in UNSEEN_STRESS_KEYS:
+            task_rows = [row for row in rows if row["task"] == task and row["family"] == family]
+            summary = summarize(task_rows, task, family)
+            task_family_rows.append(summary)
+            if SELECTED_UNSEEN_STRESS[task] == family:
+                selected_rows.append(summary)
+
+    return {
+        "scope": "unseen score aggregate over training seeds 3072/3073/3074; each seed point is the mean over eval seeds 42/43/44 from source artifacts with num_eval=300",
+        "selected_stress_policy": SELECTED_UNSEEN_STRESS,
+        "per_seed_rows": sorted(rows, key=lambda row: (row["task"], row["family"], row["training_seed"])),
+        "selected_stress_rows": selected_rows,
+        "task_family_rows": task_family_rows,
+        "coverage": coverage,
+    }
+
+
 def _heldout_metric_rows(unseen: dict) -> tuple[list[dict], dict]:
     rows = unseen["rows"]
     stress_delta = [float(row["eval"]["stress_success_delta"]) for row in rows]
@@ -165,10 +276,12 @@ def build_payload() -> dict:
                 str(TRAINING_SEED_LOCKBOX.relative_to(ROOT)),
                 str(UNSEEN_PHASE0.relative_to(ROOT)),
                 str(NO_RETRAIN_AUDIT.relative_to(ROOT)),
+                *[str(path.relative_to(ROOT)) for path in UNSEEN_SCORE_ARTIFACTS],
             ],
-            "scope": "No model loading or retraining. Summarizes completed three-training-seed Gaussian behavior, a held-out training-seed/unseen-perturbation validation slice, and the semantic-guard protocol ledger.",
+            "scope": "No model loading or retraining. Summarizes completed three-training-seed Gaussian behavior, three-training-seed unseen scores, a held-out training-seed/unseen-perturbation diagnostic slice, and the semantic-guard protocol ledger.",
         },
         "three_training_seed_gaussian_summary": training["task_summary_rows"],
+        "three_seed_unseen_score_summary": _three_seed_unseen_score_summary(),
         "heldout_unseen_validation": {
             "split": "training seeds 3073/3074; unseen perturbation families gaussian_blur and resize; fixed std_max comparison 0.0 vs 0.08",
             "n_rows": len(unseen["rows"]),
@@ -179,7 +292,7 @@ def build_payload() -> dict:
         "existing_full_grid_frozen_rule_audit": no_retrain["summary"],
         "semantic_discriminability_protocol": SEMANTIC_GUARD_PROTOCOL,
         "remaining_validation_work": [
-            "Run the fixed ACPC/PCC/CRA/MAF rule on full held-out training-seed checkpoint grids, not only the current unseen slice.",
+            "Run the fixed ACPC/PCC/CRA/MAF rule on full held-out training-seed checkpoint grids, not only the current matched diagnostic slice.",
             "Run the task-semantic state-margin probes defined in this artifact and report pass rates before claiming semantic discriminability results.",
             "Use the three-training-seed Gaussian table as the primary behavior statistic; keep evaluation-seed variance as a secondary decomposition.",
         ],
@@ -192,13 +305,39 @@ def _write_markdown(path: Path, payload: dict) -> None:
         "",
         "This artifact separates completed validation evidence from the protocol pieces that are now frozen but still require state-margin or full held-out-grid runs.",
         "",
-        "## Held-out unseen validation slice",
+        "## Three-seed unseen score aggregate",
         "",
-        "Split: training seeds 3073/3074; unseen perturbations gaussian_blur and resize; fixed comparison std_max 0.0 -> 0.08.",
+        "Scores include training seeds 3072/3073/3074. Diagnostics below remain the matched 3073/3074 slice because matching Phase-0 diagnostic rows are released for those lockbox seeds.",
         "",
-        "| Metric | rho vs stress delta | r vs stress delta | rho vs drop improvement | r vs drop improvement | n |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Task | selected stress | baseline stress | std0.08 stress | stress delta | drop improvement |",
+        "|---|---|---:|---:|---:|---:|",
     ]
+    for row in payload["three_seed_unseen_score_summary"]["selected_stress_rows"]:
+        lines.append(
+            "| {task} | {family} | {base} +/- {base_sd} | {rob} +/- {rob_sd} | {delta} +/- {delta_sd} | {drop} +/- {drop_sd} |".format(
+                task=row["task"],
+                family=row["family"],
+                base=_fmt(row["baseline_stress_success_mean"]),
+                base_sd=_fmt(row["baseline_stress_success_pstdev"]),
+                rob=_fmt(row["std008_stress_success_mean"]),
+                rob_sd=_fmt(row["std008_stress_success_pstdev"]),
+                delta=_fmt(row["stress_success_delta_mean"]),
+                delta_sd=_fmt(row["stress_success_delta_pstdev"]),
+                drop=_fmt(row["drop_improvement_mean"]),
+                drop_sd=_fmt(row["drop_improvement_pstdev"]),
+            )
+        )
+    lines.extend(
+        [
+            "",
+            "## Matched held-out unseen diagnostic validation slice",
+            "",
+            "Split: training seeds 3073/3074; unseen perturbations gaussian_blur and resize; fixed comparison std_max 0.0 -> 0.08.",
+            "",
+            "| Metric | rho vs stress delta | r vs stress delta | rho vs drop improvement | r vs drop improvement | n |",
+            "|---|---:|---:|---:|---:|---:|",
+        ]
+    )
     for row in payload["heldout_unseen_validation"]["metric_rows"]:
         lines.append(
             "| {metric} | {rho_s} | {r_s} | {rho_d} | {r_d} | {n} |".format(

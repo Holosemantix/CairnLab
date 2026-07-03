@@ -2,7 +2,18 @@
 
 This artifact separates completed validation evidence from the protocol pieces that are now frozen but still require state-margin or full held-out-grid runs.
 
-## Held-out unseen validation slice
+## Three-seed unseen score aggregate
+
+Scores include training seeds 3072/3073/3074. Diagnostics below remain the matched 3073/3074 slice because matching Phase-0 diagnostic rows are released for those lockbox seeds.
+
+| Task | selected stress | baseline stress | std0.08 stress | stress delta | drop improvement |
+|---|---|---:|---:|---:|---:|
+| TwoRoom | gaussian_blur | 47.67 +/- 5.44 | 90.78 +/- 5.38 | 43.11 +/- 8.90 | 40.89 +/- 8.23 |
+| PushT | resize | 63.44 +/- 14.05 | 66.33 +/- 8.38 | 2.89 +/- 17.98 | -3.78 +/- 15.56 |
+| Reacher | gaussian_blur | 22.00 +/- 3.78 | 71.22 +/- 1.10 | 49.22 +/- 3.29 | 30.22 +/- 4.16 |
+| Cube | resize | 57.00 +/- 1.96 | 56.11 +/- 0.57 | -0.89 +/- 1.40 | 2.78 +/- 3.40 |
+
+## Matched held-out unseen diagnostic validation slice
 
 Split: training seeds 3073/3074; unseen perturbations gaussian_blur and resize; fixed comparison std_max 0.0 -> 0.08.
 
@@ -27,6 +38,6 @@ Top-4 agreement: composite signed-rank top-k hits 4/4 for stress-success delta a
 
 ## Remaining validation work
 
-- Run the fixed ACPC/PCC/CRA/MAF rule on full held-out training-seed checkpoint grids, not only the current unseen slice.
+- Run the fixed ACPC/PCC/CRA/MAF rule on full held-out training-seed checkpoint grids, not only the current matched diagnostic slice.
 - Run the task-semantic state-margin probes defined in this artifact and report pass rates before claiming semantic discriminability results.
 - Use the three-training-seed Gaussian table as the primary behavior statistic; keep evaluation-seed variance as a secondary decomposition.

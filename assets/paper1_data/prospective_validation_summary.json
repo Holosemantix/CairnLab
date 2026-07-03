@@ -4,9 +4,13 @@
     "source_artifacts": [
       "assets/paper1_data/training_seed_gaussian_lockbox.json",
       "assets/paper1_data/unseen_phase0_acpc_subset.json",
-      "assets/paper1_data/no_retrain_diagnostic_audit.json"
+      "assets/paper1_data/no_retrain_diagnostic_audit.json",
+      "assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json",
+      "assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json",
+      "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json",
+      "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json"
     ],
-    "scope": "No model loading or retraining. Summarizes completed three-training-seed Gaussian behavior, a held-out training-seed/unseen-perturbation validation slice, and the semantic-guard protocol ledger."
+    "scope": "No model loading or retraining. Summarizes completed three-training-seed Gaussian behavior, three-training-seed unseen scores, a held-out training-seed/unseen-perturbation diagnostic slice, and the semantic-guard protocol ledger."
   },
   "three_training_seed_gaussian_summary": [
     {
@@ -110,6 +114,567 @@
       "best_std_range": "0.03--0.05"
     }
   ],
+  "three_seed_unseen_score_summary": {
+    "scope": "unseen score aggregate over training seeds 3072/3073/3074; each seed point is the mean over eval seeds 42/43/44 from source artifacts with num_eval=300",
+    "selected_stress_policy": {
+      "TwoRoom": "gaussian_blur",
+      "Reacher": "gaussian_blur",
+      "PushT": "resize",
+      "Cube": "resize"
+    },
+    "per_seed_rows": [
+      {
+        "task": "Cube",
+        "family": "gaussian_blur",
+        "training_seed": 3072,
+        "baseline_origin_success": 64.666667,
+        "baseline_stress_success": 53.666667,
+        "std008_origin_success": 60.0,
+        "std008_stress_success": 51.0,
+        "stress_success_delta": -2.666666999999997,
+        "drop_improvement": 2.000000000000007,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json"
+      },
+      {
+        "task": "Cube",
+        "family": "gaussian_blur",
+        "training_seed": 3073,
+        "baseline_origin_success": 65.0,
+        "baseline_stress_success": 56.0,
+        "std008_origin_success": 65.666667,
+        "std008_stress_success": 58.333333,
+        "stress_success_delta": 2.333333000000003,
+        "drop_improvement": 1.6666659999999993,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json"
+      },
+      {
+        "task": "Cube",
+        "family": "gaussian_blur",
+        "training_seed": 3074,
+        "baseline_origin_success": 64.0,
+        "baseline_stress_success": 55.666667,
+        "std008_origin_success": 57.0,
+        "std008_stress_success": 52.666667,
+        "stress_success_delta": -3.0,
+        "drop_improvement": 4.0,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json"
+      },
+      {
+        "task": "Cube",
+        "family": "resize",
+        "training_seed": 3072,
+        "baseline_origin_success": 64.666667,
+        "baseline_stress_success": 54.333333,
+        "std008_origin_success": 60.0,
+        "std008_stress_success": 55.333333,
+        "stress_success_delta": 1.0,
+        "drop_improvement": 5.666667000000004,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json"
+      },
+      {
+        "task": "Cube",
+        "family": "resize",
+        "training_seed": 3073,
+        "baseline_origin_success": 65.0,
+        "baseline_stress_success": 57.666667,
+        "std008_origin_success": 65.666667,
+        "std008_stress_success": 56.333333,
+        "stress_success_delta": -1.3333339999999936,
+        "drop_improvement": -2.0000009999999975,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json"
+      },
+      {
+        "task": "Cube",
+        "family": "resize",
+        "training_seed": 3074,
+        "baseline_origin_success": 64.0,
+        "baseline_stress_success": 59.0,
+        "std008_origin_success": 57.0,
+        "std008_stress_success": 56.666667,
+        "stress_success_delta": -2.333333000000003,
+        "drop_improvement": 4.666666999999997,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json"
+      },
+      {
+        "task": "PushT",
+        "family": "gaussian_blur",
+        "training_seed": 3072,
+        "baseline_origin_success": 82.0,
+        "baseline_stress_success": 61.333333,
+        "std008_origin_success": 88.333333,
+        "std008_stress_success": 72.0,
+        "stress_success_delta": 10.666666999999997,
+        "drop_improvement": 4.333334000000001,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json"
+      },
+      {
+        "task": "PushT",
+        "family": "gaussian_blur",
+        "training_seed": 3073,
+        "baseline_origin_success": 75.0,
+        "baseline_stress_success": 51.333333,
+        "std008_origin_success": 85.0,
+        "std008_stress_success": 58.666667,
+        "stress_success_delta": 7.333333999999994,
+        "drop_improvement": -2.6666660000000064,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json"
+      },
+      {
+        "task": "PushT",
+        "family": "gaussian_blur",
+        "training_seed": 3074,
+        "baseline_origin_success": 84.0,
+        "baseline_stress_success": 66.333333,
+        "std008_origin_success": 88.333333,
+        "std008_stress_success": 70.333333,
+        "stress_success_delta": 4.0,
+        "drop_improvement": -0.3333329999999961,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json"
+      },
+      {
+        "task": "PushT",
+        "family": "resize",
+        "training_seed": 3072,
+        "baseline_origin_success": 82.0,
+        "baseline_stress_success": 71.666667,
+        "std008_origin_success": 88.0,
+        "std008_stress_success": 75.666667,
+        "stress_success_delta": 4.0,
+        "drop_improvement": -2.0,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json"
+      },
+      {
+        "task": "PushT",
+        "family": "resize",
+        "training_seed": 3073,
+        "baseline_origin_success": 75.0,
+        "baseline_stress_success": 43.666667,
+        "std008_origin_success": 85.0,
+        "std008_stress_success": 68.0,
+        "stress_success_delta": 24.333333000000003,
+        "drop_improvement": 14.333333000000003,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json"
+      },
+      {
+        "task": "PushT",
+        "family": "resize",
+        "training_seed": 3074,
+        "baseline_origin_success": 83.666667,
+        "baseline_stress_success": 75.0,
+        "std008_origin_success": 87.666667,
+        "std008_stress_success": 55.333333,
+        "stress_success_delta": -19.666666999999997,
+        "drop_improvement": -23.666666999999997,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json"
+      },
+      {
+        "task": "Reacher",
+        "family": "gaussian_blur",
+        "training_seed": 3072,
+        "baseline_origin_success": 65.333333,
+        "baseline_stress_success": 19.0,
+        "std008_origin_success": 81.333333,
+        "std008_stress_success": 69.666667,
+        "stress_success_delta": 50.666667000000004,
+        "drop_improvement": 34.666667000000004,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json"
+      },
+      {
+        "task": "Reacher",
+        "family": "gaussian_blur",
+        "training_seed": 3073,
+        "baseline_origin_success": 60.666667,
+        "baseline_stress_success": 19.666667,
+        "std008_origin_success": 81.666667,
+        "std008_stress_success": 72.0,
+        "stress_success_delta": 52.333332999999996,
+        "drop_improvement": 31.333332999999996,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json"
+      },
+      {
+        "task": "Reacher",
+        "family": "gaussian_blur",
+        "training_seed": 3074,
+        "baseline_origin_success": 58.333333,
+        "baseline_stress_success": 27.333333,
+        "std008_origin_success": 78.333333,
+        "std008_stress_success": 72.0,
+        "stress_success_delta": 44.666667000000004,
+        "drop_improvement": 24.666667000000007,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json"
+      },
+      {
+        "task": "Reacher",
+        "family": "resize",
+        "training_seed": 3072,
+        "baseline_origin_success": 65.333333,
+        "baseline_stress_success": 44.666667,
+        "std008_origin_success": 81.333333,
+        "std008_stress_success": 74.333333,
+        "stress_success_delta": 29.666666,
+        "drop_improvement": 13.666666,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json"
+      },
+      {
+        "task": "Reacher",
+        "family": "resize",
+        "training_seed": 3073,
+        "baseline_origin_success": 60.666667,
+        "baseline_stress_success": 38.333333,
+        "std008_origin_success": 81.666667,
+        "std008_stress_success": 78.333333,
+        "stress_success_delta": 39.99999999999999,
+        "drop_improvement": 18.999999999999986,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json"
+      },
+      {
+        "task": "Reacher",
+        "family": "resize",
+        "training_seed": 3074,
+        "baseline_origin_success": 58.333333,
+        "baseline_stress_success": 40.333333,
+        "std008_origin_success": 78.333333,
+        "std008_stress_success": 73.666667,
+        "stress_success_delta": 33.333334,
+        "drop_improvement": 13.333334000000008,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json"
+      },
+      {
+        "task": "TwoRoom",
+        "family": "gaussian_blur",
+        "training_seed": 3072,
+        "baseline_origin_success": 93.666667,
+        "baseline_stress_success": 41.0,
+        "std008_origin_success": 97.0,
+        "std008_stress_success": 96.666667,
+        "stress_success_delta": 55.666667000000004,
+        "drop_improvement": 52.33333400000001,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json"
+      },
+      {
+        "task": "TwoRoom",
+        "family": "gaussian_blur",
+        "training_seed": 3073,
+        "baseline_origin_success": 94.333333,
+        "baseline_stress_success": 47.666667,
+        "std008_origin_success": 97.0,
+        "std008_stress_success": 83.666667,
+        "stress_success_delta": 36.00000000000001,
+        "drop_improvement": 33.333333,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json"
+      },
+      {
+        "task": "TwoRoom",
+        "family": "gaussian_blur",
+        "training_seed": 3074,
+        "baseline_origin_success": 95.666667,
+        "baseline_stress_success": 54.333333,
+        "std008_origin_success": 96.333333,
+        "std008_stress_success": 92.0,
+        "stress_success_delta": 37.666667,
+        "drop_improvement": 37.000001000000005,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json"
+      },
+      {
+        "task": "TwoRoom",
+        "family": "resize",
+        "training_seed": 3072,
+        "baseline_origin_success": 93.666667,
+        "baseline_stress_success": 44.333333,
+        "std008_origin_success": 97.0,
+        "std008_stress_success": 96.666667,
+        "stress_success_delta": 52.333334,
+        "drop_improvement": 49.000001000000005,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json"
+      },
+      {
+        "task": "TwoRoom",
+        "family": "resize",
+        "training_seed": 3073,
+        "baseline_origin_success": 94.333333,
+        "baseline_stress_success": 44.666667,
+        "std008_origin_success": 97.0,
+        "std008_stress_success": 84.666667,
+        "stress_success_delta": 40.00000000000001,
+        "drop_improvement": 37.333333,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json"
+      },
+      {
+        "task": "TwoRoom",
+        "family": "resize",
+        "training_seed": 3074,
+        "baseline_origin_success": 95.666667,
+        "baseline_stress_success": 59.666667,
+        "std008_origin_success": 96.333333,
+        "std008_stress_success": 94.0,
+        "stress_success_delta": 34.333333,
+        "drop_improvement": 33.66666700000001,
+        "source": "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json"
+      }
+    ],
+    "selected_stress_rows": [
+      {
+        "task": "TwoRoom",
+        "family": "gaussian_blur",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 47.666666666666664,
+        "baseline_stress_success_pstdev": 5.443310403435417,
+        "std008_stress_success_mean": 90.77777800000001,
+        "std008_stress_success_pstdev": 5.377134922550174,
+        "stress_success_delta_mean": 43.111111333333334,
+        "stress_success_delta_pstdev": 8.904153648580582,
+        "drop_improvement_mean": 40.88888933333334,
+        "drop_improvement_pstdev": 8.229726558918482
+      },
+      {
+        "task": "PushT",
+        "family": "resize",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 63.44444466666667,
+        "baseline_stress_success_pstdev": 14.0510532059889,
+        "std008_stress_success_mean": 66.33333333333334,
+        "std008_stress_success_pstdev": 8.384288927202766,
+        "stress_success_delta_mean": 2.8888886666666687,
+        "stress_success_delta_pstdev": 17.980098744561932,
+        "drop_improvement_mean": -3.777777999999998,
+        "drop_improvement_pstdev": 15.564283278561485
+      },
+      {
+        "task": "Reacher",
+        "family": "gaussian_blur",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 22.0,
+        "baseline_stress_success_pstdev": 3.781044114076516,
+        "std008_stress_success_mean": 71.22222233333333,
+        "std008_stress_success_pstdev": 1.0999437247108987,
+        "stress_success_delta_mean": 49.22222233333334,
+        "stress_success_delta_pstdev": 3.2923403211277447,
+        "drop_improvement_mean": 30.222222333333335,
+        "drop_improvement_pstdev": 4.157397037024113
+      },
+      {
+        "task": "Cube",
+        "family": "resize",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 57.0,
+        "baseline_stress_success_pstdev": 1.9626137145634797,
+        "std008_stress_success_mean": 56.111111,
+        "std008_stress_success_pstdev": 0.5665579416393917,
+        "stress_success_delta_mean": -0.8888889999999989,
+        "stress_success_delta_pstdev": 1.3966449657998274,
+        "drop_improvement_mean": 2.7777776666666676,
+        "drop_improvement_pstdev": 3.402976808691798
+      }
+    ],
+    "task_family_rows": [
+      {
+        "task": "TwoRoom",
+        "family": "gaussian_blur",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 47.666666666666664,
+        "baseline_stress_success_pstdev": 5.443310403435417,
+        "std008_stress_success_mean": 90.77777800000001,
+        "std008_stress_success_pstdev": 5.377134922550174,
+        "stress_success_delta_mean": 43.111111333333334,
+        "stress_success_delta_pstdev": 8.904153648580582,
+        "drop_improvement_mean": 40.88888933333334,
+        "drop_improvement_pstdev": 8.229726558918482
+      },
+      {
+        "task": "TwoRoom",
+        "family": "resize",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 49.55555566666666,
+        "baseline_stress_success_pstdev": 7.150930344376425,
+        "std008_stress_success_mean": 91.77777800000001,
+        "std008_stress_success_pstdev": 5.144816353247411,
+        "stress_success_delta_mean": 42.22222233333334,
+        "stress_success_delta_pstdev": 7.514595268501349,
+        "drop_improvement_mean": 40.00000033333334,
+        "drop_improvement_pstdev": 6.537640700277601
+      },
+      {
+        "task": "PushT",
+        "family": "gaussian_blur",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 59.66666633333333,
+        "baseline_stress_success_pstdev": 6.236095644623234,
+        "std008_stress_success_mean": 67.0,
+        "std008_stress_success_pstdev": 5.931709921480708,
+        "stress_success_delta_mean": 7.333333666666664,
+        "stress_success_delta_pstdev": 2.721655405841859,
+        "drop_improvement_mean": 0.44444499999999937,
+        "drop_improvement_pstdev": 2.910177997186543
+      },
+      {
+        "task": "PushT",
+        "family": "resize",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 63.44444466666667,
+        "baseline_stress_success_pstdev": 14.0510532059889,
+        "std008_stress_success_mean": 66.33333333333334,
+        "std008_stress_success_pstdev": 8.384288927202766,
+        "stress_success_delta_mean": 2.8888886666666687,
+        "stress_success_delta_pstdev": 17.980098744561932,
+        "drop_improvement_mean": -3.777777999999998,
+        "drop_improvement_pstdev": 15.564283278561485
+      },
+      {
+        "task": "Reacher",
+        "family": "gaussian_blur",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 22.0,
+        "baseline_stress_success_pstdev": 3.781044114076516,
+        "std008_stress_success_mean": 71.22222233333333,
+        "std008_stress_success_pstdev": 1.0999437247108987,
+        "stress_success_delta_mean": 49.22222233333334,
+        "stress_success_delta_pstdev": 3.2923403211277447,
+        "drop_improvement_mean": 30.222222333333335,
+        "drop_improvement_pstdev": 4.157397037024113
+      },
+      {
+        "task": "Reacher",
+        "family": "resize",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 41.111111,
+        "baseline_stress_success_pstdev": 2.6434174663179197,
+        "std008_stress_success_mean": 75.44444433333332,
+        "std008_stress_success_pstdev": 2.060803918407461,
+        "stress_success_delta_mean": 34.333333333333336,
+        "stress_success_delta_pstdev": 4.277417202696762,
+        "drop_improvement_mean": 15.33333333333333,
+        "drop_improvement_pstdev": 2.596293626035554
+      },
+      {
+        "task": "Cube",
+        "family": "gaussian_blur",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 55.11111133333333,
+        "baseline_stress_success_pstdev": 1.0304019592037328,
+        "std008_stress_success_mean": 54.0,
+        "std008_stress_success_pstdev": 3.1387657753634115,
+        "stress_success_delta_mean": -1.1111113333333311,
+        "stress_success_delta_pstdev": 2.4393886250857117,
+        "drop_improvement_mean": 2.5555553333333356,
+        "drop_improvement_pstdev": 1.030402246757815
+      },
+      {
+        "task": "Cube",
+        "family": "resize",
+        "training_seeds": [
+          3072,
+          3073,
+          3074
+        ],
+        "n_training_seeds": 3,
+        "baseline_stress_success_mean": 57.0,
+        "baseline_stress_success_pstdev": 1.9626137145634797,
+        "std008_stress_success_mean": 56.111111,
+        "std008_stress_success_pstdev": 0.5665579416393917,
+        "stress_success_delta_mean": -0.8888889999999989,
+        "stress_success_delta_pstdev": 1.3966449657998274,
+        "drop_improvement_mean": 2.7777776666666676,
+        "drop_improvement_pstdev": 3.402976808691798
+      }
+    ],
+    "coverage": {
+      "TwoRoom:gaussian_blur": [
+        3072,
+        3073,
+        3074
+      ],
+      "TwoRoom:resize": [
+        3072,
+        3073,
+        3074
+      ],
+      "PushT:gaussian_blur": [
+        3072,
+        3073,
+        3074
+      ],
+      "PushT:resize": [
+        3072,
+        3073,
+        3074
+      ],
+      "Reacher:gaussian_blur": [
+        3072,
+        3073,
+        3074
+      ],
+      "Reacher:resize": [
+        3072,
+        3073,
+        3074
+      ],
+      "Cube:gaussian_blur": [
+        3072,
+        3073,
+        3074
+      ],
+      "Cube:resize": [
+        3072,
+        3073,
+        3074
+      ]
+    }
+  },
   "heldout_unseen_validation": {
     "split": "training seeds 3073/3074; unseen perturbation families gaussian_blur and resize; fixed std_max comparison 0.0 vs 0.08",
     "n_rows": 8,
@@ -264,7 +829,7 @@
     }
   ],
   "remaining_validation_work": [
-    "Run the fixed ACPC/PCC/CRA/MAF rule on full held-out training-seed checkpoint grids, not only the current unseen slice.",
+    "Run the fixed ACPC/PCC/CRA/MAF rule on full held-out training-seed checkpoint grids, not only the current matched diagnostic slice.",
     "Run the task-semantic state-margin probes defined in this artifact and report pass rates before claiming semantic discriminability results.",
     "Use the three-training-seed Gaussian table as the primary behavior statistic; keep evaluation-seed variance as a secondary decomposition."
   ]

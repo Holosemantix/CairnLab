@@ -83,6 +83,15 @@ REQUIRED_ARTIFACTS = [
     ROOT / "DATA_MANIFEST.md",
 ]
 
+
+REQUIRED_MAIN_TEXT_SNIPPETS = [
+    "task-state proxy margin pass-rate",
+    "Cube seed 3072",
+    "regret $8.33$ pp",
+    "We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods",
+    "not an oracle near-boundary semantic proof",
+]
+
 FORBIDDEN_SNIPPETS = [
     "either 1 seed × 300",
     "single-seed",
@@ -189,6 +198,10 @@ def check_forbidden_text() -> None:
         for snippet in FORBIDDEN_SNIPPETS:
             if snippet in text:
                 hits.append(f"{path.relative_to(ROOT)} contains forbidden snippet: {snippet!r}")
+    main_tex = (ROOT / "paper1" / "main.tex").read_text(encoding="utf-8")
+    for snippet in REQUIRED_MAIN_TEXT_SNIPPETS:
+        if snippet not in main_tex:
+            hits.append(f"paper1/main.tex missing required scope-boundary snippet: {snippet!r}")
     if hits:
         fail("\n".join(hits))
 
@@ -1167,7 +1180,7 @@ def check_prospective_validation_summary_json() -> None:
         fail("held-out diagnostic split mean regret changed")
     semantic_rows = data.get("semantic_margin_passrate", [])
     if len(semantic_rows) != 8:
-        fail("prospective validation summary must include completed semantic margin pass-rate rows")
+        fail("prospective validation summary must include completed task-state proxy margin pass-rate rows")
     semantic_cov = data.get("semantic_margin_coverage", {})
     expected_semantic_cov = {
         f"{task}:{std}": [3072, 3073, 3074]
@@ -1175,7 +1188,7 @@ def check_prospective_validation_summary_json() -> None:
         for std in ("0.0", "0.08")
     }
     if semantic_cov != expected_semantic_cov:
-        fail(f"prospective validation semantic coverage mismatch: {semantic_cov}")
+        fail(f"prospective validation task-state proxy margin coverage mismatch: {semantic_cov}")
 
 
 
@@ -1252,7 +1265,7 @@ def check_semantic_margin_passrate_json() -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
     rows = data.get("rows", [])
     if len(rows) != 24 or any(row.get("status") != "ok" for row in rows):
-        fail("semantic margin pass-rate artifact must contain 24 ok rows")
+        fail("task-state proxy margin pass-rate artifact must contain 24 ok rows")
     coverage = data.get("coverage", {})
     expected_coverage = {
         f"{task}:{std}": [3072, 3073, 3074]
@@ -1260,7 +1273,7 @@ def check_semantic_margin_passrate_json() -> None:
         for std in ("0.0", "0.08")
     }
     if coverage != expected_coverage:
-        fail(f"semantic margin coverage mismatch: {coverage}")
+        fail(f"task-state proxy margin coverage mismatch: {coverage}")
     summary = {(row["task"], row["std_key"]): row for row in data.get("summary_rows", [])}
     expected_pass = {
         ("TwoRoom", "0.0"): 0.44,
@@ -1273,11 +1286,11 @@ def check_semantic_margin_passrate_json() -> None:
         ("Cube", "0.08"): 1.00,
     }
     if set(summary) != set(expected_pass):
-        fail(f"semantic margin summary rows mismatch: {sorted(summary)}")
+        fail(f"task-state proxy margin summary rows mismatch: {sorted(summary)}")
     for key, want in expected_pass.items():
         got = round2(float(summary[key]["semantic_margin_pass_rate_mean"]))
         if got != want:
-            fail(f"semantic margin pass-rate mismatch for {key}: got {got}, want {want}")
+            fail(f"task-state proxy margin pass-rate mismatch for {key}: got {got}, want {want}")
 
 def check_target_view_closed_loop_summary_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json"
@@ -1406,7 +1419,7 @@ def main() -> int:
         ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
         ("training-seed Gaussian lockbox json", check_training_seed_gaussian_lockbox_json),
         ("three-seed diagnostic validation json", check_three_seed_diagnostic_validation_json),
-        ("semantic margin pass-rate json", check_semantic_margin_passrate_json),
+        ("task-state proxy margin pass-rate json", check_semantic_margin_passrate_json),
         ("prospective validation summary json", check_prospective_validation_summary_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),

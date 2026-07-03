@@ -10,8 +10,8 @@
 
 - 主文已加入 independent training seed evidence：LeWM training seeds 3072/3073/3074。
 - 主文已加入 development/held-out diagnostic validation：seed 3072 固定 ACPC/PCC/CRA/MAF aggregate-rank rule，held-out training seeds 3073/3074 上 7/8 task-seed blocks within 5pp，held-out regret $2.21\pm1.83$ pp。
-- 主文已加入 task-semantic margin pass-rate：报告 same-state noisy radius、semantic-different rollout distance 和 pass-rate，不再只是 rank/ID proxy。
-- 主文已收敛为三项必须读结果：三训练 seed Gaussian 行为、held-out fixed-rule triage、semantic margin。blur/resize、PLDM、target-view、heteroscedastic 等保留为 scope/appendix。
+- 主文已加入 task-state proxy margin pass-rate：报告 same-state noisy radius、state-proxy-different rollout distance 和 pass-rate；明确不是 oracle near-boundary semantic proof。
+- 主文已收敛为三项必须读结果：三训练 seed Gaussian 行为、held-out fixed-rule triage、task-state proxy margin。blur/resize、PLDM、target-view、heteroscedastic 等保留为 scope/appendix。
 
 仍需要新增训练或更大实验才能完成的项：
 
@@ -36,7 +36,7 @@
 - 贡献容易被审稿人认为是 **post-hoc diagnostic framing + known noise augmentation effect**。
 - 主 LeWM grid 使用的是 **3 个 evaluation seeds**，不是 independent training seeds。
 - ACPC 目前没有证明能在 held-out checkpoints / held-out perturbations 上做 **prospective prediction / selection**。
-- Discriminability 主要靠 proxy metrics，而不是 task-semantic margins。
+- Discriminability 已从 rank/ID 等 proxy metrics 补强到 task-state proxy margin；仍不宣称 oracle near-boundary semantic proof。
 - 理论结果是合理的 formal link，但新意偏弱。
 
 ---
@@ -138,7 +138,7 @@ base vs fixed std_max=0.08 or prospectively selected robust row
 
 ---
 
-### P0.3 加入 task-semantic discriminability guard
+### P0.3 加入 task-state proxy discriminability guard
 
 **问题：** 当前 discriminability guard 主要是 effective rank、transition-resolution、ID probe R²。这些是合理 proxy，但不能直接证明 action-relevant state distinctions 被保留。
 
@@ -146,7 +146,7 @@ base vs fixed std_max=0.08 or prospectively selected robust row
 
 **建议执行：**
 
-对每个任务设计一个轻量 semantic margin：
+对每个任务设计一个轻量 task-state proxy margin：
 
 1. **PushT**
    - 使用 T-block pose / contact state / object-agent relative pose。
@@ -164,7 +164,7 @@ base vs fixed std_max=0.08 or prospectively selected robust row
 **建议新增指标：**
 
 ```text
-Semantic Discriminability Ratio = median different-state semantic rollout distance / median same-state noisy rollout distance
+State-Proxy Discriminability Ratio = median state-proxy-different rollout distance / median same-state noisy rollout distance
 ```
 
 或：
@@ -176,9 +176,9 @@ Selective Margin Pass Rate = P[different-state distance > same-state noisy radiu
 **建议新增表格：**
 
 ```latex
-Table: Task-semantic selective ACPC guard.
+Table: Task-state proxy selective ACPC guard.
 Columns:
-Task | Semantic factor | Same-state noisy radius | Different-state semantic margin | Pass rate | Base -> Robust
+Task | State-proxy factor | Same-state noisy radius | State-proxy-different margin | Pass rate | Base -> Robust
 ```
 
 **验收标准：**
@@ -353,7 +353,7 @@ Diagnosing Visual Robustness in JEPA World Models via Action-Conditioned Predict
 
 1. **Problem/formalization:** 定义 selective ACPC，将 visual robustness 从 encoder invariance 推到 action-conditioned predictive dynamics。
 2. **Diagnostic validation:** 在 LeWM/PLDM、多任务、多 seed 下验证 ACPC-style readouts 对 matched Gaussian stressor 的 localization/prediction value。
-3. **Discriminability and failure analysis:** 用 semantic margin 和 failure-case ablations 说明 consistency 必须 selective，避免 collapse。
+3. **Discriminability and failure analysis:** 用 task-state proxy margin 和 failure-case ablations 说明 consistency 必须 selective，避免 collapse。
 
 如果 P0 prospective validation 完成，可以把第二点写得更强。
 

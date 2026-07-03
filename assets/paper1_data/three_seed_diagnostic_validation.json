@@ -1,26 +1,100 @@
 {
   "metadata": {
-    "schema_version": "paper1-three-seed-diagnostic-validation-0.1",
+    "schema_version": "paper1-three-seed-diagnostic-validation-0.2",
     "source_artifact": "assets/paper1_data/acpc_phase0_lewm_three_seed.json",
     "scope": "Fixed no-retraining ACPC/PCC/CRA/MAF rule over LeWM 4-task x 9-std full grid and training seeds 3072/3073/3074.",
     "robustness_endpoint": "pixels_std0.08_success",
-    "selection_rule": "Among nonzero std checkpoints, select lowest aggregate rank over ACPC-H/trans low, PCC low, CRA high, MAF low. The rule is fixed before reading three-seed closed-loop outcomes."
+    "selection_rule": "Among nonzero std checkpoints, select lowest aggregate rank over ACPC-H/trans low, PCC low, CRA high, MAF low. Metric computation and rule are fixed on seed 3072 before evaluating independent training seeds 3073/3074.",
+    "development_training_seed": 3072,
+    "heldout_training_seeds": [
+      3073,
+      3074
+    ]
   },
   "summary": {
+    "split": "all_training_seeds_3072_3073_3074",
+    "description": "Complete three-seed LeWM Gaussian full grid.",
     "n_task_seed_blocks": 12,
+    "n_checkpoint_candidates": 96,
     "training_seeds": [
       3072,
       3073,
       3074
     ],
-    "checkpoint_candidates_per_block": 8,
     "exact_best_hits": 2,
     "within_5pp_hits": 10,
     "mean_selected_regret_to_best_pp": 2.250000027777778,
     "pstdev_selected_regret_to_best_pp": 2.5060112997070227,
+    "bootstrap_ci95_mean_selected_regret_to_best_pp": [
+      1.0,
+      3.7500000555555553
+    ],
     "mean_top2_overlap": 0.75,
-    "top2_total_per_block": 2
+    "top2_total_per_block": 2,
+    "checkpoint_candidates_per_block": 8
   },
+  "split_summaries": [
+    {
+      "split": "development_seed_3072",
+      "description": "Seed 3072 development grid used to freeze metric computation and aggregate-rank rule before reading independent training seeds.",
+      "n_task_seed_blocks": 4,
+      "n_checkpoint_candidates": 32,
+      "training_seeds": [
+        3072
+      ],
+      "exact_best_hits": 2,
+      "within_5pp_hits": 3,
+      "mean_selected_regret_to_best_pp": 2.333333333333332,
+      "pstdev_selected_regret_to_best_pp": 3.4880749227427232,
+      "bootstrap_ci95_mean_selected_regret_to_best_pp": [
+        0.0,
+        6.2499999999999964
+      ],
+      "mean_top2_overlap": 1.0,
+      "top2_total_per_block": 2
+    },
+    {
+      "split": "heldout_training_seeds_3073_3074",
+      "description": "Independent held-out training seeds evaluated after the rule is fixed; no closed-loop score is used by the selector.",
+      "n_task_seed_blocks": 8,
+      "n_checkpoint_candidates": 64,
+      "training_seeds": [
+        3073,
+        3074
+      ],
+      "exact_best_hits": 0,
+      "within_5pp_hits": 7,
+      "mean_selected_regret_to_best_pp": 2.2083333750000005,
+      "pstdev_selected_regret_to_best_pp": 1.8252663608894142,
+      "bootstrap_ci95_mean_selected_regret_to_best_pp": [
+        1.041666750000001,
+        3.541666750000001
+      ],
+      "mean_top2_overlap": 0.625,
+      "top2_total_per_block": 2
+    },
+    {
+      "split": "all_training_seeds_3072_3073_3074",
+      "description": "Complete three-seed LeWM Gaussian full grid.",
+      "n_task_seed_blocks": 12,
+      "n_checkpoint_candidates": 96,
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "exact_best_hits": 2,
+      "within_5pp_hits": 10,
+      "mean_selected_regret_to_best_pp": 2.250000027777778,
+      "pstdev_selected_regret_to_best_pp": 2.5060112997070227,
+      "bootstrap_ci95_mean_selected_regret_to_best_pp": [
+        1.0,
+        3.7500000555555553
+      ],
+      "mean_top2_overlap": 0.75,
+      "top2_total_per_block": 2
+    }
+  ],
   "selection_rows": [
     {
       "task": "TwoRoom",

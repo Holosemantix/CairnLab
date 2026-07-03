@@ -2,6 +2,16 @@
 
 Fixed rule: rank nonzero checkpoints by ACPC-H/trans low, PCC low, CRA high, and MAF low; select the lowest aggregate rank. Robustness endpoint is observation-only `pixels_std0.08_success`.
 
+Protocol: seed 3072 is the development grid used to freeze metric computation and the aggregate-rank rule; seeds 3073/3074 are independent held-out training seeds evaluated after the rule is fixed.
+
+## Split Summary
+
+| Split | seeds | blocks | candidates | exact best | within 5pp | regret mean +/- std | bootstrap 95% CI | top-2 overlap |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| development_seed_3072 | 3072 | 4 | 32 | 2/4 | 3/4 | 2.33 +/- 3.49 | [0.00, 6.25] | 1.00/2 |
+| heldout_training_seeds_3073_3074 | 3073,3074 | 8 | 64 | 0/8 | 7/8 | 2.21 +/- 1.83 | [1.04, 3.54] | 0.62/2 |
+| all_training_seeds_3072_3073_3074 | 3072,3073,3074 | 12 | 96 | 2/12 | 10/12 | 2.25 +/- 2.51 | [1.00, 3.75] | 0.75/2 |
+
 ## Summary
 
 Blocks: 12 task-seed blocks; training seeds [3072, 3073, 3074]; 8 nonzero checkpoints per block.

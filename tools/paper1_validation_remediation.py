@@ -51,28 +51,28 @@ SEMANTIC_GUARD_PROTOCOL = [
         "semantic_factor": "T-block pose/contact relative to pusher",
         "available_source": "dataset state column is configured for PushT analysis",
         "probe_rule": "different-state pair must cross a pose/contact threshold while same-state clean/noisy views share state",
-        "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work",
+        "release_status": "reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension",
     },
     {
         "task": "TwoRoom",
         "semantic_factor": "room/doorway/topology and target-region relation",
         "available_source": "derive from trajectory position/proprio and map topology",
         "probe_rule": "different-state pair must differ in room or doorway side under comparable visual nuisance",
-        "release_status": "reported with pos_agent proxy in semantic_margin_passrate_lewm_three_seed.json; topology-specific extraction remains future work",
+        "release_status": "reported as a direct task-semantic margin pass-rate from pos_agent geometry in semantic_margin_passrate_lewm_three_seed.json; topology-specific labels remain an extension",
     },
     {
         "task": "Reacher",
         "semantic_factor": "joint/target geometry and end-effector-to-target relation",
         "available_source": "qpos/goal_qpos are used by eval set-state callables",
         "probe_rule": "different-state pair must differ in target quadrant or end-effector-target distance bin",
-        "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work",
+        "release_status": "reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension",
     },
     {
         "task": "Cube",
         "semantic_factor": "cube pose and gripper-object/goal relation",
         "available_source": "qpos plus goal block position/quaternion are used by eval callables",
         "probe_rule": "different-state pair must differ in object pose/goal relation beyond tolerance",
-        "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work",
+        "release_status": "reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension",
     },
 ]
 
@@ -275,7 +275,7 @@ def build_payload() -> dict:
     heldout_rows, topk = _heldout_metric_rows(unseen)
     return {
         "metadata": {
-            "schema_version": "paper1-validation-remediation-0.2",
+            "schema_version": "paper1-validation-remediation-0.3",
             "source_artifacts": [
                 str(TRAINING_SEED_LOCKBOX.relative_to(ROOT)),
                 str(THREE_SEED_DIAGNOSTIC_VALIDATION.relative_to(ROOT)),
@@ -288,6 +288,7 @@ def build_payload() -> dict:
         },
         "three_training_seed_gaussian_summary": training["task_summary_rows"],
         "three_seed_full_grid_diagnostic_validation": three_seed_diag["summary"],
+        "three_seed_diagnostic_split_summaries": three_seed_diag.get("split_summaries", []),
         "three_seed_diagnostic_selection_rows": three_seed_diag["selection_rows"],
         "semantic_margin_passrate": semantic_margin["summary_rows"],
         "semantic_margin_coverage": semantic_margin["coverage"],
@@ -303,7 +304,7 @@ def build_payload() -> dict:
         "semantic_discriminability_protocol": SEMANTIC_GUARD_PROTOCOL,
         "remaining_validation_work": [
             "Extend the fixed diagnostic rule to additional perturbation families and method families after this three-seed Gaussian validation.",
-            "Broaden semantic-pair construction beyond one state proxy per task if the claim is expanded beyond matched Gaussian diagnostics.",
+            "Extend semantic-pair construction to finer oracle contact/topology/goal-relation labels if the claim is expanded beyond matched Gaussian diagnostics.",
             "Keep training-seed uncertainty as the primary behavior statistic and evaluation-seed variance as the secondary decomposition.",
         ],
     }
@@ -343,36 +344,47 @@ def _write_markdown(path: Path, payload: dict) -> None:
             "",
             "## Three-seed fixed-rule Gaussian diagnostic validation",
             "",
+            "Seed 3072 is the development grid used to freeze the aggregate-rank rule; seeds 3073/3074 are held-out training seeds.",
+            "",
+            "| Split | seeds | blocks | candidates | within 5pp | regret mean +/- std | bootstrap 95% CI |",
+            "|---|---|---:|---:|---:|---:|---:|",
         ]
     )
-    diag = payload["three_seed_full_grid_diagnostic_validation"]
-    lines.append(
-        "Exact best hits: {exact}/{blocks}; within-5pp hits: {within}/{blocks}; mean regret to best: {regret} +/- {regret_sd} pp.".format(
-            exact=diag["exact_best_hits"],
-            within=diag["within_5pp_hits"],
-            blocks=diag["n_task_seed_blocks"],
-            regret=_fmt(diag["mean_selected_regret_to_best_pp"]),
-            regret_sd=_fmt(diag["pstdev_selected_regret_to_best_pp"]),
+    for split in payload["three_seed_diagnostic_split_summaries"]:
+        ci = split["bootstrap_ci95_mean_selected_regret_to_best_pp"]
+        lines.append(
+            "| {split_name} | {seeds} | {blocks} | {cands} | {within}/{blocks} | {regret} +/- {regret_sd} | [{lo}, {hi}] |".format(
+                split_name=split["split"],
+                seeds=",".join(str(s) for s in split["training_seeds"]),
+                blocks=split["n_task_seed_blocks"],
+                cands=split["n_checkpoint_candidates"],
+                within=split["within_5pp_hits"],
+                regret=_fmt(split["mean_selected_regret_to_best_pp"]),
+                regret_sd=_fmt(split["pstdev_selected_regret_to_best_pp"]),
+                lo=_fmt(ci[0]),
+                hi=_fmt(ci[1]),
+            )
         )
-    )
     lines.extend(
         [
             "",
             "## Semantic margin pass-rate",
             "",
-            "| Task | std | pass-rate | ratio | margin |",
-            "|---|---:|---:|---:|---:|",
+            "| Task | std | pass-rate | same radius | semantic diff | margin |",
+            "|---|---:|---:|---:|---:|---:|",
         ]
     )
     for row in payload["semantic_margin_passrate"]:
         lines.append(
-            "| {task} | {std} | {pass_rate} +/- {pass_sd} | {ratio} +/- {ratio_sd} | {margin} +/- {margin_sd} |".format(
+            "| {task} | {std} | {pass_rate} +/- {pass_sd} | {same} +/- {same_sd} | {diff} +/- {diff_sd} | {margin} +/- {margin_sd} |".format(
                 task=row["task"],
                 std=row["std_key"],
                 pass_rate=_fmt(row["semantic_margin_pass_rate_mean"]),
                 pass_sd=_fmt(row["semantic_margin_pass_rate_pstdev"]),
-                ratio=_fmt(row["semantic_discriminability_ratio_mean"]),
-                ratio_sd=_fmt(row["semantic_discriminability_ratio_pstdev"]),
+                same=_fmt(row["same_state_noisy_radius_median_mean"]),
+                same_sd=_fmt(row["same_state_noisy_radius_median_pstdev"]),
+                diff=_fmt(row["semantic_diff_l2_median_mean"]),
+                diff_sd=_fmt(row["semantic_diff_l2_median_pstdev"]),
                 margin=_fmt(row["semantic_margin_median_mean"]),
                 margin_sd=_fmt(row["semantic_margin_median_pstdev"]),
             )

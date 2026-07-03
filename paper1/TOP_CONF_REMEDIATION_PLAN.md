@@ -4,6 +4,21 @@
 >
 > 本文档根据对 `paper1/main.tex` 更新版的客观审稿意见整理，供 Codex 后续执行。当前评价倾向为 **Weak Reject / Borderline Reject**，主要原因不是问题不重要，而是证据链仍偏事后诊断、主实验统计不足、prospective validation 尚未建立。
 
+## 2026-07-03 执行状态
+
+已完成的无重训补强：
+
+- 主文已加入 independent training seed evidence：LeWM training seeds 3072/3073/3074。
+- 主文已加入 development/held-out diagnostic validation：seed 3072 固定 ACPC/PCC/CRA/MAF aggregate-rank rule，held-out training seeds 3073/3074 上 7/8 task-seed blocks within 5pp，held-out regret $2.21\pm1.83$ pp。
+- 主文已加入 task-semantic margin pass-rate：报告 same-state noisy radius、semantic-different rollout distance 和 pass-rate，不再只是 rank/ID proxy。
+- 主文已收敛为三项必须读结果：三训练 seed Gaussian 行为、held-out fixed-rule triage、semantic margin。blur/resize、PLDM、target-view、heteroscedastic 等保留为 scope/appendix。
+
+仍需要新增训练或更大实验才能完成的项：
+
+- 强鲁棒 RL/world-model baselines（DrQ/TD-MPC/Dreamer 等）或新的 training objective 对比。
+- 更广泛 perturbation-family held-out grid（brightness/contrast/dynamics 等）和跨方法 prospective selection。
+- 双盲投稿前匿名化 public URL、acknowledgements 和自识别路径。
+
 ---
 
 ## 0. 当前论文核心定位
@@ -175,7 +190,7 @@ Task | Semantic factor | Same-state noisy radius | Different-state semantic marg
 **建议改动位置：**
 
 - `Action-Conditioned Predictive Consistency`：把 semantic discriminability guard 和定义对应起来。
-- `Experiments / Collapse guard and negative checks`：替换或增强当前 proxy guard table。
+- `Experiments / Selective consistency and failure checks`：替换或增强旧的 proxy-only table。
 - Appendix 增加 pair construction 和实现细节。
 
 ---
@@ -338,7 +353,7 @@ Diagnosing Visual Robustness in JEPA World Models via Action-Conditioned Predict
 
 1. **Problem/formalization:** 定义 selective ACPC，将 visual robustness 从 encoder invariance 推到 action-conditioned predictive dynamics。
 2. **Diagnostic validation:** 在 LeWM/PLDM、多任务、多 seed 下验证 ACPC-style readouts 对 matched Gaussian stressor 的 localization/prediction value。
-3. **Discriminability and failure analysis:** 用 semantic/proxy guards 和 negative ablations 说明 consistency 必须 selective，避免 collapse。
+3. **Discriminability and failure analysis:** 用 semantic margin 和 failure-case ablations 说明 consistency 必须 selective，避免 collapse。
 
 如果 P0 prospective validation 完成，可以把第二点写得更强。
 
@@ -407,14 +422,14 @@ assets/paper1_figs/metric_correlation_*.pdf/png # 新图
 
 投稿前至少完成：
 
-- [ ] 主文加入 independent training seed evidence。
-- [ ] 主文加入 prospective 或 quasi-prospective diagnostic validation。
-- [ ] 主文加入 semantic discriminability guard，不能只靠 effective rank / ID probe。
-- [ ] 统一 representative checkpoint selection policy。
-- [ ] 给出 ACPC 相对 simpler metrics 的增量证据。
-- [ ] 明确标题/摘要定位为 diagnostic，不夸大为 robust-control method。
-- [ ] 保留 negative checks，但避免主文过度堆叠指标。
-- [ ] Appendix 保留 full artifact map、full sweep、PLDM replication、target-view ablation、heteroscedastic failure。
+- [x] 主文加入 independent training seed evidence。
+- [x] 主文加入 prospective 或 quasi-prospective diagnostic validation。
+- [x] 主文加入 semantic discriminability guard，不能只靠 effective rank / ID probe。
+- [x] 统一 representative checkpoint selection policy。
+- [x] 给出 ACPC 相对 simpler metrics 的增量证据。
+- [x] 明确标题/摘要定位为 diagnostic，不夸大为 robust-control method。
+- [x] 保留 negative checks，但避免主文过度堆叠指标。
+- [x] Appendix 保留 full artifact map、full sweep、PLDM replication、target-view ablation、heteroscedastic failure。
 
 ---
 

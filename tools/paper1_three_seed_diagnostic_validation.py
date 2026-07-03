@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import random
 from pathlib import Path
 from typing import Iterable, Sequence
 
@@ -65,6 +66,41 @@ def _mean(values: Sequence[float]) -> float:
 def _pstdev(values: Sequence[float]) -> float:
     mu = _mean(values)
     return math.sqrt(sum((float(v) - mu) ** 2 for v in values) / len(values))
+
+
+def _bootstrap_mean_ci(values: Sequence[float], *, seed: int = 9101, n_resamples: int = 10000) -> tuple[float, float]:
+    vals = [float(v) for v in values]
+    if not vals:
+        return float("nan"), float("nan")
+    rng = random.Random(seed)
+    means = []
+    n = len(vals)
+    for _ in range(n_resamples):
+        means.append(sum(vals[rng.randrange(n)] for _ in range(n)) / n)
+    means.sort()
+    lo = means[int(0.025 * (n_resamples - 1))]
+    hi = means[int(0.975 * (n_resamples - 1))]
+    return lo, hi
+
+
+def _selection_summary(rows: Sequence[dict], *, name: str, description: str) -> dict:
+    regrets = [float(r["selected_regret_to_best_pp"]) for r in rows]
+    top2_hits = [float(r["top2_overlap"]) for r in rows]
+    lo, hi = _bootstrap_mean_ci(regrets)
+    return {
+        "split": name,
+        "description": description,
+        "n_task_seed_blocks": len(rows),
+        "n_checkpoint_candidates": 8 * len(rows),
+        "training_seeds": sorted({int(r["training_seed"]) for r in rows}),
+        "exact_best_hits": sum(1 for r in rows if bool(r["selected_exact_best"])),
+        "within_5pp_hits": sum(1 for r in rows if bool(r["selected_within_5pp_of_best"])),
+        "mean_selected_regret_to_best_pp": _mean(regrets),
+        "pstdev_selected_regret_to_best_pp": _pstdev(regrets),
+        "bootstrap_ci95_mean_selected_regret_to_best_pp": [lo, hi],
+        "mean_top2_overlap": _mean(top2_hits),
+        "top2_total_per_block": 2,
+    }
 
 
 def _fmt(value: float, digits: int = 2) -> str:
@@ -166,30 +202,37 @@ def build_payload(input_path: Path) -> dict:
     rows = [r for r in data["rows"] if r.get("status") == "ok"]
     _validate(rows)
     selections = _selection_rows(rows)
-    regrets = [float(r["selected_regret_to_best_pp"]) for r in selections]
-    exact = [bool(r["selected_exact_best"]) for r in selections]
-    within5 = [bool(r["selected_within_5pp_of_best"]) for r in selections]
-    top2_hits = [float(r["top2_overlap"]) for r in selections]
-    summary = {
-        "n_task_seed_blocks": len(selections),
-        "training_seeds": list(SEEDS),
-        "checkpoint_candidates_per_block": 8,
-        "exact_best_hits": sum(1 for v in exact if v),
-        "within_5pp_hits": sum(1 for v in within5 if v),
-        "mean_selected_regret_to_best_pp": _mean(regrets),
-        "pstdev_selected_regret_to_best_pp": _pstdev(regrets),
-        "mean_top2_overlap": _mean(top2_hits),
-        "top2_total_per_block": 2,
-    }
+    split_summaries = [
+        _selection_summary(
+            [r for r in selections if int(r["training_seed"]) == 3072],
+            name="development_seed_3072",
+            description="Seed 3072 development grid used to freeze metric computation and aggregate-rank rule before reading independent training seeds.",
+        ),
+        _selection_summary(
+            [r for r in selections if int(r["training_seed"]) in (3073, 3074)],
+            name="heldout_training_seeds_3073_3074",
+            description="Independent held-out training seeds evaluated after the rule is fixed; no closed-loop score is used by the selector.",
+        ),
+        _selection_summary(
+            selections,
+            name="all_training_seeds_3072_3073_3074",
+            description="Complete three-seed LeWM Gaussian full grid.",
+        ),
+    ]
+    summary = dict(split_summaries[-1])
+    summary["checkpoint_candidates_per_block"] = 8
     return {
         "metadata": {
-            "schema_version": "paper1-three-seed-diagnostic-validation-0.1",
+            "schema_version": "paper1-three-seed-diagnostic-validation-0.2",
             "source_artifact": str(input_path.relative_to(ROOT)),
             "scope": "Fixed no-retraining ACPC/PCC/CRA/MAF rule over LeWM 4-task x 9-std full grid and training seeds 3072/3073/3074.",
             "robustness_endpoint": "pixels_std0.08_success",
-            "selection_rule": "Among nonzero std checkpoints, select lowest aggregate rank over ACPC-H/trans low, PCC low, CRA high, MAF low. The rule is fixed before reading three-seed closed-loop outcomes.",
+            "selection_rule": "Among nonzero std checkpoints, select lowest aggregate rank over ACPC-H/trans low, PCC low, CRA high, MAF low. Metric computation and rule are fixed on seed 3072 before evaluating independent training seeds 3073/3074.",
+            "development_training_seed": 3072,
+            "heldout_training_seeds": [3073, 3074],
         },
         "summary": summary,
+        "split_summaries": split_summaries,
         "selection_rows": selections,
         "correlation_rows": _correlation_rows(rows),
     }
@@ -202,6 +245,32 @@ def _write_md(path: Path, payload: dict) -> None:
         "",
         "Fixed rule: rank nonzero checkpoints by ACPC-H/trans low, PCC low, CRA high, and MAF low; select the lowest aggregate rank. Robustness endpoint is observation-only `pixels_std0.08_success`.",
         "",
+        "Protocol: seed 3072 is the development grid used to freeze metric computation and the aggregate-rank rule; seeds 3073/3074 are independent held-out training seeds evaluated after the rule is fixed.",
+        "",
+        "## Split Summary",
+        "",
+        "| Split | seeds | blocks | candidates | exact best | within 5pp | regret mean +/- std | bootstrap 95% CI | top-2 overlap |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for split in payload["split_summaries"]:
+        ci = split["bootstrap_ci95_mean_selected_regret_to_best_pp"]
+        lines.append(
+            "| {split} | {seeds} | {blocks} | {cands} | {exact}/{blocks} | {within}/{blocks} | {mean} +/- {std} | [{lo}, {hi}] | {top2}/2 |".format(
+                split=split["split"],
+                seeds=",".join(str(s) for s in split["training_seeds"]),
+                blocks=split["n_task_seed_blocks"],
+                cands=split["n_checkpoint_candidates"],
+                exact=split["exact_best_hits"],
+                within=split["within_5pp_hits"],
+                mean=_fmt(split["mean_selected_regret_to_best_pp"]),
+                std=_fmt(split["pstdev_selected_regret_to_best_pp"]),
+                lo=_fmt(ci[0]),
+                hi=_fmt(ci[1]),
+                top2=_fmt(split["mean_top2_overlap"]),
+            )
+        )
+    lines.extend([
+        "",
         "## Summary",
         "",
         f"Blocks: {s['n_task_seed_blocks']} task-seed blocks; training seeds {s['training_seeds']}; 8 nonzero checkpoints per block.",
@@ -211,7 +280,7 @@ def _write_md(path: Path, payload: dict) -> None:
         "",
         "| Task | seed | selected std | selected px08 | best std | best px08 | regret | within 5pp | top-2 overlap |",
         "|---|---:|---:|---:|---:|---:|---:|---|---:|",
-    ]
+    ])
     for row in payload["selection_rows"]:
         lines.append(
             "| {task} | {seed} | {sel_std} | {sel_px} | {best_std} | {best_px} | {regret} | {within} | {top2}/2 |".format(

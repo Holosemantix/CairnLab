@@ -1157,6 +1157,14 @@ def check_prospective_validation_summary_json() -> None:
     diag = data.get("three_seed_full_grid_diagnostic_validation", {})
     if diag.get("n_task_seed_blocks") != 12 or diag.get("within_5pp_hits") != 10:
         fail("prospective validation summary must include completed three-seed full-grid diagnostic validation")
+    split_rows = {row.get("split"): row for row in data.get("three_seed_diagnostic_split_summaries", [])}
+    heldout = split_rows.get("heldout_training_seeds_3073_3074")
+    if heldout is None:
+        fail("prospective validation summary missing held-out training-seed diagnostic split")
+    if (heldout.get("n_task_seed_blocks"), heldout.get("n_checkpoint_candidates"), heldout.get("within_5pp_hits")) != (8, 64, 7):
+        fail(f"held-out training-seed diagnostic split changed: {heldout}")
+    if round2(float(heldout.get("mean_selected_regret_to_best_pp"))) != 2.21:
+        fail("held-out diagnostic split mean regret changed")
     semantic_rows = data.get("semantic_margin_passrate", [])
     if len(semantic_rows) != 8:
         fail("prospective validation summary must include completed semantic margin pass-rate rows")
@@ -1214,6 +1222,24 @@ def check_three_seed_diagnostic_validation_json() -> None:
             fail(f"three-seed diagnostic validation {key} mismatch: {summary.get(key)} != {want}")
     if round2(float(summary.get("mean_selected_regret_to_best_pp"))) != 2.25:
         fail("three-seed diagnostic validation mean regret changed")
+    splits = {row.get("split"): row for row in validation.get("split_summaries", [])}
+    heldout = splits.get("heldout_training_seeds_3073_3074")
+    if heldout is None:
+        fail("three-seed diagnostic validation missing held-out split summary")
+    expected_heldout = {
+        "n_task_seed_blocks": 8,
+        "n_checkpoint_candidates": 64,
+        "exact_best_hits": 0,
+        "within_5pp_hits": 7,
+    }
+    for key, want in expected_heldout.items():
+        if heldout.get(key) != want:
+            fail(f"three-seed held-out split {key} mismatch: {heldout.get(key)} != {want}")
+    if round2(float(heldout.get("mean_selected_regret_to_best_pp"))) != 2.21:
+        fail("three-seed held-out split mean regret changed")
+    ci = heldout.get("bootstrap_ci95_mean_selected_regret_to_best_pp")
+    if [round2(float(v)) for v in ci] != [1.04, 3.54]:
+        fail(f"three-seed held-out split CI changed: {ci}")
     selection = validation.get("selection_rows", [])
     if len(selection) != 12:
         fail("three-seed diagnostic validation must contain 12 selection rows")

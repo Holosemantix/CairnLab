@@ -15,20 +15,26 @@ Scores include training seeds 3072/3073/3074 and are treated as a bounded unseen
 
 ## Three-seed fixed-rule Gaussian diagnostic validation
 
-Exact best hits: 2/12; within-5pp hits: 10/12; mean regret to best: 2.25 +/- 2.51 pp.
+Seed 3072 is the development grid used to freeze the aggregate-rank rule; seeds 3073/3074 are held-out training seeds.
+
+| Split | seeds | blocks | candidates | within 5pp | regret mean +/- std | bootstrap 95% CI |
+|---|---|---:|---:|---:|---:|---:|
+| development_seed_3072 | 3072 | 4 | 32 | 3/4 | 2.33 +/- 3.49 | [0.00, 6.25] |
+| heldout_training_seeds_3073_3074 | 3073,3074 | 8 | 64 | 7/8 | 2.21 +/- 1.83 | [1.04, 3.54] |
+| all_training_seeds_3072_3073_3074 | 3072,3073,3074 | 12 | 96 | 10/12 | 2.25 +/- 2.51 | [1.00, 3.75] |
 
 ## Semantic margin pass-rate
 
-| Task | std | pass-rate | ratio | margin |
-|---|---:|---:|---:|---:|
-| TwoRoom | 0.0 | 0.44 +/- 0.06 | 0.98 +/- 0.04 | -0.71 +/- 0.77 |
-| TwoRoom | 0.08 | 1.00 +/- 0.00 | 29.21 +/- 1.46 | 15.77 +/- 0.27 |
-| PushT | 0.0 | 0.27 +/- 0.14 | 0.87 +/- 0.07 | -2.48 +/- 1.66 |
-| PushT | 0.08 | 1.00 +/- 0.00 | 23.66 +/- 2.28 | 15.06 +/- 0.13 |
-| Reacher | 0.0 | 0.58 +/- 0.03 | 1.12 +/- 0.03 | 0.83 +/- 0.37 |
-| Reacher | 0.08 | 1.00 +/- 0.00 | 61.26 +/- 3.37 | 16.50 +/- 0.23 |
-| Cube | 0.0 | 0.25 +/- 0.06 | 0.85 +/- 0.01 | -3.32 +/- 0.19 |
-| Cube | 0.08 | 1.00 +/- 0.00 | 34.44 +/- 4.02 | 15.99 +/- 0.28 |
+| Task | std | pass-rate | same radius | semantic diff | margin |
+|---|---:|---:|---:|---:|---:|
+| TwoRoom | 0.0 | 0.44 +/- 0.06 | 17.43 +/- 0.65 | 17.06 +/- 0.11 | -0.71 +/- 0.77 |
+| TwoRoom | 0.08 | 1.00 +/- 0.00 | 0.56 +/- 0.02 | 16.40 +/- 0.25 | 15.77 +/- 0.27 |
+| PushT | 0.0 | 0.27 +/- 0.14 | 18.35 +/- 1.21 | 15.82 +/- 0.20 | -2.48 +/- 1.66 |
+| PushT | 0.08 | 1.00 +/- 0.00 | 0.69 +/- 0.06 | 16.24 +/- 0.02 | 15.06 +/- 0.13 |
+| Reacher | 0.0 | 0.58 +/- 0.03 | 15.44 +/- 0.51 | 17.24 +/- 0.13 | 0.83 +/- 0.37 |
+| Reacher | 0.08 | 1.00 +/- 0.00 | 0.27 +/- 0.02 | 16.76 +/- 0.21 | 16.50 +/- 0.23 |
+| Cube | 0.0 | 0.25 +/- 0.06 | 19.33 +/- 0.15 | 16.46 +/- 0.13 | -3.32 +/- 0.19 |
+| Cube | 0.08 | 1.00 +/- 0.00 | 0.49 +/- 0.05 | 16.59 +/- 0.24 | 15.99 +/- 0.28 |
 
 ## Matched held-out unseen diagnostic validation slice
 
@@ -48,13 +54,13 @@ Top-4 agreement: composite signed-rank top-k hits 4/4 for stress-success delta a
 
 | Task | semantic factor | available source | status |
 |---|---|---|---|
-| PushT | T-block pose/contact relative to pusher | dataset state column is configured for PushT analysis | reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work |
-| TwoRoom | room/doorway/topology and target-region relation | derive from trajectory position/proprio and map topology | reported with pos_agent proxy in semantic_margin_passrate_lewm_three_seed.json; topology-specific extraction remains future work |
-| Reacher | joint/target geometry and end-effector-to-target relation | qpos/goal_qpos are used by eval set-state callables | reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work |
-| Cube | cube pose and gripper-object/goal relation | qpos plus goal block position/quaternion are used by eval callables | reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work |
+| PushT | T-block pose/contact relative to pusher | dataset state column is configured for PushT analysis | reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension |
+| TwoRoom | room/doorway/topology and target-region relation | derive from trajectory position/proprio and map topology | reported as a direct task-semantic margin pass-rate from pos_agent geometry in semantic_margin_passrate_lewm_three_seed.json; topology-specific labels remain an extension |
+| Reacher | joint/target geometry and end-effector-to-target relation | qpos/goal_qpos are used by eval set-state callables | reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension |
+| Cube | cube pose and gripper-object/goal relation | qpos plus goal block position/quaternion are used by eval callables | reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension |
 
 ## Remaining validation work
 
 - Extend the fixed diagnostic rule to additional perturbation families and method families after this three-seed Gaussian validation.
-- Broaden semantic-pair construction beyond one state proxy per task if the claim is expanded beyond matched Gaussian diagnostics.
+- Extend semantic-pair construction to finer oracle contact/topology/goal-relation labels if the claim is expanded beyond matched Gaussian diagnostics.
 - Keep training-seed uncertainty as the primary behavior statistic and evaluation-seed variance as the secondary decomposition.

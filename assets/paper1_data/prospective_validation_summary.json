@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "schema_version": "paper1-validation-remediation-0.2",
+    "schema_version": "paper1-validation-remediation-0.3",
     "source_artifacts": [
       "assets/paper1_data/training_seed_gaussian_lockbox.json",
       "assets/paper1_data/three_seed_diagnostic_validation.json",
@@ -117,20 +117,89 @@
     }
   ],
   "three_seed_full_grid_diagnostic_validation": {
+    "split": "all_training_seeds_3072_3073_3074",
+    "description": "Complete three-seed LeWM Gaussian full grid.",
     "n_task_seed_blocks": 12,
+    "n_checkpoint_candidates": 96,
     "training_seeds": [
       3072,
       3073,
       3074
     ],
-    "checkpoint_candidates_per_block": 8,
     "exact_best_hits": 2,
     "within_5pp_hits": 10,
     "mean_selected_regret_to_best_pp": 2.250000027777778,
     "pstdev_selected_regret_to_best_pp": 2.5060112997070227,
+    "bootstrap_ci95_mean_selected_regret_to_best_pp": [
+      1.0,
+      3.7500000555555553
+    ],
     "mean_top2_overlap": 0.75,
-    "top2_total_per_block": 2
+    "top2_total_per_block": 2,
+    "checkpoint_candidates_per_block": 8
   },
+  "three_seed_diagnostic_split_summaries": [
+    {
+      "split": "development_seed_3072",
+      "description": "Seed 3072 development grid used to freeze metric computation and aggregate-rank rule before reading independent training seeds.",
+      "n_task_seed_blocks": 4,
+      "n_checkpoint_candidates": 32,
+      "training_seeds": [
+        3072
+      ],
+      "exact_best_hits": 2,
+      "within_5pp_hits": 3,
+      "mean_selected_regret_to_best_pp": 2.333333333333332,
+      "pstdev_selected_regret_to_best_pp": 3.4880749227427232,
+      "bootstrap_ci95_mean_selected_regret_to_best_pp": [
+        0.0,
+        6.2499999999999964
+      ],
+      "mean_top2_overlap": 1.0,
+      "top2_total_per_block": 2
+    },
+    {
+      "split": "heldout_training_seeds_3073_3074",
+      "description": "Independent held-out training seeds evaluated after the rule is fixed; no closed-loop score is used by the selector.",
+      "n_task_seed_blocks": 8,
+      "n_checkpoint_candidates": 64,
+      "training_seeds": [
+        3073,
+        3074
+      ],
+      "exact_best_hits": 0,
+      "within_5pp_hits": 7,
+      "mean_selected_regret_to_best_pp": 2.2083333750000005,
+      "pstdev_selected_regret_to_best_pp": 1.8252663608894142,
+      "bootstrap_ci95_mean_selected_regret_to_best_pp": [
+        1.041666750000001,
+        3.541666750000001
+      ],
+      "mean_top2_overlap": 0.625,
+      "top2_total_per_block": 2
+    },
+    {
+      "split": "all_training_seeds_3072_3073_3074",
+      "description": "Complete three-seed LeWM Gaussian full grid.",
+      "n_task_seed_blocks": 12,
+      "n_checkpoint_candidates": 96,
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "exact_best_hits": 2,
+      "within_5pp_hits": 10,
+      "mean_selected_regret_to_best_pp": 2.250000027777778,
+      "pstdev_selected_regret_to_best_pp": 2.5060112997070227,
+      "bootstrap_ci95_mean_selected_regret_to_best_pp": [
+        1.0,
+        3.7500000555555553
+      ],
+      "mean_top2_overlap": 0.75,
+      "top2_total_per_block": 2
+    }
+  ],
   "three_seed_diagnostic_selection_rows": [
     {
       "task": "TwoRoom",
@@ -1255,33 +1324,33 @@
       "semantic_factor": "T-block pose/contact relative to pusher",
       "available_source": "dataset state column is configured for PushT analysis",
       "probe_rule": "different-state pair must cross a pose/contact threshold while same-state clean/noisy views share state",
-      "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work"
+      "release_status": "reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension"
     },
     {
       "task": "TwoRoom",
       "semantic_factor": "room/doorway/topology and target-region relation",
       "available_source": "derive from trajectory position/proprio and map topology",
       "probe_rule": "different-state pair must differ in room or doorway side under comparable visual nuisance",
-      "release_status": "reported with pos_agent proxy in semantic_margin_passrate_lewm_three_seed.json; topology-specific extraction remains future work"
+      "release_status": "reported as a direct task-semantic margin pass-rate from pos_agent geometry in semantic_margin_passrate_lewm_three_seed.json; topology-specific labels remain an extension"
     },
     {
       "task": "Reacher",
       "semantic_factor": "joint/target geometry and end-effector-to-target relation",
       "available_source": "qpos/goal_qpos are used by eval set-state callables",
       "probe_rule": "different-state pair must differ in target quadrant or end-effector-target distance bin",
-      "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work"
+      "release_status": "reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension"
     },
     {
       "task": "Cube",
       "semantic_factor": "cube pose and gripper-object/goal relation",
       "available_source": "qpos plus goal block position/quaternion are used by eval callables",
       "probe_rule": "different-state pair must differ in object pose/goal relation beyond tolerance",
-      "release_status": "reported in semantic_margin_passrate_lewm_three_seed.json; broader pair construction remains future work"
+      "release_status": "reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension"
     }
   ],
   "remaining_validation_work": [
     "Extend the fixed diagnostic rule to additional perturbation families and method families after this three-seed Gaussian validation.",
-    "Broaden semantic-pair construction beyond one state proxy per task if the claim is expanded beyond matched Gaussian diagnostics.",
+    "Extend semantic-pair construction to finer oracle contact/topology/goal-relation labels if the claim is expanded beyond matched Gaussian diagnostics.",
     "Keep training-seed uncertainty as the primary behavior statistic and evaluation-seed variance as the secondary decomposition."
   ]
 }

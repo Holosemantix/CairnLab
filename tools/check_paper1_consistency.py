@@ -33,6 +33,8 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_clean_goal_seed9101.json",
     ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json",
+    ROOT / "assets" / "paper1_data" / "training_seed_gaussian_lockbox.json",
+    ROOT / "assets" / "paper1_data" / "prospective_validation_summary.json",
 ]
 
 REQUIRED_ARTIFACTS = [
@@ -55,6 +57,11 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "partial_corr_bootstrap_20260523.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_clean_goal_seed9101.json",
     ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json",
+    ROOT / "assets" / "paper1_data" / "no_retrain_diagnostic_audit.json",
+    ROOT / "assets" / "paper1_data" / "training_seed_gaussian_lockbox.json",
+    ROOT / "assets" / "paper1_data" / "training_seed_gaussian_lockbox.md",
+    ROOT / "assets" / "paper1_data" / "prospective_validation_summary.json",
+    ROOT / "assets" / "paper1_data" / "prospective_validation_summary.md",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -1019,6 +1026,60 @@ def check_partial_corr_bootstrap_json() -> None:
     )
 
 
+def check_training_seed_gaussian_lockbox_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "training_seed_gaussian_lockbox.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rows = data.get("task_summary_rows", [])
+    by_task = {row.get("task"): row for row in rows}
+    expected = {
+        "TwoRoom": (97.10888888888888, 28.333333333333332),
+        "PushT": (85.77666666666666, 78.55555555555556),
+        "Reacher": (81.55333333333333, 63.33555555555555),
+        "Cube": (62.55666666666667, 19.44666666666667),
+    }
+    if set(by_task) != set(expected):
+        fail(f"training-seed lockbox tasks mismatch: got {sorted(by_task)}")
+    for task, (want_std08, want_gain) in expected.items():
+        row = by_task[task]
+        if row.get("training_seeds") != [3072, 3073, 3074]:
+            fail(f"{task} training-seed lockbox must use seeds 3072/3073/3074")
+        got_std08 = float(row["std_0p08_obs_0p08_mean"])
+        got_gain = float(row["std_0p08_gain_over_baseline_mean"])
+        if not approx_equal(got_std08, want_std08) or not approx_equal(got_gain, want_gain):
+            fail(
+                f"{task} training-seed lockbox mismatch: "
+                f"got std08={got_std08}, gain={got_gain}; "
+                f"want std08={want_std08}, gain={want_gain}"
+            )
+
+
+def check_prospective_validation_summary_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "prospective_validation_summary.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    heldout = data.get("heldout_unseen_validation", {})
+    if heldout.get("n_rows") != 8:
+        fail("prospective validation summary must contain the 8-row held-out unseen slice")
+    rows = {row.get("metric"): row for row in heldout.get("metric_rows", [])}
+    composite = rows.get("Composite signed-rank rule")
+    if composite is None:
+        fail("prospective validation summary missing composite signed-rank row")
+    checks = {
+        "spearman_vs_stress_success_delta": 0.92,
+        "pearson_vs_stress_success_delta": 0.93,
+        "spearman_vs_drop_improvement": 0.81,
+        "pearson_vs_drop_improvement": 0.83,
+    }
+    for key, want in checks.items():
+        got = round2(float(composite[key]))
+        if got != want:
+            fail(f"prospective validation composite {key} mismatch: got {got}, want {want}")
+    topk = heldout.get("topk_summary", {})
+    if topk.get("stress_success_delta_topk_hit_count") != 4 or topk.get("drop_improvement_topk_hit_count") != 4:
+        fail("prospective validation top-4 agreement must remain 4/4 for stress delta and drop improvement")
+    semantic = data.get("semantic_discriminability_protocol", [])
+    if {row.get("task") for row in semantic} != EXPECTED_TASKS:
+        fail("semantic discriminability protocol must cover all four tasks")
+
 def check_target_view_closed_loop_summary_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -1144,6 +1205,8 @@ def main() -> int:
         ("acpc basin full-grid table", check_acpc_basin_full_grid_table),
         ("pldm acpc basin json", check_pldm_acpc_basin_json),
         ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
+        ("training-seed Gaussian lockbox json", check_training_seed_gaussian_lockbox_json),
+        ("prospective validation summary json", check_prospective_validation_summary_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),
         ("partial-corr bootstrap json", check_partial_corr_bootstrap_json),

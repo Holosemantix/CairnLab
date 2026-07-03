@@ -1,6 +1,6 @@
 # Paper1 Lockbox Results — Seeds 3073/3074
 
-Status: development review note, not merged into `main.tex`.
+Status: merged into `main.tex` as the three-training-seed Gaussian lockbox and held-out unseen-stressor validation slice; this note remains the source record for seeds 3073/3074.
 
 This note records the independent-training-seed lockbox pass after the original
 seed-3072 development analysis. The purpose is to decide whether the Paper1

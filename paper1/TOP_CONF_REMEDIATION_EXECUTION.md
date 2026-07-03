@@ -2,40 +2,41 @@
 
 Source plan: `paper1/TOP_CONF_REMEDIATION_PLAN.md`.
 
-This file separates remediation work that can be completed from existing checkpoints/artifacts from work that requires new training, new held-out evaluation, or new task-semantic annotations. It is intentionally conservative: no result is upgraded to a prospective or semantic-margin claim unless the artifact actually supports that reading.
+This file separates remediation work completed from existing checkpoints/artifacts from work that still needs new diagnostic runs or task-semantic construction. It is intentionally conservative: completed Gaussian training-seed statistics are promoted to main evidence, while task-semantic margins are only specified until their state-margin runs exist.
 
 ## A. Completed without retraining
 
 | Plan item | Action taken | Files/artifacts | Claim status |
 |---|---|---|---|
-| P1.2 ACPC vs simpler metrics | Added a no-retraining frozen-rule diagnostic audit over existing LeWM/PLDM Phase-0 full-grid artifacts. The fixed rule ranks nonzero-noise checkpoints by ACPC-H/transition, PCC, CRA, and MAF without using closed-loop success. | `tools/paper1_no_retrain_remediation.py`, `assets/paper1_data/no_retrain_diagnostic_audit.json`, `assets/paper1_data/no_retrain_diagnostic_audit.md`, `paper1/main.tex` | Supports triage/localization value; not true held-out prospective validation. |
-| P1.1 representative-row clarity | Main text now explicitly reports the frozen-rule selected row against the closed-loop best row, exposing gaps instead of hiding point selection. | `paper1/main.tex`, `assets/paper1_data/no_retrain_diagnostic_audit.*` | Reduces cherry-picking risk; full unification still needs a final row policy decision before submission. |
-| P2.1/P2.2 title/abstract/contribution framing | Abstract and C3 now state the no-retraining audit and keep held-out prospective validation / semantic guards out of scope. | `paper1/main.tex` | Stronger positive contribution while preserving scope. |
+| P0.2 independent training seeds as main Gaussian statistics | Promoted the completed Gaussian sweeps for canonical seed 3072 plus lockbox seeds 3073/3074 to a main training-seed mean/std table. | `tools/paper1_training_seed_lockbox.py`, `assets/paper1_data/training_seed_gaussian_lockbox.*`, `paper1/main.tex`, `DATA_MANIFEST.md` | Main Gaussian behavior no longer relies only on evaluation-seed variance. |
+| P0.1 prospective validation protocol, current slice | Added a frozen validation ledger and a held-out seed/perturbation slice over seeds 3073/3074 and blur/resize. The composite signed-rank rule hits the top 4/4 rows for stress-success delta and drop improvement in the current slice. | `tools/paper1_validation_remediation.py`, `assets/paper1_data/prospective_validation_summary.*`, `paper1/main.tex` | Upgrades evidence beyond representative-row explanation; full held-out checkpoint-grid diagnostics remain next work. |
+| P0.3 semantic discriminability protocol | Added a task-semantic state-margin protocol table for PushT, TwoRoom, Reacher, and Cube; proxy rank/transition/ID checks are no longer presented as semantic margins. | `paper1/main.tex`, `assets/paper1_data/prospective_validation_summary.*` | Protocol frozen; result table requires state-margin runs. |
+| P1.2 ACPC vs simpler metrics | Added a no-retraining frozen-rule diagnostic audit over existing LeWM/PLDM Phase-0 full-grid artifacts. The fixed rule ranks nonzero-noise checkpoints by ACPC-H/transition, PCC, CRA, and MAF without using closed-loop success. | `tools/paper1_no_retrain_remediation.py`, `assets/paper1_data/no_retrain_diagnostic_audit.*`, `paper1/main.tex` | Supports triage/localization value and exposes boundary cases. |
+| P1.1 representative-row clarity | Main text now reports both a fixed high-noise endpoint/plateau framing and the frozen-rule selected row against the closed-loop best row. | `paper1/main.tex`, `assets/paper1_data/no_retrain_diagnostic_audit.*`, `assets/paper1_data/training_seed_gaussian_lockbox.*` | Reduces cherry-picking risk; exact point-best rows are treated as plateau context. |
+| P1.4/P2.3 metric-load and tone cleanup | Main text now organizes diagnostics around three questions: seed-level behavior, rollout/cost consistency, and selective discriminability. Caveats are consolidated in Discussion instead of repeated throughout the contribution story. | `paper1/main.tex` | Clearer main contribution with honest boundaries. |
+| P2.1/P2.2 title/abstract/contribution framing | Abstract and C3 now foreground the three-training-seed Gaussian result, validation ledger, held-out seed/perturbation slice, and semantic state-margin protocol. | `paper1/main.tex` | Stronger positive contribution while preserving scope. |
 | Figure wording cleanup | Paper-facing Figure 1/3/5 generated labels now use `ACPC rollout readout R_F`, and unused legacy figures are removed from arXiv copy lists. | `tools/paper1_selective_contraction.py`, regenerated PNGs, `paper1/README.md`, `paper1/check_arxiv_ready.sh` | Removes stale H=8/predictor wording from paper-facing assets. |
-| Artifact mapping | Added the new no-retraining audit artifact and script to the reproducibility map. | `paper1/main.tex` | Reproducible from existing JSON; no model loading. |
+| Artifact mapping | Added the no-retraining audit, training-seed Gaussian lockbox, and validation remediation artifacts/scripts to the reproducibility map and consistency checks. | `paper1/main.tex`, `DATA_MANIFEST.md`, `tools/check_paper1_consistency.py` | Reproducible from existing JSON/Markdown; no model loading. |
 
 ## B. Directly doable next from existing artifacts/checkpoints
 
 | Plan item | Concrete next step | Inputs | Expected manuscript change |
 |---|---|---|---|
-| P1.4 reduce metric load | Move ADM/SPRR and some proxy diagnostics deeper into appendix, keeping closed-loop success, ACPC/R_F, PCC/CRA, and collapse guard in the main text. | Existing `main.tex` tables and artifacts | Shorter main narrative; no new computation. |
-| P1.1 final row policy | Choose one final policy: fixed `std_max=0.08`, frozen diagnostic rule, or plateau summary. Then align captions and compact tables. | Existing sweep / Phase-0 / ACPC-basin artifacts | Less reviewer concern about representative-row drift. |
-| P1.2 appendix scatter/table | Extend `paper1_no_retrain_remediation.py` to write a small CSV/LaTeX table or scatter plot for encoder radius vs ACPC/PCC/CRA/MAF correlations. | Existing Phase-0 artifacts | Stronger incremental-value evidence; still not held-out. |
-| P0.1 quasi-prospective boundary | Recast existing frozen-rule audit as a development-only diagnostic audit and add a short paragraph specifying what would constitute the real held-out split. | Current no-retrain audit | Cleaner boundary between done-now evidence and required future validation. |
-| P2.3 limitations tone | Consolidate repeated “not predictor” caveats into the limitations section now that the frozen-rule audit exists. | `main.tex` | Less self-undermining framing. |
+| P1.2 appendix scatter/table | Extend `paper1_no_retrain_remediation.py` to write a small CSV/LaTeX table or scatter plot for encoder radius vs ACPC/PCC/CRA/MAF correlations. | Existing Phase-0 artifacts | Stronger incremental-value appendix evidence; still not a full held-out study. |
+| P1.1 final row policy polish | Keep main text on fixed `std_max=0.08` endpoint plus plateau summaries; ensure appendix captions use the same wording. | Existing sweep / Phase-0 / ACPC-basin artifacts | Less representative-row drift across captions. |
+| P1.4 appendix pruning | Move lower-priority ADM/SPRR/full five-layer tables deeper into appendix if page budget is tight. | Existing `main.tex` tables | Shorter main narrative without deleting release artifacts. |
 
-## C. Requires new training/evaluation or new semantic construction
+## C. Requires new diagnostic runs, evaluation, or semantic construction
 
 | Plan item | Why existing artifacts are insufficient | Required work |
 |---|---|---|
-| P0.2 independent training seeds as main Gaussian statistics | Existing main Gaussian grid is one training seed with three eval seeds. The 3073/3074 artifacts are unseen-stressor checks, not full matched Gaussian training-seed grids. | Train/evaluate at least base and fixed/high-noise rows for >=3 independent training seeds per task, or complete a multi-seed sweep. |
-| P0.1 true prospective validation | Existing Phase-0 audit uses artifacts generated after the sweep was known. It is a fixed-rule sanity check, not a dev/held-out protocol. | Freeze metric/rule on a development split; evaluate on held-out training seeds/checkpoints/perturbation families. |
-| P0.3 task-semantic discriminability guard | Current ADM is an action-distance latent proxy; rank/transition/ID probes are not task-semantic margins. | Construct task-specific semantic pairs from simulator/state metadata: PushT pose/contact, TwoRoom room/door topology, Reacher joint/target geometry, Cube object/gripper pose. |
-| P1.3 stronger baseline comparison | Existing target-view and heteroscedastic branches are negative checks, not a robust baseline suite. | Add at least one explicit baseline such as encoder consistency / latent consistency / standard augmentation control, or keep baseline comparisons out of scope. |
+| Full held-out checkpoint-grid prospective validation | The current validation slice covers held-out training seeds and unseen perturbations, but not the full ACPC/PCC/CRA/MAF grid for seeds 3073/3074. | Run fixed ACPC/PCC/CRA/MAF diagnostics over the completed seed-3073/3074 Gaussian grids and evaluate ranking/drop prediction on held-out checkpoints. |
+| Task-semantic discriminability result table | Current ADM/SPRR are action-distance proxy guards; main text now freezes semantic factors but does not report state-margin pass rates. | Construct task-specific semantic pairs from simulator/state metadata and report same-state radius vs different-state semantic margin pass rates. |
+| P1.3 stronger baseline comparison | Existing target-view and heteroscedastic branches are negative checks, not a robust baseline suite. | Add an explicit baseline such as encoder consistency, latent consistency, or standard augmentation control; otherwise keep baseline comparisons scoped as context. |
 
 ## D. Recommended submission path
 
-1. Finish the no-retraining manuscript cleanup in section B.
-2. Decide whether the target venue requires the P0 items as completed main evidence. If yes, do not submit until P0.1/P0.2/P0.3 are actually run.
-3. If no new training budget is available, submit as a bounded diagnostic paper with the frozen-rule audit clearly labeled as non-held-out evidence.
-4. If training budget is available, prioritize matched Gaussian independent training seeds first, then true held-out diagnostic validation, then semantic discriminability guards.
+1. Use the current revision as the no-retraining top-conference cleanup: three training seeds are now in the main Gaussian result, and the validation ledger is explicit.
+2. If time remains before submission, prioritize full held-out checkpoint-grid diagnostics for seeds 3073/3074.
+3. Next priority is the task-semantic state-margin result table.
+4. Treat method objectives and stronger baseline suites as follow-up unless the target venue demands them for acceptance.

@@ -1,0 +1,271 @@
+{
+  "metadata": {
+    "schema_version": "paper1-validation-remediation-0.1",
+    "source_artifacts": [
+      "assets/paper1_data/training_seed_gaussian_lockbox.json",
+      "assets/paper1_data/unseen_phase0_acpc_subset.json",
+      "assets/paper1_data/no_retrain_diagnostic_audit.json"
+    ],
+    "scope": "No model loading or retraining. Summarizes completed three-training-seed Gaussian behavior, a held-out training-seed/unseen-perturbation validation slice, and the semantic-guard protocol ledger."
+  },
+  "three_training_seed_gaussian_summary": [
+    {
+      "task": "TwoRoom",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "baseline_obs_0p08_mean": 68.77888888888889,
+      "baseline_obs_0p08_pstdev": 2.4558325635610636,
+      "std_0p08_obs_0p08_mean": 97.10888888888888,
+      "std_0p08_obs_0p08_pstdev": 0.5676483870830843,
+      "std_0p08_gain_over_baseline_mean": 28.333333333333332,
+      "std_0p08_gain_over_baseline_pstdev": 2.6798300111926663,
+      "best_obs_0p08_mean": 97.66555555555556,
+      "best_obs_0p08_pstdev": 0.2735274829895849,
+      "std_0p08_regret_to_best_mean": 0.5566666666666672,
+      "std_0p08_regret_to_best_pstdev": 0.7872455497210237,
+      "best_std_values": [
+        "0.08",
+        "0.06",
+        "0.05"
+      ],
+      "best_std_range": "0.05--0.08"
+    },
+    {
+      "task": "PushT",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "baseline_obs_0p08_mean": 7.221111111111111,
+      "baseline_obs_0p08_pstdev": 5.812438981493075,
+      "std_0p08_obs_0p08_mean": 85.77666666666666,
+      "std_0p08_obs_0p08_pstdev": 3.445734883720581,
+      "std_0p08_gain_over_baseline_mean": 78.55555555555556,
+      "std_0p08_gain_over_baseline_pstdev": 5.18068587861101,
+      "best_obs_0p08_mean": 87.66666666666667,
+      "best_obs_0p08_pstdev": 0.9805553981743654,
+      "std_0p08_regret_to_best_mean": 1.8900000000000006,
+      "std_0p08_regret_to_best_pstdev": 2.6728636328851505,
+      "best_std_values": [
+        "0.08",
+        "0.04",
+        "0.08"
+      ],
+      "best_std_range": "0.04--0.08"
+    },
+    {
+      "task": "Reacher",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "baseline_obs_0p08_mean": 18.224444444444444,
+      "baseline_obs_0p08_pstdev": 0.41544561825634274,
+      "std_0p08_obs_0p08_mean": 81.55333333333333,
+      "std_0p08_obs_0p08_pstdev": 0.8754554370281921,
+      "std_0p08_gain_over_baseline_mean": 63.33555555555555,
+      "std_0p08_gain_over_baseline_pstdev": 1.246923126720576,
+      "best_obs_0p08_mean": 83.77555555555556,
+      "best_obs_0p08_pstdev": 0.6301107094573487,
+      "std_0p08_regret_to_best_mean": 2.2222222222222237,
+      "std_0p08_regret_to_best_pstdev": 0.8748897637790909,
+      "best_std_values": [
+        "0.07",
+        "0.07",
+        "0.05"
+      ],
+      "best_std_range": "0.05--0.07"
+    },
+    {
+      "task": "Cube",
+      "training_seeds": [
+        3072,
+        3073,
+        3074
+      ],
+      "n_training_seeds": 3,
+      "baseline_obs_0p08_mean": 43.10999999999999,
+      "baseline_obs_0p08_pstdev": 3.269689077980759,
+      "std_0p08_obs_0p08_mean": 62.55666666666667,
+      "std_0p08_obs_0p08_pstdev": 1.549114442368787,
+      "std_0p08_gain_over_baseline_mean": 19.44666666666667,
+      "std_0p08_gain_over_baseline_pstdev": 4.533551465340269,
+      "best_obs_0p08_mean": 66.44444444444444,
+      "best_obs_0p08_pstdev": 1.3428392621422014,
+      "std_0p08_regret_to_best_mean": 3.887777777777776,
+      "std_0p08_regret_to_best_pstdev": 2.19966383514716,
+      "best_std_values": [
+        "0.03",
+        "0.05",
+        "0.03"
+      ],
+      "best_std_range": "0.03--0.05"
+    }
+  ],
+  "heldout_unseen_validation": {
+    "split": "training seeds 3073/3074; unseen perturbation families gaussian_blur and resize; fixed std_max comparison 0.0 vs 0.08",
+    "n_rows": 8,
+    "metric_rows": [
+      {
+        "metric": "ACPC-H/trans. delta",
+        "direction": "lower is better",
+        "n": 8,
+        "spearman_vs_stress_success_delta": 0.9047619047619048,
+        "pearson_vs_stress_success_delta": 0.8793704608387314,
+        "spearman_vs_drop_improvement": 0.7142857142857143,
+        "pearson_vs_drop_improvement": 0.6751672619769745
+      },
+      {
+        "metric": "PCC delta",
+        "direction": "lower is better",
+        "n": 8,
+        "spearman_vs_stress_success_delta": 0.8809523809523809,
+        "pearson_vs_stress_success_delta": 0.9327794867812423,
+        "spearman_vs_drop_improvement": 0.8095238095238095,
+        "pearson_vs_drop_improvement": 0.8812872950016181
+      },
+      {
+        "metric": "CRA delta",
+        "direction": "higher is better",
+        "n": 8,
+        "spearman_vs_stress_success_delta": 0.8571428571428571,
+        "pearson_vs_stress_success_delta": 0.9041000865797079,
+        "spearman_vs_drop_improvement": 0.9047619047619048,
+        "pearson_vs_drop_improvement": 0.8822005127892969
+      },
+      {
+        "metric": "MAF delta",
+        "direction": "lower is better",
+        "n": 8,
+        "spearman_vs_stress_success_delta": 0.9523809523809523,
+        "pearson_vs_stress_success_delta": 0.9152323730528805,
+        "spearman_vs_drop_improvement": 0.7142857142857143,
+        "pearson_vs_drop_improvement": 0.7672157796168801
+      },
+      {
+        "metric": "Composite signed-rank rule",
+        "direction": "aggregate rank over ACPC/PCC/CRA/MAF directions",
+        "n": 8,
+        "spearman_vs_stress_success_delta": 0.9157291161525718,
+        "pearson_vs_stress_success_delta": 0.9336600420397073,
+        "spearman_vs_drop_improvement": 0.8072875102923988,
+        "pearson_vs_drop_improvement": 0.8337488395095184
+      }
+    ],
+    "topk_summary": {
+      "k": 4,
+      "topk_by_composite": [
+        "TwoRoom:gaussian_blur:15:seed3073",
+        "Reacher:gaussian_blur:15:seed3073",
+        "TwoRoom:gaussian_blur:15:seed3074",
+        "Reacher:gaussian_blur:15:seed3074"
+      ],
+      "stress_success_delta_topk_hit_count": 4,
+      "drop_improvement_topk_hit_count": 4,
+      "stress_success_delta_topk_total": 4,
+      "drop_improvement_topk_total": 4
+    },
+    "summary_by_task": {
+      "Cube": {
+        "mean_delta_acpc_h_norm_by_transition": 0.0884112129524316,
+        "mean_delta_cra_spearman_mean": -0.042128682136535645,
+        "mean_delta_maf_flip_rate": 0.06000000238418579,
+        "mean_delta_pcc_abs_median": -0.1323680877685547,
+        "mean_drop_improvement": 1.3333329999999997,
+        "mean_stress_success_delta": -1.8333334999999984,
+        "n": 2,
+        "readings": [
+          "boundary_or_neutral_transfer"
+        ]
+      },
+      "PushT": {
+        "mean_delta_acpc_h_norm_by_transition": -0.2485123247886153,
+        "mean_delta_cra_spearman_mean": 0.008713215589523315,
+        "mean_delta_maf_flip_rate": -0.0650000087916851,
+        "mean_delta_pcc_abs_median": -6.4468231201171875,
+        "mean_drop_improvement": -4.666666999999997,
+        "mean_stress_success_delta": 2.333333000000003,
+        "n": 2,
+        "readings": [
+          "boundary_or_neutral_transfer",
+          "positive_transfer_with_diagnostic_alignment"
+        ]
+      },
+      "Reacher": {
+        "mean_delta_acpc_h_norm_by_transition": -1.7702305051915372,
+        "mean_delta_cra_spearman_mean": 0.5684345364570618,
+        "mean_delta_maf_flip_rate": -0.6799999922513962,
+        "mean_delta_pcc_abs_median": -46.989173889160156,
+        "mean_drop_improvement": 28.0,
+        "mean_stress_success_delta": 48.5,
+        "n": 2,
+        "readings": [
+          "positive_transfer_with_diagnostic_alignment"
+        ]
+      },
+      "TwoRoom": {
+        "mean_delta_acpc_h_norm_by_transition": -0.5897467321803826,
+        "mean_delta_cra_spearman_mean": 0.5671756938099861,
+        "mean_delta_maf_flip_rate": -0.37000003457069397,
+        "mean_delta_pcc_abs_median": -42.71379089355469,
+        "mean_drop_improvement": 35.166667000000004,
+        "mean_stress_success_delta": 36.8333335,
+        "n": 2,
+        "readings": [
+          "positive_transfer_with_diagnostic_alignment"
+        ]
+      }
+    }
+  },
+  "existing_full_grid_frozen_rule_audit": {
+    "exact_best_hits": 3,
+    "max_gap_to_closed_loop_best_pp": 8.333333333333336,
+    "mean_gap_to_closed_loop_best_pp": 2.249999999999999,
+    "selection_rows": 8,
+    "within_2pp_hits": 6,
+    "within_6pp_hits": 7
+  },
+  "semantic_discriminability_protocol": [
+    {
+      "task": "PushT",
+      "semantic_factor": "T-block pose/contact relative to pusher",
+      "available_source": "dataset state column is configured for PushT analysis",
+      "probe_rule": "different-state pair must cross a pose/contact threshold while same-state clean/noisy views share state",
+      "release_status": "protocol frozen; state-margin run still required for a result table"
+    },
+    {
+      "task": "TwoRoom",
+      "semantic_factor": "room/doorway/topology and target-region relation",
+      "available_source": "derive from trajectory position/proprio and map topology",
+      "probe_rule": "different-state pair must differ in room or doorway side under comparable visual nuisance",
+      "release_status": "protocol frozen; task-topology extraction still required for a result table"
+    },
+    {
+      "task": "Reacher",
+      "semantic_factor": "joint/target geometry and end-effector-to-target relation",
+      "available_source": "qpos/goal_qpos are used by eval set-state callables",
+      "probe_rule": "different-state pair must differ in target quadrant or end-effector-target distance bin",
+      "release_status": "protocol frozen; state-margin run still required for a result table"
+    },
+    {
+      "task": "Cube",
+      "semantic_factor": "cube pose and gripper-object/goal relation",
+      "available_source": "qpos plus goal block position/quaternion are used by eval callables",
+      "probe_rule": "different-state pair must differ in object pose/goal relation beyond tolerance",
+      "release_status": "protocol frozen; state-margin run still required for a result table"
+    }
+  ],
+  "remaining_validation_work": [
+    "Run the fixed ACPC/PCC/CRA/MAF rule on full held-out training-seed checkpoint grids, not only the current unseen slice.",
+    "Run the task-semantic state-margin probes defined in this artifact and report pass rates before claiming semantic discriminability results.",
+    "Use the three-training-seed Gaussian table as the primary behavior statistic; keep evaluation-seed variance as a secondary decomposition."
+  ]
+}

@@ -61,11 +61,9 @@ mkdir -p /tmp/paper1_arxiv_src/figures/corruption
 cp main.tex references.bib main.bbl /tmp/paper1_arxiv_src/
 
 # Keep this list aligned with figure inclusions in main.tex.
-cp figures/fig1_concept.png /tmp/paper1_arxiv_src/figures/
 cp figures/fig2_sweep.png /tmp/paper1_arxiv_src/figures/
 cp figures/pusht_fullseq_selective_contraction_clusters.png /tmp/paper1_arxiv_src/figures/
 cp figures/pusht_fullseq_selective_contraction_atlas.png /tmp/paper1_arxiv_src/figures/
-cp figures/fig5_scatter.png /tmp/paper1_arxiv_src/figures/
 cp figures/pusht_pldm_noise_selective_contraction_clusters.png /tmp/paper1_arxiv_src/figures/
 cp figures/corruption/pusht_corruption_visualization.png /tmp/paper1_arxiv_src/figures/corruption/
 cp figures/corruption/tworoom_corruption_visualization.png /tmp/paper1_arxiv_src/figures/corruption/

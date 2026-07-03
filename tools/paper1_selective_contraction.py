@@ -305,7 +305,7 @@ def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
         "",
         f"Scope: existing {method_label} sweep. This is a branch diagnostic, not a new main claim.",
         "",
-        "| Task | best std | obs-noise 0.08 success | encoder radius R_E | prediction radius R_F | original NN L2 | transition L2 | aux ADM | aux SPRR | read |",
+        "| Task | best std | obs-noise 0.08 success | encoder radius R_E | rollout radius R_F | original NN L2 | transition L2 | aux ADM | aux SPRR | read |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     metric = payload["metadata"]["robust_metric"]
@@ -1113,9 +1113,9 @@ def render_2d_task(
     fig, axes = plt.subplots(2, 2, figsize=(13.5, 10.5), sharex="col", sharey="col")
     panels = [
         ("base", "encoder_2d", "Encoder features"),
-        ("base", "predictor_2d", "8-step rollout features"),
+        ("base", "predictor_2d", r"ACPC rollout readout $R_F$"),
         ("fullseq_robust", "encoder_2d", "Encoder features"),
-        ("fullseq_robust", "predictor_2d", "8-step rollout features"),
+        ("fullseq_robust", "predictor_2d", r"ACPC rollout readout $R_F$"),
     ]
     for ax, (label, feature, title) in zip(axes.reshape(-1), panels):
         arr = encoded[label][feature]
@@ -1197,7 +1197,7 @@ def render_atlas_task(
     label_by_spec = _display_labels(summary, specs[1].std_key)
     feature_by_name = {
         "encoder": "Encoder",
-        "predictor": "8-step rollout",
+        "predictor": r"ACPC rollout readout $R_F$",
     }
 
     fig, axes = plt.subplots(2, 2, figsize=(7.4, 7.2))
@@ -1283,7 +1283,7 @@ def render_cluster_task(
     label_by_spec = _display_labels(summary, specs[1].std_key)
     feature_by_name = {
         "encoder": "Encoder features",
-        "predictor": "8-step rollout features",
+        "predictor": r"ACPC rollout readout $R_F$",
     }
     panels = [
         ("base", "encoder"),
@@ -1308,7 +1308,7 @@ def render_cluster_task(
         anchor_selection_meta = {
             "strategy": "spread",
             "selected": [int(x) for x in anchors.tolist()],
-            "note": "Legacy farthest-point anchor selection in robust predictor high-D space.",
+            "note": "Legacy farthest-point anchor selection in robust rollout-readout high-D space.",
         }
     else:
         raise ValueError(f"Unknown cluster anchor selection: {anchor_selection}")
@@ -1402,7 +1402,7 @@ def render_cluster_task(
         ax.grid(True, color="#EEEEEE", linewidth=0.45)
         ax.set_aspect("equal", adjustable="box")
     fig.suptitle(
-        f"{task}: same-state perturbation clusters in encoder and 8-step rollout spaces",
+        f"{task}: same-state perturbation clusters in encoder and ACPC rollout-readout spaces",
         y=0.975,
         fontsize=9.2,
     )
@@ -1528,9 +1528,9 @@ def render_3d_task(
     fig = plt.figure(figsize=(12, 9))
     panels = [
         ("base", "encoder_3d", "Encoder"),
-        ("base", "predictor_3d", "8-step rollout"),
+        ("base", "predictor_3d", r"ACPC rollout readout $R_F$"),
         ("fullseq_robust", "encoder_3d", "Encoder"),
-        ("fullseq_robust", "predictor_3d", "8-step rollout"),
+        ("fullseq_robust", "predictor_3d", r"ACPC rollout readout $R_F$"),
     ]
     for i, (label, feature, title) in enumerate(panels, start=1):
         ax = fig.add_subplot(2, 2, i, projection="3d")

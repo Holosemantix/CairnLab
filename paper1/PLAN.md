@@ -2,7 +2,7 @@
 
 > Source of truth: `paper1/main.tex`. 数值、表格、图和 artifact 以论文正文与 `assets/paper1_data/` 为准。
 > Reframing 执行依据：`paper1/paper1_acpc_rewrite_execution_plan.md`。
-> Last updated: 2026-07-03（independent training-seed lockbox 3073/3074 completed; Gaussian recovery replicates strongly, strongest-only blur/resize remains bounded development evidence）。
+> Last updated: 2026-07-03（independent training-seed lockbox 3073/3074 completed; Gaussian recovery replicates strongly; strongest-only blur/resize remains bounded development evidence; conference compact plan added）。
 
 ---
 
@@ -12,9 +12,9 @@ JEPA 这类 latent predictive world model 在 latent 空间预测而非重建像
 
 Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchmark）来检验这个性质：在 4 个控制任务（PushT、TwoRoom、Reacher、Cube）上，无噪声训练的 LeWM 在 observation pixels 加噪、goal 保持 clean（std=0.08）后，PushT 从 86% 掉到 4%、TwoRoom 从 94% 掉到 66%；observation+goal 同时加噪作为更强 stress condition 单独报告。给训练加同类噪声能恢复大部分性能，但它是一个 **coarse global scalar pressure**，呈 broad task-dependent plateaus，而非 principled 解（不再写成”无 universal std_max”定理）。
 
-三个负结果限定 claim 边界：(i) 控制掉训练噪声后，single-step encoder/predictor fragility 不能稳定解释 corruption gap（PushT LeWM partial ρ=+0.19，CI 含 0；PLDM −0.05；joint n=18 +0.22），multi-step predictor drift 在 clean-goal observation-noise endpoint 下也只剩弱残差信号（Reacher partial ρ=+0.37，CI 很宽）；(ii) heteroscedastic σ-head 用 prediction error 下采样 hard transitions，让 PushT clean 从 86% 崩到 13%——说明 **hard ≠ nuisance**；(iii) target-view ablation 显示 perturbed-history → original-future one-step denoising 不是 sufficient closed-loop fix，fixed eval 后 PushT pixels 0.08 仍只有 6.75%，而 matched full-sequence perturbed-target branch 是 72.83%。诊断工具只做 mechanism localization 与 checkpoint selection，**不预测** robustness。
+三个负结果限定 claim 边界：(i) broad plateau 与 evaluation variance 使单个 point-best σ 或 scalar diagnostic 排序没有可解释性；diagnostics 只用于代表 checkpoint 的 mechanism localization，不作为 robustness predictor；(ii) heteroscedastic σ-head 用 prediction error 下采样 hard transitions，让 PushT clean 从 86% 崩到 13%——说明 **hard ≠ nuisance**；(iii) target-view ablation 显示 perturbed-history → original-future one-step denoising 不是 sufficient closed-loop fix，fixed eval 后 PushT pixels 0.08 仍只有 6.75%，而 matched full-sequence perturbed-target branch 是 72.83%。
 
-本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，并补充 dense Gaussian-noise ACPC basin diagnostic：在同一 state、同一 action sequence 下比较 clean/noised views 的 encoder radius 与 rollout prediction radius。该诊断是主文 paired evidence，只使用 Gaussian noise eval grid（0.01..0.08），与 noise sweep 训练 family 一致；blur/resize 不混入 ACPC 主证据。Phase 0 clean-goal full-sweep ACPC/PCC/CRA/MAF artifact 保留为 Phase-0 appendix exploratory sanity check，说明 shared-candidate paired probes 在 primary observation-noise endpoint 下可计算且 face-valid，但不写成 universal robustness predictor。independent training seeds 3073/3074 的 Gaussian lockbox 已完成并强复现 cliff/recovery 与 predictor-drift tightening：std=0.08 相对 baseline 的 observation-noise 0.08 平均增益为 TwoRoom +26.50、PushT +75.50、Reacher +63.17、Cube +21.67 pp；但最优 std 仍 task/seed-dependent，必须继续写成 broad plateau 而不是 universal optimum。seed-3073/3074 strongest-only blur/resize lockbox 也完成，结果复现 seed-3072 的边界：TwoRoom/Reacher 明确正向，PushT weak/mixed，Cube neutral/slightly negative；代表性 unseen Phase-0 ACPC subset 也已完成，TwoRoom/Reacher score 与 diagnostics 同向，Cube 保持 negative boundary，PushT seed-sensitive；它只支持 bounded appendix/development evidence，不更新主文 Gaussian ACPC claim。target-view ablation 只作为 target-view appendix negative scope check，不作为独立贡献；它支持把 **full-sequence perturbed-target training** 保留为当前 empirical mainline。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
+本文是 **reframing + diagnostic paper**，不提出新训练算法。中心贡献是把鲁棒性重新定义在 action-conditioned predictive dynamics 层，并补充 dense Gaussian-noise ACPC basin diagnostic：在同一 state、同一 action sequence 下比较 clean/noised views 的 encoder radius 与 rollout prediction radius。该诊断是主文 paired evidence，只使用 Gaussian noise eval grid（0.01..0.08），与 noise sweep 训练 family 一致；blur/resize 不混入 ACPC 主证据。Phase 0 clean-goal full-sweep ACPC/PCC/CRA/MAF artifact 保留为 Phase-0 appendix exploratory sanity check，说明 shared-candidate paired probes 在 primary observation-noise endpoint 下可计算且 face-valid，但不写成 universal robustness predictor。independent training seeds 3073/3074 的 Gaussian lockbox 已完成并强复现 cliff/recovery 与 predictor-drift tightening：std=0.08 相对 baseline 的 observation-noise 0.08 平均增益为 TwoRoom +26.50、PushT +75.50、Reacher +63.17、Cube +21.67 pp；但最优 std 仍 task/seed-dependent，必须继续写成 broad plateau 而不是 universal optimum。seed-3073/3074 strongest-only blur/resize lockbox 也完成，结果复现 seed-3072 的边界：TwoRoom/Reacher 明确正向，PushT/Cube 在 evaluation variance scale 下没有 clear behavioral effect；代表性 unseen Phase-0 ACPC subset 也已完成，TwoRoom/Reacher score 与 diagnostics 同向，PushT/Cube 没有 coordinated strong-transfer diagnostic pattern；它只支持 bounded appendix/development evidence，不更新主文 Gaussian ACPC claim。target-view ablation 只作为 target-view appendix negative scope check，不作为独立贡献；它支持把 **full-sequence perturbed-target training** 保留为当前 empirical mainline。CEM 只是 evaluation 阶段的 action optimizer，不属于 thesis。
 
 ---
 
@@ -38,9 +38,9 @@ Paper 1 用受控 Gaussian pixel corruption 作为**探针**（不是新 benchma
 
 统一 4 tasks × 9 configs（base + 8 noise levels）× 3 seeds × 100 traj 协议下：无噪训练在 clean-goal observation-noise endpoint 上出现 corruption cliff（PushT 86→4、TwoRoom 94→66、Reacher 59→18、Cube 67→47），noise training 大幅恢复但是 **coarse global scalar pressure**（broad task-dependent plateaus）。重点写法：失效的本质不是”像素有噪声”，而是 visual perturbation 把模型推进了不同的 action-conditioned predictive neighborhood。PLDM 复现 task-level signature（method-family 证据）。任务面板必须写成 heterogeneous stress panel：TwoRoom / PushT / Reacher / Cube 分别覆盖 discrete redundancy、contact-heavy manipulation、low-dimensional continuous control、structured 3D coupling，不声称代表 all control tasks。
 
-### Step 5 — partial-correlation 负结果 → 新指标动机
+### Step 5 — plateau 边界 → ACPC 指标动机
 
-控制 std_max 后，最强 single-step fragility ratio 对 corruption drop 的 PushT partial ρ 是 **+0.19**（95% bootstrap CI [−0.00, +0.70]，含 0），PLDM 为 **−0.05**，joint n=18 为 **+0.22**。Reacher 的 multi-step rollout drift partial ρ=**+0.37**，CI [−0.35, +0.99] 很宽。结论：label-free pointwise / single-step 不是 control robustness 的正确抽象；更接近问题本质的是 **multi-step action-conditioned predictive consistency（ACPC-H）**，但现有诊断仍是 mechanism localization，不是 robust oracle。
+noise sweep 呈 broad task-dependent plateaus，evaluation seeds 的方差又会带来小幅 score 波动，因此不再把 point-best σ 或 scalar residual analysis 当作有解释力的排序证据。结论应更直接：label-free pointwise / single-step diagnostics 只能说明某些代表 checkpoint 内部发生了什么，不能替代 closed-loop evaluation，也不能作为 robustness oracle。更接近问题本质的是 **multi-step action-conditioned predictive consistency（ACPC-H）** 与 discriminability guard。
 
 ### Step 6 — heteroscedastic σ-head 负结果放核心
 
@@ -55,7 +55,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 ## 3. 贡献写法 C1–C3
 
 - **C1 — Problem reframing。** 视觉鲁棒性应定义为 action-conditioned predictive consistency + discriminability countercondition，而非 encoder-level latent invariance。main.tex §3（`sec:acpc`）给出形式化与 downstream readout 的边界。
-- **C2 — Diagnostic evidence。** 统一 4 task × 9 configs（base + 8 noise levels）× 3 seeds × 100 traj（PLDM 复现）下：visual perturbation 造成 closed-loop failure；noise augmentation 只是 coarse global pressure；pointwise single-step fragility 不够（控 std_max 后 PushT partial ρ=+0.19，PLDM −0.05，joint +0.22，CI 均不支持稳定 predictor），multi-step predictor drift 在 clean-goal observation-noise endpoint 下也只剩弱残差（Reacher +0.37）。
+- **C2 — Diagnostic evidence。** 统一 4 task × 9 configs（base + 8 noise levels）× 3 seeds × 100 traj（PLDM 复现）下：visual perturbation 造成 closed-loop failure；noise augmentation 只是 coarse global pressure / broad plateau；pointwise single-step diagnostics 不足以定义 control robustness，代表 checkpoint 的 multi-step rollout / ACPC movement 只做 mechanism localization，不能替代 closed-loop evaluation。
 - **C3 — Selective-consistency diagnostics and scope boundaries。** 定义 ACPC-1 / ACPC-H / PCC / CRA / MAF / ADM / SPRR，比较同一动作序列下 clean/corrupted predictions 并单独度量 action-relevant discriminability。当前正文已报告 Gaussian-noise ACPC basin diagnostic（`assets/paper1_data/acpc_basin_diagnostics.json`）：LeWM 36 ckpts、epoch-10、clean + noise std 0.01..0.08 views，输出 encoder radius / prediction radius / contraction。Phase 0 也已对 LeWM+PLDM full sweep 出 clean-goal shared-candidate 诊断（`assets/paper1_data/acpc_phase0_clean_goal_seed9101.json`，72/72 rows ok），作为 Phase-0 appendix face-validity / mechanism-localization evidence；不能写成单指标预测 robustness。hetero σ-head 负结果和 target-view negative result 只用于约束 method-design claim：error-based gate 错，simple clean-target denoising 不足；二者不是完成的方法贡献。
 
 ## 4. 写作立场
@@ -67,7 +67,7 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - Latent prediction alone 不保证 control 的 visual-corruption robustness；visual-corruption failure 是真实 closed-loop 控制问题，不是 representation-space curiosity。
 - noise training 是 coarse global scalar pressure（broad task-dependent plateaus），不是 principled 解。
 - full-sequence perturbed-target training 是当前证据下的 empirical mainline；perturbed-history → original-future target-view ablation 是 negative result。
-- pointwise single-step fragility 不预测 corruption gap；multi-step predictive consistency 更接近问题本质。
+- pointwise single-step diagnostics 不是 checkpoint selector；multi-step predictive consistency 更接近问题本质。
 - hard ≠ nuisance：difficulty-based downweighting 会丢掉 action-relevant transitions。
 - visual perturbation 是 controlled probe，不是新 benchmark。
 
@@ -93,10 +93,48 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 - ACPC 主文 empirical evidence 现在是 **Gaussian-noise basin radius**：`tools/paper1_acpc_basin.py` 从 canonical eval manifest 解析 LeWM 36 个 epoch-10 checkpoints，在 clean + Gaussian noise std 0.01..0.08 views 上计算 encoder radius / prediction radius / contraction，输出 `assets/paper1_data/acpc_basin_diagnostics.json`。PLDM 已补 full 4 tasks × 9 configs replication：`assets/paper1_data/acpc_basin_diagnostics_pldm.json`，用于 PLDM appendix 边界验证；正文只展示 baseline-vs-pixels-0.08-point-best summary。
 - ACPC 系列 paired probes（ACPC-1/H、PCC、CRA、MAF、ADM、SPRR）已有 clean-goal full-sweep Phase 0 artifact：`assets/paper1_data/acpc_phase0_clean_goal_seed9101.json`，72 rows = 2 methods × 4 tasks × 9 std levels，全部 `status=ok` 且 `corrupt_goal=false`。当前只作为 Phase-0 appendix face-validity / mechanism-localization evidence，不能声称预测 robustness。旧 `acpc_phase0_diagnostics.json` 保留为 observation+goal archived sanity run。
 - Independent training-seed Gaussian lockbox 已完成：`paper1/LOCKBOX_RESULTS_20260703.md` 记录 seeds 3073/3074 的 4 tasks × 9 std grid。主读数强支持 canonical 结论：std=0.08 对 baseline 的 `pixels_std0.08` 平均增益为 TwoRoom +26.50、PushT +75.50、Reacher +63.17、Cube +21.67 pp；per-checkpoint diagnostics 同向，baseline→std0.08 的 predictor rollout T8 drift 下降约 17.7×--51.2×，CKA 升到约 0.984--0.997。注意 point-best std 仍随 task/seed 变化，继续使用 broad plateau / coarse scalar pressure 表述。
-- Strongest-only unseen-perturbation lockbox 已完成：`assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json` 与 `assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json` 覆盖 4 tasks × 2 std keys × 2 stress families。结果支持 bounded transfer reading：TwoRoom 平均 stress delta +37.00 pp、Reacher +42.58 pp，PushT 仅 +4.00 pp 且 mixed，Cube −1.08 pp。代表性 unseen Phase-0 ACPC subset `assets/paper1_data/unseen_phase0_acpc_subset.json` 已完成：TwoRoom/Reacher blur score 与 ACPC/PCC/CRA/MAF 同向，Cube resize 是 negative boundary，PushT resize seed-sensitive。只能写成 appendix/boundary evidence，不能写成 ACPC 跨 perturbation predictor。
+- Strongest-only unseen-perturbation lockbox 已完成：`assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json` 与 `assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json` 覆盖 4 tasks × 2 std keys × 2 stress families。结果支持 bounded specificity reading：TwoRoom 平均 stress delta +37.00 pp、Reacher +42.58 pp；PushT/Cube 在 evaluation variance scale 下没有 clear behavioral effect（PushT +4.00 pp，Cube −1.08 pp）。代表性 unseen Phase-0 ACPC subset `assets/paper1_data/unseen_phase0_acpc_subset.json` 已完成：TwoRoom/Reacher blur score 与 ACPC/PCC/CRA/MAF 同向；PushT/Cube 不显示 coordinated strong-transfer diagnostic pattern（PushT 只有 limited local movement 且无 clear stress-score gain；Cube 没有 coordinated ACPC/PCC/CRA improvement）。只能写成 appendix/boundary evidence，不能写成 ACPC 跨 perturbation predictor。
 - target-view ablation 已完成并作为 target-view appendix negative result 纳入：`assets/paper1_data/target_view_closed_loop_summary.json` 记录四任务八个 target-noise checkpoints，支持 full-sequence perturbed-target branch 作为当前 empirical mainline，但不作为独立贡献或因果证明。
 - related work 已明确 ViGMO / Bisim-JEPA / LeJEPA theory 的边界；2026-06-10 targeted reference recheck 已更新 `maes2026stableworldmodel` 到 arXiv:2605.21800，并删除 VJEPA unsupported precise noisy-distractor number（见 `paper1/reference_audit.md`）。
 - `paper1/main.pdf` 可 clean build；`tools/check_paper1_consistency.py` 通过；`git diff --check` 通过；最终 LaTeX log 无 overfull/underfull、undefined citation/reference、缺图或 fatal error。
+
+### 5.1 会议版压缩计划（conference compact plan）
+
+当前 `paper1/main.pdf` 是 arXiv / full-report 形态：41 页，主文约 15 页；它适合 arXiv、artifact 审计和完整 rebuttal 证据链，但不适合直接作为顶会主文提交。会议版目标是主文压缩到 8--10 页（不含 references），appendix / supplement 保留完整证据链。
+
+**主文保留**：
+
+- Introduction / contributions 保留 ACPC reframing、Gaussian probe、artifact release 的核心叙事，但避免显式写成“Claim boundary”式段落。
+- 保留 canonical Gaussian cliff / recovery 表与核心图，作为主要实验事实。
+- 保留 independent-seed unseen-stressor 表（现在的 Table 3）进入主文；它不只是数字摘要，而是主文中的 scope / specificity check。TwoRoom / Reacher 写成 clear positive signal；PushT / Cube 写成 no clear effect，不能写成 mixed 或 negative transfer。
+- 保留 Gaussian-noise ACPC basin 的主表或最小汇总，强调 paired diagnostic-localization evidence。
+- 如篇幅允许，保留一个 PushT qualitative visualization；否则移到 appendix，只在主文引用。
+- PLDM 作为第二模型族支持只保留一段短摘要；完整 sweep 和表格放 appendix。
+
+**移到 appendix 或压缩**：
+
+- ACPC proofs、pseudo-metric、collapse proof 移到 appendix；主文只保留定义、直觉和 fixed-candidate corollary 的可读版本。
+- Related Work 压到半页到一页，重点放在与 latent invariance、bisimulation / value equivalence、LeJEPA theory、robust world models 的边界。
+- 完整 diagnostic framework、implementation keys、Phase-0 readouts、full grids、PLDM full sweep、blur baselines、target-view ablation tables 放 appendix。
+- Heteroscedastic head 和 target-view ablation 在主文只保留一两句 negative check / scope check；细节放 appendix。
+- Appendix 保留 full-report 的 artifact mapping、manifest、reproducibility instructions 和 deterministic consistency checks，不从 arXiv/full report 删除。
+
+**建议页数预算**：
+
+- Intro + contributions：1.25--1.5 页。
+- Related Work：0.75--1 页。
+- ACPC setup / theory：1.25--1.5 页。
+- Protocol + results：4--5 页。
+- Discussion + conclusion：约 1 页。
+- 目标总长：8--10 页主文，不含 references；appendix 作为完整证据包。
+
+**非目标 / 不应改弱的边界**：
+
+- 不削弱当前 arXiv/full-report 证据链；会议版是版面压缩，不是重新定义 claim。
+- 不把 PushT / Cube 的 resize endpoint 写成 improvement、mixed、negative boundary 或 negative transfer；它们应写成 evaluation variance scale 下 no clear effect。
+- 不把 diagnostics 写成双向 robust oracle 或 universal transfer predictor；它们只在 score 有 clear effect 时提供同向 localization，在 no-clear-effect 情况下提供 specificity check：没有 coordinated strong-transfer diagnostic pattern。
+- 不把 independent training-seed lockbox 合并进 canonical Gaussian grid；它是独立复核 / lockbox evidence。
+- 不把 blur / resize unseen stressor 升级为 universal cross-perturbation claim；只支持 bounded specificity / scope reading。
 
 **已完成的提交前核验**：
 
@@ -124,14 +162,13 @@ target-view ablation 已排除一个简单方向：perturbed-history → origina
 
 ### 7.1 Paper 1 v0 — 当前状态
 
-已重构为 **action-conditioned predictive consistency** 的 reframing + diagnostic paper。实验证据包括 corruption cliff、noise sweep、dense Gaussian-noise ACPC basin、PLDM full 4×9 basin replication、3073/3074 independent-training-seed Gaussian lockbox、blur eval-only sanity、partial-corr null、hetero 负结果、target-view negative ablation；Phase 0 ACPC artifact 已完成并作为 exploratory Phase-0 appendix 纳入正文。当前最小可立项版本不再需要“Phase 0 尚未完成”作为阻塞项；3073/3074 lockbox 可作为 appendix / revision response 的强支撑，但在 claim audit 前不直接改 main-text main evidence。若要把 PCC/CRA/MAF/ADM/SPRR 或 unseen perturbation 升级为主文证据，仍需额外扩展和 claim audit；当前 unseen subset 只足够支持 appendix boundary。提交前 references 人工核对、build、checker 已通过；注意 §7.3.b（adaptive resolution / per-token consistency）已与本文 motivate 的 APDC 高度重合——若补 Phase 1 方法实验，应明确 Paper 1 与 Paper 2b 的边界。
+已重构为 **action-conditioned predictive consistency** 的 reframing + diagnostic paper。实验证据包括 corruption cliff、noise sweep、dense Gaussian-noise ACPC basin、PLDM full 4×9 basin replication、3073/3074 independent-training-seed Gaussian lockbox、blur eval-only sanity、hetero 负结果、target-view negative ablation；Phase 0 ACPC artifact 已完成并作为 exploratory Phase-0 appendix 纳入正文。当前最小可立项版本不再需要“Phase 0 尚未完成”作为阻塞项；3073/3074 lockbox 可作为 appendix / revision response 的强支撑，但在 claim audit 前不直接改 main-text main evidence。若要把 PCC/CRA/MAF/ADM/SPRR 或 unseen perturbation 升级为主文证据，仍需额外扩展和 claim audit；当前 unseen subset 只足够支持 appendix boundary。提交前 references 人工核对、build、checker 已通过；注意 §7.3.b（adaptive resolution / per-token consistency）已与本文 motivate 的 APDC 高度重合——若补 Phase 1 方法实验，应明确 Paper 1 与 Paper 2b 的边界。
 
 ### 7.2 Paper 1 v1 — 可选增强（不阻塞 v0）
 
 | 项 | 工作量 | 价值 |
 |---|---|---|
 | arXiv 9 条 ID 人工核对 | ~1 hr | **v0 提交前必做** |
-| BCa 加偏校正 bootstrap | ~半天 | percentile CI 升级；当前 null 已稳健，BCa 是 reviewer-friendly polish |
 | Blur training sweep | ~1 周 | 把 App G 从 eval-only sanity check 升级为 blur-training recovery 实验 |
 | I-JEPA / V-JEPA EMA 变体复制 | ~2–4 周 | 弥补 §5.5 Limitation 1 |
 | DMC-Suite task 扩展 | ~1 周 | 弱化 "4 task cherry-picked" 质疑 |
@@ -212,14 +249,6 @@ cd paper1 && bash build.sh --clean
 ```bash
 # 主图重生成
 python -m tools.paper1_figs --out-dir assets/paper1_figs
-
-# 跨方法相关性
-python -m tools.pldm_correlation_analysis \
-  --out assets/paper1_data/cross_method_corr_pldm_20260522.json
-
-# Bootstrap CI
-python -m tools.build_partial_corr_bootstrap \
-  --out assets/paper1_data/partial_corr_bootstrap_20260523.json
 ```
 
 ---

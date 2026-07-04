@@ -170,7 +170,7 @@ artifacts can be moved between machines.
 ## Consumer Notes
 
 - `tools/paper1_figs.py` treats `assets/paper1_data/canonical_evals_20260517.json` as the source of truth for the script-generated main evaluation figures and tables.
-- `tools/paper1_figs.py` treats `assets/paper1_data/canonical_diagnostics_20260517.json` as the source of truth for predictor metrics, the representative diagnostic table (`tab:diag-base-vs-best`), and the PushT fragility scatter (`fig:scatter`).
+- `tools/paper1_figs.py` treats `assets/paper1_data/canonical_diagnostics_20260517.json` as the source of truth for rollout-diagnostic implementation keys, the representative diagnostic table (`tab:diag-base-vs-best`), and the PushT fragility scatter (`fig:scatter`).
 - The canonical diagnostics release stores:
   - 4 tasks × 9 ckpts of `predictor_target_to_nn_cos_ratio_at_max_std`
   - 4 tasks × 9 ckpts of `predictor_rollout_T8_l2_at_max_std`

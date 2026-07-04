@@ -116,6 +116,7 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Bounded unseen-stressor scope check",
     "not a universal transfer claim",
     "universal cross-perturbation robustness claim",
+    "ACPC rollout readout $R_F$",
 ]
 
 FORBIDDEN_SNIPPETS = [
@@ -137,6 +138,10 @@ FORBIDDEN_SNIPPETS = [
     "same-state basin shrinkage is not monotone",
     "smaller same-state perturbation basin",
     "high-D basin support",
+    "H8 predictor",
+    "H=8 predictor",
+    "8-step predictor basin",
+    "prediction radius",
 ]
 
 EXPECTED_TASKS = {"TwoRoom", "PushT", "Reacher", "Cube"}

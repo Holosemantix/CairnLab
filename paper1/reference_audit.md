@@ -8,7 +8,7 @@ Date: 2026-07-04
 
 2026-06-26 post-theory validation pass: added `littwin2024jepaavoidsnoisyfeatures` after the post-modification theory audit identified it as a directly relevant JEPA noisy-features theory paper.
 
-2026-06-26 collision-framing pass: added `cheng2025reoi` after a targeted check for robust visual MPC and action-outcome-prediction work. Text-use remains bounded: ReOI is cited as a neighboring robust visual MPC intervention, while ACPC is positioned as a paired diagnostic for existing JEPA latent-world-model checkpoints rather than as a new observation-intervention policy.
+2026-06-26 collision-framing pass: added `chen2025reoi` after a targeted check for robust visual MPC and action-outcome-prediction work. Text-use remains bounded: ReOI is cited as a neighboring robust visual MPC intervention, while ACPC is positioned as a paired diagnostic for existing JEPA latent-world-model checkpoints rather than as a new observation-intervention policy.
 
 2026-06-08 final pass: rechecked the temporally unstable 2025/2026 entries against official arXiv, OpenReview, Nature, ICLR, and PMLR pages. The main live checks covered `maes2026lewm`, `maes2026stableworldmodel`, `huang2026vjepa`, `klindt2026lejepaworldmodel`, `usjepa2025`, `njepa2025`, `toso2026bisimjepa`, `assran2025vjepa2`, `vigmo`, `ghaemi2025seqjepa`, `voelcker2025calibratedvalueaware`, `hafner2025dreamerv3`, `dupuis2023vibr`, `gelada2019deepmdp`, `hansen2024tdmpc2`, and `bsmpc`. 2026-06-10 targeted recheck updated `maes2026stableworldmodel` from the earlier workshop v1 record to the newer arXiv platform paper and removed an unsupported precise VJEPA noisy-distractor number.
 
@@ -17,6 +17,7 @@ Date: 2026-07-04
 2026-06-16 targeted collision check: added `wang2026groupactions` after checking the official arXiv record. Text-use remains bounded: the paper is cited for formalising action-conditioned video world modeling as a group action and for GAC/GAR-style action-faithfulness metrics; ACPC is explicitly separated as same-action paired visual-perturbation predictive-consistency diagnostics with a discriminability guard.
 
 2026-07-04 targeted top-conference pass: rechecked key temporally unstable JEPA/world-model and robustness references against primary arXiv/OpenReview/Nature/PMLR sources. Added `murlabadia2026vjepa21` for V-JEPA 2.1 after checking arXiv:2603.14482; text-use is bounded to V-JEPA-family dense physical-world representations and does not imply a competing baseline.
+2026-07-04 correction pass: rechecked ReOI against arXiv:2506.16565 and corrected the bib title/author metadata from an earlier wrong record to Chen, Wei, Xu, Li, Tomizuka, Bajcsy, and Tian.
 
 Scope: all 45 citation keys used in `paper1/main.tex`. Unused BibTeX entries were removed from `paper1/references.bib`, so every remaining entry is cited.
 
@@ -57,7 +58,7 @@ Scope: all 45 citation keys used in `paper1/main.tex`. Unused BibTeX entries wer
 | `hansen2021soda` | https://doi.org/10.1109/ICRA48506.2021.9561103 | Fixed: added ICRA pages 13611--13617, DOI, and DOI URL. | OK: cited for SODA/DMC-GB visual robustness through soft data augmentation. |
 | `ghaemi2025seqjepa` | https://openreview.net/forum?id=GKt3VRaCU1 | Fixed: retained NeurIPS 2025 OpenReview URL and avoided an unverified proceedings volume. | OK: cited for architectural handling of invariance/equivariance tension. |
 | `toso2026bisimjepa` | https://arxiv.org/abs/2602.18639 | Fixed: added arXiv eprint, DOI, class, and URL. | OK: cited for Bisim-JEPA/control-relevant invariant visual representations for planning. |
-| `cheng2025reoi` | https://arxiv.org/abs/2506.16565 | Added 2026-06-26: official arXiv metadata, DOI, class, and URL recorded. | OK: cited as neighboring robust visual MPC work using observation intervention for world-model action-outcome prediction; text separates it from ACPC as a JEPA checkpoint diagnostic rather than an intervention method. |
+| `chen2025reoi` | https://arxiv.org/abs/2506.16565 | Corrected 2026-07-04 against official arXiv metadata: title and author order now match arXiv:2506.16565. | OK: cited as neighboring robust visual MPC work using observation intervention for world-model action-outcome prediction; text separates it from ACPC as a JEPA checkpoint diagnostic rather than an intervention method. |
 | `vanassel2025jointembeddingreconstruction` | https://arxiv.org/abs/2505.12477 | OK: arXiv metadata, DOI, and URL match. | OK: cited for joint embedding reducing pressure to encode high-magnitude irrelevant features while still needing aligned augmentations/bias. |
 | `littwin2024jepaavoidsnoisyfeatures` | https://arxiv.org/abs/2407.03475 | Added 2026-06-26: official arXiv metadata, DOI, class, and URL recorded. | OK: cited for JEPA implicit bias toward high-influence predictive features rather than merely high-variance/noisy features; text separates this representation-level theory from action-conditioned rollout and candidate-cost stability. |
 | `klindt2026lejepaworldmodel` | https://arxiv.org/abs/2605.26379 | OK: arXiv metadata, DOI, and URL match. | OK: cited for LeJEPA latent-variable recovery/latent-planning theory. |

@@ -39,6 +39,12 @@ Every round is an independent review of the current manuscript.
   history is not evidence of contribution quality.
 - Re-score only after verifying the changed manuscript, not after accepting the
   intent of a fix.
+- When a fresh external, simulated, or user-supplied review is materially lower
+  than a prior internal score, treat the review as new evidence about the
+  current manuscript. Do not defend the prior score. First identify which gate
+  was overestimated (for example method novelty, external baselines,
+  discriminability strength, selector value, or matched-stressor scope), then
+  reset the recommendation before planning fixes.
 
 Use at least these decisions:
 

@@ -36,6 +36,12 @@ SEMANTIC_FACTORS = {
     "Reacher": "joint/target geometry proxy from observation",
     "Cube": "cube pose and gripper-object proxy from observation",
 }
+LOCAL_FEATURE_FACTORS = {
+    "TwoRoom": "local agent x-coordinate room/doorway-side contrast within nearby positions",
+    "PushT": "local T-block pose contrast within nearby full states",
+    "Reacher": "local target/end-effector relation proxy contrast within nearby observations",
+    "Cube": "local cube pose/goal-relation proxy contrast within nearby observations",
+}
 STD_KEYS = ("0.0", "0.08")
 
 
@@ -76,6 +82,93 @@ def _success(entry: Mapping[str, Any], metric: str) -> float:
     return float(entry.get("metrics", {}).get(metric, {}).get("mean", float("nan")))
 
 
+def _task_feature(task: str, state_final: torch.Tensor) -> torch.Tensor:
+    dim = state_final.size(1)
+    if task == "TwoRoom" and dim >= 1:
+        return state_final[:, :1]
+    if task == "PushT" and dim >= 5:
+        return state_final[:, 2:5]
+    if task == "Reacher" and dim >= 4:
+        return state_final[:, -2:]
+    if task == "Cube" and dim >= 6:
+        return torch.cat([state_final[:, :3], state_final[:, -3:]], dim=1)
+    return state_final
+
+
+def _local_feature_metrics(
+    *,
+    task: str,
+    state_final: torch.Tensor,
+    latent_dist: torch.Tensor,
+    same_radius: torch.Tensor,
+    local_quantile: float,
+    margin_delta: float,
+) -> dict[str, Any]:
+    n = state_final.size(0)
+    offdiag = ~torch.eye(n, dtype=torch.bool, device=state_final.device)
+    state_dist = torch.cdist(state_final, state_final, p=2)
+    feature = _task_feature(task, state_final)
+    feature_dist = torch.cdist(feature, feature, p=2)
+    candidate_state = state_dist[offdiag]
+    if candidate_state.numel() == 0:
+        return {
+            "semantic_state_key": SEMANTIC_STATE_KEYS[task],
+            "semantic_factor": LOCAL_FEATURE_FACTORS[task],
+            "semantic_pair_rule": "local task-feature contrast within state-distance quantile",
+            "semantic_pair_count": 0,
+            "semantic_distance_threshold": float("nan"),
+            "same_state_noisy_radius_median": _safe_quantile(same_radius, 0.5),
+            "semantic_diff_l2_median": float("nan"),
+            "semantic_margin_median": float("nan"),
+            "semantic_margin_pass_rate": float("nan"),
+            "semantic_discriminability_ratio": float("nan"),
+            "local_state_distance_median": float("nan"),
+            "local_task_feature_delta_median": float("nan"),
+        }
+    threshold = torch.quantile(candidate_state, float(local_quantile))
+    hard_diffs = []
+    aligned_same = []
+    chosen_state = []
+    chosen_feature = []
+    for i in range(n):
+        row = offdiag[i] & (state_dist[i] <= threshold)
+        if bool(row.any()):
+            candidates = torch.nonzero(row, as_tuple=False).flatten()
+            j = candidates[torch.argmax(feature_dist[i, candidates])]
+            hard_diffs.append(latent_dist[i, j])
+            aligned_same.append(same_radius[i])
+            chosen_state.append(state_dist[i, j])
+            chosen_feature.append(feature_dist[i, j])
+    if not hard_diffs:
+        hard = torch.empty(0, device=state_final.device)
+        same = torch.empty(0, device=state_final.device)
+        state_delta = torch.empty(0, device=state_final.device)
+        feature_delta = torch.empty(0, device=state_final.device)
+    else:
+        hard = torch.stack(hard_diffs)
+        same = torch.stack(aligned_same)
+        state_delta = torch.stack(chosen_state)
+        feature_delta = torch.stack(chosen_feature)
+    margins = hard - same
+    passes = margins > float(margin_delta)
+    same_med = _safe_quantile(same, 0.5)
+    diff_med = _safe_quantile(hard, 0.5)
+    return {
+        "semantic_state_key": SEMANTIC_STATE_KEYS[task],
+        "semantic_factor": LOCAL_FEATURE_FACTORS[task],
+        "semantic_pair_rule": "local task-feature contrast within state-distance quantile",
+        "semantic_pair_count": int(hard.numel()),
+        "semantic_distance_threshold": float(threshold.detach().cpu()),
+        "same_state_noisy_radius_median": same_med,
+        "semantic_diff_l2_median": diff_med,
+        "semantic_margin_median": _safe_quantile(margins, 0.5),
+        "semantic_margin_pass_rate": float(passes.float().mean().detach().cpu()) if passes.numel() else float("nan"),
+        "semantic_discriminability_ratio": diff_med / same_med if same_med > 0 else float("nan"),
+        "local_state_distance_median": _safe_quantile(state_delta, 0.5),
+        "local_task_feature_delta_median": _safe_quantile(feature_delta, 0.5),
+    }
+
+
 def _semantic_metrics(
     *,
     model,
@@ -86,7 +179,9 @@ def _semantic_metrics(
     rollout_horizon: int,
     embedding_space: str,
     semantic_quantile: float,
+    local_quantile: float,
     margin_delta: float,
+    pair_rule: str,
 ) -> dict[str, Any]:
     clean_outputs = phase0.encode_sequences(model, phase0._clone_batch(batch))
     noisy_outputs = phase0.encode_sequences(model, phase0._clone_batch(noisy_batch))
@@ -108,6 +203,15 @@ def _semantic_metrics(
     latent_dist = torch.cdist(clean_final, clean_final, p=2)
     n = state_dist.size(0)
     offdiag = ~torch.eye(n, dtype=torch.bool, device=state_dist.device)
+    if pair_rule == "local_task_feature_contrast":
+        return _local_feature_metrics(
+            task=task,
+            state_final=state_final,
+            latent_dist=latent_dist,
+            same_radius=same_radius,
+            local_quantile=local_quantile,
+            margin_delta=margin_delta,
+        )
     candidate_state = state_dist[offdiag]
     if candidate_state.numel() == 0:
         return {
@@ -208,7 +312,9 @@ def _run_row(task: str, std_key: str, entry: Mapping[str, Any], args: argparse.N
                 rollout_horizon=args.rollout_horizon,
                 embedding_space=embedding_space,
                 semantic_quantile=args.semantic_quantile,
+                local_quantile=args.local_quantile,
                 margin_delta=args.margin_delta,
+                pair_rule=args.pair_rule,
             )
             return {
                 **base,
@@ -232,7 +338,17 @@ def _summaries(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
             if not task_rows:
                 continue
             summary = {"task": task, "std_key": std_key, "training_seeds": sorted(int(r["training_seed"]) for r in task_rows), "n_training_seeds": len(task_rows)}
-            for key in ("semantic_margin_pass_rate", "semantic_discriminability_ratio", "same_state_noisy_radius_median", "semantic_diff_l2_median", "semantic_margin_median"):
+            for key in (
+                "semantic_margin_pass_rate",
+                "semantic_discriminability_ratio",
+                "same_state_noisy_radius_median",
+                "semantic_diff_l2_median",
+                "semantic_margin_median",
+                "local_state_distance_median",
+                "local_task_feature_delta_median",
+            ):
+                if key not in task_rows[0]:
+                    continue
                 vals = [float(r[key]) for r in task_rows]
                 summary[f"{key}_mean"] = _mean(vals)
                 summary[f"{key}_pstdev"] = _pstdev(vals)
@@ -271,6 +387,8 @@ def main() -> None:
     parser.add_argument("--noise-std", type=float, default=0.08)
     parser.add_argument("--corruption-type", default="gaussian_noise")
     parser.add_argument("--semantic-quantile", type=float, default=0.5)
+    parser.add_argument("--local-quantile", type=float, default=0.35)
+    parser.add_argument("--pair-rule", choices=["global_state_quantile", "local_task_feature_contrast"], default="global_state_quantile")
     parser.add_argument("--margin-delta", type=float, default=0.0)
     parser.add_argument("--state-key-seed", dest="seed", type=int, default=9101)
     parser.add_argument("--frameskip", type=int, default=5)
@@ -297,6 +415,8 @@ def main() -> None:
             "std_keys": list(args.std_keys),
             "training_seeds": list(args.seeds),
             "semantic_quantile": float(args.semantic_quantile),
+            "local_quantile": float(args.local_quantile),
+            "pair_rule": args.pair_rule,
             "margin_delta": float(args.margin_delta),
         },
         "rows": rows,

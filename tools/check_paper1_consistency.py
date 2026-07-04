@@ -41,6 +41,7 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
+    ROOT / "assets" / "paper1_data" / "semantic_local_margin_lewm_three_seed.json",
 ]
 
 REQUIRED_ARTIFACTS = [
@@ -90,16 +91,18 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.md",
+    ROOT / "assets" / "paper1_data" / "semantic_local_margin_lewm_three_seed.json",
     ROOT / "DATA_MANIFEST.md",
 ]
 
 
 REQUIRED_MAIN_TEXT_SNIPPETS = [
-    "task-state proxy margin pass-rate",
+    "local task-feature proxy margin pass-rate",
     "Cube seed 3072",
     "regret $8.33$ pp",
     "We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods",
-    "not an oracle near-boundary semantic proof",
+    "not an oracle hand-labeled semantic proof",
+    "closest 35\% state-distance neighborhood",
     "Sampled-pool ACPC stability",
     "ACPC-tail and clean-margin terms",
     "action-conditioned encoder--predictor sensitivity",
@@ -1418,6 +1421,50 @@ def check_semantic_margin_passrate_json() -> None:
         if got != want:
             fail(f"task-state proxy margin pass-rate mismatch for {key}: got {got}, want {want}")
 
+
+
+def check_semantic_local_margin_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "semantic_local_margin_lewm_three_seed.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    meta = data.get("metadata", {})
+    if meta.get("pair_rule") != "local_task_feature_contrast":
+        fail("local task-feature margin artifact must use local_task_feature_contrast")
+    if round2(float(meta.get("local_quantile"))) != 0.35:
+        fail("local task-feature margin artifact local quantile changed")
+    rows = data.get("rows", [])
+    if len(rows) != 24 or any(row.get("status") != "ok" for row in rows):
+        fail("local task-feature margin artifact must contain 24 ok rows")
+    coverage = data.get("coverage", {})
+    expected_coverage = {
+        f"{task}:{std}": [3072, 3073, 3074]
+        for task in ("TwoRoom", "PushT", "Reacher", "Cube")
+        for std in ("0.0", "0.08")
+    }
+    if coverage != expected_coverage:
+        fail(f"local task-feature margin coverage mismatch: {coverage}")
+    summary = {(row["task"], row["std_key"]): row for row in data.get("summary_rows", [])}
+    expected_pass = {
+        ("TwoRoom", "0.0"): 0.59,
+        ("TwoRoom", "0.08"): 1.00,
+        ("PushT", "0.0"): 0.54,
+        ("PushT", "0.08"): 1.00,
+        ("Reacher", "0.0"): 0.81,
+        ("Reacher", "0.08"): 1.00,
+        ("Cube", "0.0"): 0.53,
+        ("Cube", "0.08"): 1.00,
+    }
+    if set(summary) != set(expected_pass):
+        fail(f"local task-feature margin summary rows mismatch: {sorted(summary)}")
+    for key, want in expected_pass.items():
+        got = round2(float(summary[key]["semantic_margin_pass_rate_mean"]))
+        if got != want:
+            fail(f"local task-feature margin pass-rate mismatch for {key}: got {got}, want {want}")
+    for key in (("PushT", "0.08"), ("Cube", "0.08")):
+        margin = round2(float(summary[key]["semantic_margin_median_mean"]))
+        if margin < 18.0:
+            fail(f"local task-feature high-noise margin unexpectedly low for {key}: {margin}")
+
+
 def check_target_view_closed_loop_summary_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -1547,6 +1594,7 @@ def main() -> int:
         ("three-seed diagnostic validation json", check_three_seed_diagnostic_validation_json),
         ("selector-baseline audit json", check_selector_baseline_audit_json),
         ("task-state proxy margin pass-rate json", check_semantic_margin_passrate_json),
+        ("local task-feature margin json", check_semantic_local_margin_json),
         ("prospective validation summary json", check_prospective_validation_summary_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),

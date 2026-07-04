@@ -127,6 +127,55 @@ When scores are noisy or based on finite sampling, do not emphasize exact best
 checkpoints or tiny ordering differences. Prefer plateau, within-tolerance,
 mean/std, confidence interval, regret-to-best, and failure-case reporting.
 
+## Diagnostic-Paper Acceptance Gates
+
+When a manuscript is primarily a diagnostic, analysis, or reframing paper, apply
+extra pressure before calling it top-conference ready. A careful diagnostic paper
+can still be a weak reject if it lacks decision-changing evidence beyond a
+natural framing.
+
+Check these gates explicitly:
+
+- **Contribution type**: decide whether the current paper is a method,
+  diagnostic, benchmark, theory, or empirical-analysis submission. Do not let a
+  diagnostic paper borrow method-paper language unless it introduces and tests a
+  training objective, algorithm, or intervention.
+- **Technical depth**: definitions such as same-state predictive consistency
+  plus different-state separability are natural. Treat Lipschitz drift, margin
+  stability, union-bound, and local Taylor arguments as supporting analysis
+  unless they prove a non-obvious guarantee actually used by the experiments.
+- **Matched-stressor discount**: if the main behavior is "train with Gaussian
+  noise, evaluate on Gaussian noise", discount novelty unless the paper shows a
+  causal diagnostic link, stronger external comparison, or broader held-out
+  evidence. State that matched augmentation recovery is expected and explain
+  what the diagnostics add beyond that sanity check.
+- **Selector baseline demotion**: if an aggregate diagnostic selector is only
+  comparable to fixed-endpoint, single-metric, or random/plateau baselines, do
+  not sell it as a superior selector. Reframe it as plateau localization,
+  triage, or failure-case explanation, and put the baseline audit near the
+  claim it qualifies.
+- **Discriminability strength**: proxy guards such as effective rank, ID probes,
+  transition resolution, or state-distance margin pass-rate do not establish
+  oracle task semantics. For selective-consistency claims, prefer near-boundary
+  or contact/topology/goal-relation pairs; otherwise label the result as a
+  state-proxy guard and keep oracle semantic preservation as a blocker.
+- **External baseline need**: for a main-conference robustness or method claim,
+  require at least one meaningful external baseline, objective ablation, or
+  competing method family unless the venue and thesis are explicitly diagnostic.
+  Examples include standard pixel augmentation, encoder-level consistency,
+  reconstruction-based world models, Dreamer/TD-MPC-style baselines, robust MPC,
+  or a prototype paired-predictive consistency objective.
+- **Metric budget**: the main paper should usually carry three evidence types:
+  closed-loop behavior, one rollout/cost diagnostic family, and one selective
+  margin guard. Move extra acronym families, ledgers, probes, and audit trails
+  to appendix unless each answers a necessary main-text question.
+
+If these gates fail, keep the score at `weak_reject` or
+`weak_accept_or_borderline` even if the paper is honest, reproducible, and much
+improved. Record which remaining gates are fixable without retraining and which
+are decision-changing blockers requiring new training, external baselines, or
+new labeled/constructed data.
+
 ## Theory Audit
 
 The theory section must deepen the paper rather than decorate it.

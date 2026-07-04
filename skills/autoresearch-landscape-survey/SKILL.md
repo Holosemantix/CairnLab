@@ -5,7 +5,7 @@ license: Apache-2.0
 allowed-tools: Read Write Edit Bash WebSearch WebFetch
 compatibility: Requires Python 3.10+ and PyYAML. Web/GitHub access is recommended for new-project deep dives.
 metadata:
-  version: "0.2.0"
+  version: "0.2.1"
   skill-author: Holosemantix research mapping workflow
 ---
 

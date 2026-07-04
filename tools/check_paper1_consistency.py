@@ -35,6 +35,7 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json",
     ROOT / "assets" / "paper1_data" / "training_seed_gaussian_lockbox.json",
     ROOT / "assets" / "paper1_data" / "prospective_validation_summary.json",
+    ROOT / "assets" / "paper1_data" / "unseen_phase0_acpc_fullstress.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.json",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json",
@@ -74,6 +75,8 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "training_seed_gaussian_lockbox.md",
     ROOT / "assets" / "paper1_data" / "prospective_validation_summary.json",
     ROOT / "assets" / "paper1_data" / "prospective_validation_summary.md",
+    ROOT / "assets" / "paper1_data" / "unseen_phase0_acpc_fullstress.json",
+    ROOT / "assets" / "paper1_data" / "unseen_phase0_acpc_fullstress.schema.json",
     ROOT / "assets" / "paper1_data" / "training_seed_eval_manifests" / "lewm_seed3072_evals.json",
     ROOT / "assets" / "paper1_data" / "training_seed_eval_manifests" / "lewm_seed3073_evals.json",
     ROOT / "assets" / "paper1_data" / "training_seed_eval_manifests" / "lewm_seed3074_evals.json",
@@ -1112,11 +1115,13 @@ def check_prospective_validation_summary_json() -> None:
         "assets/paper1_data/unseen_origin_vs_std008_strongest_s3072.json",
         "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json",
         "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json",
+        "assets/paper1_data/unseen_phase0_acpc_subset.json",
+        "assets/paper1_data/unseen_phase0_acpc_fullstress.json",
     }
     sources = set(data.get("metadata", {}).get("source_artifacts", []))
     if not required_sources.issubset(sources):
         fail("prospective validation summary must cite all three-seed unseen score artifacts")
-    for source in required_sources:
+    for source in sorted(s for s in required_sources if "origin_vs" in s):
         source_data = json.loads((ROOT / source).read_text(encoding="utf-8"))
         status = source_data.get("metadata", {}).get("status", "")
         if "audited score artifact" not in status:
@@ -1186,6 +1191,26 @@ def check_prospective_validation_summary_json() -> None:
     topk = heldout.get("topk_summary", {})
     if topk.get("stress_success_delta_topk_hit_count") != 4 or topk.get("drop_improvement_topk_hit_count") != 2:
         fail("prospective validation top-4 agreement must remain 4/4 for stress delta and 2/4 for drop improvement on the three-seed unseen slice")
+    fullstress = data.get("fullstress_unseen_validation", {})
+    if fullstress.get("n_rows") != 24:
+        fail("prospective validation summary must contain the 24-row full blur/resize unseen diagnostic slice")
+    full_rows = {row.get("metric"): row for row in fullstress.get("metric_rows", [])}
+    full_composite = full_rows.get("Composite signed-rank rule")
+    if full_composite is None:
+        fail("prospective validation summary missing fullstress composite signed-rank row")
+    full_checks = {
+        "spearman_vs_stress_success_delta": 0.94,
+        "pearson_vs_stress_success_delta": 0.94,
+        "spearman_vs_drop_improvement": 0.82,
+        "pearson_vs_drop_improvement": 0.84,
+    }
+    for key, want in full_checks.items():
+        got = round2(float(full_composite[key]))
+        if got != want:
+            fail(f"fullstress validation composite {key} mismatch: got {got}, want {want}")
+    full_topk = fullstress.get("topk_summary", {})
+    if full_topk.get("stress_success_delta_topk_hit_count") != 4 or full_topk.get("drop_improvement_topk_hit_count") != 2:
+        fail("fullstress validation top-4 agreement must remain 4/4 for stress delta and 2/4 for drop improvement")
     diag = data.get("three_seed_full_grid_diagnostic_validation", {})
     if diag.get("n_task_seed_blocks") != 12 or diag.get("within_5pp_hits") != 10:
         fail("prospective validation summary must include completed three-seed full-grid diagnostic validation")

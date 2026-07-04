@@ -6,6 +6,7 @@
       "assets/paper1_data/three_seed_diagnostic_validation.json",
       "assets/paper1_data/semantic_margin_passrate_lewm_three_seed.json",
       "assets/paper1_data/unseen_phase0_acpc_subset.json",
+      "assets/paper1_data/unseen_phase0_acpc_fullstress.json",
       "assets/paper1_data/no_retrain_diagnostic_audit.json",
       "assets/paper1_data/unseen_origin_vs_std008_strongest_s3072.json",
       "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json",
@@ -1304,6 +1305,122 @@
         "mean_drop_improvement": 40.88888933333334,
         "mean_stress_success_delta": 43.111111333333334,
         "n": 3,
+        "readings": [
+          "positive_transfer_with_diagnostic_alignment"
+        ]
+      }
+    }
+  },
+  "fullstress_unseen_validation": {
+    "split": "appendix scope check: training seeds 3072/3073/3074; all task by blur/resize strongest endpoints; fixed std_max comparison 0.0 vs 0.08",
+    "n_rows": 24,
+    "metric_rows": [
+      {
+        "metric": "ACPC-H/trans. delta",
+        "direction": "lower is better",
+        "n": 24,
+        "spearman_vs_stress_success_delta": 0.9180256794535981,
+        "pearson_vs_stress_success_delta": 0.8466081852637097,
+        "spearman_vs_drop_improvement": 0.7730434782608696,
+        "pearson_vs_drop_improvement": 0.6708741200411205
+      },
+      {
+        "metric": "PCC delta",
+        "direction": "lower is better",
+        "n": 24,
+        "spearman_vs_stress_success_delta": 0.9397695373279136,
+        "pearson_vs_stress_success_delta": 0.9004229032694361,
+        "spearman_vs_drop_improvement": 0.8365217391304348,
+        "pearson_vs_drop_improvement": 0.8958394123481909
+      },
+      {
+        "metric": "CRA delta",
+        "direction": "higher is better",
+        "n": 24,
+        "spearman_vs_stress_success_delta": 0.9393346601704273,
+        "pearson_vs_stress_success_delta": 0.8857875133223947,
+        "spearman_vs_drop_improvement": 0.8695652173913043,
+        "pearson_vs_drop_improvement": 0.9126997202259576
+      },
+      {
+        "metric": "MAF delta",
+        "direction": "lower is better",
+        "n": 24,
+        "spearman_vs_stress_success_delta": 0.90367473325655,
+        "pearson_vs_stress_success_delta": 0.905901661156837,
+        "spearman_vs_drop_improvement": 0.7660869565217391,
+        "pearson_vs_drop_improvement": 0.7720708401246204
+      },
+      {
+        "metric": "Composite signed-rank rule",
+        "direction": "aggregate rank over ACPC/PCC/CRA/MAF directions",
+        "n": 24,
+        "spearman_vs_stress_success_delta": 0.9412533528278457,
+        "pearson_vs_stress_success_delta": 0.9382883575072231,
+        "spearman_vs_drop_improvement": 0.81618464193227,
+        "pearson_vs_drop_improvement": 0.8396734834802778
+      }
+    ],
+    "topk_summary": {
+      "k": 4,
+      "topk_by_composite": [
+        "TwoRoom:gaussian_blur:15:seed3072",
+        "TwoRoom:resize:0.25:seed3072",
+        "Reacher:gaussian_blur:15:seed3072",
+        "Reacher:gaussian_blur:15:seed3073"
+      ],
+      "stress_success_delta_topk_hit_count": 4,
+      "drop_improvement_topk_hit_count": 2,
+      "stress_success_delta_topk_total": 4,
+      "drop_improvement_topk_total": 4
+    },
+    "summary_by_task": {
+      "Cube": {
+        "mean_delta_acpc_h_norm_by_transition": 0.1972187264256331,
+        "mean_delta_cra_spearman_mean": -0.10111900170644124,
+        "mean_delta_maf_flip_rate": 0.20999999344348907,
+        "mean_delta_pcc_abs_median": 3.365362803141276,
+        "mean_drop_improvement": 2.6666665000000016,
+        "mean_stress_success_delta": -1.0000001666666651,
+        "n": 6,
+        "readings": [
+          "boundary_or_neutral_transfer"
+        ]
+      },
+      "PushT": {
+        "mean_delta_acpc_h_norm_by_transition": -0.3031533570211116,
+        "mean_delta_cra_spearman_mean": 0.01401005188624064,
+        "mean_delta_maf_flip_rate": -0.0616666687031587,
+        "mean_delta_pcc_abs_median": -6.720774332682292,
+        "mean_drop_improvement": -1.6666664999999992,
+        "mean_stress_success_delta": 5.111111166666666,
+        "n": 6,
+        "readings": [
+          "boundary_or_neutral_transfer",
+          "diagnostic_improves_more_than_unseen_score",
+          "positive_transfer_with_diagnostic_alignment"
+        ]
+      },
+      "Reacher": {
+        "mean_delta_acpc_h_norm_by_transition": -1.293647924516059,
+        "mean_delta_cra_spearman_mean": 0.3532330244779587,
+        "mean_delta_maf_flip_rate": -0.536666656533877,
+        "mean_delta_pcc_abs_median": -31.309940338134766,
+        "mean_drop_improvement": 22.77777783333333,
+        "mean_stress_success_delta": 41.77777783333333,
+        "n": 6,
+        "readings": [
+          "positive_transfer_with_diagnostic_alignment"
+        ]
+      },
+      "TwoRoom": {
+        "mean_delta_acpc_h_norm_by_transition": -0.758837121560256,
+        "mean_delta_cra_spearman_mean": 0.62053332477808,
+        "mean_delta_maf_flip_rate": -0.4633333384990692,
+        "mean_delta_pcc_abs_median": -45.25411478678385,
+        "mean_drop_improvement": 40.44444483333334,
+        "mean_stress_success_delta": 42.66666683333333,
+        "n": 6,
         "readings": [
           "positive_transfer_with_diagnostic_alignment"
         ]

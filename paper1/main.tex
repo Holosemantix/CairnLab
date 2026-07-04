@@ -702,7 +702,7 @@ The task-state proxy margin supplies the missing selective half of ACPC more dir
 
 \subsection{Bounded unseen-stressor scope check}\label{sec:exp-unseen-scope}
 
-The main claim remains matched Gaussian-noise robustness. After freezing the Gaussian grid, we also ran a strongest-severity unseen-stressor check to test whether the diagnostic direction is specific outside the training perturbation family. \Cref{tab:unseen-scope-main} shows a split pattern. TwoRoom and Reacher exhibit clear positive score deltas under strongest blur, and the paired ACPC/PCC/CRA diagnostics move in the same direction. PushT and Cube do not show a clear score gain at the scale of training-seed and evaluation variance, and their diagnostic deltas are correspondingly weak or mixed. The selected rows follow the appendix convention: TwoRoom/Reacher blur are clear positive-transfer endpoints, while PushT/Cube resize are small-effect boundary endpoints. We therefore use this table only as bounded scope evidence: ACPC-style paired diagnostics localize clear out-of-family improvements when present, but the current evidence does not justify a universal cross-perturbation robustness claim.
+The main claim remains matched Gaussian-noise robustness. After freezing the Gaussian grid, we also ran a strongest-severity unseen-stressor check to test whether the diagnostic direction is specific outside the training perturbation family. \Cref{tab:unseen-scope-main} shows a split pattern. TwoRoom and Reacher exhibit clear positive score deltas under strongest blur, and the paired ACPC/PCC/CRA diagnostics move in the same direction. PushT and Cube do not show a clear score gain at the scale of training-seed and evaluation variance, and their diagnostic deltas are correspondingly weak or mixed. The selected rows follow the appendix convention: TwoRoom/Reacher blur are clear positive-transfer endpoints, while PushT/Cube resize are small-effect boundary endpoints. A full appendix audit over all task--family--seed endpoints for blur and resize gives the same directional readout: the composite ACPC/PCC/CRA/MAF rank has Spearman $\rho=0.94$ with stress-success delta over 24 rows. We therefore use this table only as bounded scope evidence: ACPC-style paired diagnostics localize clear out-of-family improvements when present, but the current evidence does not justify a universal cross-perturbation robustness claim.
 
 \begin{table}[H]
 \centering
@@ -1524,6 +1524,25 @@ PushT & resize $0.25$ & $+2.89$ & $-3.78$ & $-0.267$ & $-6.7$ & $+0.010$ & no cl
 Cube & resize $0.25$ & $-0.89$ & $+2.78$ & $+0.052$ & $-0.6$ & $-0.030$ & no clear effect \\
 \bottomrule
 \end{tabular}%
+\end{table}
+
+\begin{table}[p]
+\centering
+\caption{Full blur/resize unseen-stressor diagnostic audit. Rows are the 24 task--family--training-seed endpoints: four tasks, blur and resize strongest stressors, and training seeds 3072/3073/3074. Correlations compare diagnostic deltas from \stdmax{} $=0.0\to0.08$ against closed-loop strongest-stress score deltas and drop improvements. This table reduces selected-slice risk but remains a bounded two-family scope check.}
+\label{tab:unseen-fullstress-corr}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrr}
+\toprule
+Metric & $\rho$ vs stress $\Delta$ & $r$ vs stress $\Delta$ & $\rho$ vs drop impr. & $r$ vs drop impr. & $n$ \\
+\midrule
+ACPC-$H$/trans. $\Delta$ & $0.92$ & $0.85$ & $0.77$ & $0.67$ & $24$ \\
+PCC $\Delta$ & $0.94$ & $0.90$ & $0.84$ & $0.90$ & $24$ \\
+CRA $\Delta$ & $0.94$ & $0.89$ & $0.87$ & $0.91$ & $24$ \\
+MAF $\Delta$ & $0.90$ & $0.91$ & $0.77$ & $0.77$ & $24$ \\
+Composite signed-rank & $0.94$ & $0.94$ & $0.82$ & $0.84$ & $24$ \\
+\bottomrule
+\end{tabular}
 \end{table}
 
 \paragraph{Reading.} TwoRoom and Reacher show the desired agreement: the unseen stress scores improve strongly and the displayed paired diagnostics move in the better direction. PushT and Cube should not be read as negative transfer cases: their resize score deltas are small at the scale of the evaluation variance, so the behavioral conclusion is no clear effect. The diagnostics act as a specificity check for the same cautious interpretation. PushT shows improved ACPC-$H$/transition and PCC but almost unchanged CRA and no clear stress-score gain; Cube shows small and inconsistent ACPC/PCC/CRA movement. We therefore treat this as bounded appendix evidence for diagnostic localization on selected clear-effect unseen stressors, plus no coordinated score/diagnostic signal on the resize endpoints; it is not evidence that ACPC is a universal cross-perturbation robustness predictor.

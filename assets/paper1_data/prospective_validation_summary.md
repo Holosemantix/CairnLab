@@ -50,6 +50,20 @@ Split: training seeds 3072/3073/3074; selected unseen perturbation cases; fixed 
 
 Top-4 agreement: composite signed-rank top-k hits 4/4 for stress-success delta and 2/4 for drop improvement.
 
+## Full blur/resize unseen diagnostic validation slice
+
+Split: training seeds 3072/3073/3074; all task by blur/resize strongest endpoints; fixed comparison std_max 0.0 -> 0.08.
+
+| Metric | rho vs stress delta | r vs stress delta | rho vs drop improvement | r vs drop improvement | n |
+|---|---:|---:|---:|---:|---:|
+| ACPC-H/trans. delta | 0.92 | 0.85 | 0.77 | 0.67 | 24 |
+| PCC delta | 0.94 | 0.90 | 0.84 | 0.90 | 24 |
+| CRA delta | 0.94 | 0.89 | 0.87 | 0.91 | 24 |
+| MAF delta | 0.90 | 0.91 | 0.77 | 0.77 | 24 |
+| Composite signed-rank rule | 0.94 | 0.94 | 0.82 | 0.84 | 24 |
+
+Top-4 agreement: composite signed-rank top-k hits 4/4 for stress-success delta and 2/4 for drop improvement.
+
 ## Semantic state proxies
 
 | Task | semantic factor | available source | status |

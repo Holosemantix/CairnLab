@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "assets" / "paper1_data"
 TRAINING_SEED_LOCKBOX = DATA_DIR / "training_seed_gaussian_lockbox.json"
 UNSEEN_PHASE0 = DATA_DIR / "unseen_phase0_acpc_subset.json"
+UNSEEN_PHASE0_FULLSTRESS = DATA_DIR / "unseen_phase0_acpc_fullstress.json"
 NO_RETRAIN_AUDIT = DATA_DIR / "no_retrain_diagnostic_audit.json"
 THREE_SEED_DIAGNOSTIC_VALIDATION = DATA_DIR / "three_seed_diagnostic_validation.json"
 SEMANTIC_MARGIN_PASSRATE = DATA_DIR / "semantic_margin_passrate_lewm_three_seed.json"
@@ -268,10 +269,12 @@ def _heldout_metric_rows(unseen: dict) -> tuple[list[dict], dict]:
 def build_payload() -> dict:
     training = _load(TRAINING_SEED_LOCKBOX)
     unseen = _load(UNSEEN_PHASE0)
+    unseen_fullstress = _load(UNSEEN_PHASE0_FULLSTRESS)
     no_retrain = _load(NO_RETRAIN_AUDIT)
     three_seed_diag = _load(THREE_SEED_DIAGNOSTIC_VALIDATION)
     semantic_margin = _load(SEMANTIC_MARGIN_PASSRATE)
     heldout_rows, topk = _heldout_metric_rows(unseen)
+    fullstress_rows, fullstress_topk = _heldout_metric_rows(unseen_fullstress)
     return {
         "metadata": {
             "schema_version": "paper1-validation-remediation-0.3",
@@ -280,6 +283,7 @@ def build_payload() -> dict:
                 str(THREE_SEED_DIAGNOSTIC_VALIDATION.relative_to(ROOT)),
                 str(SEMANTIC_MARGIN_PASSRATE.relative_to(ROOT)),
                 str(UNSEEN_PHASE0.relative_to(ROOT)),
+                str(UNSEEN_PHASE0_FULLSTRESS.relative_to(ROOT)),
                 str(NO_RETRAIN_AUDIT.relative_to(ROOT)),
                 *[str(path.relative_to(ROOT)) for path in UNSEEN_SCORE_ARTIFACTS],
             ],
@@ -298,6 +302,13 @@ def build_payload() -> dict:
             "metric_rows": heldout_rows,
             "topk_summary": topk,
             "summary_by_task": unseen["summary_by_task"],
+        },
+        "fullstress_unseen_validation": {
+            "split": "appendix scope check: training seeds 3072/3073/3074; all task by blur/resize strongest endpoints; fixed std_max comparison 0.0 vs 0.08",
+            "n_rows": len(unseen_fullstress["rows"]),
+            "metric_rows": fullstress_rows,
+            "topk_summary": fullstress_topk,
+            "summary_by_task": unseen_fullstress["summary_by_task"],
         },
         "existing_full_grid_frozen_rule_audit": no_retrain["summary"],
         "semantic_discriminability_protocol": SEMANTIC_GUARD_PROTOCOL,
@@ -416,6 +427,37 @@ def _write_markdown(path: Path, payload: dict) -> None:
         [
             "",
             f"Top-{topk['k']} agreement: composite signed-rank top-k hits {topk['stress_success_delta_topk_hit_count']}/{topk['stress_success_delta_topk_total']} for stress-success delta and {topk['drop_improvement_topk_hit_count']}/{topk['drop_improvement_topk_total']} for drop improvement.",
+            "",
+            "## Full blur/resize unseen diagnostic validation slice",
+            "",
+            "Split: training seeds 3072/3073/3074; all task by blur/resize strongest endpoints; fixed comparison std_max 0.0 -> 0.08.",
+            "",
+            "| Metric | rho vs stress delta | r vs stress delta | rho vs drop improvement | r vs drop improvement | n |",
+            "|---|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for row in payload["fullstress_unseen_validation"]["metric_rows"]:
+        lines.append(
+            "| {metric} | {rho_s} | {r_s} | {rho_d} | {r_d} | {n} |".format(
+                metric=row["metric"],
+                rho_s=_fmt(row["spearman_vs_stress_success_delta"]),
+                r_s=_fmt(row["pearson_vs_stress_success_delta"]),
+                rho_d=_fmt(row["spearman_vs_drop_improvement"]),
+                r_d=_fmt(row["pearson_vs_drop_improvement"]),
+                n=row["n"],
+            )
+        )
+    full_topk = payload["fullstress_unseen_validation"]["topk_summary"]
+    lines.extend(
+        [
+            "",
+            "Top-{k} agreement: composite signed-rank top-k hits {stress_hit}/{stress_total} for stress-success delta and {drop_hit}/{drop_total} for drop improvement.".format(
+                k=full_topk["k"],
+                stress_hit=full_topk["stress_success_delta_topk_hit_count"],
+                stress_total=full_topk["stress_success_delta_topk_total"],
+                drop_hit=full_topk["drop_improvement_topk_hit_count"],
+                drop_total=full_topk["drop_improvement_topk_total"],
+            ),
             "",
             "## Semantic state proxies",
             "",

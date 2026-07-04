@@ -183,16 +183,19 @@ averaged, with one negative resize row) and Cube (-1.08 pp averaged) should be
 read as no clear effect at this evaluation variance. Treat these artifacts as
 bounded cross-stressor development evidence, not universal robustness.
 
-Representative unseen Phase-0 ACPC subset (2026-07-04):
+Unseen Phase-0 ACPC scope artifacts (2026-07-04):
 `run_paper1_unseen_phase0_acpc_subset.sh` reruns clean-goal Phase-0 paired
-ACPC/PCC/CRA/MAF on selected positive and boundary cases, then
+ACPC/PCC/CRA/MAF on fixed checkpoints, then
 `tools/build_paper1_unseen_phase0_acpc_subset.py` joins those rows with the
-completed unseen eval artifacts. The artifact is
+completed unseen eval artifacts. The selected artifact is
 `assets/paper1_data/unseen_phase0_acpc_subset.json` (`missing=0`, 12 case rows /
-24 diagnostic rows over training seeds 3072/3073/3074). TwoRoom blur and Reacher blur show score gains and
-diagnostic improvements in the same direction; Cube resize and PushT resize
-remain no-clear-effect boundary cases rather than negative or mixed-transfer
-claims.
+24 diagnostic rows over training seeds 3072/3073/3074): TwoRoom blur and Reacher
+blur show score gains and diagnostic improvements in the same direction, while
+Cube resize and PushT resize remain no-clear-effect boundary cases. The fuller
+scope audit is `assets/paper1_data/unseen_phase0_acpc_fullstress.json`
+(`missing=0`, 24 task-family-seed rows / 48 diagnostic rows over blur and resize
+strongest endpoints). It reduces selected-slice risk but is still a bounded
+two-family audit, not a universal cross-perturbation transfer claim.
 
 Optional PLDM sanity plots can use the same runner without changing paper-facing claims:
 

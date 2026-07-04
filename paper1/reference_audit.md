@@ -1,6 +1,6 @@
 # Reference Audit
 
-Date: 2026-06-26
+Date: 2026-07-04
 
 2026-06-22 release-readiness pass: bibliography count rechecked after the submission-readiness review. `paper1/references.bib` contains 44 entries, and the README no longer hard-codes a count.
 
@@ -16,7 +16,9 @@ Date: 2026-06-26
 
 2026-06-16 targeted collision check: added `wang2026groupactions` after checking the official arXiv record. Text-use remains bounded: the paper is cited for formalising action-conditioned video world modeling as a group action and for GAC/GAR-style action-faithfulness metrics; ACPC is explicitly separated as same-action paired visual-perturbation predictive-consistency diagnostics with a discriminability guard.
 
-Scope: all 44 citation keys used in `paper1/main.tex`. Unused BibTeX entries were removed from `paper1/references.bib`, so every remaining entry is cited.
+2026-07-04 targeted top-conference pass: rechecked key temporally unstable JEPA/world-model and robustness references against primary arXiv/OpenReview/Nature/PMLR sources. Added `murlabadia2026vjepa21` for V-JEPA 2.1 after checking arXiv:2603.14482; text-use is bounded to V-JEPA-family dense physical-world representations and does not imply a competing baseline.
+
+Scope: all 45 citation keys used in `paper1/main.tex`. Unused BibTeX entries were removed from `paper1/references.bib`, so every remaining entry is cited.
 
 | Key | Official source checked | Metadata conclusion | Text-use conclusion |
 |---|---|---|---|
@@ -24,6 +26,7 @@ Scope: all 44 citation keys used in `paper1/main.tex`. Unused BibTeX entries wer
 | `assran2023ijepa` | https://openaccess.thecvf.com/content/CVPR2023/html/Assran_Self-Supervised_Learning_From_Images_With_a_Joint-Embedding_Predictive_Architecture_CVPR_2023_paper.html | Fixed: added CVPR pages 15619--15629 and official CVF URL. | OK: I-JEPA image-domain statement matches the paper. |
 | `bardes2024vjepa` | https://openreview.net/forum?id=QaCCuDfBk2 | Fixed: latest accepted TMLR version uses title without parenthetical and author `Mido Assran`; URL added. | OK: video-feature-prediction and V-JEPA statements match TMLR abstract. |
 | `assran2025vjepa2` | https://arxiv.org/abs/2506.09985 | Fixed: added arXiv eprint, DOI, class, and URL. | OK: cited as V-JEPA 2 extending V-JEPA to understanding, prediction, and planning. |
+| `murlabadia2026vjepa21` | https://arxiv.org/abs/2603.14482 | Added 2026-07-04: official arXiv metadata, DOI, class, and URL recorded. | OK: cited only as V-JEPA-family dense physical-world representation context, not as a competing baseline or control result for this paper. |
 | `maes2026lewm` | https://arxiv.org/abs/2603.19312 | Fixed: added arXiv eprint, DOI, class, and URL. | OK: LeWM two-loss end-to-end JEPA-from-pixels description matches the arXiv abstract. |
 | `maes2026stableworldmodel` | https://arxiv.org/abs/2605.21800 | Updated 2026-06-10: cite the newer arXiv platform paper *stable-worldmodel: A Platform for Reproducible World Modeling Research and Evaluation* rather than the earlier workshop v1 record. | OK: cited for the stable-worldmodel baseline suite and benchmark ecosystem. |
 | `wang2026groupactions` | https://arxiv.org/abs/2605.24578 | Added 2026-06-16: official arXiv metadata, DOI, class, and URL recorded. | OK: cited for group-action action-faithfulness, identity/inverse/composition consistency, and GAC/GAR metrics; main text explicitly separates it from same-action visual-perturbation ACPC diagnostics. |

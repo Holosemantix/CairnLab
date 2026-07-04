@@ -111,7 +111,7 @@
 \maketitle
 
 \begin{abstract}
-Latent predictive world models such as JEPAs avoid pixel reconstruction, but latent prediction alone does not define robustness for closed-loop control. We study additive Gaussian pixel noise as a controlled diagnostic stressor for JEPA world-model control and formalize action-conditioned predictive consistency (ACPC): clean and noised views of the same state should induce similar rollout readouts under the same action sequence, while action-relevant state differences remain separable. On fixed and sampled candidate pools, bounded ACPC links to candidate-cost drift and a top-1 flip bound with explicit ACPC-tail and clean-margin terms; a local Gaussian linearization shows that the measured basin radius estimates action-conditioned encoder--predictor sensitivity rather than encoder invariance alone. Across PushT, TwoRoom, Reacher, and Cube, no-noise LeWM is fragile under observation-only Gaussian noise, e.g., PushT falls from $86.33\%$ to $4.33\%$ and Reacher from $58.67\%$ to $18.33\%$. Full-sequence input-side noise training supplies recovered checkpoints for diagnosis, and the Gaussian closed-loop pattern replicates across three training seeds (3072/3073/3074). We fix an ACPC/PCC/CRA/MAF ranking rule on the seed-3072 development grid and evaluate it on held-out training seeds 3073/3074: the rule selects a checkpoint within 5 points of the closed-loop best in 7/8 held-out task-seed blocks (10/12 over all three seeds), with held-out mean regret $2.21\pm1.83$ points. A task-state proxy margin pass-rate further checks selective consistency: at the fixed $\stdmax=0.08$ endpoint it is approximately $1.00$ on all four tasks, compared with $0.25$--$0.58$ for no-noise baselines. Appendix ablations document failure modes. The result is a compact diagnostic framework for matched Gaussian-noise stress tests; the main text focuses on the three evidence layers above.
+Latent predictive world models such as JEPAs avoid pixel reconstruction, but latent prediction alone does not define robustness for closed-loop control. We introduce action-conditioned predictive consistency (ACPC) as a diagnostic for this gap: clean and corrupted views of the same state should induce similar rollout readouts under the same action sequence, while action-relevant state differences remain separable. We connect ACPC to candidate-cost drift and top-1 stability on fixed and sampled candidate pools, with explicit ACPC-tail and clean-margin terms, and show that the Gaussian basin radius measures action-conditioned encoder--predictor sensitivity rather than encoder invariance alone. In a controlled Gaussian-noise study on PushT, TwoRoom, Reacher, and Cube, no-noise LeWM is fragile under observation-only noise, e.g., PushT falls from $86.33\%$ to $4.33\%$ and Reacher from $58.67\%$ to $18.33\%$. Full-sequence input-side noise training supplies recovered checkpoints for diagnosis, and the closed-loop pattern replicates across three training seeds (3072/3073/3074). A ranking rule fixed on the seed-3072 development grid selects checkpoints within 5 points of the closed-loop best in 7/8 held-out task-seed blocks (10/12 over all three seeds), with held-out mean regret $2.21\pm1.83$ points; it is a triage signal, not a substitute for closed-loop evaluation. A task-state proxy margin pass-rate further checks selective consistency, rising from $0.25$--$0.58$ for no-noise baselines to approximately $1.00$ at the fixed $\stdmax=0.08$ endpoint. The result is a no-retraining diagnostic framework for matched Gaussian-noise stress tests, with appendix ablations and bounded unseen-stressor checks documenting scope and failure modes.
 
 \smallskip
 \noindent\textbf{Keywords:} visual world models; JEPA; action-conditioned predictive consistency; visual robustness; predictive-dynamics diagnostics.
@@ -160,7 +160,7 @@ We use input-side noise augmentation as the controlled intervention. The \stdmax
 \section{Related Work}\label{sec:related}
 
 \subsection{Latent prediction and JEPA world models}
-JEPA~\cite{lecun2022path} predicts in latent space rather than reconstructing pixels; I-JEPA~\cite{assran2023ijepa} and V-JEPA~\cite{bardes2024vjepa,assran2025vjepa2} extend this idea to images and video. LeWM~\cite{maes2026lewm}, our baseline, stabilizes an end-to-end JEPA world model with SIGReg~\cite{eppspulley1983}. PLDM~\cite{sobal2022jointembeddingpredictivearchitectures,sobal2025stresstesting}, via \code{stable-worldmodel}~\cite{maes2026stableworldmodel}, supplies the second method family in Appendix~\ref{sec:appendix-pldm}. LeJEPA theory~\cite{klindt2026lejepaworldmodel} studies latent-variable recovery and latent planning; our diagnostic asks whether learned visual world-model checkpoints give paired clean/noised views consistent action-conditioned predictions.
+JEPA~\cite{lecun2022path} predicts in latent space rather than reconstructing pixels; I-JEPA~\cite{assran2023ijepa} and the V-JEPA family~\cite{bardes2024vjepa,assran2025vjepa2,murlabadia2026vjepa21} extend this idea to images, video, and dense physical-world representations. LeWM~\cite{maes2026lewm}, our baseline, stabilizes an end-to-end JEPA world model with SIGReg~\cite{eppspulley1983}. PLDM~\cite{sobal2022jointembeddingpredictivearchitectures,sobal2025stresstesting}, via \code{stable-worldmodel}~\cite{maes2026stableworldmodel}, supplies the second method family in Appendix~\ref{sec:appendix-pldm}. LeJEPA theory~\cite{klindt2026lejepaworldmodel} studies latent-variable recovery and latent planning; our diagnostic asks whether learned visual world-model checkpoints give paired clean/noised views consistent action-conditioned predictions.
 
 \subsection{Invariance, augmentation, and visual robustness}
 Augmentation and joint-embedding losses impose invariances only when their training signal identifies the right nuisance factors~\cite{wang2020alignuniform,tamkin2023featuredropout,zhang2022rethinkaug}. Recent theory clarifies why latent prediction can help with nuisance or noisy features but also why it is not enough for control. Van Assel et al.~\cite{vanassel2025jointembeddingreconstruction} derive closed-form SSL solutions showing that joint embedding imposes weaker alignment requirements than reconstruction when irrelevant features have large magnitude, while Littwin et al.~\cite{littwin2024jepaavoidsnoisyfeatures} analyze deep-linear self-distillation dynamics and a JEPA bias toward high-influence predictive features rather than merely high-variance features. These analyses are representation-level and do not address closed-loop action-conditioned rollout, candidate-cost stability, or the need to keep action-distinct states separable. ACPC is complementary: it asks whether same-state visual perturbations become equivalent after a fixed action intervention while action-, transition-, or cost-distinct cases remain discriminable. Seq-JEPA~\cite{ghaemi2025seqjepa} addresses a related invariance--equivariance tension architecturally. DrQ/DrQ-v2~\cite{kostrikov2020drq,yarats2022drqv2}, SODA/DMC-GB~\cite{hansen2021soda}, DreamerV3~\cite{hafner2025dreamerv3}, TD-MPC2~\cite{hansen2024tdmpc2}, ViGMO~\cite{vigmo}, N-JEPA~\cite{njepa2025}, variational VJEPA~\cite{huang2026vjepa}, and US-JEPA~\cite{usjepa2025} provide visual-robustness and noisy-environment context. They are not trained as competing baselines in this study; they define important future comparisons for method or benchmark claims.
@@ -239,7 +239,7 @@ The main text is organized around three necessary questions rather than a long m
 \label{tab:core-diagnostic-map}
 \small
 \setlength{\tabcolsep}{4pt}
-\begin{tabularx}{\textwidth}{p{0.24\textwidth}p{0.25\textwidth}>{\raggedright\arraybackslash}X}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}X}
 \toprule
 Question & Main readout & Role \\
 \midrule
@@ -369,6 +369,20 @@ then over $T$ replanning steps,
 \]
 \end{corollary}
 
+\begin{proposition}[Finite-sample tail calibration for paired diagnostics]\label{prop:finite-sample-tail-calibration}
+Fix the diagnostic sampling distribution used to draw independent paired clean/noisy histories and candidate action sequences. Let
+\[
+X_i=\mathbf 1[D_i>\epsilon], \qquad i=1,\ldots,n,
+\]
+where $D_i$ is the paired ACPC rollout-readout discrepancy for diagnostic item $i$. Let $p_\epsilon=\Pr[D>\epsilon]$ and $\hat p_\epsilon=n^{-1}\sum_i X_i$. Then, with probability at least $1-\delta$ over the diagnostic sample,
+\[
+p_\epsilon \le \hat p_\epsilon + \sqrt{\frac{\log(1/\delta)}{2n}}.
+\]
+The same one-sided calibration applies to any bounded Bernoulli readout computed from paired candidate costs, such as a margin-conditioned action-flip indicator.
+\end{proposition}
+
+This calibration is with respect to the released diagnostic sampling distribution, its independent-sample idealization, and the finite candidate construction. It does not convert an empirical median, quantile, or flip-rate table into a uniform bound over all CEM samples or all closed-loop states; when nearby dataset windows are dependent, we use it only as calibration.
+
 The Gaussian stressor also has a local sensitivity interpretation. Let $G_{\mathbf a}(z)=\Pi(F_\theta^{1:H}(z,\mathbf a))$ and let $\tilde o=o+\xi$ with $\xi\sim\mathcal N(0,\sigma^2 I)$.
 
 \begin{proposition}[Local Gaussian ACPC sensitivity]\label{prop:gaussian-sensitivity}
@@ -393,6 +407,8 @@ Thus Gaussian ACPC measures action-conditioned encoder--predictor sensitivity, n
 M=\mathbf 1\!\left[d_{\mathrm{proxy\ diff}}>d_{\mathrm{same\ state\ noise}}+\delta_m\right],
 \]
 with $\delta_m=0$ in the reported table. It is a finite state-proxy selective-consistency certificate, not a full semantic-label coverage guarantee.
+
+The theoretical statements in this section are intended as diagnostic calibration rather than as closed-loop control guarantees. They identify the failure modes that a paired clean/noisy diagnostic should measure---rollout-disagreement tails and clean candidate-margin tails---and explain why the Gaussian basin radius is an action-conditioned encoder--predictor sensitivity measurement. They do not assert that a low empirical median radius is a uniform certificate for adaptive CEM, repeated replanning, or environment-feedback stability.
 
 \paragraph{Selective ACPC pseudo-metric.}
 For a nonempty fixed candidate family $\mathcal A$, the stability condition can be summarized by
@@ -575,7 +591,7 @@ All & 2/12 & 10/12 & $2.25 \pm 2.51$ & $0.75/2$ \\
 \end{tabular}
 \end{table}
 
-The fixed rule is not a replacement for closed-loop evaluation, but it moves ACPC from representative-row explanation toward held-out diagnostic triage. Across the 96 nonzero checkpoint rows, signed ACPC-$H$/transition has Spearman $\rho=0.41$ with observation-noise 0.08 success and $\rho=0.62$ with reduced drop; PCC gives $\rho=0.38$ and $0.60$ on the same two targets. The held-out triage result is strongest on TwoRoom and Reacher, useful but imperfect on PushT, and weakest on Cube. The clearest miss is Cube seed 3072: the fixed rule chooses $\stdmax{}=0.05$ with $60.00\%$ observation-noise 0.08 success, while the closed-loop best is $\stdmax{}=0.03$ at $68.33\%$ (regret $8.33$ pp). PushT seed 3073 is the other beyond-5pp miss ($81.00\%$ selected at $\stdmax{}=0.08$ versus $86.67\%$ best at $\stdmax{}=0.04$). We therefore use the fixed rule to prioritize rows and explain plateaus, while closed-loop scores remain the authority for final claims.
+The fixed rule is not a replacement for closed-loop evaluation, but it moves ACPC from representative-row explanation toward held-out diagnostic triage. Across the 96 nonzero checkpoint rows, signed ACPC-$H$/transition has Spearman $\rho=0.41$ with observation-noise 0.08 success and $\rho=0.62$ with reduced drop; PCC gives $\rho=0.38$ and $0.60$ on the same two targets. The held-out triage result is strongest on TwoRoom and Reacher, useful but imperfect on PushT, and weakest on Cube. The clearest miss is Cube seed 3072: the fixed rule chooses $\stdmax{}=0.05$ with $60.00\%$ observation-noise 0.08 success, while the closed-loop best is $\stdmax{}=0.03$ at $68.33\%$ (regret $8.33$ pp). PushT seed 3073 is the other beyond-5pp miss ($81.00\%$ selected at $\stdmax{}=0.08$ versus $86.67\%$ best at $\stdmax{}=0.04$). A selector-baseline audit in Appendix~\ref{sec:appendix-selector-audit} shows the same boundary: the aggregate rule is comparable to fixed $\stdmax{}=0.08$ and single-metric selectors on broad Gaussian plateaus, but better than exact random nonzero-std selection. We therefore use the fixed rule to prioritize rows and explain plateaus, while closed-loop scores remain the authority for final claims.
 
 \subsection{Paired Gaussian-noise ACPC basin diagnostic}\label{sec:exp-acpc-basin}
 
@@ -684,6 +700,28 @@ Cube & 0.08 & $1.00 \pm 0.00$ & $0.49 \pm 0.05$ & $16.59 \pm 0.24$ & $15.99 \pm 
 
 The task-state proxy margin supplies the missing selective half of ACPC more directly than rank or ID probes alone, while staying below an oracle semantic-label claim. The high-noise endpoint keeps state-proxy-different rollouts separated while shrinking same-state noisy rollouts on all four tasks; the no-noise baselines often fail this margin, especially PushT and Cube. Each task/endpoint aggregates 100 sampled pairs per training seed and three training seeds. Treating these 300 pairs as independent only for calibration, Hoeffding gives $p \ge \hat p-\sqrt{\log(1/\alpha)/(2n)}$; for $\hat p=1.00$, $n=300$, and $\alpha=0.05$, the lower confidence bound is about $0.929$. Nearby dataset windows may be dependent, so we use this as a finite-sample calibration rather than a dataset-wide formal guarantee. The heteroscedastic-loss ablation in Appendix~\ref{sec:appendix-D} remains the failure case that motivates the guard: PushT transition L2 falls from $0.3015$ to $0.1023$, the ID probe falls from $0.7739$ to $0.2678$, and unperturbed success collapses to $13.33\%$. The longer representation, rollout-drift, latent-noise, and task-by-task mechanism diagnostics remain in Appendix~\ref{sec:appendix-diagnostic-framework}--\ref{sec:appendix-mech-attribution}.
 
+\subsection{Bounded unseen-stressor scope check}\label{sec:exp-unseen-scope}
+
+The main claim remains matched Gaussian-noise robustness. After freezing the Gaussian grid, we also ran a strongest-severity unseen-stressor check to test whether the diagnostic direction is specific outside the training perturbation family. \Cref{tab:unseen-scope-main} shows a split pattern. TwoRoom and Reacher exhibit clear positive score deltas under strongest blur, and the paired ACPC/PCC/CRA diagnostics move in the same direction. PushT and Cube do not show a clear score gain at the scale of training-seed and evaluation variance, and their diagnostic deltas are correspondingly weak or mixed. The selected rows follow the appendix convention: TwoRoom/Reacher blur are clear positive-transfer endpoints, while PushT/Cube resize are small-effect boundary endpoints. We therefore use this table only as bounded scope evidence: ACPC-style paired diagnostics localize clear out-of-family improvements when present, but the current evidence does not justify a universal cross-perturbation robustness claim.
+
+\begin{table}[H]
+\centering
+\caption{Bounded unseen-stressor scope check. Score $\Delta$ is the fixed $\stdmax{}=0.08$ checkpoint minus the no-noise baseline under the strongest unseen stress, averaged over training seeds 3072/3073/3074. Diagnostic deltas are from the matched paired-diagnostic slice averaged over training seeds 3072/3073/3074; negative is better for ACPC-$H$/transition and PCC, positive is better for CRA. The table is a scope check, not a universal transfer claim.}
+\label{tab:unseen-scope-main}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{llrrrr>{\raggedright\arraybackslash}X}
+\toprule
+Task & stress & score $\Delta$ & $\Delta$ ACPC & $\Delta$ PCC & $\Delta$ CRA & reading \\
+\midrule
+TwoRoom & blur $k=15$ & $+43.11 \pm 8.90$ & $-0.691$ & $-44.7$ & $+0.616$ & clear gain; diagnostics aligned \\
+Reacher & blur $k=15$ & $+49.22 \pm 3.29$ & $-1.895$ & $-48.9$ & $+0.587$ & clear gain; diagnostics aligned \\
+PushT & resize $0.25$ & $+2.89 \pm 17.98$ & $-0.267$ & $-6.7$ & $+0.010$ & no clear gain at this scale \\
+Cube & resize $0.25$ & $-0.89 \pm 1.40$ & $+0.052$ & $-0.6$ & $-0.030$ & no clear gain at this scale \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 %% ===========================================================================
 \section{Discussion and limitations}\label{sec:disc}
 
@@ -751,6 +789,13 @@ Let $F_t$ be the event that the clean and perturbed branches select different to
 \le \sum_{t=1}^T r_t .
 \]
 No independence across replanning steps is required for this bound. It is intentionally loose and does not account for environment feedback after a flip.
+
+\paragraph{Proof of \Cref{prop:finite-sample-tail-calibration}.}
+For a fixed threshold $\epsilon$, the variables $X_i=\mathbf 1[D_i>\epsilon]$ are independent Bernoulli variables under the diagnostic sampling distribution. The one-sided Hoeffding inequality gives
+\[
+\Pr[p_\epsilon>\hat p_\epsilon+u]\le\exp(-2nu^2).
+\]
+Setting $u=\sqrt{\log(1/\delta)/(2n)}$ gives the stated upper confidence bound. The same argument applies to any bounded Bernoulli diagnostic, including a margin-conditioned action-flip indicator, after fixing the diagnostic sampling distribution and candidate construction, with the same independence caveat.
 
 \paragraph{Derivation of \Cref{prop:gaussian-sensitivity}.}
 By Taylor expansion of the encoder around $o$,
@@ -998,7 +1043,7 @@ Because t-SNE distorts global distances, \Cref{fig:selective-contraction-atlas} 
 \begin{landscape}
 \begin{figure}[p]
 \centering
-\includegraphics[width=0.82\linewidth]{pusht_fullseq_selective_contraction_atlas.png}
+\includegraphics[width=0.70\linewidth]{pusht_fullseq_selective_contraction_atlas.png}
 \caption{PushT local cluster atlas ($n=128$ windows, 16 anchors, 8 neighbors). Each box is one original state with Gaussian-perturbed views after local PCA; the circle radius is the high-dimensional nearest-other-state distance. Panel summaries report original-space local statistics.}
 \label{fig:selective-contraction-atlas}
 \end{figure}
@@ -1067,6 +1112,7 @@ canonical evaluation artifact & \codebrk{assets/paper1\_data/canonical\_evals\_2
 canonical diagnostic artifact & \codebrk{assets/paper1\_data/canonical\_diagnostics\_20260517.json} \\
 LeWM ACPC-basin artifact & \codebrk{assets/paper1\_data/acpc\_basin\_diagnostics.json} \\
 No-retraining diagnostic audit & \codebrk{assets/paper1\_data/no\_retrain\_diagnostic\_audit.json} \\
+selector-baseline audit & \codebrk{assets/paper1\_data/selector\_baseline\_audit\_20260704.json} \\
 training-seed Gaussian lockbox artifact & \codebrk{assets/paper1\_data/training\_seed\_gaussian\_lockbox.json} \\
 validation remediation summary & \codebrk{assets/paper1\_data/prospective\_validation\_summary.json} \\
 PLDM ACPC-basin artifact & \codebrk{assets/paper1\_data/acpc\_basin\_diagnostics\_pldm.json} \\
@@ -1442,7 +1488,7 @@ PLDM & Cube    & $52.67 \pm 3.30$ & $53.00 \pm 5.35$ & $53.00 \pm 2.83$ & $50.67
 %% ===========================================================================
 \section{Unseen-stressor score and matched diagnostic check}\label{sec:appendix-unseen-transfer}
 
-After the Gaussian development grid and training-seed replication were frozen, we ran strongest-severity unseen-stressor score checks on all three LeWM training seeds (3072/3073/3074), comparing no-noise training to \stdmax{} $=0.08$ under two unseen visual stressors: Gaussian blur with kernel size 15 and resize/down-upsample with factor 0.25. This appendix does not broaden the main Gaussian-noise claim into a cross-perturbation result. It asks whether the Gaussian-trained endpoint transfers to non-Gaussian stressors, and whether the paired diagnostics move in the same direction when the behavioral effect is clear. The score aggregate includes all three training seeds; the selected diagnostics subset uses the two independent replication seeds with released matched paired-diagnostic rows (3073/3074), with TwoRoom/Reacher blur as clear positive-transfer endpoints and PushT/Cube resize as small-effect endpoints. The full review file is listed in Appendix~\ref{sec:appendix-artifact-map}.
+After the Gaussian development grid and training-seed replication were frozen, we ran strongest-severity unseen-stressor score checks on all three LeWM training seeds (3072/3073/3074), comparing no-noise training to \stdmax{} $=0.08$ under two unseen visual stressors: Gaussian blur with kernel size 15 and resize/down-upsample with factor 0.25. A compact four-row summary of this appendix appears in \Cref{tab:unseen-scope-main}; the appendix gives the full score aggregate and matched diagnostic slice. This appendix does not broaden the main Gaussian-noise claim into a cross-perturbation result. It asks whether the Gaussian-trained endpoint transfers to non-Gaussian stressors, and whether the paired diagnostics move in the same direction when the behavioral effect is clear. The score aggregate and selected diagnostics subset both include all three training seeds, with TwoRoom/Reacher blur as clear positive-transfer endpoints and PushT/Cube resize as small-effect endpoints. The full review file is listed in Appendix~\ref{sec:appendix-artifact-map}.
 
 \begin{table}[H]
 \centering
@@ -1464,7 +1510,7 @@ Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ & $-0.89 \pm 1.40$ & 
 
 \begin{table}[p]
 \centering
-\caption{Independent-seed unseen-stressor matched diagnostic slice with selected Phase-0 paired diagnostics. Values are averages over the two training seeds with released matched diagnostic rows, 3073 and 3074; the score-side aggregate over seeds 3072/3073/3074 is reported in \Cref{tab:unseen-score-three-seed-appendix}. Stress delta is \stdmax{} $=0.08$ minus the no-noise baseline at the strongest unseen stress. Drop improvement is the reduction in clean-to-stress drop. Negative $\Delta$ is better for ACPC-$H$/transition, PCC, and MAF; positive $\Delta$ is better for CRA. Small PushT/Cube score deltas are treated as no clear behavioral effect at this evaluation scale.}
+\caption{Three-seed unseen-stressor matched diagnostic slice with selected Phase-0 paired diagnostics. Values are averages over training seeds 3072/3073/3074. Stress delta is \stdmax{} $=0.08$ minus the no-noise baseline at the strongest unseen stress. Drop improvement is the reduction in clean-to-stress drop. Negative $\Delta$ is better for ACPC-$H$/transition and PCC; positive $\Delta$ is better for CRA. Small PushT/Cube score deltas are treated as no clear behavioral effect at this evaluation scale.}
 \label{tab:unseen-phase0-boundary}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -1472,15 +1518,15 @@ Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ & $-0.89 \pm 1.40$ & 
 \toprule
 Task & stress & stress $\Delta$ & drop impr. & $\Delta$ ACPC & $\Delta$ PCC & $\Delta$ CRA & reading \\
 \midrule
-TwoRoom & blur $k=15$ & $+36.83$ & $+35.17$ & $-0.590$ & $-42.7$ & $+0.567$ & clear signal \\
-Reacher & blur $k=15$ & $+48.50$ & $+28.00$ & $-1.770$ & $-47.0$ & $+0.568$ & clear signal \\
-PushT & resize $0.25$ & $+2.33$ & $-4.67$ & $-0.249$ & $-6.4$ & $+0.009$ & no clear effect \\
-Cube & resize $0.25$ & $-1.83$ & $+1.33$ & $+0.088$ & $-0.1$ & $-0.042$ & no clear effect \\
+TwoRoom & blur $k=15$ & $+43.11$ & $+40.89$ & $-0.691$ & $-44.7$ & $+0.616$ & clear signal \\
+Reacher & blur $k=15$ & $+49.22$ & $+30.22$ & $-1.895$ & $-48.9$ & $+0.587$ & clear signal \\
+PushT & resize $0.25$ & $+2.89$ & $-3.78$ & $-0.267$ & $-6.7$ & $+0.010$ & no clear effect \\
+Cube & resize $0.25$ & $-0.89$ & $+2.78$ & $+0.052$ & $-0.6$ & $-0.030$ & no clear effect \\
 \bottomrule
 \end{tabular}%
 \end{table}
 
-\paragraph{Reading.} TwoRoom and Reacher show the desired agreement: the unseen stress scores improve strongly and the displayed paired diagnostics move in the better direction. PushT and Cube should not be read as negative transfer cases: their resize score deltas are small at the scale of the evaluation variance, so the behavioral conclusion is no clear effect. The diagnostics act as a specificity check for the same cautious interpretation. PushT shows improved ACPC-$H$/transition and PCC but almost unchanged CRA and no clear stress-score gain; Cube shows near-zero PCC movement and small, inconsistent ACPC/CRA movement. We therefore treat this as bounded appendix evidence for diagnostic localization on selected clear-effect unseen stressors, plus no coordinated score/diagnostic signal on the resize endpoints; it is not evidence that ACPC is a universal cross-perturbation robustness predictor.
+\paragraph{Reading.} TwoRoom and Reacher show the desired agreement: the unseen stress scores improve strongly and the displayed paired diagnostics move in the better direction. PushT and Cube should not be read as negative transfer cases: their resize score deltas are small at the scale of the evaluation variance, so the behavioral conclusion is no clear effect. The diagnostics act as a specificity check for the same cautious interpretation. PushT shows improved ACPC-$H$/transition and PCC but almost unchanged CRA and no clear stress-score gain; Cube shows small and inconsistent ACPC/PCC/CRA movement. We therefore treat this as bounded appendix evidence for diagnostic localization on selected clear-effect unseen stressors, plus no coordinated score/diagnostic signal on the resize endpoints; it is not evidence that ACPC is a universal cross-perturbation robustness predictor.
 
 %% ===========================================================================
 \section{Phase-0 paired ACPC diagnostics}\label{sec:appendix-phase0}
@@ -1536,6 +1582,39 @@ Cube & PLDM & 0.04 & $48.33 \to 54.67$ & $1.175 \to 0.170$ & $27.1 \to 3.9$ & $0
 \end{landscape}
 
 \paragraph{Reading.} The Phase-0 pass converts the ACPC definitions from a prospective protocol into a release artifact that behaves sensibly on the existing sweep under the same clean-goal stressor used for the primary closed-loop endpoint. The largest Gaussian-noise cliffs (TwoRoom and PushT on both methods, Reacher/Cube on LeWM) coincide with large baseline ACPC-$H$, PCC, ranking disruption, and action flips, and the representative high observation-noise checkpoints reduce these quantities sharply. PLDM Reacher is the important boundary case: it is already robust at the no-noise baseline, and the paired diagnostics are correspondingly already close to the recovered checkpoint. We therefore treat \Cref{tab:acpc-phase0} as a face-validity and local-diagnostic check, not as evidence that ACPC-$H$, PCC, CRA, MAF, ADM, or SPRR can by themselves predict robustness.
+
+%% ===========================================================================
+\section{Selector-baseline audit for fixed-rule triage}\label{sec:appendix-selector-audit}
+
+This audit compares the seed-3072-fixed aggregate ACPC/PCC/CRA/MAF rule against simple selector baselines over the same three-training-seed Gaussian grid. All rows use nonzero training-noise candidates only. The random baseline is the exact expected regret over the eight nonzero grid rows, not a Monte Carlo sample. The released audit artifact is \codebrk{assets/paper1\_data/selector\_baseline\_audit\_20260704.json}.
+
+\begin{table}[H]
+\centering
+\caption{Selector-baseline audit for no-retraining checkpoint triage. Regret is closed-loop best observation-noise 0.08 success minus selected success. The aggregate rule is comparable to fixed $\stdmax{}=0.08$ and single-metric selectors on the broad Gaussian plateaus; the audit is therefore plateau context rather than evidence that the aggregate rule dominates all obvious baselines.}
+\label{tab:selector-baseline-audit}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{lcc>{\centering\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule
+Selector & split & within 5pp & regret mean $\pm$ std & reading \\
+\midrule
+Aggregate ACPC/PCC/CRA/MAF & all & $10/12$ & $2.25 \pm 2.51$ & triage/plateau localization \\
+Fixed $\stdmax{}=0.08$ & all & $10/12$ & $2.14 \pm 2.18$ & strong simple endpoint baseline \\
+ACPC only & all & $9/12$ & $3.39 \pm 4.21$ & weaker on dev seed \\
+PCC only & all & $10/12$ & $2.25 \pm 2.51$ & comparable to aggregate \\
+CRA only & all & $10/12$ & $2.19 \pm 2.56$ & comparable to aggregate \\
+MAF only & all & $10/12$ & $1.89 \pm 2.80$ & comparable or slightly lower regret \\
+Random nonzero std & all & -- & $7.02 \pm 4.01$ & exact expected regret over eight rows \\
+\midrule
+Aggregate ACPC/PCC/CRA/MAF & held-out 3073/3074 & $7/8$ & $2.21 \pm 1.83$ & held-out triage signal \\
+Fixed $\stdmax{}=0.08$ & held-out 3073/3074 & $7/8$ & $2.08 \pm 1.93$ & comparable strong baseline \\
+MAF only & held-out 3073/3074 & $7/8$ & $1.62 \pm 1.66$ & best simple baseline in this audit \\
+Random nonzero std & held-out 3073/3074 & -- & $7.23 \pm 4.37$ & plateau context lower bound check \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Reading.} The aggregate rule should not be read as a universally superior selector. It is useful because it turns the paired diagnostics into a fixed no-retraining triage rule that stays near the closed-loop plateau and exposes failure cases; fixed high-noise and MAF-only selectors are equally strong on this grid. Reporting this audit prevents attributing broad Gaussian plateaus to the diagnostic rule alone.
 
 %% ===========================================================================
 \section{Target-view ablation completion check}\label{sec:appendix-target-view}

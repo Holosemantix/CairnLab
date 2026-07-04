@@ -28,7 +28,7 @@ if [ -z "${DATA_ROOT}" ]; then
 fi
 export STABLEWM_HOME="${DATA_ROOT}"
 
-TRAIN_SEEDS="${TRAIN_SEEDS:-3073 3074}"
+TRAIN_SEEDS="${TRAIN_SEEDS:-3072 3073 3074}"
 CASES="${CASES:-TwoRoom:gaussian_blur:15 Reacher:gaussian_blur:15 PushT:resize:0.25 Cube:resize:0.25}"
 STD_KEYS="${STD_KEYS:-0.0 0.08}"
 BASE_CANONICAL="${BASE_CANONICAL:-assets/paper1_data/canonical_evals_20260517.json}"
@@ -85,7 +85,11 @@ for task, slug in slugs.items():
     if task not in data:
         raise SystemExit(f"missing task in canonical JSON: {task}")
     for std_key, entry in data[task].items():
-        if std_key == "0.0":
+        if seed == 3072:
+            subdir = entry.get("subdir")
+            if not subdir:
+                raise SystemExit(f"missing canonical seed-3072 subdir for {task}/{std_key}")
+        elif std_key == "0.0":
             subdir = f"{slug}_lewm_baseline_seed{seed}"
         else:
             std_int = int(round(float(std_key) * 100))

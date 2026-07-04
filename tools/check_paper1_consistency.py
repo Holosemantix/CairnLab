@@ -37,6 +37,8 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "prospective_validation_summary.json",
     ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.json",
+    ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json",
+    ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
 ]
 
@@ -63,6 +65,9 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "no_retrain_diagnostic_audit.json",
     ROOT / "assets" / "paper1_data" / "unseen_origin_vs_std008_strongest_tworoom.json",
     ROOT / "assets" / "paper1_data" / "unseen_origin_vs_std008_strongest_reacher.json",
+    ROOT / "assets" / "paper1_data" / "unseen_origin_vs_std008_strongest_s3072.json",
+    ROOT / "assets" / "paper1_data" / "unseen_origin_vs_std008_strongest_s3072.schema.json",
+    ROOT / "assets" / "paper1_data" / "unseen_origin_vs_std008_strongest_s3072_manifest.json",
     ROOT / "assets" / "paper1_data" / "unseen_origin_vs_std008_strongest_s3073.json",
     ROOT / "assets" / "paper1_data" / "unseen_origin_vs_std008_strongest_s3074.json",
     ROOT / "assets" / "paper1_data" / "training_seed_gaussian_lockbox.json",
@@ -78,6 +83,8 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.json",
     ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.md",
+    ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json",
+    ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.md",
     ROOT / "DATA_MANIFEST.md",
@@ -96,6 +103,13 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "not a convergence theorem for adaptive multi-round CEM",
     "Hoeffding gives",
     "Proofs and calibration for ACPC diagnostics",
+    "Finite-sample tail calibration for paired diagnostics",
+    "diagnostic calibration rather than as closed-loop control guarantees",
+    "selector-baseline audit",
+    "comparable to fixed $\\stdmax{}=0.08$",
+    "Bounded unseen-stressor scope check",
+    "not a universal transfer claim",
+    "universal cross-perturbation robustness claim",
 ]
 
 FORBIDDEN_SNIPPETS = [
@@ -1095,8 +1109,7 @@ def check_prospective_validation_summary_json() -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
 
     required_sources = {
-        "assets/paper1_data/unseen_origin_vs_std008_strongest_tworoom.json",
-        "assets/paper1_data/unseen_origin_vs_std008_strongest_reacher.json",
+        "assets/paper1_data/unseen_origin_vs_std008_strongest_s3072.json",
         "assets/paper1_data/unseen_origin_vs_std008_strongest_s3073.json",
         "assets/paper1_data/unseen_origin_vs_std008_strongest_s3074.json",
     }
@@ -1154,25 +1167,25 @@ def check_prospective_validation_summary_json() -> None:
             fail(f"{row_key} three-seed unseen score mismatch: got {got_values}, want {expected_values}")
 
     heldout = data.get("heldout_unseen_validation", {})
-    if heldout.get("n_rows") != 8:
-        fail("prospective validation summary must contain the 8-row held-out unseen slice")
+    if heldout.get("n_rows") != 12:
+        fail("prospective validation summary must contain the 12-row three-seed unseen diagnostic slice")
     rows = {row.get("metric"): row for row in heldout.get("metric_rows", [])}
     composite = rows.get("Composite signed-rank rule")
     if composite is None:
         fail("prospective validation summary missing composite signed-rank row")
     checks = {
-        "spearman_vs_stress_success_delta": 0.92,
-        "pearson_vs_stress_success_delta": 0.93,
-        "spearman_vs_drop_improvement": 0.81,
-        "pearson_vs_drop_improvement": 0.83,
+        "spearman_vs_stress_success_delta": 0.94,
+        "pearson_vs_stress_success_delta": 0.96,
+        "spearman_vs_drop_improvement": 0.83,
+        "pearson_vs_drop_improvement": 0.86,
     }
     for key, want in checks.items():
         got = round2(float(composite[key]))
         if got != want:
             fail(f"prospective validation composite {key} mismatch: got {got}, want {want}")
     topk = heldout.get("topk_summary", {})
-    if topk.get("stress_success_delta_topk_hit_count") != 4 or topk.get("drop_improvement_topk_hit_count") != 4:
-        fail("prospective validation top-4 agreement must remain 4/4 for stress delta and drop improvement")
+    if topk.get("stress_success_delta_topk_hit_count") != 4 or topk.get("drop_improvement_topk_hit_count") != 2:
+        fail("prospective validation top-4 agreement must remain 4/4 for stress delta and 2/4 for drop improvement on the three-seed unseen slice")
     diag = data.get("three_seed_full_grid_diagnostic_validation", {})
     if diag.get("n_task_seed_blocks") != 12 or diag.get("within_5pp_hits") != 10:
         fail("prospective validation summary must include completed three-seed full-grid diagnostic validation")
@@ -1197,6 +1210,88 @@ def check_prospective_validation_summary_json() -> None:
         fail(f"prospective validation task-state proxy margin coverage mismatch: {semantic_cov}")
 
 
+
+
+def check_selector_baseline_audit_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    meta = data.get("metadata", {})
+    if meta.get("schema_version") != "paper1-selector-baseline-audit-20260704-v1":
+        fail(f"selector-baseline audit schema changed: {meta.get('schema_version')!r}")
+    if meta.get("score") != "pixels_std0.08_success":
+        fail("selector-baseline audit must target pixels_std0.08_success")
+    rows = data.get("selection_rows", [])
+    if len(rows) != 96:
+        fail(f"selector-baseline audit expected 96 selection rows, got {len(rows)}")
+    selectors = {
+        "aggregate_rank_acpc_pcc_cra_maf",
+        "fixed_std_0.08",
+        "best_acpc_only",
+        "best_pcc_only",
+        "best_cra_only",
+        "best_maf_only",
+        "random_nonzero_std",
+        "oracle_best",
+    }
+    keys = {(row.get("task"), int(row.get("training_seed")), row.get("selector")) for row in rows}
+    expected_keys = {
+        (task, seed, selector)
+        for task in EXPECTED_TASKS
+        for seed in (3072, 3073, 3074)
+        for selector in selectors
+    }
+    if keys != expected_keys:
+        fail("selector-baseline audit row coverage mismatch")
+
+    splits = {entry.get("split"): entry for entry in data.get("split_summaries", [])}
+    expected_splits = {
+        "all_three_training_seeds",
+        "development_seed_3072",
+        "heldout_training_seeds_3073_3074",
+    }
+    if set(splits) != expected_splits:
+        fail(f"selector-baseline audit splits changed: {sorted(splits)}")
+
+    expected = {
+        "all_three_training_seeds": {
+            "aggregate_rank_acpc_pcc_cra_maf": (12, 10, 3, 2.25),
+            "fixed_std_0.08": (12, 10, 4, 2.14),
+            "best_maf_only": (12, 10, 5, 1.89),
+            "random_nonzero_std": (12, None, None, 7.02),
+            "oracle_best": (12, 12, 12, 0.00),
+        },
+        "heldout_training_seeds_3073_3074": {
+            "aggregate_rank_acpc_pcc_cra_maf": (8, 7, 1, 2.21),
+            "fixed_std_0.08": (8, 7, 2, 2.08),
+            "best_maf_only": (8, 7, 2, 1.62),
+            "random_nonzero_std": (8, None, None, 7.23),
+            "oracle_best": (8, 8, 8, 0.00),
+        },
+    }
+    for split, split_expected in expected.items():
+        row_map = {row.get("selector"): row for row in splits[split].get("rows", [])}
+        for selector, (want_n, want_within, want_exact, want_regret) in split_expected.items():
+            row = row_map.get(selector)
+            if row is None:
+                fail(f"selector-baseline audit missing {split}/{selector}")
+            if int(row.get("n_task_seed_blocks")) != want_n:
+                fail(f"selector-baseline audit {split}/{selector} n changed")
+            if want_within is None:
+                if row.get("within_5pp_hits") is not None:
+                    fail(f"selector-baseline audit {split}/{selector} within should be None")
+            elif int(row.get("within_5pp_hits")) != want_within:
+                fail(f"selector-baseline audit {split}/{selector} within changed")
+            if want_exact is None:
+                if row.get("exact_best_hits") is not None:
+                    fail(f"selector-baseline audit {split}/{selector} exact should be None")
+            elif int(row.get("exact_best_hits")) != want_exact:
+                fail(f"selector-baseline audit {split}/{selector} exact changed")
+            got_regret = round2(float(row.get("mean_regret_to_best_pp")))
+            if got_regret != want_regret:
+                fail(
+                    f"selector-baseline audit {split}/{selector} regret changed: "
+                    f"got {got_regret}, want {want_regret}"
+                )
 
 def check_three_seed_diagnostic_validation_json() -> None:
     phase0_path = ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_three_seed.json"
@@ -1425,6 +1520,7 @@ def main() -> int:
         ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
         ("training-seed Gaussian lockbox json", check_training_seed_gaussian_lockbox_json),
         ("three-seed diagnostic validation json", check_three_seed_diagnostic_validation_json),
+        ("selector-baseline audit json", check_selector_baseline_audit_json),
         ("task-state proxy margin pass-rate json", check_semantic_margin_passrate_json),
         ("prospective validation summary json", check_prospective_validation_summary_json),
         ("external baselines json", check_external_baselines_json),

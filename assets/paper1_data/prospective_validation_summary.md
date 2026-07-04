@@ -23,9 +23,9 @@ Seed 3072 is the development grid used to freeze the aggregate-rank rule; seeds 
 | heldout_training_seeds_3073_3074 | 3073,3074 | 8 | 64 | 7/8 | 2.21 +/- 1.83 | [1.04, 3.54] |
 | all_training_seeds_3072_3073_3074 | 3072,3073,3074 | 12 | 96 | 10/12 | 2.25 +/- 2.51 | [1.00, 3.75] |
 
-## Semantic margin pass-rate
+## Task-state proxy margin pass-rate
 
-| Task | std | pass-rate | same radius | semantic diff | margin |
+| Task | std | pass-rate | same-state radius | state-proxy diff | margin |
 |---|---:|---:|---:|---:|---:|
 | TwoRoom | 0.0 | 0.44 +/- 0.06 | 17.43 +/- 0.65 | 17.06 +/- 0.11 | -0.71 +/- 0.77 |
 | TwoRoom | 0.08 | 1.00 +/- 0.00 | 0.56 +/- 0.02 | 16.40 +/- 0.25 | 15.77 +/- 0.27 |
@@ -36,31 +36,31 @@ Seed 3072 is the development grid used to freeze the aggregate-rank rule; seeds 
 | Cube | 0.0 | 0.25 +/- 0.06 | 19.33 +/- 0.15 | 16.46 +/- 0.13 | -3.32 +/- 0.19 |
 | Cube | 0.08 | 1.00 +/- 0.00 | 0.49 +/- 0.05 | 16.59 +/- 0.24 | 15.99 +/- 0.28 |
 
-## Matched held-out unseen diagnostic validation slice
+## Matched three-seed unseen diagnostic validation slice
 
-Split: training seeds 3073/3074; unseen perturbations gaussian_blur and resize; fixed comparison std_max 0.0 -> 0.08.
+Split: training seeds 3072/3073/3074; selected unseen perturbation cases; fixed comparison std_max 0.0 -> 0.08.
 
 | Metric | rho vs stress delta | r vs stress delta | rho vs drop improvement | r vs drop improvement | n |
 |---|---:|---:|---:|---:|---:|
-| ACPC-H/trans. delta | 0.90 | 0.88 | 0.71 | 0.68 | 8 |
-| PCC delta | 0.88 | 0.93 | 0.81 | 0.88 | 8 |
-| CRA delta | 0.86 | 0.90 | 0.90 | 0.88 | 8 |
-| MAF delta | 0.95 | 0.92 | 0.71 | 0.77 | 8 |
-| Composite signed-rank rule | 0.92 | 0.93 | 0.81 | 0.83 | 8 |
+| ACPC-H/trans. delta | 0.92 | 0.85 | 0.80 | 0.66 | 12 |
+| PCC delta | 0.94 | 0.95 | 0.86 | 0.89 | 12 |
+| CRA delta | 0.94 | 0.94 | 0.94 | 0.91 | 12 |
+| MAF delta | 0.85 | 0.92 | 0.71 | 0.78 | 12 |
+| Composite signed-rank rule | 0.94 | 0.96 | 0.83 | 0.86 | 12 |
 
-Top-4 agreement: composite signed-rank top-k hits 4/4 for stress-success delta and 4/4 for drop improvement.
+Top-4 agreement: composite signed-rank top-k hits 4/4 for stress-success delta and 2/4 for drop improvement.
 
 ## Semantic state proxies
 
 | Task | semantic factor | available source | status |
 |---|---|---|---|
-| PushT | T-block pose/contact relative to pusher | dataset state column is configured for PushT analysis | reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension |
-| TwoRoom | room/doorway/topology and target-region relation | derive from trajectory position/proprio and map topology | reported as a direct task-semantic margin pass-rate from pos_agent geometry in semantic_margin_passrate_lewm_three_seed.json; topology-specific labels remain an extension |
-| Reacher | joint/target geometry and end-effector-to-target relation | qpos/goal_qpos are used by eval set-state callables | reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension |
-| Cube | cube pose and gripper-object/goal relation | qpos plus goal block position/quaternion are used by eval callables | reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension |
+| PushT | T-block pose/contact relative to pusher | dataset state column is configured for PushT analysis | reported as a task-state proxy margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension |
+| TwoRoom | room/doorway/topology and target-region relation | derive from trajectory position/proprio and map topology | reported as a task-state proxy margin pass-rate from pos_agent geometry in semantic_margin_passrate_lewm_three_seed.json; topology-specific labels remain an extension |
+| Reacher | joint/target geometry and end-effector-to-target relation | qpos/goal_qpos are used by eval set-state callables | reported as a task-state proxy margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension |
+| Cube | cube pose and gripper-object/goal relation | qpos plus goal block position/quaternion are used by eval callables | reported as a task-state proxy margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension |
 
 ## Remaining validation work
 
 - Extend the fixed diagnostic rule to additional perturbation families and method families after this three-seed Gaussian validation.
-- Extend semantic-pair construction to finer oracle contact/topology/goal-relation labels if the claim is expanded beyond matched Gaussian diagnostics.
+- Extend state-proxy pair construction to finer oracle contact/topology/goal-relation labels if the claim is expanded beyond matched Gaussian diagnostics.
 - Keep training-seed uncertainty as the primary behavior statistic and evaluation-seed variance as the secondary decomposition.

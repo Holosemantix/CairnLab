@@ -5,6 +5,16 @@ Branch: `qun-team/wm_exp@ag/dev`
 Target paper: `paper1/main.tex`  
 Scope: 本文件只给 Codex 执行整改的计划与建议文本；不要在执行时手改 released numeric JSON。数值应从现有 artifacts / tables 读取或复核后同步。
 
+## 2026-07-04 执行状态
+
+- 已完成 T1/T2：主文新增 theory-role 降调段落和 paired diagnostic finite-sample tail calibration proposition，并在 appendix 补 proof。
+- 已完成 T3：新增 `assets/paper1_data/selector_baseline_audit_20260704.json` / `.md`，将 aggregate rule 与 fixed `std=0.08`、单指标 selector、exact random nonzero-std regret、oracle best 对齐审计；主文/appendix 降调为 no-retraining triage 和 plateau-context evidence。
+- 已完成 U1--U4：主文新增 bounded unseen-stressor scope check，明确 score aggregate 覆盖 training seeds 3072/3073/3074，并避免把该 slice 误称为 unseen ACPC basin 或 universal transfer claim。
+- 2026-07-04 follow-up：补跑 seed 3072 的 selected unseen Phase-0 paired diagnostics（TwoRoom/Reacher blur, PushT/Cube resize），重建 `unseen_phase0_acpc_subset.json` 为 12 case rows / 24 diagnostic rows；matched diagnostic slice 现在同样覆盖 training seeds 3072/3073/3074。
+- 未做重新训练；新增数值 artifact 是由现有 checkpoints、三训练 seed diagnostics/eval manifest 和固定 ckpt diagnostic runner 派生，released numeric JSON 行未手改。
+- 最终核查通过：`python tools/check_paper1_consistency.py`、`git diff --check`、`bash paper1/build.sh --clean`、`bash paper1/check_blind_ready.sh`。最终 `main.log` / `main_blind.log` 未发现未定义引用、citation warning、overfull/underfull warning；`check_arxiv_ready.sh` 仍因 `\arxivauthors` placeholder 阻塞，属于非匿名作者信息待填项。
+- 本轮独立审稿判断：作为 controlled diagnostic / empirical-analysis paper，当前版本约为 Accept / high Weak Accept（约 7.5/10，confidence 4/5）；尚未达到通用 world-model robustness method paper 的 strong-accept 基线。剩余主要阻塞项是训练型 ACPC objective 或 strong robustness baselines，以及更细 oracle semantic near-boundary labels；这些超出 no-retraining / fixed-ckpt 整改范围。
+
 ---
 
 ## 0. 总体判断
@@ -198,14 +208,14 @@ The unseen-stressor check is therefore a specificity test rather than a transfer
 
 **数据来源：** appendix 中已有 strongest-severity unseen score aggregate 与 matched diagnostic slice。
 
-注意：score side 是三训练种子 aggregate；diagnostic side 是 matched diagnostic slice，当前为 seeds 3073/3074 的 selected rows。caption 必须说清楚。
+注意：score side 和 diagnostic side 现在都覆盖 training seeds 3072/3073/3074；diagnostic side 是 selected matched Phase-0 paired-diagnostic slice，不是 unseen ACPC basin。caption 必须说清楚。
 
 **建议 LaTeX：**
 
 ```tex
 \begin{table}[H]
 \centering
-\caption{Bounded unseen-stressor scope check. Score $\Delta$ is the fixed $\sigma_{\max}=0.08$ checkpoint minus the no-noise baseline under the strongest unseen stress, averaged over training seeds 3072/3073/3074. Diagnostic deltas are from the matched paired-diagnostic slice on independent seeds 3073/3074; negative is better for ACPC-$H$/transition and PCC, positive is better for CRA. The table is a scope check, not a universal transfer claim.}
+\caption{Bounded unseen-stressor scope check. Score $\Delta$ is the fixed $\sigma_{\max}=0.08$ checkpoint minus the no-noise baseline under the strongest unseen stress, averaged over training seeds 3072/3073/3074. Diagnostic deltas are from the matched paired-diagnostic slice averaged over training seeds 3072/3073/3074; negative is better for ACPC-$H$/transition and PCC, positive is better for CRA. The table is a scope check, not a universal transfer claim.}
 \label{tab:unseen-scope-main}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -213,10 +223,10 @@ The unseen-stressor check is therefore a specificity test rather than a transfer
 \toprule
 Task & stress & score $\Delta$ & $\Delta$ACPC & $\Delta$PCC & $\Delta$CRA & reading \\
 \midrule
-TwoRoom & blur $k=15$ & $+43.11 \pm 8.90$ & $-0.590$ & $-42.7$ & $+0.567$ & clear gain; diagnostics aligned \\
-Reacher & blur $k=15$ & $+49.22 \pm 3.29$ & $-1.770$ & $-47.0$ & $+0.568$ & clear gain; diagnostics aligned \\
-PushT & resize $0.25$ & $+2.89 \pm 17.98$ & $-0.249$ & $-6.4$ & $+0.009$ & no clear gain at this scale \\
-Cube & resize $0.25$ & $-0.89 \pm 1.40$ & $+0.088$ & $-0.1$ & $-0.042$ & no clear gain at this scale \\
+TwoRoom & blur $k=15$ & $+43.11 \pm 8.90$ & $-0.691$ & $-44.7$ & $+0.616$ & clear gain; diagnostics aligned \\
+Reacher & blur $k=15$ & $+49.22 \pm 3.29$ & $-1.895$ & $-48.9$ & $+0.587$ & clear gain; diagnostics aligned \\
+PushT & resize $0.25$ & $+2.89 \pm 17.98$ & $-0.267$ & $-6.7$ & $+0.010$ & no clear gain at this scale \\
+Cube & resize $0.25$ & $-0.89 \pm 1.40$ & $+0.052$ & $-0.6$ & $-0.030$ & no clear gain at this scale \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -289,7 +299,7 @@ A compact four-row summary of this appendix appears in \Cref{tab:unseen-scope-ma
 
 2. 确保 appendix 仍清楚说明：
    - score aggregate covers seeds 3072/3073/3074；
-   - matched diagnostic slice covers 3073/3074；
+   - matched diagnostic slice covers 3072/3073/3074；
    - PushT/Cube are no-clear-effect rows, not negative transfer proof。
 
 ---

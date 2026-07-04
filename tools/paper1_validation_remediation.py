@@ -20,8 +20,7 @@ NO_RETRAIN_AUDIT = DATA_DIR / "no_retrain_diagnostic_audit.json"
 THREE_SEED_DIAGNOSTIC_VALIDATION = DATA_DIR / "three_seed_diagnostic_validation.json"
 SEMANTIC_MARGIN_PASSRATE = DATA_DIR / "semantic_margin_passrate_lewm_three_seed.json"
 UNSEEN_SCORE_ARTIFACTS = [
-    DATA_DIR / "unseen_origin_vs_std008_strongest_tworoom.json",
-    DATA_DIR / "unseen_origin_vs_std008_strongest_reacher.json",
+    DATA_DIR / "unseen_origin_vs_std008_strongest_s3072.json",
     DATA_DIR / "unseen_origin_vs_std008_strongest_s3073.json",
     DATA_DIR / "unseen_origin_vs_std008_strongest_s3074.json",
 ]
@@ -51,28 +50,28 @@ SEMANTIC_GUARD_PROTOCOL = [
         "semantic_factor": "T-block pose/contact relative to pusher",
         "available_source": "dataset state column is configured for PushT analysis",
         "probe_rule": "different-state pair must cross a pose/contact threshold while same-state clean/noisy views share state",
-        "release_status": "reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension",
+        "release_status": "reported as a task-state proxy margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension",
     },
     {
         "task": "TwoRoom",
         "semantic_factor": "room/doorway/topology and target-region relation",
         "available_source": "derive from trajectory position/proprio and map topology",
         "probe_rule": "different-state pair must differ in room or doorway side under comparable visual nuisance",
-        "release_status": "reported as a direct task-semantic margin pass-rate from pos_agent geometry in semantic_margin_passrate_lewm_three_seed.json; topology-specific labels remain an extension",
+        "release_status": "reported as a task-state proxy margin pass-rate from pos_agent geometry in semantic_margin_passrate_lewm_three_seed.json; topology-specific labels remain an extension",
     },
     {
         "task": "Reacher",
         "semantic_factor": "joint/target geometry and end-effector-to-target relation",
         "available_source": "qpos/goal_qpos are used by eval set-state callables",
         "probe_rule": "different-state pair must differ in target quadrant or end-effector-target distance bin",
-        "release_status": "reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension",
+        "release_status": "reported as a task-state proxy margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension",
     },
     {
         "task": "Cube",
         "semantic_factor": "cube pose and gripper-object/goal relation",
         "available_source": "qpos plus goal block position/quaternion are used by eval callables",
         "probe_rule": "different-state pair must differ in object pose/goal relation beyond tolerance",
-        "release_status": "reported as a direct task-semantic margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension",
+        "release_status": "reported as a task-state proxy margin pass-rate in semantic_margin_passrate_lewm_three_seed.json; finer oracle labels remain an extension",
     },
 ]
 
@@ -284,7 +283,7 @@ def build_payload() -> dict:
                 str(NO_RETRAIN_AUDIT.relative_to(ROOT)),
                 *[str(path.relative_to(ROOT)) for path in UNSEEN_SCORE_ARTIFACTS],
             ],
-            "scope": "No retraining. Summarizes completed three-training-seed Gaussian behavior, full-grid three-seed fixed-rule diagnostic validation, semantic margin pass-rate, and bounded unseen-stressor scope checks.",
+            "scope": "No retraining. Summarizes completed three-training-seed Gaussian behavior, full-grid three-seed fixed-rule diagnostic validation, task-state proxy margin pass-rate, and bounded unseen-stressor scope checks.",
         },
         "three_training_seed_gaussian_summary": training["task_summary_rows"],
         "three_seed_full_grid_diagnostic_validation": three_seed_diag["summary"],
@@ -294,7 +293,7 @@ def build_payload() -> dict:
         "semantic_margin_coverage": semantic_margin["coverage"],
         "three_seed_unseen_score_summary": _three_seed_unseen_score_summary(),
         "heldout_unseen_validation": {
-            "split": "appendix scope check: training seeds 3073/3074; unseen perturbation families gaussian_blur and resize; fixed std_max comparison 0.0 vs 0.08",
+            "split": "appendix scope check: training seeds 3072/3073/3074; selected unseen perturbation cases; fixed std_max comparison 0.0 vs 0.08",
             "n_rows": len(unseen["rows"]),
             "metric_rows": heldout_rows,
             "topk_summary": topk,
@@ -304,7 +303,7 @@ def build_payload() -> dict:
         "semantic_discriminability_protocol": SEMANTIC_GUARD_PROTOCOL,
         "remaining_validation_work": [
             "Extend the fixed diagnostic rule to additional perturbation families and method families after this three-seed Gaussian validation.",
-            "Extend semantic-pair construction to finer oracle contact/topology/goal-relation labels if the claim is expanded beyond matched Gaussian diagnostics.",
+            "Extend state-proxy pair construction to finer oracle contact/topology/goal-relation labels if the claim is expanded beyond matched Gaussian diagnostics.",
             "Keep training-seed uncertainty as the primary behavior statistic and evaluation-seed variance as the secondary decomposition.",
         ],
     }
@@ -368,9 +367,9 @@ def _write_markdown(path: Path, payload: dict) -> None:
     lines.extend(
         [
             "",
-            "## Semantic margin pass-rate",
+            "## Task-state proxy margin pass-rate",
             "",
-            "| Task | std | pass-rate | same radius | semantic diff | margin |",
+            "| Task | std | pass-rate | same-state radius | state-proxy diff | margin |",
             "|---|---:|---:|---:|---:|---:|",
         ]
     )
@@ -393,9 +392,9 @@ def _write_markdown(path: Path, payload: dict) -> None:
     lines.extend(
         [
             "",
-            "## Matched held-out unseen diagnostic validation slice",
+            "## Matched three-seed unseen diagnostic validation slice",
             "",
-            "Split: training seeds 3073/3074; unseen perturbations gaussian_blur and resize; fixed comparison std_max 0.0 -> 0.08.",
+            "Split: training seeds 3072/3073/3074; selected unseen perturbation cases; fixed comparison std_max 0.0 -> 0.08.",
             "",
             "| Metric | rho vs stress delta | r vs stress delta | rho vs drop improvement | r vs drop improvement | n |",
             "|---|---:|---:|---:|---:|---:|",

@@ -147,6 +147,11 @@ FORBIDDEN_SNIPPETS = [
     "H=8 predictor",
     "8-step predictor basin",
     "prediction radius",
+    "selective-consistency certificate",
+    "low-cliff external baseline",
+    "The external baseline is therefore",
+    "strong simple endpoint baseline",
+    "comparable strong baseline",
 ]
 
 EXPECTED_TASKS = {"TwoRoom", "PushT", "Reacher", "Cube"}

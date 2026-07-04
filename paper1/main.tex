@@ -406,7 +406,7 @@ Thus Gaussian ACPC measures action-conditioned encoder--predictor sensitivity, n
 \[
 M=\mathbf 1\!\left[d_{\mathrm{proxy\ diff}}>d_{\mathrm{same\ state\ noise}}+\delta_m\right],
 \]
-with $\delta_m=0$ in the reported table. It is a finite state-proxy selective-consistency certificate, not a full semantic-label coverage guarantee.
+with $\delta_m=0$ in the reported table. It is a finite state-proxy selective-consistency check, not a full semantic-label coverage guarantee.
 
 The theoretical statements in this section are intended as diagnostic calibration rather than as closed-loop control guarantees. They identify the failure modes that a paired clean/noisy diagnostic should measure---rollout-disagreement tails and clean candidate-margin tails---and explain why the Gaussian basin radius is an action-conditioned encoder--predictor sensitivity measurement. They do not assert that a low empirical median radius is a uniform certificate for adaptive CEM, repeated replanning, or environment-feedback stability.
 
@@ -1415,11 +1415,11 @@ Cube & $52.67 \pm 3.30$ & $50.33 \pm 4.50$ & $48.33 \pm 4.50$ & $48.33 \pm 2.87$
 \begin{enumerate}
   \item \textbf{TwoRoom (visually redundant) shows large recovery on both methods.} PLDM observation-noise 0.08 success rises from $67.00\%$ at the no-noise baseline to $98.00\%$ at \stdmax{}~$= 0.06$. This mirrors the LeWM reading that TwoRoom tolerates strong same-state nuisance contraction.
   \item \textbf{PushT (contact-heavy) exhibits the Gaussian-noise cliff and large noise-training recovery.} PLDM without noise augmentation drops by $57.00$\,pt under observation-noise 0.08; training with \stdmax{}~$= 0.03$ recovers observation-noise 0.08 success to $73.00\%$ ($+54.67$\,pt over the no-noise baseline). The unperturbed and observation-noise 0.08 representative high rows are co-located at \stdmax{}~$= 0.03$ on PLDM, giving a compact grid-level reference for the recovery pattern.
-  \item \textbf{Reacher is already robust under no-noise-trained PLDM.} The no-noise PLDM drop is only $2.33$\,pt, and a representative high observation-noise row occurs at \stdmax{}~$= 0.03$ ($81.67\%$). This makes Reacher a low-cliff external baseline for interpreting noise-training gains.
+  \item \textbf{Reacher is already robust under no-noise-trained PLDM.} The no-noise PLDM drop is only $2.33$\,pt, and a representative high observation-noise row occurs at \stdmax{}~$= 0.03$ ($81.67\%$). This makes Reacher a low-cliff second-family reference for interpreting noise-training gains.
   \item \textbf{Cube (structured 3D manipulation) remains weakly noise-responsive.} PLDM Cube unperturbed success spans $51.33$--$56.00\%$ and observation-noise 0.08 spans $48.33$--$54.67\%$ across the full grid. This is the same weak noise responsiveness seen on LeWM.
 \end{enumerate}
 
-\paragraph{Method-specific details.} PLDM's representative PushT unperturbed row ($76.67\%$ at \stdmax{}~$= 0.03$) is lower than LeWM's corresponding representative row ($89.67\%$ at \stdmax{}~$= 0.03$). The external baseline is therefore a robustness check: the cliff-and-recovery shape is reproduced, while the exact high-grid location is method-dependent. The LeWM PushT split between unperturbed and noisy representative rows is a LeWM-family signature within this fixed protocol.
+\paragraph{Method-specific details.} PLDM's representative PushT unperturbed row ($76.67\%$ at \stdmax{}~$= 0.03$) is lower than LeWM's corresponding representative row ($89.67\%$ at \stdmax{}~$= 0.03$). This second-family reference is therefore a robustness check: the cliff-and-recovery shape is reproduced, while the exact high-grid location is method-dependent. The LeWM PushT split between unperturbed and noisy representative rows is a LeWM-family signature within this fixed protocol.
 
 
 \paragraph{PLDM full-sweep ACPC basin replication.} We also run the Gaussian-noise basin protocol on all 36 PLDM checkpoints. \Cref{tab:pldm-acpc-basin} reports the compact baseline-vs-representative observation-noise summary; the full 4 tasks $\times$ 9 configurations grid is listed in Appendix~\ref{sec:appendix-artifact-map}.
@@ -1642,7 +1642,7 @@ This audit compares the seed-3072-fixed aggregate ACPC/PCC/CRA/MAF rule against 
 Selector & split & within 5pp & regret mean $\pm$ std & reading \\
 \midrule
 Aggregate ACPC/PCC/CRA/MAF & all & $10/12$ & $2.25 \pm 2.51$ & plateau localization \\
-Fixed $\stdmax{}=0.08$ & all & $10/12$ & $2.14 \pm 2.18$ & strong simple endpoint baseline \\
+Fixed $\stdmax{}=0.08$ & all & $10/12$ & $2.14 \pm 2.18$ & competitive simple endpoint \\
 ACPC only & all & $9/12$ & $3.39 \pm 4.21$ & weaker on dev seed \\
 PCC only & all & $10/12$ & $2.25 \pm 2.51$ & comparable to aggregate \\
 CRA only & all & $10/12$ & $2.19 \pm 2.56$ & comparable to aggregate \\
@@ -1650,7 +1650,7 @@ MAF only & all & $10/12$ & $1.89 \pm 2.80$ & comparable or slightly lower regret
 Random nonzero std & all & -- & $7.02 \pm 4.01$ & exact expected regret over eight rows \\
 \midrule
 Aggregate ACPC/PCC/CRA/MAF & held-out 3073/3074 & $7/8$ & $2.21 \pm 1.83$ & held-out plateau audit \\
-Fixed $\stdmax{}=0.08$ & held-out 3073/3074 & $7/8$ & $2.08 \pm 1.93$ & comparable strong baseline \\
+Fixed $\stdmax{}=0.08$ & held-out 3073/3074 & $7/8$ & $2.08 \pm 1.93$ & comparable endpoint baseline \\
 MAF only & held-out 3073/3074 & $7/8$ & $1.62 \pm 1.66$ & best simple baseline in this audit \\
 Random nonzero std & held-out 3073/3074 & -- & $7.23 \pm 4.37$ & plateau context lower bound check \\
 \bottomrule

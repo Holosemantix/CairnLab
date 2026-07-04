@@ -51,6 +51,25 @@ Use at least these decisions:
 - `reject`: central claims unsupported, misleading, unreproducible, or out of
   scope for the target venue.
 
+## Strong-Accept Continuation Rule
+
+When the user asks for top-conference remediation, do not stop merely because
+the paper reaches `weak_accept_or_borderline`. Continue independent remediation
+rounds until one of these conditions holds:
+
+- the current artifact set reaches `strong_accept_baseline` under a fresh,
+  objective review of the target track;
+- all remaining decision-changing weaknesses require retraining, new
+  large-scale experiments, missing author/private metadata, or user
+  authorization that is outside the current task scope;
+- the user explicitly pauses or narrows the objective.
+
+Each continuation round must still begin from a fresh review score. Never lift
+the score because previous rounds were extensive, difficult, or improved the
+draft. If the paper cannot honestly reach `strong_accept_baseline` without
+retraining or new large-scale evaluation, say so and keep the remaining blockers
+separate from feasible fixed-checkpoint or writing-only work.
+
 ## Round Execution Order
 
 Run every remediation round in this order:

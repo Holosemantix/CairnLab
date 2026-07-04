@@ -123,7 +123,11 @@ quality, contribution framing, claim strength, theory-to-experiment alignment,
 figures/tables/formulas, sampling variance, reference auditing, and independent
 multi-round scoring. Do not inflate scores because earlier rounds improved the
 paper. Do not over-fit the manuscript into a pile of defensive caveats. Every
-round must judge the current artifact on its own evidence.
+round must judge the current artifact on its own evidence. For top-conference
+remediation, continue rounds until the current artifact honestly reaches the
+`strong_accept_baseline`, the user pauses or narrows scope, or the only
+decision-changing blockers require retraining, new large-scale experiments,
+private author metadata, or other user authorization outside the current task.
 
 
 ## v0.3 CairnLab Alignment

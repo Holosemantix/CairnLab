@@ -51,6 +51,16 @@ Use at least these decisions:
 - `reject`: central claims unsupported, misleading, unreproducible, or out of
   scope for the target venue.
 
+## Round Execution Order
+
+Run every remediation round in this order:
+
+1. Review the current artifact set and assign the recommendation, score, and confidence before proposing fixes.
+2. List findings by decision impact, then classify each fix as `no-retraining`, `new evaluation/diagnostic with fixed checkpoints`, `retraining-required`, or `writing-only`.
+3. Execute the feasible `no-retraining`, `new evaluation/diagnostic with fixed checkpoints`, and `writing-only` items that are in scope for the current task.
+4. Leave `retraining-required` items as explicit blockers or future work unless the user authorizes retraining.
+5. Rebuild, rerun consistency checks, and re-review the changed manuscript as a fresh submission before updating the score.
+
 ## Writing And Structure Audit
 
 Review every section, paragraph, sentence, figure, table, formula, and caption.

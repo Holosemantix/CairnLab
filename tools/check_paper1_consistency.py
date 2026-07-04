@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RELEASE_FILES = [
     ROOT / "paper1" / "main.tex",
     ROOT / "tools" / "paper1_figs.py",
+    ROOT / "tools" / "paper1_margin_flip_curve.py",
     ROOT / "tools" / "README_paper1.md",
     ROOT / "paper1" / "references.bib",
     ROOT / "DATA_MANIFEST.md",
@@ -40,6 +41,7 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.json",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
+    ROOT / "assets" / "paper1_data" / "margin_flip_curve_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_local_margin_lewm_three_seed.json",
 ]
@@ -89,6 +91,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.md",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
+    ROOT / "assets" / "paper1_data" / "margin_flip_curve_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.md",
     ROOT / "assets" / "paper1_data" / "semantic_local_margin_lewm_three_seed.json",
@@ -117,6 +120,8 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "not a universal transfer claim",
     "universal cross-perturbation robustness claim",
     "ACPC rollout readout $R_F$",
+    "margin-conditioned action-flip audit",
+    "top clean-margin quartile",
 ]
 
 FORBIDDEN_SNIPPETS = [
@@ -1470,6 +1475,75 @@ def check_semantic_local_margin_json() -> None:
             fail(f"local task-feature high-noise margin unexpectedly low for {key}: {margin}")
 
 
+def check_margin_flip_curve_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "margin_flip_curve_lewm_three_seed.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    meta = data.get("metadata", {})
+    if meta.get("schema_version") != "paper1-margin-flip-curve-0.1":
+        fail(f"margin flip schema mismatch: {meta.get('schema_version')}")
+    if meta.get("seeds") != [3072, 3073, 3074]:
+        fail(f"margin flip seeds mismatch: {meta.get('seeds')}")
+    if meta.get("tasks") != ["TwoRoom", "PushT", "Reacher", "Cube"]:
+        fail(f"margin flip tasks mismatch: {meta.get('tasks')}")
+    if meta.get("std_keys") != ["0.0", "0.08"]:
+        fail(f"margin flip std keys mismatch: {meta.get('std_keys')}")
+    if [round(float(q), 2) for q in meta.get("threshold_quantiles", [])] != [0.0, 0.5, 0.75, 0.9]:
+        fail(f"margin flip threshold quantiles mismatch: {meta.get('threshold_quantiles')}")
+    rows = data.get("rows", [])
+    samples = data.get("sample_rows", [])
+    if len(rows) != 96:
+        fail(f"margin flip row count mismatch: {len(rows)}")
+    if len(samples) != 2400:
+        fail(f"margin flip sample row count mismatch: {len(samples)}")
+    if any(row.get("status") != "ok" for row in rows):
+        fail("margin flip rows contain non-ok status")
+    coverage = {
+        (row["task"], row["std_key"], round(float(row["threshold_quantile"]), 2), int(row["training_seed"]))
+        for row in rows
+    }
+    expected = {
+        (task, std, q, seed)
+        for task in ("TwoRoom", "PushT", "Reacher", "Cube")
+        for std in ("0.0", "0.08")
+        for q in (0.0, 0.5, 0.75, 0.9)
+        for seed in (3072, 3073, 3074)
+    }
+    if coverage != expected:
+        fail("margin flip coverage mismatch")
+    summary = {
+        (row["task"], row["std_key"], round(float(row["threshold_quantile"]), 2)): row
+        for row in data.get("summary_rows", [])
+    }
+    if set(summary) != {
+        (task, std, q)
+        for task in ("TwoRoom", "PushT", "Reacher", "Cube")
+        for std in ("0.0", "0.08")
+        for q in (0.0, 0.5, 0.75, 0.9)
+    }:
+        fail("margin flip summary coverage mismatch")
+    expected_q75 = {
+        ("TwoRoom", "0.0"): 0.67,
+        ("TwoRoom", "0.08"): 0.00,
+        ("PushT", "0.0"): 0.92,
+        ("PushT", "0.08"): 0.00,
+        ("Reacher", "0.0"): 0.79,
+        ("Reacher", "0.08"): 0.00,
+        ("Cube", "0.0"): 0.84,
+        ("Cube", "0.08"): 0.00,
+    }
+    for key, want in expected_q75.items():
+        got = round2(float(summary[(key[0], key[1], 0.75)]["flip_rate_mean"]))
+        if got != want:
+            fail(f"margin flip q75 mean mismatch for {key}: got {got}, want {want}")
+    for task in ("TwoRoom", "PushT", "Reacher", "Cube"):
+        base_all = float(summary[(task, "0.0", 0.0)]["flip_rate_mean"])
+        robust_all = float(summary[(task, "0.08", 0.0)]["flip_rate_mean"])
+        if base_all < 0.75:
+            fail(f"margin flip base all-sample flip unexpectedly low for {task}: {base_all}")
+        if robust_all > 0.04:
+            fail(f"margin flip robust all-sample flip unexpectedly high for {task}: {robust_all}")
+
+
 def check_target_view_closed_loop_summary_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "target_view_closed_loop_summary.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -1598,6 +1672,7 @@ def main() -> int:
         ("training-seed Gaussian lockbox json", check_training_seed_gaussian_lockbox_json),
         ("three-seed diagnostic validation json", check_three_seed_diagnostic_validation_json),
         ("selector-baseline audit json", check_selector_baseline_audit_json),
+        ("margin-conditioned flip json", check_margin_flip_curve_json),
         ("task-state proxy margin pass-rate json", check_semantic_margin_passrate_json),
         ("local task-feature margin json", check_semantic_local_margin_json),
         ("prospective validation summary json", check_prospective_validation_summary_json),

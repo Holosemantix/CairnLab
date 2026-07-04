@@ -651,6 +651,27 @@ Cube & $47.00 \to 67.33$ & $1.979 \to 0.058$ & $63.7 \to 1.3$ & $0.274 \to 0.999
 
 The table strengthens the interpretation of $R_F$ as a control-facing localization signal: on all four LeWM tasks, smaller paired rollout disagreement is accompanied by lower candidate-cost drift, higher candidate-ranking agreement, and fewer high-margin action flips. This is the empirical counterpart of \Cref{thm:sampled-pool-acpc}: ACPC-$H$ and PCC estimate the drift/tail side of the bound, CRA checks whether sampled candidate rankings remain aligned, and MAF estimates the high-margin flip failure term after margin filtering. The fixed-rule validation in \Cref{tab:three-seed-diagnostic-split,tab:three-seed-diagnostic-validation} uses the same theory-matched readout family for no-retraining plateau localization, while closed-loop evaluation remains the final authority.
 
+Because the sampled-pool link depends on the clean top-1/top-2 candidate margin, we also run a sample-level margin-conditioned action-flip audit on the same fixed checkpoints. For each sampled state we record the clean candidate margin and whether the clean and noisy branches choose different top-1 candidates from the same 65-action candidate set. \Cref{tab:margin-flip-main} reports flip rates after filtering to the top clean-margin quartile within each checkpoint; the all-sample column is shown as context. The recovered endpoint removes high-margin flips in all 12 task--training-seed blocks at this threshold. This is a finite fixed-pool calibration of the clean-margin term, not a closed-loop CEM guarantee.
+
+
+\begin{table}[H]
+\centering
+\caption{Sample-level margin-conditioned action-flip audit over training seeds 3072/3073/3074. The q75 columns filter to the top clean-margin quartile within each checkpoint (25 samples per task--seed--endpoint); all-sample columns use all 100 samples. Lower flip rate is better.}
+\label{tab:margin-flip-main}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrr}
+\toprule
+Task & q75 flip base & q75 flip std0.08 & all flip base & all flip std0.08 \\
+\midrule
+TwoRoom & $0.67 \pm 0.07$ & $0.00 \pm 0.00$ & $0.80 \pm 0.03$ & $0.03 \pm 0.00$ \\
+PushT & $0.92 \pm 0.06$ & $0.00 \pm 0.00$ & $0.92 \pm 0.03$ & $0.03 \pm 0.02$ \\
+Reacher & $0.79 \pm 0.02$ & $0.00 \pm 0.00$ & $0.88 \pm 0.03$ & $0.01 \pm 0.00$ \\
+Cube & $0.84 \pm 0.09$ & $0.00 \pm 0.00$ & $0.92 \pm 0.03$ & $0.00 \pm 0.01$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Selective consistency and failure checks}\label{sec:exp-diag}
 
 Low ACPC would be uninformative if it came from collapsed representations. Because 8-step drift already appears in the ACPC-basin section as rollout-space localization, \Cref{tab:diag-base-vs-repr} keeps only the compact representation checks: effective rank, transition-resolution ratio, and inverse-dynamics probe $R^2$. \Cref{tab:semantic-margin-passrate} then adds the local task-feature proxy margin readout.

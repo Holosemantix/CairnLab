@@ -1,6 +1,6 @@
 ---
 name: autoresearch-landscape-survey
-description: Use this skill to maintain a multi-facet survey map of AutoResearch, AI scientist, paper-to-code, reproducibility, evidence/provenance, and multi-agent scientific discovery projects. It helps check whether a new project has been surveyed, classify its non-orthogonal attributes, prepare an AI analyst prompt for deep reading of its repository, and render/update overview reports.
+description: Use this skill to maintain a multi-facet survey map of AutoResearch, AI scientist, paper-to-code, reproducibility, evidence/provenance, and multi-agent scientific discovery projects, and to apply reusable research-paper review/remediation protocols without turning reviewer prose into claim authority.
 license: Apache-2.0
 allowed-tools: Read Write Edit Bash WebSearch WebFetch
 compatibility: Requires Python 3.10+ and PyYAML. Web/GitHub access is recommended for new-project deep dives.
@@ -21,6 +21,13 @@ Use this skill when the task is to survey, compare, classify, or update knowledg
 - multi-agent scientific discovery systems such as Robin;
 - evidence, provenance, claim audit, and review-integrity systems;
 - execution infrastructure such as MLflow, DVC, W&B, ReproZip, RO-Crate, Snakemake, and Nextflow.
+
+Also use this skill when maintaining CairnLab-facing research-paper review,
+writing, citation-audit, or remediation workflows. In that mode, read
+`references/paper-review-remediation-protocol.md` before judging or editing a
+paper. Reviewer notes, LLM critiques, and manuscript scores remain
+non-authoritative evidence; they do not decide CairnLab claim lifecycle
+transitions.
 
 ## Core Principle
 
@@ -44,6 +51,7 @@ Describe the project by **facets**. If a new project introduces a new feature no
 | `reports/project_overview.md` | Continuously updated overall project overview. |
 | `reports/landscape_report.md` | Longer generated landscape report. |
 | `references/project-map.md` | Human-readable project map and maintenance notes. |
+| `references/paper-review-remediation-protocol.md` | Top-conference paper writing, review, citation-audit, and multi-round remediation protocol. |
 | `references/deep-dives/` | Detailed analysis for highly relevant projects. |
 | `scripts/check_new_project.py` | Check if a new project has already been surveyed and find closest projects. |
 | `scripts/classify_project_from_yaml.py` | Infer likely facets from a project intake YAML. |
@@ -105,6 +113,17 @@ Create or update a deep dive when a project is highly relevant to CairnLab Resea
 - provenance graph, attestation protocol, or run ledger.
 
 For low-relevance projects, use a brief card but still record facets and sources.
+
+## Paper Review and Remediation Policy
+
+When the task is to improve or review a research paper, run the manuscript as a
+fresh submission through `references/paper-review-remediation-protocol.md`. The
+protocol is intentionally broader than numerical consistency: it covers writing
+quality, contribution framing, claim strength, theory-to-experiment alignment,
+figures/tables/formulas, sampling variance, reference auditing, and independent
+multi-round scoring. Do not inflate scores because earlier rounds improved the
+paper. Do not over-fit the manuscript into a pile of defensive caveats. Every
+round must judge the current artifact on its own evidence.
 
 
 ## v0.3 CairnLab Alignment

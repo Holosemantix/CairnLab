@@ -127,10 +127,45 @@ separate from feasible fixed-checkpoint or writing-only work.
 Run every remediation round in this order:
 
 1. Review the current artifact set and assign the recommendation, score, and confidence before proposing fixes.
-2. List findings by decision impact, then classify each fix as `no-retraining`, `new evaluation/diagnostic with fixed checkpoints`, `retraining-required`, or `writing-only`.
-3. Execute the feasible `no-retraining`, `new evaluation/diagnostic with fixed checkpoints`, and `writing-only` items that are in scope for the current task.
+2. List findings by decision impact, then classify each fix as `no-retraining`, `new evaluation/diagnostic with fixed checkpoints`, `retraining-required`, or `writing-only`; in the same pass, list deletion candidates for content that should be removed, merged, demoted, or moved to appendix.
+3. Execute the feasible `no-retraining`, `new evaluation/diagnostic with fixed checkpoints`, `writing-only`, and subtractive cleanup items that are in scope for the current task.
 4. Leave `retraining-required` items as explicit blockers or future work unless the user authorizes retraining.
 5. Rebuild, rerun consistency checks, and re-review the changed manuscript as a fresh submission before updating the score.
+
+## Subtractive Remediation Gate
+
+Every round must ask what should be removed, not only what can be added.
+Before adding new diagnostics, tables, caveats, appendix ledgers, or reviewer
+patches, produce a subtractive ledger with deletion candidates.
+
+For each manuscript section, figure, table, formula, appendix block, diagnostic
+family, artifact ledger, and repeated caveat, decide whether it should be:
+
+- kept in main text because it answers a necessary reader question;
+- merged with a nearby result or limitation;
+- demoted from a claim to a scope check, sanity check, or reproduction note;
+- moved to appendix or artifact documentation;
+- deleted because it creates main-text burden, acronym load, defensive patching,
+  fake novelty, or no decision-changing evidence.
+
+Apply these checks before expanding the paper:
+
+- If a paragraph only reassures reviewers without advancing the thesis, remove
+  or merge it.
+- If a diagnostic name, acronym, table, or ledger does not answer a necessary
+  question, delete it from the main narrative or move it to reproducibility
+  material.
+- If several caveats say the same thing, keep the strongest precise one and
+  remove the rest.
+- If a result is weak, mixed, or redundant with a stronger table, demote it
+  rather than adding more explanation around it.
+- If the paper's contribution appears to depend on stacking conditions,
+  terminology, or artifact volume, simplify the claim instead of adding more
+  qualifiers.
+
+The review output must include a `remove/merge/demote` group alongside the
+`no-retraining`, `new evaluation/diagnostic with fixed checkpoints`,
+`retraining-required`, and `writing-only` groups. A remediation round is incomplete if it only lists additions.
 
 ## Writing And Structure Audit
 
@@ -394,7 +429,8 @@ Each round should produce:
 - strengths that matter for acceptance;
 - weaknesses ordered by decision impact;
 - concrete remediation items grouped as no-retraining, new evaluation/diagnostic
-  with fixed checkpoints, retraining-required, and writing-only;
+  with fixed checkpoints, retraining-required, writing-only, and
+  remove/merge/demote;
 - artifact or source references for every numeric concern;
 - current over-claim and under-claim risks;
 - updated acceptance estimate after verification.

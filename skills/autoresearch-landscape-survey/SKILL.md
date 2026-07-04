@@ -4,7 +4,7 @@ description: Use this skill to maintain a multi-facet survey map of AutoResearch
 license: Apache-2.0
 allowed-tools: Read Write Edit Bash WebSearch WebFetch
 metadata:
-  version: "0.2.3"
+  version: "0.2.4"
   skill-author: Holosemantix research mapping workflow
 ---
 
@@ -135,6 +135,8 @@ run the protocol's Weak-Reject Diagnostic-Paper Calibration Gate before raising
 the score: method novelty, matched-stressor scope, selector-baseline parity,
 proxy semantics, external baselines, appendix burden, and fixed-checkpoint
 ceilings must be judged as current evidence, not as effort already spent. For
+every remediation round, also run the protocol's Subtractive Remediation Gate:
+identify what should be deleted, merged, demoted, or moved to appendix before adding more caveats, diagnostics, tables, or reviewer patches. For
 top-conference remediation, continue rounds until the current artifact honestly
 reaches the `strong_accept_baseline`, the user pauses or narrows scope, or the
 only decision-changing blockers require retraining, new large-scale

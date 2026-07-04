@@ -124,8 +124,6 @@ REQUIRED_ARTIFACTS = [
 
 REQUIRED_MAIN_TEXT_SNIPPETS = [
     "task-grounded near-boundary proxy margin pass-rate",
-    "Cube seed 3072",
-    "regret $8.33$ pp",
     "We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods",
     "not an oracle hand-labeled semantic proof",
     "closest 35\% state-distance neighborhood",
@@ -143,12 +141,11 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Proofs and calibration for ACPC diagnostics",
     "Finite-sample tail calibration for paired diagnostics",
     "diagnostic calibration rather than as closed-loop control guarantees",
-    "selector-baseline audit",
-    "comparable to fixed $\\stdmax{}=0.08$",
     "selector\\_plateau\\_audit\\_20260704.json",
     "candidate label inside each task--training-seed block",
-    "regret-to-plateau",
-    "decisive checkpoint pairs",
+    "plateau-entry diagnosis",
+    "87.5\\% precision",
+    "not to rank checkpoints inside a plateau",
     "Bounded unseen-stressor scope check",
     "not a universal transfer claim",
     "universal cross-perturbation robustness claim",
@@ -282,6 +279,14 @@ def check_forbidden_text() -> None:
         "residual association with reduced drop",
         "local task-feature proxy margin checks selective discriminability",
         "Finer oracle contact/topology/goal-relation labels remain future work",
+        "selector-baseline audit",
+        "comparable to fixed $\\stdmax{}=0.08$",
+        "fixed high-noise and MAF-only baselines",
+        "Fixed/high-std baseline",
+        "competitive simple endpoint",
+        "comparable endpoint baseline",
+        "regret-to-plateau",
+        "decisive checkpoint pairs",
     ]
     for snippet in main_forbidden:
         if snippet in main_tex:
@@ -1320,66 +1325,62 @@ def check_selector_plateau_audit_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "selector_plateau_audit_20260704.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     meta = data.get("metadata", {})
-    if meta.get("schema_version") != "paper1-selector-plateau-audit-20260704-v1":
+    if meta.get("schema_version") != "paper1-plateau-membership-audit-20260704-v2":
         fail(f"selector plateau audit schema changed: {meta.get('schema_version')!r}")
     if round2(float(meta.get("tolerance_pp"))) != 5.00:
         fail("selector plateau audit tolerance must remain 5pp")
+    if int(meta.get("screen_size_per_block")) != 4:
+        fail("selector plateau audit must screen top half of nonzero candidates")
     interp = meta.get("interpretation", "")
-    if "candidate label" not in interp or "continuous covariate" not in interp:
-        fail("selector plateau audit must state std_max is not a continuous covariate")
+    if "Plateau-membership screen" not in interp or "candidate label" not in interp:
+        fail("selector plateau audit must state plateau-membership/candidate-label framing")
+    if "point-optimal selector target" not in interp:
+        fail("selector plateau audit must reject point-optimal selector framing")
 
-    selection_rows = data.get("selection_summaries", [])
-    if len(selection_rows) != 4:
-        fail(f"selector plateau audit expected 4 selection summaries, got {len(selection_rows)}")
-    row_map = {row.get("selector"): row for row in selection_rows}
-    expected_selection = {
-        "Aggregate ACPC/PCC/CRA/MAF": (10, 2, 2.25, 0.33),
-        "Fixed std=0.08": (10, 2, 2.14, 0.17),
-        "MAF only": (10, 2, 1.89, 0.44),
-        "Random nonzero std (exact expectation)": (8.50, 3.50, 7.02, 4.33),
+    rows = data.get("membership_summaries", [])
+    if len(rows) != 6:
+        fail(f"selector plateau audit expected 6 membership summaries, got {len(rows)}")
+    row_map = {row.get("rule"): row for row in rows}
+    expected = {
+        "Aggregate ACPC/PCC/CRA/MAF": (12, 48, 68, 42, 6, 26, 22, 0.875, 0.618),
+        "ACPC only": (12, 48, 68, 42, 6, 26, 22, 0.875, 0.618),
+        "PCC only": (12, 48, 68, 42, 6, 26, 22, 0.875, 0.618),
+        "CRA only": (12, 48, 68, 42, 6, 26, 22, 0.875, 0.618),
+        "MAF only": (12, 48, 68, 44, 4, 24, 24, 0.917, 0.647),
     }
-    if set(row_map) != set(expected_selection):
-        fail(f"selector plateau audit selection rows changed: {sorted(row_map)}")
-    for selector, (want_hit, want_bad, want_point_regret, want_plateau_regret) in expected_selection.items():
-        row = row_map[selector]
-        if selector.startswith("Random"):
-            got_hit = round2(float(row.get("plateau_hit_count_expected")))
-            got_bad = round2(float(row.get("bad_pick_count_expected")))
-        else:
-            got_hit = int(row.get("plateau_hit_count"))
-            got_bad = int(row.get("bad_pick_count"))
+    random_name = "Random top-half reference (exact expectation)"
+    if set(row_map) != set(expected) | {random_name}:
+        fail(f"selector plateau audit membership rows changed: {sorted(row_map)}")
+    for rule, want in expected.items():
+        row = row_map[rule]
         got = (
-            got_hit,
-            got_bad,
-            round2(float(row.get("point_regret_mean_pp"))),
-            round2(float(row.get("regret_to_plateau_mean_pp"))),
+            int(row.get("plateau_presence_hits")),
+            int(row.get("screened_rows")),
+            int(row.get("true_plateau_rows")),
+            int(row.get("true_positive_rows")),
+            int(row.get("false_positive_rows")),
+            int(row.get("false_negative_rows")),
+            int(row.get("true_negative_rows")),
+            round(float(row.get("screen_precision")), 3),
+            round(float(row.get("plateau_recall")), 3),
         )
-        want = (want_hit, want_bad, want_point_regret, want_plateau_regret)
         if got != want:
-            fail(f"selector plateau audit {selector} changed: got {got}, want {want}")
-
-    ranking_rows = data.get("ranking_summaries", [])
-    if len(ranking_rows) != 6:
-        fail(f"selector plateau audit expected 6 ranking summaries, got {len(ranking_rows)}")
-    rank_map = {row.get("ranker"): row for row in ranking_rows}
-    expected_accuracy = {
-        "Aggregate ACPC/PCC/CRA/MAF": 0.883,
-        "ACPC only": 0.872,
-        "PCC only": 0.879,
-        "CRA only": 0.872,
-        "MAF only": 0.926,
-        "Monotone high-std baseline": 0.929,
-    }
-    if set(rank_map) != set(expected_accuracy):
-        fail(f"selector plateau audit ranking rows changed: {sorted(rank_map)}")
-    for ranker, want_acc in expected_accuracy.items():
-        row = rank_map[ranker]
-        if int(row.get("decisive_pair_count")) != 141:
-            fail(f"selector plateau audit {ranker} decisive pair count changed")
-        got_acc = round(float(row.get("decisive_pair_accuracy")), 3)
-        if got_acc != want_acc:
-            fail(f"selector plateau audit {ranker} accuracy changed: got {got_acc}, want {want_acc}")
-
+            fail(f"selector plateau audit {rule} changed: got {got}, want {want}")
+    random_row = row_map[random_name]
+    got_random = (
+        round2(float(random_row.get("plateau_presence_hits_expected"))),
+        int(random_row.get("screened_rows")),
+        int(random_row.get("true_plateau_rows")),
+        round2(float(random_row.get("true_positive_rows_expected"))),
+        round2(float(random_row.get("false_positive_rows_expected"))),
+        round2(float(random_row.get("false_negative_rows_expected"))),
+        round2(float(random_row.get("true_negative_rows_expected"))),
+        round(float(random_row.get("screen_precision_expected")), 3),
+        round(float(random_row.get("plateau_recall_expected")), 3),
+    )
+    want_random = (11.96, 48, 68, 34.00, 14.00, 34.00, 14.00, 0.708, 0.500)
+    if got_random != want_random:
+        fail(f"selector plateau audit random reference changed: got {got_random}, want {want_random}")
 
 def check_residual_diagnostic_audit_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.json"

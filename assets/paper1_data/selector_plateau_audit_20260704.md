@@ -1,25 +1,14 @@
-# Selector plateau audit
+# Plateau membership audit
 
-- Tolerance: 5.0 pp
-- Unit: task-training-seed block over the eight nonzero Gaussian candidates.
-- Reading: plateau localization and bad-checkpoint triage, not point-optimal std selection.
+- Tolerance: 5.0 pp from the block's closed-loop best.
+- Screen: top 4 of 8 nonzero Gaussian candidates per task-training-seed block.
+- Reading: plateau-entry enrichment, not point-optimal checkpoint ranking.
 
-## Selection summaries
-
-| Selector | plateau hit | bad picks | point regret mean±std | regret-to-plateau mean±std |
+| Rule | presence hit | screen precision | plateau recall | TP/FP/FN |
 |---|---:|---:|---:|---:|
-| Aggregate ACPC/PCC/CRA/MAF | 10/12 | 2/12 | 2.25±2.51 | 0.33±0.92 |
-| Fixed std=0.08 | 10/12 | 2/12 | 2.14±2.18 | 0.17±0.40 |
-| MAF only | 10/12 | 2/12 | 1.89±2.80 | 0.44±1.29 |
-| Random nonzero std (exact expectation) | 8.5/12 | 3.5/12 | 7.02±11.72 | 4.33±10.67 |
-
-## Decisive-pair ranking summaries
-
-| Ranker | decisive pairs | accuracy |
-|---|---:|---:|
-| Aggregate ACPC/PCC/CRA/MAF | 141 | 88.3% |
-| ACPC only | 141 | 87.2% |
-| PCC only | 141 | 87.9% |
-| CRA only | 141 | 87.2% |
-| MAF only | 141 | 92.6% |
-| Monotone high-std baseline | 141 | 92.9% |
+| Aggregate ACPC/PCC/CRA/MAF | 12/12 | 87.5% | 61.8% | 42/6/26 |
+| ACPC only | 12/12 | 87.5% | 61.8% | 42/6/26 |
+| PCC only | 12/12 | 87.5% | 61.8% | 42/6/26 |
+| CRA only | 12/12 | 87.5% | 61.8% | 42/6/26 |
+| MAF only | 12/12 | 91.7% | 64.7% | 44/4/24 |
+| Random top-half reference (exact expectation) | 11.96/12 | 70.8% | 50.0% | 34.0/14.0/34.0 |

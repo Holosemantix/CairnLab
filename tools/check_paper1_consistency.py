@@ -43,9 +43,17 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.md",
+    ROOT / "assets" / "paper1_data" / "selector_incremental_audit_20260704.json",
+    ROOT / "assets" / "paper1_data" / "selector_incremental_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "margin_flip_curve_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_local_margin_lewm_three_seed.json",
+    ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_three_seed.json",
+    ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_three_seed.md",
+    ROOT / "assets" / "paper1_data" / "cem_trace_audit_20260704.json",
+    ROOT / "assets" / "paper1_data" / "cem_trace_audit_20260704.md",
+    ROOT / "tools" / "paper1_selector_incremental_audit.py",
+    ROOT / "tools" / "paper1_cem_trace_audit.py",
 ]
 
 REQUIRED_ARTIFACTS = [
@@ -95,16 +103,22 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.md",
+    ROOT / "assets" / "paper1_data" / "selector_incremental_audit_20260704.json",
+    ROOT / "assets" / "paper1_data" / "selector_incremental_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "margin_flip_curve_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.md",
     ROOT / "assets" / "paper1_data" / "semantic_local_margin_lewm_three_seed.json",
+    ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_three_seed.json",
+    ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_three_seed.md",
+    ROOT / "assets" / "paper1_data" / "cem_trace_audit_20260704.json",
+    ROOT / "assets" / "paper1_data" / "cem_trace_audit_20260704.md",
     ROOT / "DATA_MANIFEST.md",
 ]
 
 
 REQUIRED_MAIN_TEXT_SNIPPETS = [
-    "local task-feature proxy margin pass-rate",
+    "task-grounded near-boundary proxy margin pass-rate",
     "Cube seed 3072",
     "regret $8.33$ pp",
     "We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods",
@@ -116,15 +130,18 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "not a convergence theorem for adaptive multi-round CEM",
     "descriptive over three training seeds",
     "without estimating the full adaptive CEM distribution",
-    "near-boundary pose, contact, topology, or cost-to-go pairs",
+    "reduced-budget offline CEMSolver trace",
+    "not a complete CEM stability claim",
+    "final plan L2 per dimension",
+    "hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels",
     "Hoeffding gives",
     "Proofs and calibration for ACPC diagnostics",
     "Finite-sample tail calibration for paired diagnostics",
     "diagnostic calibration rather than as closed-loop control guarantees",
     "selector-baseline audit",
     "comparable to fixed $\\stdmax{}=0.08$",
-    "residual diagnostic audit",
-    "task--training-seed block-bootstrap",
+    "incremental explanatory audit",
+    "block-permutation $p=0.07$",
     "drop-recovery signal beyond training-noise level",
     "Bounded unseen-stressor scope check",
     "not a universal transfer claim",
@@ -250,6 +267,15 @@ def check_forbidden_text() -> None:
             if snippet in text:
                 hits.append(f"{path.relative_to(ROOT)} contains forbidden snippet: {snippet!r}")
     main_tex = (ROOT / "paper1" / "main.tex").read_text(encoding="utf-8")
+    main_forbidden = [
+        "local proxy margin pass-rates rise from $0.53$--$0.81$",
+        "A residual diagnostic audit in Appendix",
+        "local task-feature proxy margin checks selective discriminability",
+        "Finer oracle contact/topology/goal-relation labels remain future work",
+    ]
+    for snippet in main_forbidden:
+        if snippet in main_tex:
+            hits.append(f"paper1/main.tex contains retired main-text snippet: {snippet!r}")
     for snippet in REQUIRED_MAIN_TEXT_SNIPPETS:
         if snippet not in main_tex:
             hits.append(f"paper1/main.tex missing required scope-boundary snippet: {snippet!r}")
@@ -790,86 +816,19 @@ def check_acpc_basin_json() -> None:
         fail("ACPC basin task/config coverage mismatch")
 
 
-def check_acpc_basin_full_grid_table() -> None:
+def check_acpc_basin_artifact_pointer() -> None:
     main_tex = ROOT / "paper1" / "main.tex"
     if not main_tex.exists():
         return
     tex = main_tex.read_text(encoding="utf-8")
-    marker = r"\label{tab:acpc-basin-full-grid}"
-    start = tex.find(marker)
-    if start < 0:
-        fail("main.tex is missing tab:acpc-basin-full-grid")
-    end = tex.find(r"\end{tabular}", start)
-    if end < 0:
-        fail("tab:acpc-basin-full-grid does not close its tabular")
-    table = tex[start:end]
-
-    row_re = re.compile(
-        r"^(TwoRoom|PushT|Reacher|Cube)\s*&\s*"
-        r"([0-9.]+)\s*&\s*"
-        r"([-0-9.]+)\s*&\s*"
-        r"([-0-9.]+)\s*&\s*"
-        r"([-0-9.]+)\s*&\s*"
-        r"([-0-9.]+)\s*&\s*"
-        r"([-0-9.]+)\s*&\s*"
-        r"([-0-9.]+)\s*&\s*"
-        r"([^\\\\]*)\\\\"
-    )
-    parsed: dict[tuple[str, str], dict[str, object]] = {}
-    for raw_line in table.splitlines():
-        line = raw_line.strip()
-        match = row_re.match(line)
-        if not match:
-            continue
-        task, std_display, unpert, obs, drop, radius_e, radius_f, ratio, note = match.groups()
-        std_key = "0.0" if std_display == "0" else std_display
-        key = (task, std_key)
-        if key in parsed:
-            fail(f"duplicate LaTeX full-grid row: {task}/{std_key}")
-        parsed[key] = {
-            "unpert": float(unpert),
-            "obs": float(obs),
-            "drop": float(drop),
-            "radius_e": float(radius_e),
-            "radius_f": float(radius_f),
-            "ratio": float(ratio),
-            "note": note.strip(),
-        }
-
-    expected_keys = {(task, std) for task in EXPECTED_TASKS for std in EXPECTED_CONFIGS}
-    if set(parsed) != expected_keys:
-        fail(
-            "LaTeX ACPC full-grid coverage mismatch: "
-            f"missing={sorted(expected_keys - set(parsed))}, extra={sorted(set(parsed) - expected_keys)}"
-        )
-
-    basin = json.loads((ROOT / "assets" / "paper1_data" / "acpc_basin_diagnostics.json").read_text(encoding="utf-8"))
-    evals = json.loads((ROOT / "assets" / "paper1_data" / "canonical_evals_20260517.json").read_text(encoding="utf-8"))
-    rows = {(row["task"], row["std_key"]): row for row in basin["rows"]}
-    obs_best = {
-        task: max(EXPECTED_CONFIGS, key=lambda std: evals[task][std]["metrics"]["pixels_std0.08"]["mean"])
-        for task in EXPECTED_TASKS
-    }
-
-    def check_display(label: str, got: float, want: float, digits: int) -> None:
-        rounded = round(float(want), digits)
-        if got != rounded:
-            fail(f"{label} mismatch: table has {got}, artifact rounds to {rounded}")
-
-    for key, shown in parsed.items():
-        task, std_key = key
-        row = rows[key]
-        eval_cell = evals[task][std_key]["metrics"]
-        check_display(f"{task}/{std_key}/unpert", shown["unpert"], eval_cell["clean"]["mean"], 2)
-        check_display(f"{task}/{std_key}/obs0.08", shown["obs"], eval_cell["pixels_std0.08"]["mean"], 2)
-        check_display(f"{task}/{std_key}/drop", shown["drop"], row["corruption_drop"], 2)
-        check_display(f"{task}/{std_key}/R_E", shown["radius_e"], row["encoder_view_pair_l2_norm_by_nn"], 3)
-        check_display(f"{task}/{std_key}/R_F", shown["radius_f"], row["pred_view_pair_l2_norm_by_transition"], 3)
-        check_display(f"{task}/{std_key}/R_F/R_E", shown["ratio"], row["basin_contraction_pair_norm"], 3)
-
-        expected_note = "base" if std_key == "0.0" else ("obs0.08 ref" if std_key == obs_best[task] else "")
-        if shown["note"] != expected_note:
-            fail(f"{task}/{std_key}/note mismatch: table has {shown['note']!r}, want {expected_note!r}")
+    required = [
+        "Full LeWM ACPC-basin grid",
+        r"assets/paper1\_data/acpc\_basin\_diagnostics.json",
+        r"\Cref{tab:acpc-basin}",
+    ]
+    missing = [snippet for snippet in required if snippet not in tex]
+    if missing:
+        fail("main.tex is missing ACPC-basin artifact pointer snippets: " + ", ".join(missing))
 
 
 def check_pldm_acpc_basin_json() -> None:
@@ -1389,6 +1348,149 @@ def check_residual_diagnostic_audit_json() -> None:
         if got != want:
             fail(f"residual diagnostic audit {key} changed: got {got}, want {want}")
 
+
+def check_selector_incremental_audit_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "selector_incremental_audit_20260704.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    meta = data.get("metadata", {})
+    if meta.get("schema_version") != "paper1-selector-incremental-audit-0.1":
+        fail(f"selector incremental audit schema changed: {meta.get('schema_version')!r}")
+    controls = set(meta.get("controls", []))
+    required_controls = {"std_max", "std_max^2", "task fixed effects", "training-seed fixed effects"}
+    if not required_controls.issubset(controls):
+        fail(f"selector incremental audit controls changed: {controls}")
+    rows = data.get("compact_rows", [])
+    if len(rows) != 6:
+        fail(f"selector incremental audit expected 6 compact rows, got {len(rows)}")
+    row_map = {row.get("metric"): row for row in rows}
+    expected = {
+        "Aggregate ACPC/PCC/CRA/MAF": (0.16, 0.03, 0.01, 0.07, 0.11),
+        "ACPC-H/trans.": (0.12, 0.01, 0.01, 0.16, -0.08),
+        "PCC": (0.13, 0.02, 0.01, 0.12, -0.04),
+        "CRA": (0.23, 0.05, 0.03, 0.005, 0.10),
+        "MAF": (0.15, 0.02, 0.01, 0.12, 0.15),
+        "Elite overlap": (0.13, 0.02, 0.01, 0.18, -0.01),
+    }
+    if set(row_map) != set(expected):
+        fail(f"selector incremental audit metrics changed: {sorted(row_map)}")
+    for metric, want in expected.items():
+        row = row_map[metric]
+        got = (
+            round2(float(row["reduced_drop_partial_r"])),
+            round2(float(row["reduced_drop_partial_r2"])),
+            round2(float(row["reduced_drop_incremental_r2"])),
+            round(float(row["reduced_drop_block_permutation_p"]), 3) if metric == "CRA" else round2(float(row["reduced_drop_block_permutation_p"])),
+            round2(float(row["obs008_success_partial_r"])),
+        )
+        want_tuple = (want[0], want[1], want[2], want[3], want[4])
+        if got != want_tuple:
+            fail(f"selector incremental audit {metric} changed: got {got}, want {want_tuple}")
+    metric_rows = data.get("metric_rows", [])
+    if len(metric_rows) != 12:
+        fail(f"selector incremental audit expected 12 full metric rows, got {len(metric_rows)}")
+    if any(int(row.get("n", 0)) != 96 for row in metric_rows):
+        fail("selector incremental audit full rows must use 96 nonzero checkpoint rows")
+
+
+def check_semantic_task_grounded_margin_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_three_seed.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    meta = data.get("metadata", {})
+    if meta.get("pair_rule") != "task_grounded_near_boundary":
+        fail("task-grounded semantic margin artifact must use task_grounded_near_boundary")
+    if round2(float(meta.get("local_quantile"))) != 0.35:
+        fail("task-grounded semantic margin local quantile changed")
+    rows = data.get("rows", [])
+    if len(rows) != 24 or any(row.get("status") != "ok" for row in rows):
+        fail("task-grounded semantic margin artifact must contain 24 ok rows")
+    coverage = data.get("coverage", {})
+    expected_coverage = {
+        f"{task}:{std}": [3072, 3073, 3074]
+        for task in ("TwoRoom", "PushT", "Reacher", "Cube")
+        for std in ("0.0", "0.08")
+    }
+    if coverage != expected_coverage:
+        fail(f"task-grounded semantic margin coverage mismatch: {coverage}")
+    expected_pair_counts = {"TwoRoom": 61, "PushT": 98, "Reacher": 100, "Cube": 100}
+    for row in rows:
+        task = row.get("task")
+        if int(row.get("semantic_pair_count")) != expected_pair_counts[task]:
+            fail(f"task-grounded semantic pair count changed for {task}: {row.get('semantic_pair_count')}")
+        if "task-grounded" not in row.get("semantic_factor", ""):
+            fail(f"task-grounded semantic factor missing for {task}")
+    summary = {(row["task"], row["std_key"]): row for row in data.get("summary_rows", [])}
+    expected_pass = {
+        ("TwoRoom", "0.0"): 0.34,
+        ("TwoRoom", "0.08"): 0.99,
+        ("PushT", "0.0"): 0.44,
+        ("PushT", "0.08"): 1.00,
+        ("Reacher", "0.0"): 0.73,
+        ("Reacher", "0.08"): 1.00,
+        ("Cube", "0.0"): 0.45,
+        ("Cube", "0.08"): 1.00,
+    }
+    if set(summary) != set(expected_pass):
+        fail(f"task-grounded semantic summary rows mismatch: {sorted(summary)}")
+    for key, want in expected_pass.items():
+        got = round2(float(summary[key]["semantic_margin_pass_rate_mean"]))
+        if got != want:
+            fail(f"task-grounded semantic pass-rate mismatch for {key}: got {got}, want {want}")
+    if round2(float(summary[("TwoRoom", "0.08")]["semantic_margin_median_mean"])) != 15.27:
+        fail("task-grounded TwoRoom high-noise margin changed")
+    if round2(float(summary[("PushT", "0.0")]["semantic_margin_median_mean"])) != -0.58:
+        fail("task-grounded PushT base margin changed")
+
+
+def check_cem_trace_audit_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "cem_trace_audit_20260704.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    meta = data.get("metadata", {})
+    if meta.get("schema_version") != "paper1-cem-trace-audit-0.1":
+        fail(f"CEM trace audit schema changed: {meta.get('schema_version')!r}")
+    expected_meta = {"n_sequences": 4, "plan_horizon": 5, "action_block": 5, "cem_num_samples": 64, "cem_n_steps": 8, "cem_topk": 8}
+    for key, want in expected_meta.items():
+        if int(meta.get(key, -1)) != want:
+            fail(f"CEM trace audit metadata {key} changed: {meta.get(key)} != {want}")
+    rows = data.get("rows", [])
+    if len(rows) != 24 or any(row.get("status") != "ok" for row in rows):
+        fail("CEM trace audit must contain 24 ok rows")
+    got = {(row.get("task"), int(row.get("training_seed")), row.get("std_key")) for row in rows}
+    expected = {
+        (task, seed, std)
+        for task in ("TwoRoom", "PushT", "Reacher", "Cube")
+        for seed in (3072, 3073, 3074)
+        for std in ("0.0", "0.08")
+    }
+    if got != expected:
+        fail("CEM trace audit row coverage changed")
+    summary = {(row["task"], row["std_key"]): row for row in data.get("summary_rows", [])}
+    expected_plan = {
+        ("TwoRoom", "0.0"): 1.24,
+        ("TwoRoom", "0.08"): 0.61,
+        ("PushT", "0.0"): 1.96,
+        ("PushT", "0.08"): 0.64,
+        ("Reacher", "0.0"): 1.15,
+        ("Reacher", "0.08"): 0.38,
+        ("Cube", "0.0"): 1.30,
+        ("Cube", "0.08"): 0.51,
+    }
+    if set(summary) != set(expected_plan):
+        fail(f"CEM trace summary rows mismatch: {sorted(summary)}")
+    for key, want in expected_plan.items():
+        got_plan = round2(float(summary[key]["final_plan_l2_per_dim_mean_mean"]))
+        if got_plan != want:
+            fail(f"CEM trace final plan L2/dim changed for {key}: got {got_plan}, want {want}")
+    for task in ("TwoRoom", "PushT", "Reacher", "Cube"):
+        base = float(summary[(task, "0.0")]["final_plan_l2_per_dim_mean_mean"])
+        robust = float(summary[(task, "0.08")]["final_plan_l2_per_dim_mean_mean"])
+        if not robust < base:
+            fail(f"CEM trace high-noise plan shift no longer below base for {task}: {robust} >= {base}")
+    if round2(float(summary[("TwoRoom", "0.08")]["final_seeded_top1_flip_rate_mean"])) != 0.92:
+        fail("CEM trace TwoRoom boundary flip rate changed")
+    if round2(float(summary[("Reacher", "0.08")]["final_seeded_top1_flip_rate_mean"])) != 0.25:
+        fail("CEM trace Reacher high-noise flip rate changed")
+
+
 def check_three_seed_diagnostic_validation_json() -> None:
     phase0_path = ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_three_seed.json"
     phase0 = json.loads(phase0_path.read_text(encoding="utf-8"))
@@ -1724,16 +1826,19 @@ def main() -> int:
         ("acpc phase0 diagnostics json", check_acpc_phase0_diagnostics_json),
         ("blur baselines json", check_blur_baselines_json),
         ("acpc basin json", check_acpc_basin_json),
-        ("acpc basin full-grid table", check_acpc_basin_full_grid_table),
+        ("acpc basin artifact pointer", check_acpc_basin_artifact_pointer),
         ("pldm acpc basin json", check_pldm_acpc_basin_json),
         ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
         ("training-seed Gaussian lockbox json", check_training_seed_gaussian_lockbox_json),
         ("three-seed diagnostic validation json", check_three_seed_diagnostic_validation_json),
         ("selector-baseline audit json", check_selector_baseline_audit_json),
         ("residual diagnostic audit json", check_residual_diagnostic_audit_json),
+        ("selector incremental audit json", check_selector_incremental_audit_json),
         ("margin-conditioned flip json", check_margin_flip_curve_json),
         ("task-state proxy margin pass-rate json", check_semantic_margin_passrate_json),
         ("local task-feature margin json", check_semantic_local_margin_json),
+        ("task-grounded semantic margin json", check_semantic_task_grounded_margin_json),
+        ("CEM trace audit json", check_cem_trace_audit_json),
         ("prospective validation summary json", check_prospective_validation_summary_json),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),

@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -169,6 +170,120 @@ def _local_feature_metrics(
     }
 
 
+
+def _task_grounded_labels(task: str, state_final: torch.Tensor) -> tuple[torch.Tensor, str, torch.Tensor]:
+    """Programmatic task-label proxy for near-boundary pair selection.
+
+    The labels are deliberately simple and derived from logged task state. They
+    are not human/oracle semantic annotations; they only make the pair selection
+    more task-grounded than a global distance quantile.
+    """
+    feature = _task_feature(task, state_final).float()
+    if feature.ndim != 2 or feature.size(0) == 0:
+        labels = torch.zeros(state_final.size(0), dtype=torch.long, device=state_final.device)
+        return labels, "degenerate single label", feature
+    med = torch.median(feature, dim=0).values
+    if task == "TwoRoom":
+        x = feature[:, 0]
+        labels = (x > torch.median(x)).long()
+        return labels, "agent doorway/room-side split from local x-coordinate", feature[:, :1]
+    if task == "PushT":
+        x = feature[:, 0]
+        y = feature[:, 1] if feature.size(1) > 1 else feature[:, 0]
+        theta = feature[:, 2] if feature.size(1) > 2 else feature[:, -1]
+        labels = ((x > med[0]).long() + 2 * (y > med[1]).long() + 4 * (theta > med[min(2, feature.size(1) - 1)]).long())
+        return labels, "T-block pose cell from x/y/theta median splits", feature[:, : min(3, feature.size(1))]
+    if task == "Reacher":
+        x = feature[:, 0]
+        y = feature[:, 1] if feature.size(1) > 1 else feature[:, 0]
+        radius = torch.linalg.vector_norm(feature[:, : min(2, feature.size(1))], dim=1)
+        labels = ((x > med[0]).long() + 2 * (y > med[min(1, feature.size(1) - 1)]).long() + 4 * (radius > torch.median(radius)).long())
+        return labels, "target/end-effector relation quadrant plus distance bin", feature[:, : min(2, feature.size(1))]
+    if task == "Cube":
+        split = max(1, feature.size(1) // 2)
+        left = feature[:, :split]
+        right = feature[:, -split:]
+        relation = left - right
+        dist = torch.linalg.vector_norm(relation, dim=1)
+        x = relation[:, 0]
+        y = relation[:, 1] if relation.size(1) > 1 else relation[:, 0]
+        labels = ((x > torch.median(x)).long() + 2 * (y > torch.median(y)).long() + 4 * (dist > torch.median(dist)).long())
+        return labels, "cube-pose/goal-relation cell from relation direction and distance", relation
+    labels = torch.zeros(state_final.size(0), dtype=torch.long, device=state_final.device)
+    return labels, "fallback single label", feature
+
+
+def _task_grounded_near_boundary_metrics(
+    *,
+    task: str,
+    state_final: torch.Tensor,
+    latent_dist: torch.Tensor,
+    same_radius: torch.Tensor,
+    local_quantile: float,
+    margin_delta: float,
+) -> dict[str, Any]:
+    n = state_final.size(0)
+    offdiag = ~torch.eye(n, dtype=torch.bool, device=state_final.device)
+    state_dist = torch.cdist(state_final, state_final, p=2)
+    labels, label_rule, feature = _task_grounded_labels(task, state_final)
+    feature_dist = torch.cdist(feature.float(), feature.float(), p=2)
+    candidate_state = state_dist[offdiag]
+    if candidate_state.numel() == 0:
+        threshold = torch.tensor(float("nan"), device=state_final.device)
+    else:
+        threshold = torch.quantile(candidate_state, float(local_quantile))
+    hard_diffs = []
+    aligned_same = []
+    chosen_state = []
+    chosen_feature = []
+    skipped = 0
+    for i in range(n):
+        label_diff = labels != labels[i]
+        row = offdiag[i] & label_diff & (state_dist[i] <= threshold)
+        if not bool(row.any()):
+            skipped += 1
+            continue
+        candidates = torch.nonzero(row, as_tuple=False).flatten()
+        # Near-boundary proxy: choose the closest state that crosses the task label.
+        j = candidates[torch.argmin(state_dist[i, candidates])]
+        hard_diffs.append(latent_dist[i, j])
+        aligned_same.append(same_radius[i])
+        chosen_state.append(state_dist[i, j])
+        chosen_feature.append(feature_dist[i, j])
+    if hard_diffs:
+        hard = torch.stack(hard_diffs)
+        same = torch.stack(aligned_same)
+        state_delta = torch.stack(chosen_state)
+        feature_delta = torch.stack(chosen_feature)
+    else:
+        hard = torch.empty(0, device=state_final.device)
+        same = torch.empty(0, device=state_final.device)
+        state_delta = torch.empty(0, device=state_final.device)
+        feature_delta = torch.empty(0, device=state_final.device)
+    margins = hard - same
+    passes = margins > float(margin_delta)
+    same_med = _safe_quantile(same, 0.5)
+    diff_med = _safe_quantile(hard, 0.5)
+    unique_labels = torch.unique(labels.detach()).numel()
+    return {
+        "semantic_state_key": SEMANTIC_STATE_KEYS[task],
+        "semantic_factor": f"task-grounded near-boundary proxy: {label_rule}",
+        "semantic_pair_rule": "task-grounded label contrast within closest state-distance neighborhood",
+        "semantic_pair_count": int(hard.numel()),
+        "semantic_skipped_anchor_count": int(skipped),
+        "semantic_label_count": int(unique_labels),
+        "semantic_label_rule": label_rule,
+        "semantic_distance_threshold": float(threshold.detach().cpu()) if torch.isfinite(threshold) else float("nan"),
+        "same_state_noisy_radius_median": same_med,
+        "semantic_diff_l2_median": diff_med,
+        "semantic_margin_median": _safe_quantile(margins, 0.5),
+        "semantic_margin_pass_rate": float(passes.float().mean().detach().cpu()) if passes.numel() else float("nan"),
+        "semantic_discriminability_ratio": diff_med / same_med if same_med > 0 else float("nan"),
+        "local_state_distance_median": _safe_quantile(state_delta, 0.5),
+        "local_task_feature_delta_median": _safe_quantile(feature_delta, 0.5),
+    }
+
+
 def _semantic_metrics(
     *,
     model,
@@ -205,6 +320,15 @@ def _semantic_metrics(
     offdiag = ~torch.eye(n, dtype=torch.bool, device=state_dist.device)
     if pair_rule == "local_task_feature_contrast":
         return _local_feature_metrics(
+            task=task,
+            state_final=state_final,
+            latent_dist=latent_dist,
+            same_radius=same_radius,
+            local_quantile=local_quantile,
+            margin_delta=margin_delta,
+        )
+    if pair_rule == "task_grounded_near_boundary":
+        return _task_grounded_near_boundary_metrics(
             task=task,
             state_final=state_final,
             latent_dist=latent_dist,
@@ -282,6 +406,9 @@ def _run_row(task: str, std_key: str, entry: Mapping[str, Any], args: argparse.N
             history_size = phase0.infer_history_size(model)
             future_steps = max(args.future_steps, args.rollout_horizon + 1)
             state_key = SEMANTIC_STATE_KEYS[task]
+            run_path = Path(str(entry.get("path", ""))).expanduser()
+            if run_path.parent.name == "ckpt":
+                os.environ["STABLEWM_HOME"] = str(run_path.parent.parent)
             batch = phase0.load_dataset_samples(
                 dataset_name=phase0.TASK_DATASETS[task],
                 state_key=state_key,
@@ -388,7 +515,7 @@ def main() -> None:
     parser.add_argument("--corruption-type", default="gaussian_noise")
     parser.add_argument("--semantic-quantile", type=float, default=0.5)
     parser.add_argument("--local-quantile", type=float, default=0.35)
-    parser.add_argument("--pair-rule", choices=["global_state_quantile", "local_task_feature_contrast"], default="global_state_quantile")
+    parser.add_argument("--pair-rule", choices=["global_state_quantile", "local_task_feature_contrast", "task_grounded_near_boundary"], default="global_state_quantile")
     parser.add_argument("--margin-delta", type=float, default=0.0)
     parser.add_argument("--state-key-seed", dest="seed", type=int, default=9101)
     parser.add_argument("--frameskip", type=int, default=5)

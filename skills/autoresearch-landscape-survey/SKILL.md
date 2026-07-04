@@ -5,7 +5,7 @@ license: Apache-2.0
 allowed-tools: Read Write Edit Bash WebSearch WebFetch
 compatibility: Requires Python 3.10+ and PyYAML. Web/GitHub access is recommended for new-project deep dives.
 metadata:
-  version: "0.2.1"
+  version: "0.2.2"
   skill-author: Holosemantix research mapping workflow
 ---
 
@@ -123,11 +123,15 @@ quality, contribution framing, claim strength, theory-to-experiment alignment,
 figures/tables/formulas, sampling variance, reference auditing, and independent
 multi-round scoring. Do not inflate scores because earlier rounds improved the
 paper. Do not over-fit the manuscript into a pile of defensive caveats. Every
-round must judge the current artifact on its own evidence. For top-conference
-remediation, continue rounds until the current artifact honestly reaches the
-`strong_accept_baseline`, the user pauses or narrows scope, or the only
-decision-changing blockers require retraining, new large-scale experiments,
-private author metadata, or other user authorization outside the current task.
+round must judge the current artifact on its own evidence. If a fresh
+external/user review is much lower than a prior internal score, first produce
+the protocol's score-disagreement ledger, separate main-track and diagnostic
+track scores, and apply the corrected score ceiling before editing. For
+top-conference remediation, continue rounds until the current artifact honestly
+reaches the `strong_accept_baseline`, the user pauses or narrows scope, or the
+only decision-changing blockers require retraining, new large-scale
+experiments, private author metadata, or other user authorization outside the
+current task.
 
 
 ## v0.3 CairnLab Alignment

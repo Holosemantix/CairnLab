@@ -46,6 +46,52 @@ Every round is an independent review of the current manuscript.
   discriminability strength, selector value, or matched-stressor scope), then
   reset the recommendation before planning fixes.
 
+## Score-Drift Calibration Gate
+
+Before accepting any score increase, explicitly check why an internal
+multi-round review might diverge from a fresh reviewer. Common root causes are:
+
+- improvement bias: scoring the delta from the previous draft instead of the
+  absolute current submission;
+- track mismatch: judging a diagnostic or analysis paper by a friendlier track
+  while reporting the score as if it were for the main method/general track;
+- evidence substitution: treating honest limitations, artifact volume,
+  appendix breadth, or polished wording as if they were new causal evidence,
+  external baselines, stronger semantics, or a trained method;
+- local overfitting: optimizing against the previous review ledger rather than
+  asking whether a new reviewer would still see the central weakness;
+- future-work optimism: giving credit for objectives, baselines, labels, or
+  evaluations that are only proposed;
+- plateau/selector optimism: treating a diagnostic rule that matches simple
+  fixed-endpoint or single-metric baselines as a superior selector;
+- matched-stressor optimism: treating train-Gaussian/evaluate-Gaussian recovery
+  as surprising robustness evidence without a stronger causal or external
+  comparison.
+
+Every top-conference review round must report scores separately for at least:
+
+- main-conference method/general track;
+- diagnostic, empirical-analysis, or benchmark track;
+- workshop/resource positioning, when relevant.
+
+If an independent or user-supplied review is lower by at least one
+recommendation category or 1.0 score point, create a score-disagreement ledger
+before editing:
+
+- prior internal recommendation and score;
+- fresh external/user recommendation and score;
+- target track assumed by each score;
+- gates the internal review overestimated;
+- whether any verified new artifact directly closes each criticized weakness;
+- corrected score ceiling before further work.
+
+The corrected main-track score must not exceed the lower fresh-review score by
+more than 0.5 points unless a verified new artifact, new evaluation, new
+baseline, new label/protocol, or accepted proof directly closes the cited
+decision-changing weakness. Writing-only claim calibration can improve clarity
+and trust, but it cannot by itself convert a weak-reject method-track paper into
+a strong-accept baseline.
+
 Use at least these decisions:
 
 - `strong_accept_baseline`: the current paper would be clearly competitive for

@@ -591,7 +591,7 @@ All & 2/12 & 10/12 & $2.25 \pm 2.51$ & $0.75/2$ \\
 \end{tabular}
 \end{table}
 
-The fixed rule is not a replacement for closed-loop evaluation, and its purpose is narrower than checkpoint selection: it tests whether ACPC-family readouts localize broad plateaus on held-out seeds. Across the 96 nonzero checkpoint rows, signed ACPC-$H$/transition has Spearman $\rho=0.41$ with observation-noise 0.08 success and $\rho=0.62$ with reduced drop; PCC gives $\rho=0.38$ and $0.60$ on the same two targets. The held-out audit is strongest on TwoRoom and Reacher, useful but imperfect on PushT, and weakest on Cube. The clearest miss is Cube seed 3072: the fixed rule chooses $\stdmax{}=0.05$ with $60.00\%$ observation-noise 0.08 success, while the closed-loop best is $\stdmax{}=0.03$ at $68.33\%$ (regret $8.33$ pp). PushT seed 3073 is the other beyond-5pp miss ($81.00\%$ selected at $\stdmax{}=0.08$ versus $86.67\%$ best at $\stdmax{}=0.04$). A selector-baseline audit in Appendix~\ref{sec:appendix-selector-audit} shows the same boundary: the aggregate rule is comparable to fixed $\stdmax{}=0.08$ and single-metric selectors on broad Gaussian plateaus, but better than exact random nonzero-std selection. We therefore use the fixed rule to explain plateau structure and failure cases, while closed-loop scores remain the authority for final claims.
+The fixed rule is not a replacement for closed-loop evaluation, and its purpose is narrower than checkpoint selection: it tests whether ACPC-family readouts localize broad plateaus on held-out seeds. Across the 96 nonzero checkpoint rows, signed ACPC-$H$/transition has Spearman $\rho=0.41$ with observation-noise 0.08 success and $\rho=0.62$ with reduced drop; PCC gives $\rho=0.38$ and $0.60$ on the same two targets. A residual diagnostic audit in Appendix~\ref{sec:appendix-selector-audit} rank-transforms metrics and outcomes, residualizes on $\stdmax{}$, task, and training seed, and uses task--training-seed block-bootstrap intervals. The residual link to absolute observation-noise success is weak (ACPC/PCC partial $\rho=0.07/0.09$, intervals crossing zero), while reduced-drop residuals remain modest and positive for ACPC/PCC/CRA/MAF (partial $\rho=0.19$--$0.29$ with positive intervals). This means the readouts carry some drop-recovery signal beyond training-noise level, but not enough to claim an independently superior selector. The held-out audit is strongest on TwoRoom and Reacher, useful but imperfect on PushT, and weakest on Cube. The clearest miss is Cube seed 3072: the fixed rule chooses $\stdmax{}=0.05$ with $60.00\%$ observation-noise 0.08 success, while the closed-loop best is $\stdmax{}=0.03$ at $68.33\%$ (regret $8.33$ pp). PushT seed 3073 is the other beyond-5pp miss ($81.00\%$ selected at $\stdmax{}=0.08$ versus $86.67\%$ best at $\stdmax{}=0.04$). A selector-baseline audit in Appendix~\ref{sec:appendix-selector-audit} shows the same boundary: the aggregate rule is comparable to fixed $\stdmax{}=0.08$ and single-metric selectors on broad Gaussian plateaus, but better than exact random nonzero-std selection. We therefore use the fixed rule to explain plateau structure and failure cases, while closed-loop scores remain the authority for final claims.
 
 \subsection{Paired Gaussian-noise ACPC basin diagnostic}\label{sec:exp-acpc-basin}
 
@@ -1135,6 +1135,7 @@ canonical diagnostic artifact & \codebrk{assets/paper1\_data/canonical\_diagnost
 LeWM ACPC-basin artifact & \codebrk{assets/paper1\_data/acpc\_basin\_diagnostics.json} \\
 No-retraining diagnostic audit & \codebrk{assets/paper1\_data/no\_retrain\_diagnostic\_audit.json} \\
 selector-baseline audit & \codebrk{assets/paper1\_data/selector\_baseline\_audit\_20260704.json} \\
+residual diagnostic audit & \codebrk{assets/paper1\_data/residual\_diagnostic\_audit\_20260704.json} \\
 margin-conditioned flip artifact & \codebrk{assets/paper1\_data/margin\_flip\_curve\_lewm\_three\_seed.json} \\
 local task-feature margin artifact & \codebrk{assets/paper1\_data/semantic\_local\_margin\_lewm\_three\_seed.json} \\
 training-seed Gaussian lockbox artifact & \codebrk{assets/paper1\_data/training\_seed\_gaussian\_lockbox.json} \\
@@ -1658,6 +1659,32 @@ Random nonzero std & held-out 3073/3074 & -- & $7.23 \pm 4.37$ & plateau context
 \end{table}
 
 \paragraph{Reading.} The aggregate rule should not be read as a universally superior selector. It is useful because it turns the paired diagnostics into a fixed no-retraining audit that stays near the closed-loop plateau and exposes failure cases; fixed high-noise and MAF-only selectors are equally strong on this grid. Reporting this audit prevents attributing broad Gaussian plateaus to the diagnostic rule alone.
+
+\paragraph{Residual diagnostic audit.} A second no-retraining audit asks whether the paired readouts merely track larger $\stdmax{}$. We use the same 96 nonzero LeWM rows, rank-transform each metric/outcome pair, residualize both sides on $\stdmax{}$, task fixed effects, and training-seed fixed effects, and correlate the residuals. Intervals use a task--training-seed block bootstrap over 12 blocks, preserving the eight std rows within each block. The released artifact is \codebrk{assets/paper1\_data/residual\_diagnostic\_audit\_20260704.json}.
+
+\begin{table}[H]
+\centering
+\caption{Residual diagnostic audit after controlling for training-noise level, task, and training seed. Signed metrics are oriented so larger is better; reduced drop is the negated clean-to-observation-noise-0.08 drop.}
+\label{tab:residual-diagnostic-audit}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{llrrc}
+\toprule
+Metric & Outcome & ordinary $\rho$ & partial $\rho$ & 95\% block CI \\
+\midrule
+ACPC-$H$/trans. & obs0.08 success & $+0.41$ & $+0.07$ & $[-0.22,+0.30]$ \\
+ACPC-$H$/trans. & reduced drop & $+0.62$ & $+0.19$ & $[+0.06,+0.36]$ \\
+PCC & obs0.08 success & $+0.38$ & $+0.09$ & $[-0.16,+0.33]$ \\
+PCC & reduced drop & $+0.60$ & $+0.20$ & $[+0.06,+0.37]$ \\
+CRA & obs0.08 success & $+0.15$ & $+0.23$ & $[-0.07,+0.47]$ \\
+CRA & reduced drop & $+0.54$ & $+0.29$ & $[+0.14,+0.45]$ \\
+MAF & obs0.08 success & $-0.02$ & $+0.30$ & $[+0.07,+0.48]$ \\
+MAF & reduced drop & $+0.45$ & $+0.23$ & $[+0.11,+0.34]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Residual reading.} The residual audit further limits the claim. The clearest residual signal is reduced Gaussian drop: all four readouts keep small positive partial correlations after the controls. For absolute noisy success, residual associations are weak or metric-dependent. The fixed family is therefore a drop-recovery localization signal, not an absolute performance ranker.
 
 %% ===========================================================================
 \section{Target-view ablation completion check}\label{sec:appendix-target-view}

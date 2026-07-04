@@ -41,6 +41,8 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.json",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
+    ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.json",
+    ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "margin_flip_curve_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_local_margin_lewm_three_seed.json",
@@ -91,6 +93,8 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.md",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
+    ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.json",
+    ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "margin_flip_curve_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.md",
@@ -116,6 +120,9 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "diagnostic calibration rather than as closed-loop control guarantees",
     "selector-baseline audit",
     "comparable to fixed $\\stdmax{}=0.08$",
+    "residual diagnostic audit",
+    "task--training-seed block-bootstrap",
+    "drop-recovery signal beyond training-noise level",
     "Bounded unseen-stressor scope check",
     "not a universal transfer claim",
     "universal cross-perturbation robustness claim",
@@ -1336,6 +1343,49 @@ def check_selector_baseline_audit_json() -> None:
                     f"got {got_regret}, want {want_regret}"
                 )
 
+
+def check_residual_diagnostic_audit_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    meta = data.get("metadata", {})
+    if meta.get("schema_version") != "paper1-residual-diagnostic-audit-0.1":
+        fail(f"residual diagnostic audit schema changed: {meta.get('schema_version')!r}")
+    controls = meta.get("controls", "")
+    if "std_max" not in controls or "task fixed effects" not in controls or "training-seed" not in controls:
+        fail("residual diagnostic audit controls must include std_max, task, and training seed")
+    rows = data.get("metric_rows", [])
+    if len(rows) != 8:
+        fail(f"residual diagnostic audit expected 8 metric rows, got {len(rows)}")
+    expected = {
+        ("ACPC-H/trans.", "obs0.08 success"): (0.41, 0.07, -0.22, 0.30),
+        ("ACPC-H/trans.", "reduced drop"): (0.62, 0.19, 0.06, 0.36),
+        ("PCC", "obs0.08 success"): (0.38, 0.09, -0.16, 0.33),
+        ("PCC", "reduced drop"): (0.60, 0.20, 0.06, 0.37),
+        ("CRA", "obs0.08 success"): (0.15, 0.23, -0.07, 0.47),
+        ("CRA", "reduced drop"): (0.54, 0.29, 0.14, 0.45),
+        ("MAF", "obs0.08 success"): (-0.02, 0.30, 0.07, 0.48),
+        ("MAF", "reduced drop"): (0.45, 0.23, 0.11, 0.34),
+    }
+    got_keys = {(row.get("metric"), row.get("outcome")) for row in rows}
+    if got_keys != set(expected):
+        fail(f"residual diagnostic audit row keys changed: {sorted(got_keys)}")
+    for row in rows:
+        key = (row.get("metric"), row.get("outcome"))
+        if int(row.get("n_rows")) != 96:
+            fail(f"residual diagnostic audit {key} n_rows changed")
+        if int(row.get("n_task_seed_blocks")) != 12:
+            fail(f"residual diagnostic audit {key} block count changed")
+        if int(row.get("n_bootstrap_valid")) != 2000:
+            fail(f"residual diagnostic audit {key} bootstrap count changed")
+        want_ord, want_partial, want_lo, want_hi = expected[key]
+        got_ord = round2(float(row.get("ordinary_spearman_signed")))
+        got_partial = round2(float(row.get("partial_spearman_signed_controlling_std_task_seed")))
+        got_lo, got_hi = [round2(float(x)) for x in row.get("block_bootstrap_ci95", [])]
+        got = (got_ord, got_partial, got_lo, got_hi)
+        want = (want_ord, want_partial, want_lo, want_hi)
+        if got != want:
+            fail(f"residual diagnostic audit {key} changed: got {got}, want {want}")
+
 def check_three_seed_diagnostic_validation_json() -> None:
     phase0_path = ROOT / "assets" / "paper1_data" / "acpc_phase0_lewm_three_seed.json"
     phase0 = json.loads(phase0_path.read_text(encoding="utf-8"))
@@ -1677,6 +1727,7 @@ def main() -> int:
         ("training-seed Gaussian lockbox json", check_training_seed_gaussian_lockbox_json),
         ("three-seed diagnostic validation json", check_three_seed_diagnostic_validation_json),
         ("selector-baseline audit json", check_selector_baseline_audit_json),
+        ("residual diagnostic audit json", check_residual_diagnostic_audit_json),
         ("margin-conditioned flip json", check_margin_flip_curve_json),
         ("task-state proxy margin pass-rate json", check_semantic_margin_passrate_json),
         ("local task-feature margin json", check_semantic_local_margin_json),

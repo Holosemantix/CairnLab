@@ -81,8 +81,8 @@ This manifest documents the released evaluation aggregate for Paper 1:
 | `three_seed_diagnostic_validation.json` | Development/held-out three-seed fixed-rule diagnostic validation | `6275b0ea68e367aa302dbe1e19f1ab96f2a0485aee28d656fce9d8e028025ef0` |
 | `selector_baseline_audit_20260704.json` | Legacy selector-baseline audit retained for provenance only | `95d7ffc04949b6c93f567ab6f1097280e963865fbe341159fdd38630b01e6219` |
 | `selector_baseline_audit_20260704.md` | Human-readable legacy selector-baseline audit summary | `1584f65093c1328a970c25d79efb57cea7e5f7f4752d9a50cbf12431e0393ea5` |
-| `selector_plateau_audit_20260704.json` | Plateau-membership diagnostic screen audit | `c0384321f6f320dfb0ba150a9226881638a700741d6dbacd19bb063f549ce9c7` |
-| `selector_plateau_audit_20260704.md` | Human-readable plateau-membership audit summary | `4b9689d059cfc908c027a39a9269157b6390a7d0f4f2db37a94c5f78d939302a` |
+| `selector_plateau_audit_20260704.json` | Plateau-membership diagnostic screen audit | `30a1dd59e8e941adbd567d1e8ffcd323b8aa836eff98e67d0b51c2566ff722ce` |
+| `selector_plateau_audit_20260704.md` | Human-readable plateau-membership audit summary | `0292f581098381a978beea0fe0c22e297c87cd9694ac4888316daedd42921401` |
 | `residual_diagnostic_audit_20260704.json` | Residual diagnostic audit controlling for std, task, and training seed | `304db7d19113f68ca2ca4299768203653184af0d02b8b50b2232aa75c26da75a` |
 | `residual_diagnostic_audit_20260704.md` | Human-readable residual diagnostic audit summary | `1a5bf140616b3cee27a6459456fbda2229752126cf33cf28d3b4123603a269c3` |
 | `selector_incremental_audit_20260704.json` | Legacy incremental selector/readout audit with std/task/seed controls | `b9c3c5140746b84c45323329019caee02f2fa1a962d301fe2908dc5b2d003645` |

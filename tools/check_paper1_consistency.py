@@ -146,6 +146,9 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "plateau-entry diagnosis",
     "87.5\\% precision",
     "not to rank checkpoints inside a plateau",
+    "High-std top-half reference",
+    "not uniquely dominant",
+    "legacy one-row plateau-proximity report",
     "Bounded unseen-stressor scope check",
     "not a universal transfer claim",
     "universal cross-perturbation robustness claim",
@@ -287,6 +290,9 @@ def check_forbidden_text() -> None:
         "comparable endpoint baseline",
         "regret-to-plateau",
         "decisive checkpoint pairs",
+        "then select the lowest aggregate rank",
+        "The selector uses paired rollout/candidate-cost readouts",
+        "Three-seed fixed-rule diagnostic validation",
     ]
     for snippet in main_forbidden:
         if snippet in main_tex:
@@ -1338,8 +1344,8 @@ def check_selector_plateau_audit_json() -> None:
         fail("selector plateau audit must reject point-optimal selector framing")
 
     rows = data.get("membership_summaries", [])
-    if len(rows) != 6:
-        fail(f"selector plateau audit expected 6 membership summaries, got {len(rows)}")
+    if len(rows) != 7:
+        fail(f"selector plateau audit expected 7 membership summaries, got {len(rows)}")
     row_map = {row.get("rule"): row for row in rows}
     expected = {
         "Aggregate ACPC/PCC/CRA/MAF": (12, 48, 68, 42, 6, 26, 22, 0.875, 0.618),
@@ -1347,6 +1353,7 @@ def check_selector_plateau_audit_json() -> None:
         "PCC only": (12, 48, 68, 42, 6, 26, 22, 0.875, 0.618),
         "CRA only": (12, 48, 68, 42, 6, 26, 22, 0.875, 0.618),
         "MAF only": (12, 48, 68, 44, 4, 24, 24, 0.917, 0.647),
+        "High-std top-half reference": (12, 48, 68, 42, 6, 26, 22, 0.875, 0.618),
     }
     random_name = "Random top-half reference (exact expectation)"
     if set(row_map) != set(expected) | {random_name}:

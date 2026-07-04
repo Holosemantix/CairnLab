@@ -534,15 +534,15 @@ Across three training seeds, the no-noise checkpoints retain large observation-n
 
 A three-seed blur/resize score check is reported in Appendix~\ref{sec:appendix-unseen-transfer}. It is a deliberately narrow scope check on severe non-Gaussian stressors, not part of the three main results. The diagnostic validation below instead uses the complete Gaussian full-grid run over all three LeWM training seeds.
 
-\subsection{Three-seed fixed-rule diagnostic validation}\label{sec:exp-three-seed-diagnostic-validation}
+\subsection{Three-seed frozen diagnostic validation}\label{sec:exp-three-seed-diagnostic-validation}
 
-We fix one diagnostic rule on the seed-3072 development grid before evaluating independent training seeds: among nonzero training-noise checkpoints, rank ACPC-$H$/transition lower, PCC lower, CRA higher, and MAF lower, then select the lowest aggregate rank. The selector uses paired rollout/candidate-cost readouts only; no closed-loop success enters the score. It is then applied unchanged to held-out training seeds 3073/3074, giving 8 held-out task-seed blocks and 64 candidate checkpoints; the full three-seed grid gives 12 blocks and 96 candidates.
+We freeze an aggregate diagnostic score on the seed-3072 development grid before evaluating independent training seeds: among nonzero training-noise checkpoints, lower ACPC-$H$/transition, lower PCC, higher CRA, and lower MAF receive better ranks, and the ranks are summed. We use this frozen score in two audit views. First, \Cref{tab:three-seed-diagnostic-validation} keeps the legacy one-row plateau-proximity report: the minimum-score row in each task--seed block is judged only by distance to the closed-loop plateau. Second, Appendix~\ref{sec:appendix-selector-audit} gives the main plateau-membership screen, which returns the top half of candidates in each task--seed block. No closed-loop success enters either diagnostic score.
 
-The frozen rule is near the closed-loop plateau on held-out seeds without using their closed-loop scores: development seed 3072 gives 3/4 blocks within 5pp with $2.33 \pm 3.49$ pp regret; held-out seeds 3073/3074 give 7/8 blocks within 5pp with $2.21 \pm 1.83$ pp regret and a block-bootstrap 95\% CI of $[1.04, 3.54]$; all seeds give 10/12 blocks within 5pp with $2.25 \pm 2.51$ pp regret. The task-level breakdown below is more useful for reading the failure modes.
+The legacy one-row report is near the closed-loop plateau on held-out seeds without using their closed-loop scores: development seed 3072 gives 3/4 blocks within 5pp with $2.33 \pm 3.49$ pp regret; held-out seeds 3073/3074 give 7/8 blocks within 5pp with $2.21 \pm 1.83$ pp regret and a block-bootstrap 95\% CI of $[1.04, 3.54]$; all seeds give 10/12 blocks within 5pp with $2.25 \pm 2.51$ pp regret. The task-level breakdown below is more useful for reading the failure modes than for ranking plateau-internal checkpoints.
 
 \begin{table}[H]
 \centering
-\caption{Three-seed fixed-rule diagnostic validation on the full LeWM Gaussian grid. Within-5pp counts how often the selected checkpoint is within five percentage points of the closed-loop best observation-noise 0.08 checkpoint in the same task/seed block. Regret is best minus selected observation-noise 0.08 success.}
+\caption{Three-seed frozen diagnostic validation on the full LeWM Gaussian grid. Within-5pp counts how often the one-row diagnostic report is within five percentage points of the closed-loop best observation-noise 0.08 checkpoint in the same task/seed block. Regret is best minus the reported row's observation-noise 0.08 success.}
 \label{tab:three-seed-diagnostic-validation}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -560,7 +560,7 @@ All & 2/12 & 10/12 & $2.25 \pm 2.51$ & $0.75/2$ \\
 \end{tabular}
 \end{table}
 
-The fixed rule is not a replacement for closed-loop evaluation: it tests whether ACPC-family readouts diagnose entry into a closed-loop robustness plateau. Because the sweep has broad finite-variance plateaus, Appendix~\ref{sec:appendix-selector-audit} treats \stdmax{} as a candidate label inside each task--training-seed block and evaluates membership screens rather than point-best ranking. With a 5pp plateau label, the aggregate top-half screen intersects the closed-loop plateau in 12/12 task--training-seed blocks; 42 of its 48 screened rows are plateau members (87.5\% precision, 61.8\% recall), versus 70.8\% precision for an exact random top-half reference. This supports plateau-entry diagnosis: the readouts identify a candidate region enriched for robust checkpoints and reveal boundary blocks such as Cube seed 3072, while closed-loop scores remain the authority and plateau-internal ordering is not a claim.
+The fixed rule is not a replacement for closed-loop evaluation: it tests whether ACPC-family readouts diagnose entry into a closed-loop robustness plateau. Because the sweep has broad finite-variance plateaus, Appendix~\ref{sec:appendix-selector-audit} treats \stdmax{} as a candidate label inside each task--training-seed block and evaluates membership screens rather than point-best ranking. With a 5pp plateau label, the aggregate top-half screen intersects the closed-loop plateau in 12/12 task--training-seed blocks; 42 of its 48 screened rows are plateau members (87.5\% precision, 61.8\% recall), matching the high-std top-half reference and trailing MAF-only, but above the 70.8\% precision of an exact random top-half reference. This supports plateau-entry diagnosis rather than a uniquely dominant score: the readouts identify a candidate region enriched for robust checkpoints and reveal boundary blocks such as Cube seed 3072, while closed-loop scores remain the authority and plateau-internal ordering is not a claim.
 
 \subsection{Paired Gaussian-noise ACPC basin diagnostic}\label{sec:exp-acpc-basin}
 
@@ -598,7 +598,7 @@ The basin contraction is not treated as sufficient evidence of robustness. It is
 
 \subsection{Downstream shared-candidate readouts move consistently}\label{sec:exp-downstream-readouts}
 
-The fixed-candidate stability argument predicts that smaller same-action rollout disagreement should reduce downstream candidate-cost drift and ranking instability, subject to the stated margin assumptions. \Cref{tab:acpc-downstream-main} reports a compact LeWM view from the released paired-diagnostic run using the primary observation-noise endpoint, horizon $H=8$, and shared candidate-action sets. These representative rows connect the basin diagnostic to planner-side quantities; \Cref{tab:three-seed-diagnostic-validation} gives the separate three-seed selection readout.
+The fixed-candidate stability argument predicts that smaller same-action rollout disagreement should reduce downstream candidate-cost drift and ranking instability, subject to the stated margin assumptions. \Cref{tab:acpc-downstream-main} reports a compact LeWM view from the released paired-diagnostic run using the primary observation-noise endpoint, horizon $H=8$, and shared candidate-action sets. These representative rows connect the basin diagnostic to planner-side quantities; \Cref{tab:three-seed-diagnostic-validation} gives the separate three-seed frozen-score readout.
 
 \begin{table}[H]
 \centering
@@ -1295,12 +1295,14 @@ This audit uses the same 96 nonzero LeWM rows as the three-training-seed Gaussia
 Rule & presence hit & precision & recall & TP/FP/FN & reading \\
 \midrule
 Aggregate ACPC/PCC/CRA/MAF & $12/12$ & $87.5\%$ & $61.8\%$ & $42/6/26$ & plateau-entry diagnostic screen \\
-Random top-half reference & $11.96/12$ & $70.8\%$ & $50.0\%$ & $34.0/14.0/34.0$ & exact reference, not a training baseline \\
+MAF only & $12/12$ & $91.7\%$ & $64.7\%$ & $44/4/24$ & competitive single-readout reference \\
+High-std top-half reference & $12/12$ & $87.5\%$ & $61.8\%$ & $42/6/26$ & simple intervention-order reference \\
+Random top-half reference & $11.96/12$ & $70.8\%$ & $50.0\%$ & $34.0/14.0/34.0$ & exact random reference \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\paragraph{Reading.} The audit evaluates membership enrichment, not point-optimal ranking. The aggregate screen intersects the closed-loop plateau in every task--training-seed block and has higher precision than an exact random top-half screen, while still leaving false positives and false negatives. This is the intended use: diagnose whether a checkpoint region has entered the robustness plateau, expose boundary blocks, and leave final checkpoint claims to closed-loop evaluation.
+\paragraph{Reading.} The audit evaluates membership enrichment, not point-optimal ranking. The aggregate screen is useful, but not uniquely dominant: MAF-only and the high-std top-half reference are competitive on this grid. We therefore interpret the screen as diagnostic enrichment and failure localization, not as a learned selector. Closed-loop evaluation remains the authority for final checkpoint claims.
 
 %% ===========================================================================
 \section{Reduced-budget offline CEM trace audit}\label{sec:appendix-cem-trace}

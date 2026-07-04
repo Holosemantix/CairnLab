@@ -1101,6 +1101,226 @@
       "true_positive_rows": 44
     },
     {
+      "block_rows": [
+        {
+          "false_negative_count": 4,
+          "false_positive_count": 0,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "TwoRoom",
+          "training_seed": 3072,
+          "true_negative_count": 0,
+          "true_plateau_count": 8,
+          "true_positive_count": 4
+        },
+        {
+          "false_negative_count": 4,
+          "false_positive_count": 0,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "TwoRoom",
+          "training_seed": 3073,
+          "true_negative_count": 0,
+          "true_plateau_count": 8,
+          "true_positive_count": 4
+        },
+        {
+          "false_negative_count": 3,
+          "false_positive_count": 0,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "TwoRoom",
+          "training_seed": 3074,
+          "true_negative_count": 1,
+          "true_plateau_count": 7,
+          "true_positive_count": 4
+        },
+        {
+          "false_negative_count": 1,
+          "false_positive_count": 1,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "PushT",
+          "training_seed": 3072,
+          "true_negative_count": 3,
+          "true_plateau_count": 4,
+          "true_positive_count": 3
+        },
+        {
+          "false_negative_count": 1,
+          "false_positive_count": 1,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "PushT",
+          "training_seed": 3073,
+          "true_negative_count": 3,
+          "true_plateau_count": 4,
+          "true_positive_count": 3
+        },
+        {
+          "false_negative_count": 2,
+          "false_positive_count": 1,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "PushT",
+          "training_seed": 3074,
+          "true_negative_count": 2,
+          "true_plateau_count": 5,
+          "true_positive_count": 3
+        },
+        {
+          "false_negative_count": 2,
+          "false_positive_count": 1,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "Reacher",
+          "training_seed": 3072,
+          "true_negative_count": 2,
+          "true_plateau_count": 5,
+          "true_positive_count": 3
+        },
+        {
+          "false_negative_count": 1,
+          "false_positive_count": 0,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "Reacher",
+          "training_seed": 3073,
+          "true_negative_count": 3,
+          "true_plateau_count": 5,
+          "true_positive_count": 4
+        },
+        {
+          "false_negative_count": 2,
+          "false_positive_count": 0,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "Reacher",
+          "training_seed": 3074,
+          "true_negative_count": 2,
+          "true_plateau_count": 6,
+          "true_positive_count": 4
+        },
+        {
+          "false_negative_count": 2,
+          "false_positive_count": 2,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "Cube",
+          "training_seed": 3072,
+          "true_negative_count": 2,
+          "true_plateau_count": 4,
+          "true_positive_count": 2
+        },
+        {
+          "false_negative_count": 2,
+          "false_positive_count": 0,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "Cube",
+          "training_seed": 3073,
+          "true_negative_count": 2,
+          "true_plateau_count": 6,
+          "true_positive_count": 4
+        },
+        {
+          "false_negative_count": 2,
+          "false_positive_count": 0,
+          "plateau_presence_hit": true,
+          "screened_count": 4,
+          "screened_std_keys": [
+            "0.05",
+            "0.06",
+            "0.07",
+            "0.08"
+          ],
+          "task": "Cube",
+          "training_seed": 3074,
+          "true_negative_count": 2,
+          "true_plateau_count": 6,
+          "true_positive_count": 4
+        }
+      ],
+      "false_negative_rows": 26,
+      "false_positive_rows": 6,
+      "n_blocks": 12,
+      "plateau_presence_hits": 12,
+      "plateau_recall": 0.6176470588235294,
+      "rule": "High-std top-half reference",
+      "screen_precision": 0.875,
+      "screen_size_per_block": 4,
+      "screened_rows": 48,
+      "true_negative_rows": 22,
+      "true_plateau_rows": 68,
+      "true_positive_rows": 42
+    },
+    {
       "false_negative_rows_expected": 34.0,
       "false_positive_rows_expected": 14.0,
       "n_blocks": 12,

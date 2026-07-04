@@ -190,6 +190,7 @@ def build_audit(data: dict, tolerance_pp: float) -> dict:
         "PCC only": _metric_scores("pcc_abs_median", -1.0),
         "CRA only": _metric_scores("cra_spearman_mean", 1.0),
         "MAF only": _metric_scores("maf_flip_rate", -1.0),
+        "High-std top-half reference": _metric_scores("std_key", 1.0),
     }
     return {
         "metadata": {

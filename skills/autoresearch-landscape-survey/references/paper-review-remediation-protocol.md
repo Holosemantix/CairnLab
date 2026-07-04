@@ -228,6 +228,79 @@ improved. Record which remaining gates are fixable without retraining and which
 are decision-changing blockers requiring new training, external baselines, or
 new labeled/constructed data.
 
+## Weak-Reject Diagnostic-Paper Calibration Gate
+
+When a fresh review still says Weak Reject or Borderline Reject after several
+rounds of remediation, treat that as evidence that the paper may have been
+locally optimized around prior comments rather than lifted across the target
+venue bar. Before editing, classify the paper under this gate.
+
+For diagnostic or empirical-analysis manuscripts, require the review ledger to
+answer these questions explicitly:
+
+- **Method-paper ceiling**: does the paper introduce and evaluate a new training
+  objective, algorithm, or intervention? If not, do not score it as a strong
+  method paper. A no-retraining diagnostic can be valuable, but it cannot close
+  an algorithmic-novelty weakness by writing alone.
+- **Matched-stressor ceiling**: if the main behavior is matched train/eval
+  augmentation, such as Gaussian training evaluated on Gaussian noise, treat the
+  behavioral recovery as an expected axis unless the paper adds causal
+  diagnostic evidence, held-out perturbation transfer, or an external baseline
+  comparison that changes the review decision.
+- **Selector-increment ceiling**: if an aggregate diagnostic selector is
+  comparable to a fixed endpoint, a single metric, or a broad plateau baseline,
+  count it as triage or plateau localization. Do not call it a reliable
+  prospective selector, and do not let selector wording raise the score.
+- **Theory-link ceiling**: a new calibration table, margin-conditioned flip
+  audit, or finite-sample bound strengthens theory--experiment alignment only
+  if it measures the theorem's actual terms. It does not become an adaptive CEM,
+  closed-loop, or environment-feedback guarantee.
+- **Semantic-proxy ceiling**: state-distance, effective-rank, transition, or ID
+  probe guards are not oracle task semantics. If contact/topology/goal-relation
+  or near-boundary labels are absent, keep that weakness open or mark it as a
+  fixed-checkpoint diagnostic opportunity only when such labels can be
+  constructed without retraining.
+- **External-baseline ceiling**: PLDM-style method-family replication, negative
+  ablations, or artifact completeness reduce narrowness concerns but do not
+  replace strong baselines such as standard augmentation objectives,
+  reconstruction-based world models, Dreamer/TD-MPC-style systems, robust MPC,
+  or an ACPC-derived training objective when the target track is a robustness
+  method paper.
+- **Appendix-burden ceiling**: extra ledgers, audits, and diagnostic families
+  do not raise the score unless they simplify the decision path. If the main
+  text now has more than three or four must-read evidence layers, verify that
+  each answers a necessary question and move the rest to reproducibility
+  material.
+- **Fixed-checkpoint ceiling**: with fixed checkpoints and no retraining,
+  feasible work is limited to new diagnostics, eval-only tests, reaggregation,
+  consistency checks, figures, and writing. If the remaining decision-changing
+  blockers are a trained objective, strong external baselines, broad
+  perturbation training, or oracle/hand-labeled semantic data, record them as
+  blockers instead of inflating the score.
+
+Classification is mandatory before edits:
+
+- `no-retraining`: artifact checks, reaggregation, consistency fixes, figure or
+  table relabeling, manuscript restructuring, and claim calibration that use
+  existing data/checkpoints.
+- `new evaluation/diagnostic with fixed checkpoints`: eval-only baselines,
+  unseen-stressor scoring, constructed near-boundary semantic audits,
+  margin-conditioned flip curves, or additional uncertainty estimates that use
+  existing checkpoints and logged data.
+- `retraining-required`: new objectives, robustness training, strong external
+  baselines that require training, broad perturbation-family training, or
+  method claims requiring new learned models.
+- `writing-only`: abstract, title, contribution framing, limitation balance,
+  appendix slimming, reference/citation cleanup, and non-AI-sounding prose.
+
+Scoring rule: if the paper lacks a new objective/trained method, lacks strong
+external baselines, remains centered on matched train/eval stressors, and uses
+proxy rather than oracle semantic discriminability, the main-conference
+method/general score should normally remain at `weak_reject` to
+`weak_accept_or_borderline` even after no-retraining cleanup. A diagnostic or
+empirical-analysis track score may be higher, but it must be reported
+separately and justified by current evidence, not by remediation effort.
+
 ## Theory Audit
 
 The theory section must deepen the paper rather than decorate it.

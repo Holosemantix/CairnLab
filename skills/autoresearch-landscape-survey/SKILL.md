@@ -3,9 +3,8 @@ name: autoresearch-landscape-survey
 description: Use this skill to maintain a multi-facet survey map of AutoResearch, AI scientist, paper-to-code, reproducibility, evidence/provenance, and multi-agent scientific discovery projects, and to apply reusable research-paper review/remediation protocols without turning reviewer prose into claim authority.
 license: Apache-2.0
 allowed-tools: Read Write Edit Bash WebSearch WebFetch
-compatibility: Requires Python 3.10+ and PyYAML. Web/GitHub access is recommended for new-project deep dives.
 metadata:
-  version: "0.2.2"
+  version: "0.2.3"
   skill-author: Holosemantix research mapping workflow
 ---
 
@@ -41,6 +40,10 @@ Do **not** force projects into one orthogonal layer. A project can simultaneousl
 - a weak or strong accountability system.
 
 Describe the project by **facets**. If a new project introduces a new feature not covered by the taxonomy, record it as a proposed new facet instead of dropping it.
+
+## Compatibility
+
+Requires Python 3.10+ and PyYAML. Web/GitHub access is recommended for new-project deep dives.
 
 ## Main Files
 
@@ -127,6 +130,11 @@ round must judge the current artifact on its own evidence. If a fresh
 external/user review is much lower than a prior internal score, first produce
 the protocol's score-disagreement ledger, separate main-track and diagnostic
 track scores, and apply the corrected score ceiling before editing. For
+diagnostic papers that receive a Weak Reject or borderline main-track review,
+run the protocol's Weak-Reject Diagnostic-Paper Calibration Gate before raising
+the score: method novelty, matched-stressor scope, selector-baseline parity,
+proxy semantics, external baselines, appendix burden, and fixed-checkpoint
+ceilings must be judged as current evidence, not as effort already spent. For
 top-conference remediation, continue rounds until the current artifact honestly
 reaches the `strong_accept_baseline`, the user pauses or narrows scope, or the
 only decision-changing blockers require retraining, new large-scale

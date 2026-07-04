@@ -47,7 +47,44 @@ def test_protocol_prevents_large_unverified_score_jump():
 
 def test_skill_entry_mentions_score_disagreement_gate():
     text = SKILL.read_text(encoding="utf-8")
-    assert 'version: "0.2.2"' in text
+    assert 'version: "0.2.3"' in text
     assert "score-disagreement ledger" in text
     assert "separate main-track and diagnostic" in text
     assert "corrected score ceiling" in text
+    assert "Weak-Reject Diagnostic-Paper Calibration Gate" in text
+
+
+def test_protocol_has_weak_reject_diagnostic_paper_calibration_gate():
+    text = PROTOCOL.read_text(encoding="utf-8")
+    assert "## Weak-Reject Diagnostic-Paper Calibration Gate" in text
+    for phrase in (
+        "Method-paper ceiling",
+        "Matched-stressor ceiling",
+        "Selector-increment ceiling",
+        "Theory-link ceiling",
+        "Semantic-proxy ceiling",
+        "External-baseline ceiling",
+        "Appendix-burden ceiling",
+        "Fixed-checkpoint ceiling",
+    ):
+        assert phrase in text
+
+
+def test_protocol_forces_remediation_classification_before_edits():
+    text = PROTOCOL.read_text(encoding="utf-8")
+    assert "Classification is mandatory before edits" in text
+    for bucket in (
+        "`no-retraining`",
+        "`new evaluation/diagnostic with fixed checkpoints`",
+        "`retraining-required`",
+        "`writing-only`",
+    ):
+        assert bucket in text
+
+
+def test_protocol_prevents_fixed_checkpoint_strong_method_inflation():
+    text = PROTOCOL.read_text(encoding="utf-8")
+    assert "with fixed checkpoints and no retraining" in text
+    assert "blockers instead of inflating the score" in text
+    assert "should normally remain at `weak_reject` to" in text
+    assert "track score may be higher" in text

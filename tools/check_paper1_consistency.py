@@ -41,6 +41,8 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.json",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
+    ROOT / "assets" / "paper1_data" / "selector_plateau_audit_20260704.json",
+    ROOT / "assets" / "paper1_data" / "selector_plateau_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "selector_incremental_audit_20260704.json",
@@ -53,6 +55,7 @@ RELEASE_FILES = [
     ROOT / "assets" / "paper1_data" / "cem_trace_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "cem_trace_audit_20260704.md",
     ROOT / "tools" / "paper1_selector_incremental_audit.py",
+    ROOT / "tools" / "paper1_selector_plateau_audit.py",
     ROOT / "tools" / "paper1_cem_trace_audit.py",
 ]
 
@@ -101,6 +104,8 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "three_seed_diagnostic_validation.md",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.md",
+    ROOT / "assets" / "paper1_data" / "selector_plateau_audit_20260704.json",
+    ROOT / "assets" / "paper1_data" / "selector_plateau_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "selector_incremental_audit_20260704.json",
@@ -140,9 +145,10 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "diagnostic calibration rather than as closed-loop control guarantees",
     "selector-baseline audit",
     "comparable to fixed $\\stdmax{}=0.08$",
-    "incremental explanatory audit",
-    "block-permutation $p=0.07$",
-    "drop-recovery signal beyond training-noise level",
+    "selector\\_plateau\\_audit\\_20260704.json",
+    "candidate label inside each task--training-seed block",
+    "regret-to-plateau",
+    "decisive checkpoint pairs",
     "Bounded unseen-stressor scope check",
     "not a universal transfer claim",
     "universal cross-perturbation robustness claim",
@@ -270,6 +276,10 @@ def check_forbidden_text() -> None:
     main_forbidden = [
         "local proxy margin pass-rates rise from $0.53$--$0.81$",
         "A residual diagnostic audit in Appendix",
+        "block-permutation $p=0.07$",
+        "partial $R^2=0.03$",
+        "incremental $R^2=0.01$",
+        "residual association with reduced drop",
         "local task-feature proxy margin checks selective discriminability",
         "Finer oracle contact/topology/goal-relation labels remain future work",
     ]
@@ -1306,6 +1316,71 @@ def check_selector_baseline_audit_json() -> None:
                 )
 
 
+def check_selector_plateau_audit_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "selector_plateau_audit_20260704.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    meta = data.get("metadata", {})
+    if meta.get("schema_version") != "paper1-selector-plateau-audit-20260704-v1":
+        fail(f"selector plateau audit schema changed: {meta.get('schema_version')!r}")
+    if round2(float(meta.get("tolerance_pp"))) != 5.00:
+        fail("selector plateau audit tolerance must remain 5pp")
+    interp = meta.get("interpretation", "")
+    if "candidate label" not in interp or "continuous covariate" not in interp:
+        fail("selector plateau audit must state std_max is not a continuous covariate")
+
+    selection_rows = data.get("selection_summaries", [])
+    if len(selection_rows) != 4:
+        fail(f"selector plateau audit expected 4 selection summaries, got {len(selection_rows)}")
+    row_map = {row.get("selector"): row for row in selection_rows}
+    expected_selection = {
+        "Aggregate ACPC/PCC/CRA/MAF": (10, 2, 2.25, 0.33),
+        "Fixed std=0.08": (10, 2, 2.14, 0.17),
+        "MAF only": (10, 2, 1.89, 0.44),
+        "Random nonzero std (exact expectation)": (8.50, 3.50, 7.02, 4.33),
+    }
+    if set(row_map) != set(expected_selection):
+        fail(f"selector plateau audit selection rows changed: {sorted(row_map)}")
+    for selector, (want_hit, want_bad, want_point_regret, want_plateau_regret) in expected_selection.items():
+        row = row_map[selector]
+        if selector.startswith("Random"):
+            got_hit = round2(float(row.get("plateau_hit_count_expected")))
+            got_bad = round2(float(row.get("bad_pick_count_expected")))
+        else:
+            got_hit = int(row.get("plateau_hit_count"))
+            got_bad = int(row.get("bad_pick_count"))
+        got = (
+            got_hit,
+            got_bad,
+            round2(float(row.get("point_regret_mean_pp"))),
+            round2(float(row.get("regret_to_plateau_mean_pp"))),
+        )
+        want = (want_hit, want_bad, want_point_regret, want_plateau_regret)
+        if got != want:
+            fail(f"selector plateau audit {selector} changed: got {got}, want {want}")
+
+    ranking_rows = data.get("ranking_summaries", [])
+    if len(ranking_rows) != 6:
+        fail(f"selector plateau audit expected 6 ranking summaries, got {len(ranking_rows)}")
+    rank_map = {row.get("ranker"): row for row in ranking_rows}
+    expected_accuracy = {
+        "Aggregate ACPC/PCC/CRA/MAF": 0.883,
+        "ACPC only": 0.872,
+        "PCC only": 0.879,
+        "CRA only": 0.872,
+        "MAF only": 0.926,
+        "Monotone high-std baseline": 0.929,
+    }
+    if set(rank_map) != set(expected_accuracy):
+        fail(f"selector plateau audit ranking rows changed: {sorted(rank_map)}")
+    for ranker, want_acc in expected_accuracy.items():
+        row = rank_map[ranker]
+        if int(row.get("decisive_pair_count")) != 141:
+            fail(f"selector plateau audit {ranker} decisive pair count changed")
+        got_acc = round(float(row.get("decisive_pair_accuracy")), 3)
+        if got_acc != want_acc:
+            fail(f"selector plateau audit {ranker} accuracy changed: got {got_acc}, want {want_acc}")
+
+
 def check_residual_diagnostic_audit_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "residual_diagnostic_audit_20260704.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -1832,6 +1907,7 @@ def main() -> int:
         ("training-seed Gaussian lockbox json", check_training_seed_gaussian_lockbox_json),
         ("three-seed diagnostic validation json", check_three_seed_diagnostic_validation_json),
         ("selector-baseline audit json", check_selector_baseline_audit_json),
+        ("selector plateau audit json", check_selector_plateau_audit_json),
         ("residual diagnostic audit json", check_residual_diagnostic_audit_json),
         ("selector incremental audit json", check_selector_incremental_audit_json),
         ("margin-conditioned flip json", check_margin_flip_curve_json),

@@ -154,7 +154,7 @@ We use input-side noise augmentation as the controlled intervention. The \stdmax
 
 \paragraph{C2 --- Calibration link.} Under a Lipschitz cost readout, bounded rollout disagreement bounds fixed-candidate cost drift. For a once-sampled candidate pool, top-1 instability decomposes into ACPC-tail and clean-margin terms. A local Gaussian linearization then shows that the measured basin radius estimates action-conditioned encoder--predictor sensitivity $\|J_GJ_E\|_F$, not encoder invariance alone. These results justify the readouts as diagnostics while leaving adaptive CEM resampling, repeated replanning, and closed-loop trajectories to empirical tests.
 
-\paragraph{C3 --- Fixed-checkpoint evidence chain.} On fixed checkpoints, we report a three-training-seed evidence chain: matched-Gaussian recovery; a fixed-rule plateau audit qualified by selector baselines and residual controls; selective-margin and planner-side checks; and bounded blur/resize scope checks. Larger grids, PLDM replication, ablations, and artifact paths remain in the appendix and release manifest.
+\paragraph{C3 --- Fixed-checkpoint evidence chain.} On fixed checkpoints, we report a three-training-seed evidence chain: matched-Gaussian recovery; a fixed-rule plateau audit qualified by selector baselines and plateau-aware checks; selective-margin and planner-side checks; and bounded blur/resize scope checks. Larger grids, PLDM replication, ablations, and artifact paths remain in the appendix and release manifest.
 
 %% ===========================================================================
 \section{Related Work}\label{sec:related}
@@ -560,7 +560,7 @@ All & 2/12 & 10/12 & $2.25 \pm 2.51$ & $0.75/2$ \\
 \end{tabular}
 \end{table}
 
-The fixed rule is not a replacement for closed-loop evaluation, and its purpose is narrower than checkpoint selection: it tests whether ACPC-family readouts localize broad plateaus on held-out seeds. Across the 96 nonzero checkpoint rows, signed ACPC-$H$/transition has Spearman $\rho=0.41$ with observation-noise 0.08 success and $\rho=0.62$ with reduced drop; PCC gives $\rho=0.38$ and $0.60$ on the same two targets. Appendix~\ref{sec:appendix-selector-audit} adds a stricter incremental explanatory audit: after rank transforms and controls for $\stdmax{}$, $\stdmax{}^2$, task, and training seed, the aggregate rule has only modest residual association with reduced drop (partial $r=0.16$, partial $R^2=0.03$, incremental $R^2=0.01$, block-permutation $p=0.07$), while CRA is the strongest single readout (partial $r=0.23$, partial $R^2=0.05$, $p=0.005$). Absolute observation-noise success remains weak after controls. This means the readouts carry limited drop-recovery signal beyond training-noise level, but not enough to claim an independently superior selector. The held-out audit is strongest on TwoRoom and Reacher, useful but imperfect on PushT, and weakest on Cube. The clearest miss is Cube seed 3072: the fixed rule chooses $\stdmax{}=0.05$ with $60.00\%$ observation-noise 0.08 success, while the closed-loop best is $\stdmax{}=0.03$ at $68.33\%$ (regret $8.33$ pp). PushT seed 3073 is the other beyond-5pp miss ($81.00\%$ selected at $\stdmax{}=0.08$ versus $86.67\%$ best at $\stdmax{}=0.04$). A selector-baseline audit in Appendix~\ref{sec:appendix-selector-audit} shows the same boundary: the aggregate rule is comparable to fixed $\stdmax{}=0.08$ and single-metric selectors on broad Gaussian plateaus, but better than exact random nonzero-std selection. We therefore use the fixed rule to explain plateau structure and failure cases, while closed-loop scores remain the authority for final claims.
+The fixed rule is not a replacement for closed-loop evaluation, and its purpose is narrower than checkpoint selection: it tests whether ACPC-family readouts localize broad plateaus on held-out seeds. Because the sweep has broad finite-variance plateaus, Appendix~\ref{sec:appendix-selector-audit} treats \stdmax{} as a candidate label inside each task--training-seed block rather than as a continuous variable to be predicted pointwise. With a 5pp plateau tolerance, the aggregate rule gives 10/12 plateau hits, $0.33 \pm 0.92$ pp regret-to-plateau, and 88.3\% concordance on 141 decisive checkpoint pairs whose closed-loop scores differ by more than 5pp. This supports plateau triage, not selector dominance: fixed high-noise and MAF-only baselines are comparable or stronger on the same audit. The held-out audit is strongest on TwoRoom and Reacher, useful but imperfect on PushT, and weakest on Cube. The clearest miss is Cube seed 3072: the fixed rule chooses $\stdmax{}=0.05$ with $60.00\%$ observation-noise 0.08 success, while the closed-loop best is $\stdmax{}=0.03$ at $68.33\%$ (regret $8.33$ pp). PushT seed 3073 is the other beyond-5pp miss ($81.00\%$ selected at $\stdmax{}=0.08$ versus $86.67\%$ best at $\stdmax{}=0.04$). A selector-baseline audit in Appendix~\ref{sec:appendix-selector-audit} shows the same boundary: the aggregate rule is comparable to fixed $\stdmax{}=0.08$ and single-metric selectors on broad Gaussian plateaus, but better than exact random nonzero-std selection. We therefore use the fixed rule to explain plateau structure and failure cases, while closed-loop scores remain the authority for final claims.
 
 \subsection{Paired Gaussian-noise ACPC basin diagnostic}\label{sec:exp-acpc-basin}
 
@@ -719,7 +719,7 @@ Cube & resize $0.25$ & $-0.89 \pm 1.40$ & $+0.052$ & $-0.6$ & $-0.030$ & no clea
 \section{Discussion and limitations}\label{sec:disc}
 
 \paragraph{What the evidence supports.}
-This is a controlled diagnostic study, not a method paper. The primary behavior statistic is the full three-training-seed Gaussian replication; evaluation-seed variance is kept as the within-seed measurement scale. These standard deviations are descriptive over three training seeds, not asymptotic significance claims, and correlated diagnostic windows are calibration evidence. Gaussian pixel noise remains the training/evaluation axis; blur/resize scores, PLDM replication, and failure-case ablations are scope checks. The fixed-rule residual signal is modest after noise-level controls, so we use it for plateau localization rather than selector dominance. We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods; the contribution is a no-retraining diagnostic for JEPA latent world-model checkpoints under a controlled Gaussian stressor.
+This is a controlled diagnostic study, not a method paper. The primary behavior statistic is the full three-training-seed Gaussian replication; evaluation-seed variance is kept as the within-seed measurement scale. These standard deviations are descriptive over three training seeds, not asymptotic significance claims, and correlated diagnostic windows are calibration evidence. Gaussian pixel noise remains the training/evaluation axis; blur/resize scores, PLDM replication, and failure-case ablations are scope checks. The fixed-rule plateau audit is the selector-side reading, so we do not claim point-optimal std prediction or selector dominance. We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods; the contribution is a no-retraining diagnostic for JEPA latent world-model checkpoints under a controlled Gaussian stressor.
 
 \paragraph{How to use the diagnostics.}
 The readouts form an evidence chain rather than a single scalar. Closed-loop evaluation establishes the behavior. ACPC rollout/cost readouts localize predictive-dynamics change. Margin-conditioned flips and task-grounded near-boundary pairs check the clean-margin and selectivity side. The reduced-budget CEMSolver trace asks whether the same direction appears inside the optimizer loop without estimating the full adaptive CEM distribution or claiming adaptive CEM stability. The frozen rule is a held-out plateau triage audit, and closed-loop scores remain the authority. Cube remains the useful boundary case, so point-best \stdmax{} values are plateau context rather than fine-grained ranking targets.
@@ -1281,7 +1281,7 @@ The exploratory clean-goal paired ACPC release covers LeWM and PLDM, four tasks,
 %% ===========================================================================
 \section{Selector-baseline audit for fixed-rule plateau localization}\label{sec:appendix-selector-audit}
 
-This audit compares the seed-3072-fixed aggregate ACPC/PCC/CRA/MAF rule against simple selector baselines over the same three-training-seed Gaussian grid. All rows use nonzero training-noise candidates only. The random baseline is the exact expected regret over the eight nonzero grid rows, not a Monte Carlo sample. The released audit artifact is \codebrk{assets/paper1\_data/selector\_baseline\_audit\_20260704.json}.
+This audit compares the seed-3072-fixed aggregate ACPC/PCC/CRA/MAF rule against simple selector baselines over the same three-training-seed Gaussian grid. All rows use nonzero training-noise candidates only. The random baseline is the exact expected regret over the eight nonzero grid rows, not a Monte Carlo sample. The released audit artifacts are \codebrk{assets/paper1\_data/selector\_baseline\_audit\_20260704.json} and \codebrk{assets/paper1\_data/selector\_plateau\_audit\_20260704.json}.
 
 \begin{table}[H]
 \centering
@@ -1311,29 +1311,26 @@ Random nonzero std & held-out 3073/3074 & -- & $7.23 \pm 4.37$ & plateau context
 
 \paragraph{Reading.} The aggregate rule should not be read as a universally superior selector. It is useful because it turns the paired diagnostics into a fixed no-retraining audit that stays near the closed-loop plateau and exposes failure cases; fixed high-noise and MAF-only selectors are equally strong on this grid. Reporting this audit prevents attributing broad Gaussian plateaus to the diagnostic rule alone.
 
-\paragraph{Incremental explanatory audit.} A stricter no-retraining audit asks whether the paired readouts add signal beyond the obvious training-noise level. We use the same 96 nonzero LeWM rows, rank-transform each metric/outcome pair, control for $\stdmax{}$, $\stdmax{}^2$, task fixed effects, and training-seed fixed effects, and then report partial $r$, partial $R^2$, incremental $R^2$, and a task--training-seed block permutation test. The released artifact is \codebrk{assets/paper1\_data/selector\_incremental\_audit\_20260704.json}.
+\paragraph{Plateau-aware audit.} The main selector question is not whether the diagnostics predict the point-best \stdmax{} inside a noisy plateau. We therefore add a block-wise audit that treats \stdmax{} as a candidate label inside each task--training-seed block. A 5pp closed-loop tolerance defines the practical plateau, and decisive-pair concordance ignores checkpoint pairs whose observation-noise 0.08 scores differ by at most 5pp. The released artifact is \codebrk{assets/paper1\_data/selector\_plateau\_audit\_20260704.json}.
 
 \begin{table}[H]
 \centering
-\caption{Incremental explanatory audit after controlling for training-noise level, task, and training seed. Metrics are oriented so larger is better; reduced drop is the negated clean-to-observation-noise-0.08 drop. The result is modest residual localization evidence, not selector dominance.}
-\label{tab:selector-incremental-audit}
+\caption{Plateau-aware selector audit. Regret-to-plateau is $\max(0,\text{best}-\text{selected}-5\text{pp})$. Decisive-pair accuracy ranks only checkpoint pairs separated by more than 5pp in closed-loop observation-noise 0.08 success. The fixed/high-std row selects fixed $\stdmax{}=0.08$ for plateau hit and uses monotone high-std ranking for decisive pairs.}
+\label{tab:selector-plateau-audit}
 \small
 \setlength{\tabcolsep}{4pt}
-\begin{tabular}{lrrrrr}
+\begin{tabularx}{\textwidth}{lcccc>{\raggedright\arraybackslash}X}
 \toprule
-Metric & $r_{\text{drop}}$ & partial $R^2$ & incr. $R^2$ & block $p$ & $r_{\text{obs}}$ \\
+Rule & plateau hit & bad picks & regret-to-plateau & decisive pairs & reading \\
 \midrule
-Aggregate ACPC/PCC/CRA/MAF & $+0.16$ & $0.03$ & $0.01$ & $0.07$ & $+0.11$ \\
-ACPC-$H$/trans. & $+0.12$ & $0.01$ & $0.01$ & $0.16$ & $-0.08$ \\
-PCC & $+0.13$ & $0.02$ & $0.01$ & $0.12$ & $-0.04$ \\
-CRA & $+0.23$ & $0.05$ & $0.03$ & $0.005$ & $+0.10$ \\
-MAF & $+0.15$ & $0.02$ & $0.01$ & $0.12$ & $+0.15$ \\
-Elite overlap & $+0.13$ & $0.02$ & $0.01$ & $0.18$ & $-0.01$ \\
+Aggregate ACPC/PCC/CRA/MAF & $10/12$ & $2/12$ & $0.33 \pm 0.92$ & $88.3\%$ & useful triage, not dominance \\
+Fixed/high-std baseline & $10/12$ & $2/12$ & $0.17 \pm 0.40$ & $92.9\%$ & competitive simple baseline \\
+MAF only & $10/12$ & $2/12$ & $0.44 \pm 1.29$ & $92.6\%$ & comparable single readout \\
+Random nonzero std & $8.5/12$ & $3.5/12$ & $4.33 \pm 10.67$ & $50.0\%$ & exact/random reference \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
-\paragraph{Incremental reading.} The audit further limits the claim. The clearest residual signal is reduced Gaussian drop, with CRA strongest and the aggregate rule modest. Absolute noisy success remains weak after controls. The fixed family is therefore a drop-recovery localization signal and plateau triage aid, not an absolute performance ranker or a superior selector over simple endpoint baselines.
 
 %% ===========================================================================
 \section{Reduced-budget offline CEM trace audit}\label{sec:appendix-cem-trace}

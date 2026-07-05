@@ -163,6 +163,16 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "paired candidate-cost change (PCC)",
     "candidate-ranking agreement (CRA)",
     "margin-conditioned action-flip rate (MAF)",
+    "Robust visual-control and world-model methods provide the second context layer",
+    "empirical companion diagnostics rather than assumptions in the fixed-candidate bound",
+    "reduced-budget CEM trace audit",
+    "point-best hit",
+    "plateau hit",
+    "proximity gap",
+    "paper-facing criterion is plateau proximity",
+    "These proofs calibrate the diagnostics used in the main text",
+    "released paired-diagnostic artifacts behind the compact main-text readouts",
+    "point-optimal \\stdmax{} prediction",
 ]
 
 FORBIDDEN_SNIPPETS = [
@@ -198,6 +208,12 @@ FORBIDDEN_SNIPPETS = [
     "The frozen rule",
     "coarse collapse",
     "The aggregate screen is useful",
+    "small CEM trace audit",
+    "other downstream readouts are treated only as exploratory diagnostics",
+    "point-optimal std prediction",
+    "Reading. Diagnostic calibration; proofs follow",
+    "Reading. Exploratory artifact support",
+    "The released source and rendering script",
 ]
 
 EXPECTED_TASKS = {"TwoRoom", "PushT", "Reacher", "Cube"}
@@ -309,6 +325,9 @@ def check_forbidden_text() -> None:
         "Three-seed fixed-rule diagnostic validation",
         "the fixed-rule validation",
         "The fixed-rule plateau audit",
+        "Task & exact best",
+        "regret to best",
+        "top-2 overlap",
     ]
     for snippet in main_forbidden:
         if snippet in main_tex:

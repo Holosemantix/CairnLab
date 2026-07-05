@@ -560,7 +560,7 @@ All & 2/12 & 10/12 & $2.25 \pm 2.51$ & $0.75/2$ \\
 \end{tabular}
 \end{table}
 
-The fixed rule is not a replacement for closed-loop evaluation: it tests whether ACPC-family readouts diagnose entry into a closed-loop robustness plateau. Because the sweep has broad finite-variance plateaus, Appendix~\ref{sec:appendix-selector-audit} treats \stdmax{} as a candidate label inside each task--training-seed block and evaluates membership screens rather than point-best ranking. With a 5pp plateau label, the aggregate top-half screen intersects the closed-loop plateau in 12/12 task--training-seed blocks; 42 of its 48 screened rows are plateau members (87.5\% precision, 61.8\% recall), matching the high-std top-half reference and trailing MAF-only, but above the 70.8\% precision of an exact random top-half reference. This supports plateau-entry diagnosis rather than a uniquely dominant score: the readouts identify a candidate region enriched for robust checkpoints and reveal boundary blocks such as Cube seed 3072, while closed-loop scores remain the authority and plateau-internal ordering is not a claim.
+The fixed rule is not a replacement for closed-loop evaluation: it tests whether ACPC-family readouts diagnose entry into a closed-loop robustness plateau. Because the sweep has broad finite-variance plateaus, Appendix~\ref{sec:appendix-selector-audit} treats \stdmax{} as a candidate label inside each task--training-seed block and evaluates membership screens rather than point-best ranking. With a 5pp plateau label, 42 of the aggregate screen's 48 rows are plateau members (87.5\% precision, 61.8\% recall), matching the high-std top-half reference and trailing MAF-only, but above exact random top-half precision (70.8\%). Presence is saturated, so the result supports plateau-entry enrichment and boundary localization rather than a uniquely dominant score; closed-loop scores remain the authority, and plateau-internal ordering is not a claim.
 
 \subsection{Paired Gaussian-noise ACPC basin diagnostic}\label{sec:exp-acpc-basin}
 
@@ -1302,7 +1302,7 @@ Random top-half reference & $11.96/12$ & $70.8\%$ & $50.0\%$ & $34.0/14.0/34.0$ 
 \end{tabularx}
 \end{table}
 
-\paragraph{Reading.} The audit evaluates membership enrichment, not point-optimal ranking. The aggregate screen is useful, but not uniquely dominant: MAF-only and the high-std top-half reference are competitive on this grid. We therefore interpret the screen as diagnostic enrichment and failure localization, not as a learned selector. Closed-loop evaluation remains the authority for final checkpoint claims.
+\paragraph{Reading.} The audit evaluates membership enrichment, not point-optimal ranking. The aggregate screen is useful, but not uniquely dominant: MAF-only and the high-std reference are competitive. The high-std reference is a coarse intervention-order screen: larger noise often helps before plateau entry, but \stdmax{} is not a monotone ranker inside a plateau. We therefore read the screen as diagnostic enrichment and failure localization; closed-loop evaluation remains the authority.
 
 %% ===========================================================================
 \section{Reduced-budget offline CEM trace audit}\label{sec:appendix-cem-trace}

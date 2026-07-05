@@ -147,8 +147,9 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "87.5\\% precision",
     "not to rank checkpoints inside a plateau",
     "High-std top-half reference",
-    "not uniquely dominant",
-    "legacy one-row plateau-proximity report",
+    "not evidence of selector dominance",
+    "single-row proximity view",
+    "Precision and recall are the primary readouts",
     "Presence is saturated",
     "coarse intervention-order screen",
     "treated only as a candidate label",
@@ -159,6 +160,9 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "ACPC rollout readout $R_F$",
     "margin-conditioned action-flip audit",
     "top clean-margin quartile",
+    "paired candidate-cost change (PCC)",
+    "candidate-ranking agreement (CRA)",
+    "margin-conditioned action-flip rate (MAF)",
 ]
 
 FORBIDDEN_SNIPPETS = [
@@ -189,6 +193,11 @@ FORBIDDEN_SNIPPETS = [
     "The external baseline is therefore",
     "strong simple endpoint baseline",
     "comparable strong baseline",
+    "legacy one-row",
+    "The fixed rule",
+    "The frozen rule",
+    "coarse collapse",
+    "The aggregate screen is useful",
 ]
 
 EXPECTED_TASKS = {"TwoRoom", "PushT", "Reacher", "Cube"}
@@ -298,6 +307,8 @@ def check_forbidden_text() -> None:
         "then select the lowest aggregate rank",
         "The selector uses paired rollout/candidate-cost readouts",
         "Three-seed fixed-rule diagnostic validation",
+        "the fixed-rule validation",
+        "The fixed-rule plateau audit",
     ]
     for snippet in main_forbidden:
         if snippet in main_tex:
@@ -307,6 +318,24 @@ def check_forbidden_text() -> None:
             hits.append(f"paper1/main.tex missing required scope-boundary snippet: {snippet!r}")
     if hits:
         fail("\n".join(hits))
+
+
+def check_appendix_reading_gate() -> None:
+    main_tex = (ROOT / "paper1" / "main.tex").read_text(encoding="utf-8")
+    marker = "\\appendix"
+    if marker not in main_tex:
+        fail("paper1/main.tex missing appendix marker")
+    appendix = main_tex.split(marker, 1)[1]
+    sections = list(re.finditer(r"\\section\{([^}]*)\}", appendix))
+    missing: list[str] = []
+    for idx, match in enumerate(sections):
+        title = match.group(1)
+        end = sections[idx + 1].start() if idx + 1 < len(sections) else len(appendix)
+        block = appendix[match.end():end]
+        if "\\paragraph{Reading.}" not in block and "\\paragraph{Reading:}" not in block:
+            missing.append(title)
+    if missing:
+        fail("Appendix sections missing Reading paragraph: " + ", ".join(missing))
 
 
 def approx_equal(a: float, b: float) -> bool:
@@ -1906,6 +1935,7 @@ def main() -> int:
     checks = [
         ("artifacts", check_artifacts),
         ("forbidden text", check_forbidden_text),
+        ("appendix Reading gate", check_appendix_reading_gate),
         ("canonical json", check_canonical_json),
         ("pldm canonical json", check_pldm_canonical_json),
         ("canonical diagnostics json", check_canonical_diagnostics_json),

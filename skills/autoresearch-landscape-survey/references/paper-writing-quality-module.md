@@ -236,12 +236,19 @@ Require:
   same object;
 - recommended usage: score is the numeric evaluation; screen returns a set;
   view is a reporting perspective;
+- avoid table or section labels that revive a selector mindset when the claim
+  is plateau proximity. Prefer "plateau hit", "proximity gap", and
+  "single-row proximity view" over "exact best", "regret to best", and
+  "selector" unless exact ranking is the supported claim;
 - every abbreviation is expanded at first use, including PCC, CRA, MAF, and
   ACPC-H/trans when they appear;
 - keep internal engineering terms out of the main paper. Avoid legacy,
   provenance, archived, remediation, and old path in the main narrative;
 - if artifact history matters, move it to an appendix artifact note rather than
-  making it part of the main contribution story.
+  making it part of the main contribution story;
+- avoid vague size adjectives such as "small" for audits. Use protocol terms
+  such as "reduced-budget", "bounded", or "scope check" when those are the
+  actual design constraints.
 
 ### C. Experiment Narrative Constraints
 
@@ -259,7 +266,10 @@ Require:
 - if a metric is saturated, do not place it in the most prominent table or
   sentence position. For example, if presence hit is saturated, put
   precision/recall before presence;
-- replace self-evaluation with facts. Prefer "X changes from a to b; Y remains unchanged" over "this strengthens", "useful", or "compelling".
+- replace self-evaluation with facts. Prefer "X changes from a to b; Y remains unchanged" over "this strengthens", "useful", or "compelling";
+- split dense validation paragraphs into protocol and result paragraphs when
+  one sentence carries the evaluation authority, diagnostic object, candidate
+  treatment, baseline comparisons, saturated metrics, and boundary claim.
 
 ### D. Caveat Constraints
 
@@ -286,6 +296,8 @@ Require:
   the method claim;
 - saturated metrics do not appear first;
 - captions state the metric's intended use. Example: "Precision/recall are the primary readouts; presence is reported for block coverage";
+- point-best and top-k columns may remain as context only when the caption says
+  the paper-facing criterion is plateau proximity or range membership;
 - every table reading includes how not to read it. Example: "This is not evidence of selector dominance";
 - every reference baseline explains what it is and what it is not;
 - the high-std reference is a coarse intervention-order screen, not a plateau-internal ranker.
@@ -297,8 +309,13 @@ The appendix extends evidence; it is not a main-text junk drawer.
 Require:
 
 - every appendix subsection has a sentence beginning with "Reading:";
+- "Reading" sentences must be complete paper prose, not internal notes such as
+  "proofs follow" or "artifact support";
 - artifact provenance can be preserved in the appendix, but provenance should
   not drive the main narrative;
+- concrete artifact paths should usually live in the manifest or appendix; the
+  main text should point to the appendix/manifest rather than repeat paths in
+  every experiment paragraph;
 - old experiments and old audits may be retained only when marked "not paper-facing evidence";
 - appendix material is either evidence expansion, reproducibility support, or
   scoped audit context. Otherwise remove it.
@@ -340,6 +357,10 @@ Require:
 Require:
 
 - grouped comparison by technical axis, not a citation dump;
+- split representation-level invariance theory from visual-control or
+  world-model robustness methods. Do not mix theoretical framing,
+  augmentation papers, strong control baselines, and future-comparison scope in
+  one long paragraph;
 - primary sources for closest methods and baselines;
 - no placeholder citation for a claim the cited work does not support;
 - clear distinction between prior art, baseline, concurrent work, and
@@ -368,7 +389,10 @@ Require:
 - exact winners de-emphasized when differences are within noise;
 - every comparison has an appropriate baseline or is labeled as a scope check;
 - result labels match evidence strength: main result, sanity check, ablation,
-  failure case, audit, or appendix diagnostic.
+  failure case, audit, or appendix diagnostic;
+- downstream readouts that are not assumptions in a theorem should be called
+  empirical companion diagnostics, not exploratory diagnostics, when they are
+  part of the paper's evidence chain.
 
 ### Discussion And Limitation Gate
 

@@ -219,21 +219,33 @@ Require:
   paragraphs;
 - stable reader-facing terminology rather than implementation keys;
 - one concept has one primary name; score means numeric evaluation, screen returns a set, and view is a reporting perspective;
+- table and section labels must match claim strength: for plateau claims, prefer
+  plateau hit, proximity gap, candidate region, and single-row proximity view
+  over exact-best or selector language;
 - no acronym or notation overload: every acronym defined at first use, no more than three nonstandard acronyms in the abstract unless unavoidable, and no
   paragraph introducing more than three new acronyms or symbols;
 - experiment paragraphs follow question, protocol, result, boundary, with
   behavioral recovery, plateau membership, planner-side sensitivity, and
   selectivity guard separated when relevant;
+- split over-dense validation paragraphs when they combine protocol, result,
+  comparison baselines, saturated metrics, and caveats in one sentence;
 - formulas with introduced symbols, consistent notation, and no visible PDF overflow;
 - figure/table captions that state units, seeds or sample counts when relevant,
   aggregation conventions, and the conclusion;
 - tables put the most discriminative metric first, not saturated metrics; the reading must say how not to read the table, such as "This is not evidence of selector dominance";
+- point-best hit, top-k overlap, or regret-to-best columns are context only for
+  plateau papers unless the caption names plateau proximity or membership as
+  the paper-facing criterion;
 - reference baselines explain what they are and what they are not; a high-std
   reference is a coarse intervention-order screen, not a plateau-internal
   ranker;
 - the same caveat appears at most three times and is tied to a positive claim;
-- every appendix subsection has a "Reading:" sentence, and old experiments or
-  old audits are marked "not paper-facing evidence";
+- every appendix subsection has a "Reading:" sentence written as complete
+  paper prose, not an internal note; old experiments or old audits are marked
+  "not paper-facing evidence";
+- artifact paths are concentrated in manifests or appendix artifact notes; main
+  text should normally point to those locations rather than repeat paths in
+  each result paragraph;
 - source-backed numbers and citations, not citation placeholders;
 - compiled-PDF inspection for fonts, margins, page limit, line breaks, overfull
   boxes, table width, figure readability, anonymization, and bibliography
@@ -445,6 +457,8 @@ Require:
 - formulas whose symbols are introduced before use and reused consistently;
 - theorem/proposition names that match the actual claim strength;
 - tables that fit, align units, avoid overprecision, and expose the conclusion;
+- table headers avoid selector wording when the evidence supports only plateau
+  proximity, enrichment, or range membership;
 - figures that support the argument rather than decorate it;
 - appendix tables that do not distract from the main narrative.
 

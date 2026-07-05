@@ -41,3 +41,21 @@ This route is not strong enough for a Paper1 main method claim. It can be writte
 Recommended framing: keep this as an appendix/bounded negative result unless future work moves beyond final CEM reranking, such as a learned standard-vs-robust selector, representation-level denoising, or training-time ACPC objectives.
 
 Primary machine-readable artifact: `assets/paper1_data/robust_cem_eval100x3_iteration_summary_20260705.json`.
+## Final inner-loop sanity check: no-go (2026-07-05)
+
+This check followed `paper1/ROBUST_CEM_CODEX.md` after it was narrowed to one final full inner-loop sanity pass. The solver path used robust scoring before `topk` inside each CEM iteration (`solver=robust_cem`, `robust_rescore=all`, `num_views=4`, `view_std=0.04`, `include_identity=true`).
+
+| Task | Planner | Seed | Success | Reading |
+|---|---|---:|---:|---|
+| TwoRoom | `cem48_n4` | 42 | 29.0% (29/100) | standard baseline, resumed |
+| TwoRoom | `cem192_n4_compute` | 42 | 29.0% (29/100) | compute-matched baseline, resumed |
+| TwoRoom | `rcem_final_rankvote_elitemean` | 42 | 33.0% (33/100) | final-rerank reference, resumed |
+| TwoRoom | `rcem_inner_meanstd` | 42 | 31.0% (31/100) | full inner-loop robust score, +2 pp vs compute |
+| TwoRoom | `rcem_inner_rankvote_elitemean` | 42 | 22.0% (22/100) | full inner-loop rank-vote score, -7 pp vs compute |
+| Reacher | `cem48_n4` | 42 | 7.0% (7/100) | standard baseline, resumed before stop |
+| Reacher | `cem192_n4_compute` | 42 | 7.0% (7/100) | compute-matched baseline, resumed before stop |
+| Reacher | `rcem_final_rankvote_elitemean` | 42 | 6.0% (6/100) | final-rerank reference, resumed before stop |
+
+Decision: **no-go**. The best TwoRoom full inner-loop result is 31.0%, only +2 pp over compute-matched CEM and below the required +5 pp threshold; the rank-vote inner-loop variant is worse than compute. Per the plan, the run was stopped and not expanded to seeds 43/44. Reacher inner-loop was not interpreted because the TwoRoom gate had already failed. Keep this as bounded lab-note evidence only; do not add Robust CEM to Paper1 main text or appendix unless a separate future method path produces a clear compute-matched win.
+
+Machine-readable summary: `assets/paper1_data/robust_cem_inner_loop_sanity_summary_20260705.json`.

@@ -47,7 +47,7 @@ def test_protocol_prevents_large_unverified_score_jump():
 
 def test_skill_entry_mentions_score_disagreement_gate():
     text = SKILL.read_text(encoding="utf-8")
-    assert 'version: "0.2.4"' in text
+    assert 'version: "0.2.5"' in text
     assert "score-disagreement ledger" in text
     assert "separate main-track and diagnostic" in text
     assert "corrected score ceiling" in text

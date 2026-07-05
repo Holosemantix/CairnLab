@@ -5,6 +5,13 @@ claim calibration, citation audit, and iterative remediation. It is a CairnLab
 workflow asset: it can produce reviewer evidence, issue lists, and remediation
 plans, but it does not authorize scientific claim lifecycle transitions.
 
+For drafting or substantial rewriting, first apply
+`paper-writing-quality-module.md`. That module defines the writing contract,
+venue/style constraints, paragraph and abstract gates, acronym/notation budget,
+formula/layout checks, compiled-PDF inspection, and writing-quality ledger.
+This review protocol then independently scores and remediates the current
+artifact.
+
 Core boundary:
 
 - No artifact, no claim.
@@ -191,6 +198,49 @@ Check that:
 
 Remove prose that sounds like a checklist of reviewer anxieties. A strong paper
 is honest about limits while still making a crisp contribution.
+
+## Pure Writing Quality Gate
+
+When the user asks for paper writing, rewriting, polishing, or top-conference
+readiness, do not treat "writing-only" as a vague cleanup bucket. Apply the
+paper-writing quality module's gates and report them in the review ledger.
+
+Require:
+
+- a checkable writing contract before major drafting;
+- an explicit claim-frame sentence in the form "This paper is X, not Y";
+- both a positive claim and a boundary claim in the abstract;
+- plateau/range results described with plateau, range, membership, region, or
+  screen language rather than point-best selector language;
+- one central thesis and one section job per section;
+- abstract coverage of problem, contribution type, evidence scale, strongest
+  supported result, key limitation when material, and no unrelated content;
+- paragraph-level roles, topic sentences, and no repeated reviewer-defense
+  paragraphs;
+- stable reader-facing terminology rather than implementation keys;
+- one concept has one primary name; score means numeric evaluation, screen returns a set, and view is a reporting perspective;
+- no acronym or notation overload: every acronym defined at first use, no more than three nonstandard acronyms in the abstract unless unavoidable, and no
+  paragraph introducing more than three new acronyms or symbols;
+- experiment paragraphs follow question, protocol, result, boundary, with
+  behavioral recovery, plateau membership, planner-side sensitivity, and
+  selectivity guard separated when relevant;
+- formulas with introduced symbols, consistent notation, and no visible PDF overflow;
+- figure/table captions that state units, seeds or sample counts when relevant,
+  aggregation conventions, and the conclusion;
+- tables put the most discriminative metric first, not saturated metrics; the reading must say how not to read the table, such as "This is not evidence of selector dominance";
+- reference baselines explain what they are and what they are not; a high-std
+  reference is a coarse intervention-order screen, not a plateau-internal
+  ranker;
+- the same caveat appears at most three times and is tied to a positive claim;
+- every appendix subsection has a "Reading:" sentence, and old experiments or
+  old audits are marked "not paper-facing evidence";
+- source-backed numbers and citations, not citation placeholders;
+- compiled-PDF inspection for fonts, margins, page limit, line breaks, overfull
+  boxes, table width, figure readability, anonymization, and bibliography
+  format;
+- a `remove/merge/demote` pass before adding more caveats or prose.
+
+Writing-only remediation may raise clarity and venue fit. It cannot raise the evidence ceiling for claims whose artifacts, baselines, labels, runs, or verifier checks are missing.
 
 ## Claim Calibration
 

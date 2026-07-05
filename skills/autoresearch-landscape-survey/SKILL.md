@@ -4,7 +4,7 @@ description: Use this skill to maintain a multi-facet survey map of AutoResearch
 license: Apache-2.0
 allowed-tools: Read Write Edit Bash WebSearch WebFetch
 metadata:
-  version: "0.2.4"
+  version: "0.2.5"
   skill-author: Holosemantix research mapping workflow
 ---
 
@@ -23,10 +23,11 @@ Use this skill when the task is to survey, compare, classify, or update knowledg
 
 Also use this skill when maintaining CairnLab-facing research-paper review,
 writing, citation-audit, or remediation workflows. In that mode, read
-`references/paper-review-remediation-protocol.md` before judging or editing a
-paper. Reviewer notes, LLM critiques, and manuscript scores remain
-non-authoritative evidence; they do not decide CairnLab claim lifecycle
-transitions.
+`references/paper-writing-quality-module.md` before drafting or rewriting a
+paper, and read `references/paper-review-remediation-protocol.md` before
+judging or editing a paper. Writing-quality ledgers, reviewer notes, LLM
+critiques, and manuscript scores remain non-authoritative evidence; they do not
+decide CairnLab claim lifecycle transitions.
 
 ## Core Principle
 
@@ -54,6 +55,7 @@ Requires Python 3.10+ and PyYAML. Web/GitHub access is recommended for new-proje
 | `reports/project_overview.md` | Continuously updated overall project overview. |
 | `reports/landscape_report.md` | Longer generated landscape report. |
 | `references/project-map.md` | Human-readable project map and maintenance notes. |
+| `references/paper-writing-quality-module.md` | Pure manuscript-writing quality module for venue-shaped, evidence-traceable papers. |
 | `references/paper-review-remediation-protocol.md` | Top-conference paper writing, review, citation-audit, and multi-round remediation protocol. |
 | `references/deep-dives/` | Detailed analysis for highly relevant projects. |
 | `scripts/check_new_project.py` | Check if a new project has already been surveyed and find closest projects. |
@@ -118,6 +120,17 @@ Create or update a deep dive when a project is highly relevant to CairnLab Resea
 For low-relevance projects, use a brief card but still record facets and sources.
 
 ## Paper Review and Remediation Policy
+
+When the task is to draft or rewrite a research paper, first apply
+`references/paper-writing-quality-module.md`: create a checkable writing
+contract, map claims to evidence, set venue/style constraints, budget acronyms
+and notation, draft section-by-section, compile the PDF, inspect formulas,
+tables, captions, fonts, page limits, and layout, and leave a writing-quality
+ledger. This module is meant to catch poor wording, irrelevant abstract
+content, repetitive paragraphs, acronym overload, formula/layout problems,
+caption ambiguity, venue mismatch, plateau over-ranking, caveat overuse,
+terminology drift, saturated-metric table ordering, and appendix material that
+is not paper-facing evidence before a reviewer score is trusted.
 
 When the task is to improve or review a research paper, run the manuscript as a
 fresh submission through `references/paper-review-remediation-protocol.md`. The

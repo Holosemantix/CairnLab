@@ -1302,7 +1302,7 @@ Random top-half reference & $11.96/12$ & $70.8\%$ & $50.0\%$ & $34.0/14.0/34.0$ 
 \end{tabularx}
 \end{table}
 
-\paragraph{Reading.} The audit evaluates membership enrichment, not point-optimal ranking. The aggregate screen is useful, but not uniquely dominant: MAF-only and the high-std reference are competitive. The high-std reference is a coarse intervention-order screen: larger noise often helps before plateau entry, but \stdmax{} is not a monotone ranker inside a plateau. We therefore read the screen as diagnostic enrichment and failure localization; closed-loop evaluation remains the authority.
+\paragraph{Reading.} The audit evaluates membership enrichment, not point-optimal ranking. The aggregate screen is useful, but not uniquely dominant: MAF-only and the high-std reference are competitive. The high-std reference is a coarse intervention-order screen: larger noise often helps before plateau entry, but once a task--seed block reaches the plateau, \stdmax{} is treated only as a candidate label, not as a monotone performance predictor. We therefore read the screen as diagnostic enrichment and failure localization; closed-loop evaluation remains the authority.
 
 %% ===========================================================================
 \section{Reduced-budget offline CEM trace audit}\label{sec:appendix-cem-trace}

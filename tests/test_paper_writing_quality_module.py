@@ -12,6 +12,11 @@ MODULE = (
     / "references"
     / "paper-writing-quality-module.md"
 )
+STANDALONE_SKILL = ROOT / "skills" / "paper-writing-quality" / "SKILL.md"
+STANDALONE_REFERENCE = (
+    ROOT / "skills" / "paper-writing-quality" / "references" / "writing-quality-checklist.md"
+)
+STANDALONE_OPENAI_YAML = ROOT / "skills" / "paper-writing-quality" / "agents" / "openai.yaml"
 PROTOCOL = (
     ROOT
     / "skills"
@@ -29,6 +34,36 @@ def test_skill_routes_paper_writing_to_quality_module() -> None:
     assert "writing-quality ledgers" in text.lower()
     assert "non-authoritative evidence" in text
     assert "claim lifecycle transitions" in text
+
+
+def test_standalone_skill_routes_to_quality_checklist() -> None:
+    skill_text = STANDALONE_SKILL.read_text(encoding="utf-8")
+    reference_text = STANDALONE_REFERENCE.read_text(encoding="utf-8")
+    openai_yaml = STANDALONE_OPENAI_YAML.read_text(encoding="utf-8")
+
+    required_skill_phrases = [
+        "name: paper-writing-quality",
+        "Use this skill when drafting, rewriting, polishing, or reviewing scientific manuscripts",
+        "references/writing-quality-checklist.md",
+        "This paper is X, not Y",
+        "positive claim plus boundary claim",
+        "writing-quality ledger",
+    ]
+    missing_skill = [phrase for phrase in required_skill_phrases if phrase not in skill_text]
+
+    required_reference_phrases = [
+        "Project-Specific Writing Constraints",
+        "The screen enriches plateau members, but does not rank inside plateau",
+        "Precision/recall are the primary readouts; presence is reported for block coverage",
+        "not paper-facing evidence",
+    ]
+    missing_reference = [
+        phrase for phrase in required_reference_phrases if phrase not in reference_text
+    ]
+
+    assert missing_skill == []
+    assert missing_reference == []
+    assert "Use $paper-writing-quality" in openai_yaml
 
 
 def test_writing_module_preserves_cairnlab_authority_boundary() -> None:

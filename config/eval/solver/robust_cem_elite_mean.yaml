@@ -1,10 +1,10 @@
 _target_: robust_cem.RobustCEMSolver
 model: ???
 batch_size: 1
-num_samples: 300
+num_samples: 48
 var_scale: 1.0
-n_steps: 30
-topk: 30
+n_steps: 4
+topk: 8
 device: "cuda"
 seed: ${seed}
 
@@ -17,7 +17,7 @@ view_kernel_size: 7
 view_resize_factor: 0.75
 perturb_pixels: true
 perturb_goal: false
-score_mode: mean_std
+score_mode: rank_mean_std
 beta: 0.5
 quantile: 0.8
 margin_topk: null
@@ -25,8 +25,8 @@ final_accept_rank: null
 final_switch_min_score_gain: null
 final_switch_min_base_rank_std: null
 final_switch_min_top1_flip: null
-robust_rescore: all
-final_output_mode: selected
+robust_rescore: final
+final_output_mode: elite_mean
 elite_rescore_multiplier: 2
 max_view_batch: null
-record_history: true
+record_history: false

@@ -177,7 +177,7 @@ For the theoretical statements below, we use the induced horizon metric
   \label{eq:acpc-horizon-metric}
 \end{equation}
 so that \Cref{eq:acpc-h} is exactly the clean/perturbed projected-rollout distance under the shared action sequence.
-In this diagnostic framing, robustness corresponds to small $\mathrm{ACPC}_H$ together with action-relevant discriminability, not to the encoder distance $d(z_t, \tilde z_t)$ alone. Encoder closeness is a useful first-stage risk signal, but it is neither necessary (a large but task-irrelevant encoder shift can wash out through $F_\theta$ and $\Pi$) nor sufficient (a small encoder shift can still change the predicted future enough to flip the planned action).
+In this diagnostic framing, robustness corresponds to small $\mathrm{ACPC}_H$ together with action-relevant discriminability, not to the encoder distance $d(z_t, \tilde z_t)$ alone. Encoder geometry remains an indispensable first-stage risk signal: noisy views should stay in the same-state predictive basin and avoid crossing into task-distinct neighborhoods. The narrower point is that raw encoder distance alone is not a complete robustness criterion, because the effect of an encoder shift depends on local action-conditioned rollout sensitivity and candidate margins.
 
 \paragraph{Action-relevant discriminability.} Consistency must be \emph{selective}. Let $Y^{H}(s,\mathbf a)$ denote a task-relevant future signal that is external to the learned predictor --- simulator state, cost-to-go, inverse-dynamics label, contact/keyframe tag, or another diagnostic proxy available in the dataset. For two genuinely different states $s_i, s_j$ (with latents $z_i, z_j$) that admit an action sequence under which this external future signal diverges,
 \begin{equation}
@@ -226,7 +226,7 @@ for the projected-rollout map. If $G_{\mathbf a}$ is locally $L_G$-Lipschitz bet
 This is the local Lipschitz condition applied to the two encoded histories.
 \end{proof}
 
-This bound makes encoder geometry a first-stage risk signal: small encoder shifts imply small rollout disagreement only under local insensitivity, large shifts can be contracted by $G_{\mathbf a}$, and small shifts can be amplified by the predictor or planner cost. This is why the empirical diagnostic measures the tail of action-conditioned rollout disagreement rather than encoder distance alone.
+This bound clarifies why encoder geometry matters: smaller same-state encoder shifts and reduced neighborhood crossing lower upstream risk, but rollout disagreement is controlled only after the encoder shift is passed through $G_{\mathbf a}$. In the empirical diagnostic we therefore report action-conditioned rollout-disagreement tails rather than raw encoder distances alone.
 
 \begin{proposition}[ACPC controls candidate-cost drift]\label{prop:cost-drift}
 Assume that $J$ is locally $L_J$-Lipschitz on the clean/perturbed projected-rollout neighborhood evaluated by the fixed candidate set under metric $d_H$. If
@@ -326,7 +326,7 @@ where the remainder contributes higher-order terms, and
 \]
 \end{proposition}
 
-Thus Gaussian ACPC measures action-conditioned encoder--predictor sensitivity, not encoder invariance alone. Small encoder shifts can still be amplified by $J_{G_{\mathbf a}}$, while large nuisance shifts can become harmless after rollout if the product $J_{G_{\mathbf a}}J_E$ is small in those directions. The selective target is therefore asymmetric: the product should be small along nuisance perturbation directions, while projected rollouts for action-relevant state differences remain separated. The task-grounded near-boundary proxy margin pass event used later is
+Thus Gaussian ACPC measures action-conditioned encoder--predictor sensitivity, not encoder invariance alone. Noise training can improve robustness through both factors: it can reduce same-state encoder neighborhood crossing, and it can reduce the rollout sensitivity applied to any remaining encoder shift. Small encoder shifts can still be amplified by $J_{G_{\mathbf a}}$, while large nuisance shifts can become harmless after rollout if the product $J_{G_{\mathbf a}}J_E$ is small in those directions. The selective target is therefore asymmetric: the product should be small along nuisance perturbation directions, while projected rollouts for action-relevant state differences remain separated. The task-grounded near-boundary proxy margin pass event used later is
 \[
 M=\mathbf 1\!\left[d_{\mathrm{proxy\ diff}}>d_{\mathrm{same\ state\ noise}}+\delta_m\right],
 \]
@@ -429,7 +429,7 @@ Cube & $2.320 \pm 0.045$ & $0.100 \pm 0.007$ & $0.45 \pm 0.03$ & $1.00 \pm 0.00$
 \label{fig:acpc-basin-tsne}
 \end{figure}
 
-The two diagnostics move in the intended selective direction on all four tasks: recovered endpoints have much smaller same-state predictive tails and much higher task-grounded margin pass rates. \Cref{fig:acpc-basin-tsne} provides qualitative visual intuition on PushT: repeated noisy views of the same state become tighter after noise training in both encoder and post-predictor feature projections. The quantitative claim still rests on ATR, SMPR, and closed-loop behavior, not on distances in the t-SNE plane. Cube remains the useful boundary case: ATR and SMPR improve strongly, but the closed-loop Gaussian recovery in \Cref{fig:sweep} is weaker than PushT or Reacher, so closed-loop evaluation remains the behavioral authority.
+The two diagnostics move in the intended selective direction on all four tasks: recovered endpoints have much smaller same-state predictive tails and much higher task-grounded margin pass rates. \Cref{fig:acpc-basin-tsne} provides qualitative visual intuition on PushT: repeated noisy views of the same state become tighter after noise training in both encoder and post-predictor feature projections. We interpret this as encoder basin repair plus further predictive contraction of residual nuisance variation, while keeping the quantitative claim on ATR, SMPR, and closed-loop behavior rather than distances in the t-SNE plane. Cube remains the useful boundary case: ATR and SMPR improve strongly, but the closed-loop Gaussian recovery in \Cref{fig:sweep} is weaker than PushT or Reacher, so closed-loop evaluation remains the behavioral authority.
 
 SMPR uses programmatic task-state proxy labels, not oracle semantic annotations: TwoRoom uses doorway/room-side labels, PushT uses T-block pose cells, Reacher uses target/end-effector relation bins, and Cube uses cube-pose/goal-relation cells. Each anchor selects the closest label-crossing neighbor inside the closest 35\% state-distance neighborhood and passes if that clean different-state rollout distance exceeds the same-state noisy radius. The no-noise baselines are weak under this stricter audit, while the high-noise endpoint reaches near-one pass rate; stronger hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation.
 

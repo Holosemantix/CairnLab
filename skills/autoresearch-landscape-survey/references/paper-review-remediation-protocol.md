@@ -169,6 +169,9 @@ Apply these checks before expanding the paper:
 - If the paper's contribution appears to depend on stacking conditions,
   terminology, or artifact volume, simplify the claim instead of adding more
   qualifiers.
+- If the user or venue pressure says the manuscript is already too long, run
+  the round in subtractive-only mode: every rewrite must be length-neutral or
+  shorter, and any new sentence must replace at least as much weaker text.
 
 The review output must include a `remove/merge/demote` group alongside the
 `no-retraining`, `new evaluation/diagnostic with fixed checkpoints`,
@@ -192,6 +195,16 @@ Check that:
 - main text contains must-read evidence, while reproduction ledgers, artifact
   maps, extra diagnostics, and audit trails move to appendices;
 - terminology is stable and reader-facing names are not implementation keys;
+- related work is grouped by technical role and does not read as a citation
+  dump; representation-level theory, robust-control baselines, and future
+  comparison scope are separated when they serve different jobs;
+- prose states the science directly instead of explaining manuscript logistics
+  with repeated phrases such as "the main text reports";
+- repeated labels such as "scope check" are replaced with specific roles such
+  as auxiliary stress check, method-family replication, ablation, or bounded
+  evidence when repetition makes the paper sound defensive;
+- informal metaphors and over-strong phrases are softened unless backed by a
+  formal test, for example "is bought by" or "the data reject";
 - the paper avoids diagnostic name soup and acronym overload unless each term
   answers a necessary question;
 - the length is justified by evidence density, not by defensive patching.
@@ -229,6 +242,9 @@ Require:
   selectivity guard separated when relevant;
 - split over-dense validation paragraphs when they combine protocol, result,
   comparison baselines, saturated metrics, and caveats in one sentence;
+- rewrite Related Work paragraphs that exceed the reader's citation budget: name
+  only necessary exemplars in the sentence and move the no-baseline-scope
+  boundary before or near the list;
 - formulas with introduced symbols, consistent notation, and no visible PDF overflow;
 - figure/table captions that state units, seeds or sample counts when relevant,
   aggregation conventions, and the conclusion;
@@ -458,7 +474,9 @@ Require:
 - theorem/proposition names that match the actual claim strength;
 - tables that fit, align units, avoid overprecision, and expose the conclusion;
 - table headers avoid selector wording when the evidence supports only plateau
-  proximity, enrichment, or range membership;
+  proximity, enrichment, or range membership; use neutral labels such as
+  point-best hit, plateau hit, proximity gap, and top-2 proximity overlap when
+  point-best columns are retained only as context;
 - figures that support the argument rather than decorate it;
 - appendix tables that do not distract from the main narrative.
 

@@ -247,8 +247,9 @@ Require:
 - if artifact history matters, move it to an appendix artifact note rather than
   making it part of the main contribution story;
 - avoid vague size adjectives such as "small" for audits. Use protocol terms
-  such as "reduced-budget", "bounded", or "scope check" when those are the
-  actual design constraints.
+  such as "reduced-budget", "bounded", or "auxiliary stress check" when those
+  are the actual design constraints. Do not repeat "scope check" so often that
+  the paper reads as defensive qualification rather than a contribution.
 
 ### C. Experiment Narrative Constraints
 
@@ -269,7 +270,10 @@ Require:
 - replace self-evaluation with facts. Prefer "X changes from a to b; Y remains unchanged" over "this strengthens", "useful", or "compelling";
 - split dense validation paragraphs into protocol and result paragraphs when
   one sentence carries the evaluation authority, diagnostic object, candidate
-  treatment, baseline comparisons, saturated metrics, and boundary claim.
+  treatment, baseline comparisons, saturated metrics, and boundary claim;
+- describe the empirical design directly rather than using meta prose about
+  what "the main text reports" or what "the paper keeps"; write the object,
+  protocol, and result.
 
 ### D. Caveat Constraints
 
@@ -361,6 +365,11 @@ Require:
   world-model robustness methods. Do not mix theoretical framing,
   augmentation papers, strong control baselines, and future-comparison scope in
   one long paragraph;
+- avoid citation-density paragraphs. If a sentence contains a long list of
+  methods, first state the comparison role, then keep only the necessary names
+  or split the list into technical families;
+- when related systems are not competing baselines, say that before or near the
+  list rather than after the reader expects a baseline comparison;
 - primary sources for closest methods and baselines;
 - no placeholder citation for a claim the cited work does not support;
 - clear distinction between prior art, baseline, concurrent work, and
@@ -412,6 +421,9 @@ Apply these constraints during writing and revision:
 - prefer concrete verbs over generic AI-writing verbs such as "delve",
   "leverage" where "use" is more precise, "robustly" without evidence, or
   "comprehensive" without scope;
+- replace informal metaphors and over-strong statistical language unless the
+  analysis supports it. Prefer "comes at the cost of" over "is bought by" and
+  "argues against" or "rules out" over "the data reject" outside a formal test;
 - keep sentence subjects close to verbs;
 - avoid stacked noun phrases when a short clause is clearer;
 - split sentences that contain multiple claims, multiple abbreviations, and a
@@ -502,6 +514,10 @@ The module is incomplete if it does not catch:
 - discussion inflates results beyond evidence strength;
 - limitations are long but do not change reader interpretation;
 - related work is a citation dump;
+- prose explains manuscript organization instead of the science, for example
+  repeated "the main text reports" meta commentary;
+- "scope check" or similar caveat labels are repeated enough to make the
+  contribution feel narrow by wording rather than evidence;
 - venue style, page limit, anonymization, or citation format is ignored.
 
 ## Interaction With Review And Remediation

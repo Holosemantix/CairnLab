@@ -57,18 +57,13 @@ bash build.sh --clean
 
 # Prepare a minimal arXiv source bundle in /tmp and audit obvious internal files.
 rm -rf /tmp/paper1_arxiv_src
-mkdir -p /tmp/paper1_arxiv_src/figures/corruption
+mkdir -p /tmp/paper1_arxiv_src/figures
 cp main.tex arxiv_metadata.tex arxiv_release_notes.tex references.bib main.bbl /tmp/paper1_arxiv_src/
 
 # Keep this list aligned with figure inclusions in main.tex.
-cp figures/fig2_sweep.png /tmp/paper1_arxiv_src/figures/
-cp figures/pusht_fullseq_selective_contraction_clusters.png /tmp/paper1_arxiv_src/figures/
-cp figures/pusht_fullseq_selective_contraction_atlas.png /tmp/paper1_arxiv_src/figures/
-cp figures/pusht_pldm_noise_selective_contraction_clusters.png /tmp/paper1_arxiv_src/figures/
-cp figures/corruption/pusht_corruption_visualization.png /tmp/paper1_arxiv_src/figures/corruption/
-cp figures/corruption/tworoom_corruption_visualization.png /tmp/paper1_arxiv_src/figures/corruption/
-cp figures/corruption/reacher_corruption_visualization.png /tmp/paper1_arxiv_src/figures/corruption/
-cp figures/corruption/cube_corruption_visualization.png /tmp/paper1_arxiv_src/figures/corruption/
+cp ../assets/paper1_figs/fig2_sweep.png /tmp/paper1_arxiv_src/figures/
+cp ../assets/paper1_figs/fig_atr_smpr_plane.png /tmp/paper1_arxiv_src/figures/
+cp ../assets/paper1_figs/fig_feature_neighborhood_atr_smpr.png /tmp/paper1_arxiv_src/figures/
 
 tar -czf /tmp/paper1_arxiv_v1_src.tar.gz -C /tmp/paper1_arxiv_src .
 

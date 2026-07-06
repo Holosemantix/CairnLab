@@ -84,6 +84,8 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "cem_trace_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "compressed_metrics_summary_20260706.json",
     ROOT / "assets" / "paper1_data" / "compressed_metrics_summary_20260706.md",
+    ROOT / "assets" / "paper1_figs" / "fig_atr_smpr_plane.png",
+    ROOT / "assets" / "paper1_figs" / "fig_feature_neighborhood_atr_smpr.png",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -95,6 +97,8 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "The paper-facing diagnostic uses two readouts",
     "Core theorem quantity",
     "Compressed selective-ACPC diagnostics",
+    "Compressed selective-ACPC diagnostic plane",
+    "qualitative feature-neighborhood illustration",
     "ATR base",
     "SMPR std0.08",
     "point-ranking rule inside a plateau",

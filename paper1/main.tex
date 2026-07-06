@@ -546,7 +546,21 @@ Cube & $2.320 \pm 0.045$ & $0.100 \pm 0.007$ & $0.45 \pm 0.03$ & $1.00 \pm 0.00$
 \end{tabular}
 \end{table}
 
-The two readouts move in the intended selective direction on all four tasks: recovered endpoints have much smaller same-state predictive tails and much higher task-grounded margin pass rates. This does not make ATR/SMPR a point-ranking rule inside a plateau. Cube remains the useful boundary case: the compressed diagnostics improve strongly, but the closed-loop Gaussian gain and regret in \Cref{tab:training-seed-gaussian-lockbox} are weaker than PushT or Reacher, so closed-loop evaluation remains the behavioral authority.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\linewidth]{fig_atr_smpr_plane.png}
+\caption{Compressed selective-ACPC diagnostic plane. Each arrow moves from the no-noise baseline to the fixed \stdmax{} $=0.08$ checkpoint; lower ATR and higher SMPR are the intended diagnostic direction. Error bars show population std across training seeds.}
+\label{fig:atr-smpr-plane}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_feature_neighborhood_atr_smpr.png}
+\caption{Qualitative PushT feature-neighborhood illustration for the same no-noise versus \stdmax{} $=0.08$ contrast. Circles mark clean anchors and triangles mark same-state noisy views after a shared 2-D projection of encoder features or post-predictor rollout features. The panel is visual intuition only; ATR and SMPR remain the quantitative paper-facing readouts.}
+\label{fig:feature-neighborhood-atr-smpr}
+\end{figure}
+
+The two readouts move in the intended selective direction on all four tasks: recovered endpoints have much smaller same-state predictive tails and much higher task-grounded margin pass rates. \Cref{fig:atr-smpr-plane} visualizes the same movement as \Cref{tab:compressed-selective-acpc}; it is not an additional diagnostic or a point-ranking rule inside a plateau. \Cref{fig:feature-neighborhood-atr-smpr} provides a qualitative feature-neighborhood illustration of the same intuition on PushT: same-state noisy views become tighter after noise training, while the quantitative claim still rests on ATR, SMPR, and closed-loop behavior. Cube remains the useful boundary case: the compressed diagnostics improve strongly, but the closed-loop Gaussian gain and regret in \Cref{tab:training-seed-gaussian-lockbox} are weaker than PushT or Reacher, so closed-loop evaluation remains the behavioral authority.
 
 SMPR uses programmatic task-state proxy labels, not oracle semantic annotations: TwoRoom uses doorway/room-side labels, PushT uses T-block pose cells, Reacher uses target/end-effector relation bins, and Cube uses cube-pose/goal-relation cells. Each anchor selects the closest label-crossing neighbor inside the closest 35\% state-distance neighborhood and passes if that clean different-state rollout distance exceeds the same-state noisy radius. The no-noise baselines are weak under this stricter audit, while the high-noise endpoint reaches near-one pass rate; stronger hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation.
 

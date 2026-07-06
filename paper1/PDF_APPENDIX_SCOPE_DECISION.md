@@ -18,6 +18,9 @@ The Paper1 PDF should focus on exactly this structure:
 Behavior endpoint: closed-loop Gaussian success/drop
 Core diagnostic A: ATR, same-state ACPC-tail risk
 Core diagnostic B: SMPR, selective-margin pass rate
+A compact ATR/SMPR diagnostic-plane figure is allowed.
+One qualitative encoder/predictor feature-neighborhood illustration is allowed only as non-diagnostic mechanism intuition, without old R_E/R_F metrics or ACPC-basin framing.
+The old ACPC-basin metric visualization remains outside the PDF.
 ```
 
 No sentence like the following should appear in the PDF:
@@ -242,8 +245,10 @@ Keep or rewrite:
 
 1. closed-loop Gaussian cliff/recovery table;
 2. compressed ATR + SMPR table;
-3. concise plateau wording if based on ATR/SMPR;
-4. SMPR construction details if not already in protocol.
+3. compact ATR/SMPR diagnostic-plane figure;
+4. one qualitative encoder/predictor neighborhood illustration if framed as visual intuition rather than a readout;
+5. concise plateau wording if based on ATR/SMPR;
+6. SMPR construction details if not already in protocol.
 
 Delete or move out of PDF entirely:
 

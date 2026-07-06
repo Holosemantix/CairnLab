@@ -270,6 +270,12 @@ legacy exploratory / provenance only
 legacy visualization companion / historical basin table provenance
 ```
 
+Paper-facing exception:
+
+```text
+A single qualitative encoder/predictor feature-neighborhood illustration may reuse cached neighborhood points only as visual intuition. It must not report R_E/R_F or revive the ACPC-basin table as a diagnostic claim.
+```
+
 **Relevant artifact families:**
 
 ```text

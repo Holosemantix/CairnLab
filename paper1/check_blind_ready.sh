@@ -51,16 +51,11 @@ if grep -E -i "Anguo-star|github\.com|Author names to be supplied|Code and data 
 fi
 
 rm -rf /tmp/paper1_blind_src
-mkdir -p /tmp/paper1_blind_src/figures/corruption
+mkdir -p /tmp/paper1_blind_src/figures
 cp main_blind.tex main.tex references.bib main_blind.bbl /tmp/paper1_blind_src/
-cp figures/fig2_sweep.png /tmp/paper1_blind_src/figures/
-cp figures/pusht_fullseq_selective_contraction_clusters.png /tmp/paper1_blind_src/figures/
-cp figures/pusht_fullseq_selective_contraction_atlas.png /tmp/paper1_blind_src/figures/
-cp figures/pusht_pldm_noise_selective_contraction_clusters.png /tmp/paper1_blind_src/figures/
-cp figures/corruption/pusht_corruption_visualization.png /tmp/paper1_blind_src/figures/corruption/
-cp figures/corruption/tworoom_corruption_visualization.png /tmp/paper1_blind_src/figures/corruption/
-cp figures/corruption/reacher_corruption_visualization.png /tmp/paper1_blind_src/figures/corruption/
-cp figures/corruption/cube_corruption_visualization.png /tmp/paper1_blind_src/figures/corruption/
+cp ../assets/paper1_figs/fig2_sweep.png /tmp/paper1_blind_src/figures/
+cp ../assets/paper1_figs/fig_atr_smpr_plane.png /tmp/paper1_blind_src/figures/
+cp ../assets/paper1_figs/fig_feature_neighborhood_atr_smpr.png /tmp/paper1_blind_src/figures/
 
 if grep -R -n -E -i "Anguo-star|github\.com|Author names to be supplied|Acknowledgements|public repository|LeWM authors" /tmp/paper1_blind_src/*.tex; then
   fail "blind source bundle contains self-identifying arXiv/source wording"

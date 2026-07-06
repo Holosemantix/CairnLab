@@ -21,7 +21,9 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 
 | 脚本 | 作用 | 输入 | 输出 / 用途 |
 |---|---|---|---|
-| `tools/paper1_figs.py` | 渲染主文中由脚本生成的图 | `assets/paper1_data/canonical_evals_20260517.json`, `assets/paper1_data/canonical_diagnostics_20260517.json` | 默认只输出 `assets/paper1_figs/fig2_sweep.png`；已下线的 `fig3_pareto.png`, `fig4_radar.png`, `fig5_scatter.png`, `fig6_mechanism.png` 仍可用 `--only` 生成但当前不进正文 |
+| `tools/paper1_figs.py` | 渲染主文 noise-sweep 图 | `assets/paper1_data/canonical_evals_20260517.json`, `assets/paper1_data/canonical_diagnostics_20260517.json` | 默认只输出 `assets/paper1_figs/fig2_sweep.png`；已下线的 `fig3_pareto.png`, `fig4_radar.png`, `fig5_scatter.png`, `fig6_mechanism.png` 仍可用 `--only` 生成但当前不进正文 |
+| `tools/paper1_atr_smpr_figure.py` | 渲染压缩 ATR/SMPR diagnostic-plane 图 | `assets/paper1_data/compressed_metrics_summary_20260706.json` | `assets/paper1_figs/fig_atr_smpr_plane.png`；只展示 ATR 下降和 SMPR 上升，不新增诊断指标 |
+| `tools/paper1_feature_neighborhood_figure.py` | 渲染 PushT encoder/predictor feature-neighborhood 定性图，并在侧栏标注 ATR/SMPR 读数 | `/tmp/paper1_selective_contraction_cache/pusht_lewm_fullseq_features_d82fffb5ef90.npz`, `assets/paper1_data/compressed_metrics_summary_20260706.json` | `assets/paper1_figs/fig_feature_neighborhood_atr_smpr.png`；有单实例 lock 和 BLAS 线程限制，避免重复运行抢资源 |
 | `tools/build_partial_corr_bootstrap.py` | 为 partial Spearman 相关计算 95% percentile bootstrap CI | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/partial_corr_bootstrap_20260523.json`，用于主文 partial-correlation tables 和 PLDM appendix |
 | `tools/pldm_correlation_analysis.py` | 复算 LeWM/PLDM within-method 与 joint partial correlation | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/cross_method_corr_pldm_20260522.json`，用于 PLDM appendix 和 consistency checker |
 | `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / rollout-readout radius / contraction | LeWM/PLDM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；PLDM appendix 的 full-sweep replication 用 `assets/paper1_data/acpc_basin_diagnostics_pldm.json` |
@@ -30,7 +32,7 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 | `tools/paper1_three_seed_diagnostic_validation.py` | 固定 ACPC/PCC/CRA/MAF rank rule 并汇总 three-seed full-grid validation | `assets/paper1_data/acpc_phase0_lewm_three_seed.json` | `assets/paper1_data/three_seed_diagnostic_validation.json` / `.md` |
 | `tools/paper1_margin_flip_curve.py` | sample-level clean-margin / top-1 flip audit；对应 sampled-pool theorem 的 clean-margin term | seed-specific eval manifests + 本地 ckpt/data | `assets/paper1_data/margin_flip_curve_lewm_three_seed.json` |
 | `tools/paper1_semantic_margin.py` | 任务语义 margin pass-rate：same-state noisy radius vs semantic-different rollout distance；默认复现 median-distance sanity pass，`--pair-rule local_task_feature_contrast` 生成主文 local proxy audit | seed-specific eval manifests + 本地 ckpt/data | `assets/paper1_data/semantic_margin_passrate_lewm_three_seed.json` / `.md`; `assets/paper1_data/semantic_local_margin_lewm_three_seed.json` |
-| `tools/paper1_selective_contraction.py` | Phase-1 前的 selective-contraction branch probe；可选渲染同 state clean/noised rollout cluster 图 | ACPC basin + Phase-0 diagnostics；plot 模式还需要本地 checkpoint/data | `assets/paper1_data/selective_contraction_fullseq_branch.*`；cluster 图默认输出到 `assets/phase1_figs/selective_contraction_clusters/`，paper-facing 输出可用 `--cluster-out-dir assets/paper1_figs` 生成 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；用 repeated perturbation samples，默认用 fixed-seed random anchors 选点并绘制低权重的 90% 2-D covariance ellipse，只作 qualitative visualization |
+| `tools/paper1_selective_contraction.py` | Phase-1 前的 selective-contraction branch probe；可选渲染同 state clean/noised rollout cluster 图 | ACPC basin + Phase-0 diagnostics；plot 模式还需要本地 checkpoint/data | `assets/paper1_data/selective_contraction_fullseq_branch.*`；cluster 图默认输出到 `assets/phase1_figs/selective_contraction_clusters/`，legacy 输出可用 `--cluster-out-dir assets/paper1_figs` 生成 `assets/paper1_figs/pusht_fullseq_selective_contraction_clusters.png`；用 repeated perturbation samples，默认用 fixed-seed random anchors 选点并绘制低权重的 90% 2-D covariance ellipse，只作 qualitative visualization |
 | `tools/paper1_unseen_eval_grid.py` / `run_paper1_unseen_origin_vs_std008_seeded.sh` | unseen-perturbation pilot / lockbox launcher；只包装 `run_trainer.sh`，默认 eval-only，按需加 `--diagnostics` | canonical eval JSON or seed-remapped temporary canonical + `$DATA_ROOT/lewm-*/ckpt/*epoch_10_object.ckpt` | seed-specific `unseen_origin_vs_std008_strongest_s<seed>*.json` review artifacts |
 | `tools/build_paper1_unseen_eval_artifact.py` | 汇总 unseen-perturbation pilot 的 `eval_summary.csv` 和可选 diagnostics summary | `tools/paper1_unseen_eval_grid.py` 写出的 manifest + 本地 eval 输出 | `assets/paper1_data/unseen_perturbation_pilot_seed3072.json`；进入正文前必须人工审查 |
 
@@ -218,7 +220,7 @@ python -m tools.paper1_selective_contraction \
   --cluster-envelope ellipse --cluster-envelope-coverage 0.90
 ```
 
-The paper-facing PLDM appendix figure (`assets/paper1_figs/pusht_pldm_noise_selective_contraction_clusters.png`) uses the full-quality parameters and the paper-facing output dir:
+The legacy PLDM sanity figure (`assets/paper1_figs/pusht_pldm_noise_selective_contraction_clusters.png`) uses the full-quality parameters and writes to the archived figure dir:
 
 ```bash
 STABLEWM_HOME=<dataset-root> python -m tools.paper1_selective_contraction \
@@ -233,7 +235,7 @@ STABLEWM_HOME=<dataset-root> python -m tools.paper1_selective_contraction \
   --cluster-envelope ellipse --cluster-envelope-coverage 0.90
 ```
 
-The projection-free local-atlas companion figure (`assets/paper1_figs/pusht_fullseq_selective_contraction_atlas.png`) is rendered with:
+The legacy projection-free local-atlas companion figure (`assets/paper1_figs/pusht_fullseq_selective_contraction_atlas.png`) is rendered with:
 
 ```bash
 STABLEWM_HOME=<dataset-root> python -m tools.paper1_selective_contraction \
@@ -246,7 +248,7 @@ STABLEWM_HOME=<dataset-root> python -m tools.paper1_selective_contraction \
 
 Both load checkpoints and the HDF5 datasets; `STABLEWM_HOME` must point at the dataset root that contains `pusht_expert_train.h5` (the resolver checks `$STABLEWM_HOME/<name>.h5` and `$STABLEWM_HOME/datasets/<name>.h5`).
 
-For quick path checks, reduce the render size, for example add `--n-sequences 48 --cluster-anchor-count 10 --cluster-perturb-repeats 3 --cluster-perplexity 12 --cluster-tsne-max-iter 350`; this is a smoke test, not a paper-facing figure. For non-LeWM methods, the default summary output is method-specific (for example `selective_contraction_pldm_noise_branch.*`) so that sanity runs do not overwrite the LeWM paper-facing branch summary. Do not compare LeWM and PLDM t-SNE coordinates directly; if PLDM visualization is used, treat it as a qualitative method-family sanity check and keep the high-D ACPC basin table as the evidence.
+For quick path checks, reduce the render size, for example add `--n-sequences 48 --cluster-anchor-count 10 --cluster-perturb-repeats 3 --cluster-perplexity 12 --cluster-tsne-max-iter 350`; this is a smoke test, not a paper-facing figure. For non-LeWM methods, the default summary output is method-specific (for example `selective_contraction_pldm_noise_branch.*`) so that sanity runs do not overwrite the archived LeWM branch summary. Do not compare LeWM and PLDM t-SNE coordinates directly; if PLDM visualization is used, treat it as a qualitative method-family sanity check and keep the high-D ACPC basin table as the evidence.
 
 ## Canonical artifact builders
 

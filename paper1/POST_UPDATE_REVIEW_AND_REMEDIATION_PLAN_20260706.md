@@ -54,7 +54,7 @@ These should be the next Codex task.
 2. Rename `Action-relevant discriminability (countercondition)` to a cleaner label such as `Action-relevant discriminability` or `Discriminability guard`.
 3. Add a short statement that discriminability can also be posed over state-action pairs, which covers same-state/different-action futures when those actions induce different external future readouts.
 4. Remove the project-management phrase `The compressed diagnostic keeps only the two empirical quantities required by the selective-ACPC logic` from the paper.
-5. Simplify or move the current main Table 2. At minimum remove `best obs`, `gain`, and `gap` columns. Do not use `best obs` language in the main paper.
+5. Update the main sweep figure to three-training-seed mean/std and delete the current main three-seed endpoint table. Put full all-seed Gaussian sweep/evaluation numbers in appendix or artifact tables.
 6. Replace Appendix C with a broader `Additional Gaussian Evaluation Tables` appendix, or move the current observation+goal-only table to artifact documentation.
 7. Add `\clearpage` before `\appendix` so appendices do not run directly after the reference list on the same page.
 8. Slim the theory section: move finite-sample calibration, replanning union bound, and pseudo-metric material to appendix or remove if not needed.
@@ -177,78 +177,122 @@ Avoid:
 
 ---
 
-## 2.4 Current main Table 2: should it stay?
+## 2.4 Main Table 2 versus Figure 1
 
-### Current issue
+### Updated decision
 
-The current Table 2 has columns:
+**Yes: update Figure 1 to show the three-training-seed Gaussian sweep, delete the current main Table 2, and put the full all-seed sweep/evaluation data in the appendix.**
 
-```text
-base obs σ=0.08 | std0.08 obs σ=0.08 | gain | best obs σ=0.08 | std0.08 gap
-```
+This is now the cleanest solution. It removes the remaining leaderboard smell from the main text while preserving the evidence needed for the “three training seeds” claim.
 
-The `best obs` wording is a serious presentation problem. It reintroduces the point-best checkpoint story that the paper is trying to avoid. `gain` and `gap` also make the table feel like an internal leaderboard.
+### Why this is better than keeping a small Table 2
 
-### Is the table fully redundant with Figure 1?
+The earlier compromise was to keep a minimal two-column endpoint table. After reconsidering the revised manuscript, a stronger move is to let Figure 1 carry the three-seed evidence directly:
 
-**Not fully.**
+- The current Figure 1 is already the natural place to show the sweep/plateau story.
+- If Figure 1 becomes three-seed mean ± std, it subsumes the current endpoint table.
+- Deleting Table 2 avoids `gain`, `gap`, `best obs`, and point-best checkpoint language entirely.
+- The appendix can carry the exact numeric sweep rows for reproducibility.
 
-Figure 1 shows the seed-3072 sweep. The table summarizes the three-training-seed endpoint. That is the main support for the “across three training seeds” statement. So I do **not** recommend deleting all three-seed evidence from the main paper.
+### Required Figure 1 change
 
-### Recommended compromise
-
-Keep a very small main table, but remove the leaderboard columns.
-
-Preferred main table:
+Regenerate the sweep figure so that each plotted point is:
 
 ```text
-Task | no-noise ckpt, obs σ=0.08 | stdmax=0.08 ckpt, obs σ=0.08
+mean over LeWM training seeds 3072/3073/3074
 ```
 
-Optional if space allows:
+and the error bar is:
 
 ```text
-Task | no-noise ckpt | stdmax=0.08 ckpt | Δ
+population std across those three training seeds
 ```
 
-But since the user explicitly dislikes `gain`, the safest main-table version is the two-score-column table. Put gains in prose only for PushT/Reacher if needed.
+For each training seed, the plotted value should first average evaluation seeds 42/43/44 with 100 trajectories per evaluation seed.
 
-Recommended main prose:
+The figure should show at least:
+
+```text
+unperturbed evaluation success
+observation-only Gaussian evaluation success at σ=0.08 with a clean goal image
+```
+
+across the full training-noise sweep:
+
+```text
+stdmax ∈ {0.0, 0.01, 0.02, ..., 0.08}
+```
+
+If space permits, a supplementary version can include additional evaluation severities such as `obs σ=0.03` and `obs σ=0.05`, but the main figure should not become visually overloaded.
+
+### Caption wording
+
+Recommended caption:
 
 ```tex
-Across three training seeds, the fixed stdmax=0.08 endpoint substantially improves the observation-noise endpoint on TwoRoom, PushT, and Reacher, with a weaker positive Cube signal. Because the full sweep forms broad task-dependent plateaus, we do not use point-best rows as a main result.
+Three-training-seed LeWM Gaussian sweep. Each point averages evaluation seeds 42/43/44 within each training seed and then reports the mean across training seeds 3072/3073/3074; error bars show population std across training seeds. Blue circles show unperturbed evaluation and red squares show observation-only Gaussian evaluation at σ=0.08 with a clean goal image. The curves show broad task-dependent recovery plateaus rather than point-best checkpoint rankings.
 ```
 
-### Where should full sweep numbers go?
+### Main-text replacement for current Table 2 prose
 
-Move full sweep or point-best bookkeeping to appendix or artifact docs.
+After Figure 1, replace the current endpoint-table paragraph with:
 
-Recommended appendix replacement:
+```tex
+Because \Cref{fig:sweep} already aggregates the full sweep across three training seeds, we do not report a separate point-best or endpoint leaderboard in the main text. The fixed \stdmax{}=0.08 endpoint substantially improves the observation-noise endpoint on TwoRoom, PushT, and Reacher, with a weaker positive Cube signal. Exact all-seed sweep values are reported in Appendix~\ref{sec:appendix-gaussian-evals} for reproducibility.
+```
+
+Avoid the terms:
+
+```text
+best obs
+gain
+gap
+regret
+point-best row
+```
+
+in main results prose, except when explicitly explaining that point-best ranking is not the claim.
+
+### Appendix replacement
+
+Replace current Appendix C with:
 
 ```tex
 \section{Additional Gaussian Evaluation Tables}\label{sec:appendix-gaussian-evals}
 ```
 
-This appendix can include:
-
-- a full seed-3072 sweep table if compact;
-- a three-seed endpoint table if removed from main;
-- the observation+goal stress row as a small auxiliary subsection;
-- a note that point-best rows are reproducibility bookkeeping, not a checkpoint-selection claim.
-
-### What to do with current Appendix C
-
-The current `Auxiliary Observation+Goal Gaussian Stress` appendix is too low-value by itself because it only reports std 0.08 rows. I agree with replacing it.
-
-Recommended structure:
+This appendix should include exact all-seed sweep/evaluation data. Preferred structure:
 
 ```tex
-\section{Additional Gaussian Evaluation Tables}\label{sec:appendix-gaussian-evals}
-\paragraph{Observation-only sweep.} ...
-\paragraph{Auxiliary observation+goal stress.} ...
+\paragraph{Three-seed observation-only sweep.}
+A compact table or landscape table containing task, training stdmax, clean success, obs σ=0.08 success, and optionally obs σ=0.03 / obs σ=0.05 if available.
+
+\paragraph{Auxiliary observation+goal stress.}
+A small table for obs+goal σ=0.08, clearly labeled auxiliary and not part of the main endpoint.
 ```
 
-If the full sweep table is too large for the PDF, keep a compact appendix table and point to artifact paths.
+If the all-seed sweep table is too wide, use one table per task or a landscape table. If it is too large for the PDF, include a compact appendix summary and cite the generated artifact paths.
+
+### Required new artifacts
+
+Generate artifact files so the figure and appendix are not hand-entered:
+
+```text
+assets/paper1_data/three_seed_gaussian_sweep_summary_20260706.json
+assets/paper1_data/three_seed_gaussian_sweep_summary_20260706.md
+```
+
+The artifact should include:
+
+```text
+task
+stdmax
+per-training-seed values for each eval condition
+mean/std across training seeds
+source manifests
+```
+
+Do not invent or interpolate missing severities. If `obs σ=0.03` or `obs σ=0.05` are not available for all three training seeds, either omit those columns or mark them unavailable in the appendix artifact.
 
 ---
 
@@ -364,10 +408,10 @@ The term `compressed` is useful in internal docs but not ideal in the manuscript
 
 ### 3.4 Table numbering after changes
 
-If Table 2 is simplified or moved, rerun a grep for hard-coded table numbers and stale labels:
+If Table 2 is deleted, rerun a grep for hard-coded table numbers and stale labels:
 
 ```bash
-rg -n "Table~|Table |tab:training-seed-gaussian-lockbox|best obs|std0.08 gap|gain" paper1/main.tex paper1/*.md tools
+rg -n "Table~|Table |tab:training-seed-gaussian-lockbox|best obs|std0.08 gap|gain|regret" paper1/main.tex paper1/*.md tools
 ```
 
 Use labels, not table numbers, in prose.
@@ -387,19 +431,34 @@ Ask Codex to implement these in order.
 5. Replace the `compressed diagnostic keeps only... required...` paragraph with the softer two-readout wording.
 6. Move finite-sample calibration, replanning union bound, and pseudo-metric material to appendix, or delete if the paper becomes cleaner without them.
 
-### Patch B: tables and appendix
+### Patch B: main Figure 1, tables, and appendix
 
-1. Simplify current main Table 2 to two score columns:
+1. Regenerate the main sweep figure as a three-training-seed mean/std plot over LeWM seeds 3072/3073/3074.
+2. Error bars must be population std across training seeds, not evaluation seeds.
+3. Each training-seed value should first average evaluation seeds 42/43/44.
+4. Replace the current `fig2_sweep.png` or add a new canonical figure such as:
 
 ```text
-Task | no-noise ckpt obs σ=0.08 | stdmax=0.08 ckpt obs σ=0.08
+assets/paper1_figs/fig1_three_seed_sweep.png
 ```
 
-2. Remove `best obs`, `gain`, and `gap` from main table and connected prose.
-3. Do not mention point-best rows in main except as a short plateau caveat.
-4. Replace `Auxiliary Observation+Goal Gaussian Stress` appendix with `Additional Gaussian Evaluation Tables`.
-5. Put observation+goal stress under that appendix as a small auxiliary subsection, not a standalone appendix section.
-6. Add `\clearpage` before `\appendix`.
+5. Update `main.tex` to use the new figure and caption.
+6. Delete the current main Table 2 (`tab:training-seed-gaussian-lockbox`) and remove connected `best obs`, `gain`, `gap`, `regret`, or point-best prose from the main text.
+7. Generate exact all-seed sweep artifacts:
+
+```text
+assets/paper1_data/three_seed_gaussian_sweep_summary_20260706.json
+assets/paper1_data/three_seed_gaussian_sweep_summary_20260706.md
+```
+
+8. Replace the standalone observation+goal appendix with:
+
+```tex
+\section{Additional Gaussian Evaluation Tables}\label{sec:appendix-gaussian-evals}
+```
+
+9. Put full or compact all-seed sweep/evaluation data in that appendix. Put obs+goal σ=0.08 as a small auxiliary subsection, not the whole appendix.
+10. Add `\clearpage` before `\appendix`.
 
 ### Patch C: figure and build hygiene
 
@@ -422,18 +481,22 @@ Tasks:
 1. In paper1/main.tex, remove the sentence “In experiments, ATR uses the 90th percentile...” from the ACPC definition paragraph. Move the q90 explanation to Operational consistency diagnostics and state that q90 is a fixed empirical reporting choice, not a theoretical constant.
 2. Rename “Action-relevant discriminability (countercondition)” to “Action-relevant discriminability” or “Discriminability guard”. Add a short note that the guard can be posed over state-action pairs, covering same-state/different-action futures when the external future readout differs. Do not add a new paper-facing metric unless existing artifacts support it.
 3. Replace the sentence “The compressed diagnostic keeps only the two empirical quantities required by the selective-ACPC logic” with softer paper prose: “We report two readouts matched to this logic...” Avoid “compressed”, “required”, “paper-facing”, and project-management wording in the manuscript.
-4. Simplify the current main Table 2. Remove `gain`, `best obs`, and `std0.08 gap`. Prefer a two-score-column table: no-noise checkpoint obs σ=0.08 and stdmax=0.08 checkpoint obs σ=0.08. Move point-best / full-sweep bookkeeping to appendix or artifact text.
-5. Replace Appendix C “Auxiliary Observation+Goal Gaussian Stress” with a broader “Additional Gaussian Evaluation Tables” appendix. Observation+goal σ=0.08 can remain as a small auxiliary subsection, but not as the whole appendix.
-6. Add \clearpage before \appendix so the appendix starts on a new page after references.
-7. Slim the main theory section if needed: move finite-sample calibration, replanning union bound, and pseudo-metric material to appendix or delete from main. Keep the core ACPC definition, discriminability guard, cost-drift/top-1 link, sampled-pool tail motivation, Gaussian sensitivity, and collapse caveat.
-8. Build and inspect the PDF. Confirm fig_acpc_basin_tsne.png is readable and does not visibly show legacy metrics R_E/R_F/rNN/disjoint. If the bottom ATR/SMPR annotation is too small, enlarge it or remove it and rely on the caption/table.
+4. Update the main sweep figure so it aggregates LeWM training seeds 3072/3073/3074. Each point should average eval seeds 42/43/44 within each training seed, then plot mean ± population std across training seeds. Show at least clean evaluation and observation-only σ=0.08 evaluation over stdmax ∈ {0.0,0.01,...,0.08}. Update the caption accordingly.
+5. Delete the current main Table 2 / `tab:training-seed-gaussian-lockbox`. Remove main-text `best obs`, `gain`, `std0.08 gap`, `regret`, and point-best leaderboard language. Exact sweep values should move to appendix or generated artifacts.
+6. Generate exact all-seed sweep/evaluation artifacts at `assets/paper1_data/three_seed_gaussian_sweep_summary_20260706.json` and `.md`. Do not invent or interpolate missing eval severities; omit unavailable columns or mark them unavailable in the artifact.
+7. Replace Appendix C “Auxiliary Observation+Goal Gaussian Stress” with a broader “Additional Gaussian Evaluation Tables” appendix. Include full or compact all-seed sweep/evaluation data there, and keep observation+goal σ=0.08 only as a small auxiliary subsection.
+8. Add \clearpage before \appendix so the appendix starts on a new page after references.
+9. Slim the main theory section if needed: move finite-sample calibration, replanning union bound, and pseudo-metric material to appendix or delete from main. Keep the core ACPC definition, discriminability guard, cost-drift/top-1 link, sampled-pool tail motivation, Gaussian sensitivity, and collapse caveat.
+10. Build and inspect the PDF. Confirm fig_acpc_basin_tsne.png is readable and does not visibly show legacy metrics R_E/R_F/rNN/disjoint. If the bottom ATR/SMPR annotation is too small, enlarge it or remove it and rely on the caption/table.
 
 Acceptance checks:
 - main.tex builds.
-- No main-text `best obs`, `std0.08 gap`, or table leaderboard language remains.
+- Main sweep figure is three-training-seed mean/std, not seed-3072-only.
+- Main Table 2 is gone.
+- No main-text `best obs`, `std0.08 gap`, `gain`, `regret`, or table leaderboard language remains.
 - No awkward `compressed diagnostic keeps only... required...` wording remains.
 - q90 is introduced only as an empirical reporting choice.
-- Appendix starts on a new page.
+- Appendix starts on a new page and contains/points to exact all-seed sweep data.
 - The paper remains honest: diagnostic only, no closed-loop guarantee, no new method claim.
 ```
 
@@ -443,4 +506,4 @@ Acceptance checks:
 
 Proceed with this cleanup, then post arXiv v1.
 
-The paper is now close enough that more large restructuring would have diminishing returns. The important remaining task is to remove small phrases and tables that trigger reviewer distrust. The next scientific step should not be more manuscript polishing; it should be the v2 method work with closed-loop evidence and baselines.
+Updating Figure 1 to the three-seed sweep and deleting the current endpoint table is the best presentation route. It makes the main story visual and avoids point-best leaderboard framing, while the appendix/artifacts keep exact reproducibility data. After this pass, further large manuscript restructuring should stop; the next scientific step should be the v2 method work with closed-loop evidence and baselines.

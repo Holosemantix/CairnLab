@@ -116,10 +116,10 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "programmatic task-state proxy labels",
     "closest 35\% state-distance neighborhood",
     "hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation",
-    "These proofs calibrate ATR and SMPR",
+    "These proofs support the diagnostic use of ATR and SMPR",
     "Additional Gaussian Evaluation Tables",
-    "These tables give compact exact summaries for the three-training-seed Gaussian sweep",
-    "Auxiliary observation+goal stress",
+    "These tables report the full Gaussian evaluation columns available",
+    "obs+goal $\\sigma=0.08$ eval",
     "Future methods can turn ATR/SMPR into objectives",
 ]
 
@@ -323,22 +323,16 @@ def check_forbidden_text() -> None:
         fail("\n".join(hits))
 
 
-def check_appendix_reading_gate() -> None:
+def check_appendix_internal_heading_gate() -> None:
     main_tex = (ROOT / "paper1" / "main.tex").read_text(encoding="utf-8")
     marker = "\\appendix"
     if marker not in main_tex:
         fail("paper1/main.tex missing appendix marker")
     appendix = main_tex.split(marker, 1)[1]
-    sections = list(re.finditer(r"\\section\{([^}]*)\}", appendix))
-    missing: list[str] = []
-    for idx, match in enumerate(sections):
-        title = match.group(1)
-        end = sections[idx + 1].start() if idx + 1 < len(sections) else len(appendix)
-        block = appendix[match.end():end]
-        if "\\paragraph{Reading.}" not in block and "\\paragraph{Reading:}" not in block:
-            missing.append(title)
-    if missing:
-        fail("Appendix sections missing Reading paragraph: " + ", ".join(missing))
+    forbidden = ["\\paragraph{Reading.}", "\\paragraph{Reading:}"]
+    hits = [snippet for snippet in forbidden if snippet in appendix]
+    if hits:
+        fail("Appendix contains internal Reading heading(s): " + ", ".join(hits))
 
 
 def approx_equal(a: float, b: float) -> bool:
@@ -2051,7 +2045,7 @@ def main() -> int:
     checks = [
         ("artifacts", check_artifacts),
         ("forbidden text", check_forbidden_text),
-        ("appendix Reading gate", check_appendix_reading_gate),
+        ("appendix internal heading gate", check_appendix_internal_heading_gate),
         ("canonical json", check_canonical_json),
         ("pldm canonical json", check_pldm_canonical_json),
         ("canonical diagnostics json", check_canonical_diagnostics_json),

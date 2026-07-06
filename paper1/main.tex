@@ -150,7 +150,7 @@ Our use of ACPC is therefore narrower than an identifiability theorem, a learned
 %% ===========================================================================
 \section{Action-Conditioned Predictive Consistency}\label{sec:acpc}
 
-This section defines action-conditioned predictive consistency and its discriminability countercondition. We use ACPC to separate two requirements that encoder invariance alone conflates: same-state visual perturbations should agree after action-conditioned rollout, while task-grounded different-state pairs should remain separable. \Cref{sec:acpc-diag} then maps these two requirements to ATR and SMPR.
+This section defines action-conditioned predictive consistency and its discriminability guard. We use ACPC to separate two requirements that encoder invariance alone conflates: same-state visual perturbations should agree after action-conditioned rollout, while task-grounded different-state pairs should remain separable. \Cref{sec:acpc-diag} then maps these two requirements to ATR and SMPR.
 
 \subsection{Setup and definitions}\label{sec:acpc-def}
 
@@ -198,7 +198,7 @@ The same guard can be posed over state--action pairs: if two pairs have external
 
 The reported diagnostic uses two metrics matched to this logic. ACPC Tail Risk (ATR) summarizes the upper tail of normalized same-state clean/noisy ACPC-H rollout disagreement under a fixed recorded action sequence; lower is better. We use the 90th percentile in all experiments. This is a fixed empirical reporting choice, not a theoretical constant. Selective Margin Pass Rate (SMPR) is the pass rate of task-grounded label-crossing pairs whose clean different-state rollout distance exceeds the same-state noisy radius at margin zero; higher is better.
 
-ATR estimates the high-tail term $\Pr[D > \epsilon]$ that appears in the sampled-pool stability calibration. SMPR estimates the discriminability guard by checking whether task-grounded near-boundary pairs remain separated beyond the same-state noisy radius. Thus low ATR without high SMPR is not interpreted as robustness, because collapse can also make clean and corrupted views agree. Encoder geometry and planner-side audits remain useful development checks, but they are not separate reported diagnostics here.
+ATR tracks the high-tail term $\Pr[D > \epsilon]$ in the sampled-pool tail argument. SMPR estimates the discriminability guard by checking whether task-grounded near-boundary pairs remain separated beyond the same-state noisy radius. Thus low ATR without high SMPR is not interpreted as robustness, because collapse can also make clean and corrupted views agree. Encoder geometry and planner-side audits remain useful development checks, but they are not separate reported diagnostics here.
 
 \subsection{ACPC as a fixed-candidate stability condition}\label{sec:acpc-planner-stability}
 
@@ -210,23 +210,11 @@ ACPC is connected to planning through the candidate costs evaluated by model-pre
 \end{equation}
 where $J$ is the planner cost on the projected-rollout sequence. $C_{\tilde h}(\mathbf a,g)$ is defined analogously from the perturbed branch. The following statements are sufficient conditions for stability on a fixed candidate set; they do not prove stability of the full CEM sampling distribution or of the closed-loop trajectory over repeated replanning.
 
-\begin{proposition}[Encoder shift as one route to rollout disagreement]\label{prop:encoder-route}
-Fix an action sequence $\mathbf a$ and write
+Encoder geometry enters the planning link through the composed rollout map
 \[
-  G_{\mathbf a}(z)=\Pi(F_\theta^{1:H}(z,\mathbf a))
+  G_{\mathbf a}(z)=\Pi(F_\theta^{1:H}(z,\mathbf a)).
 \]
-for the projected-rollout map. If $G_{\mathbf a}$ is locally $L_G$-Lipschitz between $E_\theta(h)$ and $E_\theta(\tilde h)$ under encoder metric $d_Z$ and projected-rollout metric $d_H$, then
-\[
- d_H\!\left(G_{\mathbf a}(E_\theta(h)),G_{\mathbf a}(E_\theta(\tilde h))\right)
- \le L_G\, d_Z\!\left(E_\theta(h),E_\theta(\tilde h)\right).
-\]
-\end{proposition}
-
-\begin{proof}
-This is the local Lipschitz condition applied to the two encoded histories.
-\end{proof}
-
-This bound clarifies why encoder geometry matters: smaller same-state encoder shifts and reduced neighborhood crossing lower upstream risk, but rollout disagreement is controlled only after the encoder shift is passed through $G_{\mathbf a}$. In the empirical diagnostic we therefore report action-conditioned rollout-disagreement tails rather than raw encoder distances alone.
+Smaller same-state encoder shifts and reduced neighborhood crossing lower upstream risk, but the planning-relevant quantity is the projected-rollout distance after the shift is passed through $G_{\mathbf a}$. The empirical diagnostic therefore reports action-conditioned rollout-disagreement tails rather than raw encoder distances alone.
 
 \begin{proposition}[ACPC controls candidate-cost drift]\label{prop:cost-drift}
 Assume that $J$ is locally $L_J$-Lipschitz on the clean/perturbed projected-rollout neighborhood evaluated by the fixed candidate set under metric $d_H$. If
@@ -240,11 +228,7 @@ then
 \]
 \end{proposition}
 
-\begin{proof}
-The inequality is the local Lipschitz condition applied directly to the clean and perturbed projected-rollout sequences.
-\end{proof}
-
-In experiments, ATR instantiates this condition with the high-quantile tail of L2 rollout-token distance; companion planner-side audits remain outside the reported diagnostic.
+This is a sufficient fixed-candidate statement; it does not rank checkpoints by itself and does not cover adaptive replanning.
 
 \begin{proposition}[Candidate top-1 stability]\label{prop:top1-stability}
 Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}$ be the shared candidate set. Assume lower cost is preferred, and let $\mathbf a^{(1)}$ and $\mathbf a^{(2)}$ denote the lowest- and second-lowest-cost candidates on the clean branch. Suppose that for every candidate $j$,
@@ -258,54 +242,11 @@ If the clean branch has a strict top-1/top-2 margin
 then the perturbed branch selects the same top-1 candidate.
 \end{proposition}
 
-\begin{proof}
-For any candidate $\mathbf a^j \neq \mathbf a^{(1)}$,
-\[
-C_{\tilde h}(\mathbf a^j,g)-C_{\tilde h}(\mathbf a^{(1)},g)
-\ge
-C_h(\mathbf a^j,g)-C_h(\mathbf a^{(1)},g)-2\eta
-\ge \Delta-2\eta >0 .
-\]
-Thus every non-top candidate remains more costly than the clean top-1 candidate on the perturbed branch.
-\end{proof}
+Combining the two propositions, a shared candidate set is stable whenever every candidate has clean/noisy projected-rollout discrepancy at most $\epsilon$ and the clean top-1/top-2 margin satisfies $\Delta>2L_J\epsilon$. This is a fixed-candidate condition only; adaptive sampling, repeated replanning, and environment feedback can still change the closed-loop trajectory.
 
-\begin{corollary}[ACPC-margin condition for candidate stability]\label{cor:acpc-margin}
-Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}$ be a shared candidate set and assume the planner cost $J$ is locally $L_J$-Lipschitz as in Proposition~\ref{prop:cost-drift}. If every candidate in $\mathcal A$ has projected-rollout discrepancy at most $\epsilon$ between the clean and perturbed branches, and the clean branch has top-1/top-2 margin $\Delta > 2L_J\epsilon$, then the two branches select the same top-1 candidate from $\mathcal A$.
-\end{corollary}
+\subsection{Sampled-pool tail motivation and Gaussian sensitivity}\label{sec:acpc-sampled-gaussian}
 
-\begin{proof}
-Proposition~\ref{prop:cost-drift} gives $|C_h(\mathbf a^j,g)-C_{\tilde h}(\mathbf a^j,g)|\le L_J\epsilon$ for every candidate. Applying Proposition~\ref{prop:top1-stability} with $\eta=L_J\epsilon$ gives the result.
-\end{proof}
-
-The corollary gives a formal link between ACPC and fixed-candidate decisions without turning the diagnostic into a closed-loop guarantee. It connects paired predictive agreement to candidate-cost stability and then to action selection under a margin condition. The result is limited to a fixed candidate set; adaptive sampling, repeated replanning, and environment feedback can still change the closed-loop trajectory.
-
-
-\subsection{Sampled-pool stability and Gaussian sensitivity}\label{sec:acpc-sampled-gaussian}
-
-The fixed-candidate statement is the deterministic core. A sampled candidate pool adds finite-sample risk. The next bound keeps the same diagnostic scope while exposing why ATR must be a tail metric and why clean candidate margins remain a caveat.
-
-\begin{theorem}[Sampled-pool ACPC stability]\label{thm:sampled-pool-acpc}
-Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}\sim q^K$ be a once-sampled candidate pool, and use deterministic tie-breaking for $\arg\min$. For each sampled candidate define
-\[
-D_j = d_H\!\left(\Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a^j)),
-                  \Pi(F_\theta^{1:H}(E_\theta(\tilde h),\mathbf a^j))\right).
-\]
-Assume $J$ is locally $L_J$-Lipschitz on the evaluated projected-rollout neighborhood and that a single draw from $q$ satisfies
-\[
-\Pr_{\mathbf a\sim q}[D(\mathbf a)>\epsilon]\le \delta .
-\]
-Let $\Delta_{\mathcal A}=C_h(\mathbf a^{(2)},g)-C_h(\mathbf a^{(1)},g)$ be the clean branch top-1/top-2 margin inside the sampled pool. Then
-\[
-\Pr_{\mathcal A}\!\left[
-\arg\min_j C_h(\mathbf a^j,g) \ne
-\arg\min_j C_{\tilde h}(\mathbf a^j,g)
-\right]
-\le
-K\delta + \Pr_{\mathcal A}[\Delta_{\mathcal A}\le 2L_J\epsilon].
-\]
-\end{theorem}
-
-\Cref{thm:sampled-pool-acpc} is not a convergence theorem for adaptive planning. It controls the instability of one sampled candidate pool. The first term is the probability that at least one candidate has a large clean/noisy rollout discrepancy, which motivates ATR. The second term is the probability that the clean candidate pool has too small a top-1 margin; it explains why ATR is not a closed-loop guarantee. SMPR is separate from this flip bound: it is the selective-discriminability condition required to make low ATR meaningful rather than collapsed.
+The fixed-candidate statements motivate the deterministic link from paired rollout agreement to candidate decisions. A once-sampled candidate pool adds a tail requirement: if a single candidate has $\Pr[D>\epsilon]\le\delta$, then a pool of size $K$ can still contain a bad clean/noisy rollout pair with probability up to $K\delta$. A flip can also occur when the clean top-1/top-2 margin is at most $2L_J\epsilon$. This is the reason ATR uses an upper-tail summary rather than a mean disagreement score, and it is also why ATR is not a closed-loop control guarantee. Appendix~\ref{sec:appendix-acpc-proofs} gives the sampled-pool proof.
 
 The Gaussian stressor also has a local sensitivity interpretation. Let $G_{\mathbf a}(z)=\Pi(F_\theta^{1:H}(z,\mathbf a))$ and let $\tilde o=o+\xi$ with $\xi\sim\mathcal N(0,\sigma^2 I)$.
 
@@ -332,7 +273,7 @@ M=\mathbf 1\!\left[d_{\mathrm{proxy\ diff}}>d_{\mathrm{same\ state\ noise}}+\del
 \]
 with $\delta_m=0$ in the reported table. It is a finite state-proxy selective-consistency check, not a full semantic-label coverage guarantee.
 
-The theoretical statements in this section are intended as diagnostic calibration rather than as closed-loop control guarantees. They identify the failure modes that a paired clean/noisy diagnostic should measure: rollout-disagreement tails, clean candidate-margin caveats, and collapse of task-grounded separations. They do not assert that a low empirical ATR is a uniform bound for adaptive planning, repeated replanning, or environment-feedback stability.
+The theoretical statements in this section are intended as diagnostic orientation rather than as closed-loop control guarantees. They identify the failure modes that a paired clean/noisy diagnostic should measure: rollout-disagreement tails, clean candidate-margin caveats, and collapse of task-grounded separations. They do not assert that a low empirical ATR is a uniform bound for adaptive planning, repeated replanning, or environment-feedback stability.
 
 \paragraph{Collapse caveat.}
 Low same-state ACPC alone is insufficient. A constant encoder--predictor can make every clean and perturbed rollout identical while also mapping action-distinct states to identical projected futures. This is why SMPR is part of the reported diagnostic: ATR measures predictive stability under nuisance perturbation, and SMPR checks that task-grounded separations have not been erased.
@@ -483,9 +424,9 @@ The theory is deliberately diagnostic: sampled-pool ACPC exposes why tail risk m
 %% ===========================================================================
 \clearpage
 \appendix
-\section{Proofs and Calibration for ACPC Diagnostics}\label{sec:appendix-acpc-proofs}
+\section{Proofs for ACPC Diagnostics}\label{sec:appendix-acpc-proofs}
 
-\paragraph{Reading.} These proofs calibrate ATR and SMPR as diagnostics; they do not provide closed-loop control guarantees.
+These proofs support the diagnostic use of ATR and SMPR; they do not provide closed-loop control guarantees.
 
 \begin{proof}[Proof of \Cref{prop:cost-drift}]
 For any fixed action sequence $\mathbf a$, the assumption gives
@@ -499,16 +440,31 @@ Taking the maximum over the fixed candidate set gives the claim.
 Let $\mathbf a^\star$ be the clean best candidate and $\mathbf a^{(2)}$ the clean runner-up. If every candidate cost moves by at most $L_J\epsilon$ and the clean margin is larger than $2L_J\epsilon$, then the perturbed cost of $\mathbf a^\star$ remains below the perturbed cost of every other candidate. Thus the top candidate is unchanged.
 \end{proof}
 
+
+\begin{theorem}[Sampled-pool ACPC tail bound]\label{thm:sampled-pool-acpc}
+Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}\sim q^K$ be a once-sampled candidate pool, and use deterministic tie-breaking for $\arg\min$. For each sampled candidate define
+\[
+D_j = d_H\!\left(\Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a^j)),
+                  \Pi(F_\theta^{1:H}(E_\theta(\tilde h),\mathbf a^j))\right).
+\]
+Assume $J$ is locally $L_J$-Lipschitz on the evaluated projected-rollout neighborhood and that a single draw from $q$ satisfies
+\[
+\Pr_{\mathbf a\sim q}[D(\mathbf a)>\epsilon]\le \delta .
+\]
+Let $\Delta_{\mathcal A}=C_h(\mathbf a^{(2)},g)-C_h(\mathbf a^{(1)},g)$ be the clean branch top-1/top-2 margin inside the sampled pool. Then
+\[
+\Pr_{\mathcal A}\!\left[
+\arg\min_j C_h(\mathbf a^j,g) \ne
+\arg\min_j C_{\tilde h}(\mathbf a^j,g)
+\right]
+\le
+K\delta + \Pr_{\mathcal A}[\Delta_{\mathcal A}\le 2L_J\epsilon].
+\]
+\end{theorem}
+
 \begin{proof}[Proof of \Cref{thm:sampled-pool-acpc}]
 For a sampled pool of size $K$, the probability that at least one candidate has clean/noisy rollout discrepancy above $\epsilon$ is at most $K\delta$ by the union bound. On the complement of that event, every candidate cost moves by at most $L_J\epsilon$. A flip can then occur only if the clean top margin is at most $2L_J\epsilon$, which contributes the margin-tail term. This proves the stated sampled-pool instability bound.
 \end{proof}
-
-\paragraph{Finite-sample calibration.}
-For a bounded Bernoulli diagnostic with empirical pass rate $\hat p$ over $n$ fixed pairs, Hoeffding gives
-\begin{equation}
-  \Pr\left[p < \hat p - \sqrt{\frac{\log(1/\alpha)}{2n}}\right] \le \alpha .
-\end{equation}
-We use this only as calibration for the fixed SMPR pair construction; nearby dataset windows can be dependent.
 
 \paragraph{Local Gaussian sensitivity.}
 For small Gaussian pixel noise $\xi$, a first-order expansion gives
@@ -517,7 +473,7 @@ Composing the encoder with the action-conditioned rollout map shows that same-st
 
 \section{Experimental Details}\label{sec:appendix-A}
 
-\paragraph{Reading.} These details define the fixed evaluation and diagnostic protocol used by the main tables.
+These details define the fixed evaluation and diagnostic protocol used by the main tables.
 
 LeWM is evaluated on PushT, TwoRoom, Reacher, and Cube using the canonical three evaluation seeds 42/43/44 and 100 trajectories per seed. The main Gaussian robustness endpoint perturbs observation pixels with Gaussian noise at standard deviation 0.08 while keeping the goal image clean. Noise-trained checkpoints use full-sequence input-side Gaussian augmentation with $\stdmax{}\in\{0.01,\ldots,0.08\}$.
 
@@ -525,80 +481,62 @@ ATR is computed at each task--training-seed--checkpoint row as the 90th percenti
 
 \section{Additional Gaussian Evaluation Tables}\label{sec:appendix-gaussian-evals}
 
-\paragraph{Reading.} These tables give compact exact summaries for the three-training-seed Gaussian sweep behind \Cref{fig:sweep}. Each training-seed value first averages evaluation seeds 42/43/44; table cells report mean $\pm$ population std across training seeds 3072/3073/3074.
+These tables report the full Gaussian evaluation columns available for the three-training-seed sweep behind \Cref{fig:sweep}. Each training-seed value first averages evaluation seeds 42/43/44; table cells report mean $\pm$ population std across training seeds 3072/3073/3074. Observation+goal $\sigma=0.08$ is included as an auxiliary stress column; the main endpoint remains observation-only $\sigma=0.08$ with a clean goal image.
 
+\begin{landscape}
 \begin{table}[H]
 \centering
-\caption{Three-training-seed LeWM Gaussian sweep summary. The clean column reports unperturbed evaluation. The observation-noise column reports observation-only Gaussian evaluation at $\sigma=0.08$ with the goal image kept clean.}
+\caption{Full three-training-seed LeWM Gaussian sweep evaluation table. Columns report clean evaluation, observation-only Gaussian evaluation at $\sigma=0.03/0.05/0.08$ with a clean goal image, and auxiliary observation+goal Gaussian evaluation at $\sigma=0.08$. Values are mean $\pm$ population std across training seeds 3072/3073/3074; each training-seed value first averages evaluation seeds 42/43/44 with 100 trajectories per evaluation seed.}
 \label{tab:appendix-gaussian-sweep}
 \footnotesize
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{0.95}
-\begin{tabular}{llrr}
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{0.90}
+\begin{tabular}{llrrrrr}
 \toprule
-Task & training \stdmax{} & clean eval & obs-only $\sigma=0.08$ eval \\
+Task & training \stdmax{} & clean eval & obs-only $\sigma=0.03$ eval & obs-only $\sigma=0.05$ eval & obs-only $\sigma=0.08$ eval & obs+goal $\sigma=0.08$ eval \\
 \midrule
-TwoRoom & $0.00$ & $94.67 \pm 0.72$ & $68.78 \pm 2.45$ \\
-TwoRoom & $0.01$ & $94.89 \pm 1.10$ & $93.44 \pm 2.08$ \\
-TwoRoom & $0.02$ & $95.78 \pm 1.10$ & $95.44 \pm 1.57$ \\
-TwoRoom & $0.03$ & $95.11 \pm 0.87$ & $95.11 \pm 1.34$ \\
-TwoRoom & $0.04$ & $95.89 \pm 0.42$ & $95.89 \pm 0.57$ \\
-TwoRoom & $0.05$ & $96.11 \pm 1.50$ & $95.89 \pm 1.55$ \\
-TwoRoom & $0.06$ & $96.00 \pm 1.70$ & $95.78 \pm 1.55$ \\
-TwoRoom & $0.07$ & $96.44 \pm 0.63$ & $96.44 \pm 0.31$ \\
-TwoRoom & $0.08$ & $97.22 \pm 0.83$ & $97.11 \pm 0.57$ \\
+TwoRoom & $0.00$ & $94.67 \pm 0.72$ & $92.56 \pm 1.23$ & $81.33 \pm 6.77$ & $68.78 \pm 2.45$ & $53.56 \pm 2.57$ \\
+TwoRoom & $0.01$ & $94.89 \pm 1.10$ & $95.00 \pm 0.82$ & $94.78 \pm 1.77$ & $93.44 \pm 2.08$ & $83.22 \pm 3.82$ \\
+TwoRoom & $0.02$ & $95.78 \pm 1.10$ & $95.89 \pm 1.29$ & $95.22 \pm 1.29$ & $95.44 \pm 1.57$ & $94.44 \pm 1.34$ \\
+TwoRoom & $0.03$ & $95.11 \pm 0.87$ & $95.00 \pm 0.82$ & $95.22 \pm 0.83$ & $95.11 \pm 1.34$ & $93.78 \pm 0.68$ \\
+TwoRoom & $0.04$ & $95.89 \pm 0.42$ & $96.44 \pm 0.96$ & $95.78 \pm 0.31$ & $95.89 \pm 0.57$ & $95.67 \pm 0.54$ \\
+TwoRoom & $0.05$ & $96.11 \pm 1.50$ & $96.00 \pm 1.91$ & $96.00 \pm 1.52$ & $95.89 \pm 1.55$ & $96.11 \pm 1.66$ \\
+TwoRoom & $0.06$ & $96.00 \pm 1.70$ & $95.56 \pm 1.81$ & $95.56 \pm 1.40$ & $95.78 \pm 1.55$ & $95.89 \pm 1.85$ \\
+TwoRoom & $0.07$ & $96.44 \pm 0.63$ & $96.33 \pm 0.54$ & $96.11 \pm 0.68$ & $96.44 \pm 0.31$ & $96.56 \pm 0.57$ \\
+TwoRoom & $0.08$ & $97.22 \pm 0.83$ & $97.22 \pm 0.68$ & $97.33 \pm 0.72$ & $97.11 \pm 0.57$ & $97.56 \pm 0.83$ \\
 \addlinespace[2pt]
-PushT & $0.00$ & $81.78 \pm 4.89$ & $7.22 \pm 5.81$ \\
-PushT & $0.01$ & $85.89 \pm 1.50$ & $37.89 \pm 12.37$ \\
-PushT & $0.02$ & $87.33 \pm 0.72$ & $62.67 \pm 11.98$ \\
-PushT & $0.03$ & $89.67 \pm 0.00$ & $82.44 \pm 1.66$ \\
-PushT & $0.04$ & $89.11 \pm 0.83$ & $86.56 \pm 0.16$ \\
-PushT & $0.05$ & $84.00 \pm 3.03$ & $81.11 \pm 3.03$ \\
-PushT & $0.06$ & $88.22 \pm 1.34$ & $86.78 \pm 0.63$ \\
-PushT & $0.07$ & $86.44 \pm 0.87$ & $84.00 \pm 0.27$ \\
-PushT & $0.08$ & $86.89 \pm 1.59$ & $85.78 \pm 3.45$ \\
+PushT & $0.00$ & $81.78 \pm 4.89$ & $53.56 \pm 12.91$ & $19.22 \pm 9.12$ & $7.22 \pm 5.81$ & $4.89 \pm 1.64$ \\
+PushT & $0.01$ & $85.89 \pm 1.50$ & $82.22 \pm 3.03$ & $70.33 \pm 6.33$ & $37.89 \pm 12.37$ & $29.22 \pm 12.15$ \\
+PushT & $0.02$ & $87.33 \pm 0.72$ & $85.11 \pm 1.13$ & $82.89 \pm 2.69$ & $62.67 \pm 11.98$ & $57.89 \pm 15.40$ \\
+PushT & $0.03$ & $89.67 \pm 0.00$ & $89.67 \pm 0.27$ & $88.78 \pm 2.08$ & $82.44 \pm 1.66$ & $79.67 \pm 2.42$ \\
+PushT & $0.04$ & $89.11 \pm 0.83$ & $88.22 \pm 1.13$ & $87.33 \pm 1.19$ & $86.56 \pm 0.16$ & $83.44 \pm 2.11$ \\
+PushT & $0.05$ & $84.00 \pm 3.03$ & $84.22 \pm 2.53$ & $82.56 \pm 3.13$ & $81.11 \pm 3.03$ & $78.11 \pm 4.88$ \\
+PushT & $0.06$ & $88.22 \pm 1.34$ & $88.89 \pm 1.03$ & $87.33 \pm 0.47$ & $86.78 \pm 0.63$ & $87.33 \pm 2.05$ \\
+PushT & $0.07$ & $86.44 \pm 0.87$ & $86.00 \pm 1.19$ & $84.22 \pm 0.42$ & $84.00 \pm 0.27$ & $83.56 \pm 1.10$ \\
+PushT & $0.08$ & $86.89 \pm 1.59$ & $86.56 \pm 2.20$ & $84.67 \pm 2.88$ & $85.78 \pm 3.45$ & $85.11 \pm 1.91$ \\
 \addlinespace[2pt]
-Reacher & $0.00$ & $59.22 \pm 1.03$ & $18.22 \pm 0.42$ \\
-Reacher & $0.01$ & $62.67 \pm 1.19$ & $44.56 \pm 2.57$ \\
-Reacher & $0.02$ & $77.00 \pm 6.18$ & $70.33 \pm 9.46$ \\
-Reacher & $0.03$ & $78.22 \pm 1.66$ & $76.78 \pm 4.17$ \\
-Reacher & $0.04$ & $81.78 \pm 1.59$ & $80.56 \pm 1.03$ \\
-Reacher & $0.05$ & $76.44 \pm 4.57$ & $77.78 \pm 5.67$ \\
-Reacher & $0.06$ & $82.22 \pm 2.79$ & $80.67 \pm 1.19$ \\
-Reacher & $0.07$ & $82.11 \pm 2.20$ & $83.33 \pm 1.09$ \\
-Reacher & $0.08$ & $81.33 \pm 2.33$ & $81.56 \pm 0.87$ \\
+Reacher & $0.00$ & $59.22 \pm 1.03$ & $42.56 \pm 2.99$ & $33.56 \pm 1.77$ & $18.22 \pm 0.42$ & $13.78 \pm 1.50$ \\
+Reacher & $0.01$ & $62.67 \pm 1.19$ & $60.67 \pm 1.09$ & $56.00 \pm 0.72$ & $44.56 \pm 2.57$ & $42.67 \pm 2.60$ \\
+Reacher & $0.02$ & $77.00 \pm 6.18$ & $76.44 \pm 8.17$ & $77.22 \pm 6.68$ & $70.33 \pm 9.46$ & $71.67 \pm 10.27$ \\
+Reacher & $0.03$ & $78.22 \pm 1.66$ & $79.33 \pm 0.72$ & $79.11 \pm 1.10$ & $76.78 \pm 4.17$ & $75.56 \pm 1.50$ \\
+Reacher & $0.04$ & $81.78 \pm 1.59$ & $82.00 \pm 1.52$ & $81.11 \pm 2.62$ & $80.56 \pm 1.03$ & $79.78 \pm 2.18$ \\
+Reacher & $0.05$ & $76.44 \pm 4.57$ & $77.33 \pm 5.76$ & $77.56 \pm 4.01$ & $77.78 \pm 5.67$ & $76.11 \pm 5.75$ \\
+Reacher & $0.06$ & $82.22 \pm 2.79$ & $79.33 \pm 2.42$ & $81.67 \pm 1.63$ & $80.67 \pm 1.19$ & $82.44 \pm 1.59$ \\
+Reacher & $0.07$ & $82.11 \pm 2.20$ & $82.44 \pm 1.29$ & $81.44 \pm 1.85$ & $83.33 \pm 1.09$ & $79.67 \pm 1.36$ \\
+Reacher & $0.08$ & $81.33 \pm 2.33$ & $82.56 \pm 2.08$ & $82.00 \pm 1.78$ & $81.56 \pm 0.87$ & $82.22 \pm 2.38$ \\
 \addlinespace[2pt]
-Cube & $0.00$ & $65.22 \pm 1.10$ & $43.11 \pm 3.27$ \\
-Cube & $0.01$ & $66.78 \pm 1.81$ & $48.78 \pm 0.31$ \\
-Cube & $0.02$ & $63.67 \pm 2.62$ & $56.67 \pm 3.07$ \\
-Cube & $0.03$ & $64.56 \pm 1.66$ & $66.00 \pm 1.70$ \\
-Cube & $0.04$ & $68.11 \pm 1.03$ & $64.11 \pm 0.83$ \\
-Cube & $0.05$ & $62.67 \pm 3.40$ & $63.56 \pm 2.53$ \\
-Cube & $0.06$ & $66.00 \pm 1.19$ & $64.89 \pm 1.85$ \\
-Cube & $0.07$ & $64.67 \pm 2.16$ & $65.22 \pm 1.55$ \\
-Cube & $0.08$ & $61.67 \pm 3.57$ & $62.56 \pm 1.55$ \\
+Cube & $0.00$ & $65.22 \pm 1.10$ & $63.00 \pm 1.19$ & $46.67 \pm 1.96$ & $43.11 \pm 3.27$ & $45.78 \pm 0.79$ \\
+Cube & $0.01$ & $66.78 \pm 1.81$ & $67.00 \pm 2.13$ & $67.56 \pm 2.27$ & $48.78 \pm 0.31$ & $51.00 \pm 1.52$ \\
+Cube & $0.02$ & $63.67 \pm 2.62$ & $61.44 \pm 3.45$ & $63.33 \pm 1.96$ & $56.67 \pm 3.07$ & $60.22 \pm 2.47$ \\
+Cube & $0.03$ & $64.56 \pm 1.66$ & $63.44 \pm 3.03$ & $65.33 \pm 0.94$ & $66.00 \pm 1.70$ & $61.33 \pm 6.08$ \\
+Cube & $0.04$ & $68.11 \pm 1.03$ & $65.11 \pm 1.50$ & $65.44 \pm 0.57$ & $64.11 \pm 0.83$ & $65.22 \pm 1.29$ \\
+Cube & $0.05$ & $62.67 \pm 3.40$ & $63.33 \pm 2.42$ & $60.67 \pm 3.09$ & $63.56 \pm 2.53$ & $64.44 \pm 3.59$ \\
+Cube & $0.06$ & $66.00 \pm 1.19$ & $65.89 \pm 1.03$ & $64.67 \pm 1.09$ & $64.89 \pm 1.85$ & $65.00 \pm 0.27$ \\
+Cube & $0.07$ & $64.67 \pm 2.16$ & $64.67 \pm 1.89$ & $65.44 \pm 2.57$ & $65.22 \pm 1.55$ & $64.89 \pm 2.22$ \\
+Cube & $0.08$ & $61.67 \pm 3.57$ & $61.78 \pm 4.16$ & $61.89 \pm 2.45$ & $62.56 \pm 1.55$ & $62.11 \pm 3.25$ \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-\paragraph{Auxiliary observation+goal stress.} The main endpoint keeps the goal image clean to isolate corrupted observations. The auxiliary table below perturbs both observation and goal streams at $\sigma=0.08$ for the no-noise checkpoint and the fixed \stdmax{} $=0.08$ checkpoint; it is a harder stress condition, not a separate core diagnostic.
-
-\begin{table}[H]
-\centering
-\caption{Auxiliary observation+goal Gaussian evaluation at $\sigma=0.08$. Values are mean $\pm$ population std across training seeds 3072/3073/3074; each training-seed value averages evaluation seeds 42/43/44 with 100 trajectories per evaluation seed.}
-\label{tab:appendix-observation-goal-gaussian}
-\small
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{lrr}
-\toprule
-Task & no-noise ckpt & \stdmax{} $=0.08$ ckpt \\
-\midrule
-TwoRoom & $53.56 \pm 2.57$ & $97.56 \pm 0.83$ \\
-PushT & $4.89 \pm 1.64$ & $85.11 \pm 1.91$ \\
-Reacher & $13.78 \pm 1.50$ & $82.22 \pm 2.38$ \\
-Cube & $45.78 \pm 0.79$ & $62.11 \pm 3.25$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+\end{landscape}
 
 \end{document}

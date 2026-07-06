@@ -2,7 +2,8 @@
 
 Date: 2026-07-06  
 Branch: `ag/dev`  
-Scope: updated `paper1/main.tex` after the arXiv-v1 convergence pass.
+Scope: updated `paper1/main.tex` after the arXiv-v1 convergence pass.  
+Companion decision note: `paper1/THREE_SEED_FIGURE1_TABLE2_DECISION_20260706.md`.
 
 This memo is a review/planning document for Codex execution. Do not include it in arXiv source packages.
 

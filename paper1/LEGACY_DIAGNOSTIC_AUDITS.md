@@ -411,3 +411,52 @@ Repository/internal provenance: PCC/CRA/MAF/CEM/rank/ID/negative ablations.
 ```
 
 This keeps the paper theoretically coherent without losing useful internal evidence.
+
+---
+
+## 11. Auxiliary observation+goal Gaussian sweep backup
+
+This section backs up the three-training-seed observation+goal Gaussian `sigma=0.08` column removed from the Paper1 PDF appendix. It is retained as repository-level provenance because the paper's main behavioral endpoint keeps the goal image clean and evaluates observation-only Gaussian noise.
+
+Source artifact: `assets/paper1_data/three_seed_gaussian_sweep_summary_20260706.json`. Each training-seed value first averages evaluation seeds 42/43/44; cells report mean +/- population std across LeWM training seeds 3072/3073/3074.
+
+| Task | stdmax | obs+goal sigma=0.08 eval |
+|---|---:|---:|
+| TwoRoom | 0.0 | 53.56 +/- 2.57 |
+| TwoRoom | 0.01 | 83.22 +/- 3.82 |
+| TwoRoom | 0.02 | 94.44 +/- 1.34 |
+| TwoRoom | 0.03 | 93.78 +/- 0.68 |
+| TwoRoom | 0.04 | 95.67 +/- 0.54 |
+| TwoRoom | 0.05 | 96.11 +/- 1.66 |
+| TwoRoom | 0.06 | 95.89 +/- 1.85 |
+| TwoRoom | 0.07 | 96.56 +/- 0.57 |
+| TwoRoom | 0.08 | 97.56 +/- 0.83 |
+| PushT | 0.0 | 4.89 +/- 1.64 |
+| PushT | 0.01 | 29.22 +/- 12.15 |
+| PushT | 0.02 | 57.89 +/- 15.40 |
+| PushT | 0.03 | 79.67 +/- 2.42 |
+| PushT | 0.04 | 83.44 +/- 2.11 |
+| PushT | 0.05 | 78.11 +/- 4.88 |
+| PushT | 0.06 | 87.33 +/- 2.05 |
+| PushT | 0.07 | 83.56 +/- 1.10 |
+| PushT | 0.08 | 85.11 +/- 1.91 |
+| Reacher | 0.0 | 13.78 +/- 1.50 |
+| Reacher | 0.01 | 42.67 +/- 2.60 |
+| Reacher | 0.02 | 71.67 +/- 10.27 |
+| Reacher | 0.03 | 75.56 +/- 1.50 |
+| Reacher | 0.04 | 79.78 +/- 2.18 |
+| Reacher | 0.05 | 76.11 +/- 5.75 |
+| Reacher | 0.06 | 82.44 +/- 1.59 |
+| Reacher | 0.07 | 79.67 +/- 1.36 |
+| Reacher | 0.08 | 82.22 +/- 2.38 |
+| Cube | 0.0 | 45.78 +/- 0.79 |
+| Cube | 0.01 | 51.00 +/- 1.52 |
+| Cube | 0.02 | 60.22 +/- 2.47 |
+| Cube | 0.03 | 61.33 +/- 6.08 |
+| Cube | 0.04 | 65.22 +/- 1.29 |
+| Cube | 0.05 | 64.44 +/- 3.59 |
+| Cube | 0.06 | 65.00 +/- 0.27 |
+| Cube | 0.07 | 64.89 +/- 2.22 |
+| Cube | 0.08 | 62.11 +/- 3.25 |
+
+Paper scope decision: do not report this column in Table 4. It is a stronger auxiliary stress condition and would make the appendix look like an additional endpoint rather than exact support for the observation-only Gaussian sweep.

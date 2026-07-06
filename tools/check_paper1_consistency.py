@@ -118,8 +118,7 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation",
     "These proofs support the diagnostic use of ATR and SMPR",
     "Additional Gaussian Evaluation Tables",
-    "These tables report the full Gaussian evaluation columns available",
-    "obs+goal $\\sigma=0.08$ eval",
+    "These tables report the full observation-only Gaussian evaluation columns available",
     "Future methods can turn ATR/SMPR into objectives",
 ]
 
@@ -312,6 +311,10 @@ def check_forbidden_text() -> None:
         "appendix-obs-goal",
         "Replanning union bound",
         "Selective ACPC pseudo-metric",
+        "obs+goal $\\sigma=0.08$ eval",
+        "auxiliary observation+goal Gaussian evaluation",
+        "Auxiliary observation+goal Gaussian runs",
+        "Goal-corrupted Gaussian evaluation",
     ]
     for snippet in main_forbidden:
         if snippet in main_tex:

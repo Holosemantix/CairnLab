@@ -29,7 +29,7 @@ PROTOCOL = (
 def test_skill_routes_paper_writing_to_quality_module() -> None:
     text = SKILL.read_text(encoding="utf-8")
 
-    assert 'version: "0.2.6"' in text
+    assert 'version: "0.2.7"' in text
     assert "paper-writing-quality-module.md" in text
     assert "writing-quality ledgers" in text.lower()
     assert "non-authoritative evidence" in text
@@ -47,6 +47,7 @@ def test_standalone_skill_routes_to_quality_checklist() -> None:
         "references/writing-quality-checklist.md",
         "This paper is X, not Y",
         "positive claim plus boundary claim",
+        "internal diagnostic-engineering prose",
         "writing-quality ledger",
     ]
     missing_skill = [phrase for phrase in required_skill_phrases if phrase not in skill_text]
@@ -298,6 +299,10 @@ def test_writing_module_catches_claim_hygiene_table_and_appendix_failures() -> N
     required = [
         "The claim is",
         "readouts:",
+        "internal diagnostic-engineering prose pass",
+        "diagnostic engineering document",
+        "projection, metric, signal",
+        "output, score, planner cost",
         "baseline stress",
         "no-noise checkpoint score under blur",
         "remove interpretation columns",

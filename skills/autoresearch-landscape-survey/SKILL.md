@@ -4,7 +4,7 @@ description: Use this skill to maintain a multi-facet survey map of AutoResearch
 license: Apache-2.0
 allowed-tools: Read Write Edit Bash WebSearch WebFetch
 metadata:
-  version: "0.2.6"
+  version: "0.2.7"
   skill-author: Holosemantix research mapping workflow
 ---
 
@@ -154,8 +154,9 @@ paper-facing prose and displays, run the protocol's Claim-Hygiene Writing Gate:
 abstracts must avoid internal audit phrases, duplicated main/appendix tables
 must be merged or deleted, table headers must name the compared checkpoint or
 evaluation condition, interpretation columns must move to prose, and
-external-family or old-metric artifacts must stay in provenance unless they
-meet the current core-evidence standard. For
+internal diagnostic-engineering prose must be rewritten as reader-facing
+science, and external-family or old-metric artifacts must stay in provenance
+unless they meet the current core-evidence standard. For
 top-conference remediation, continue rounds until the current artifact honestly
 reaches the `strong_accept_baseline`, the user pauses or narrows scope, or the
 only decision-changing blockers require retraining, new large-scale

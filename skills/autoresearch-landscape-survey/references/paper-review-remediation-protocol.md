@@ -190,6 +190,15 @@ Require:
   phrases such as "The claim is", "the paper-facing claim", "readouts:",
   "scope decision", "we retain", "legacy", or "provenance". Rewrite them as
   direct contribution, evidence, and boundary sentences.
+- **Internal diagnostic-engineering prose gate**: scan the full manuscript for
+  wording that sounds like an internal diagnostic engineering document or
+  internal review ledger rather than a paper. Terms such as "readout",
+  "paper-facing", "scope decision", "legacy audit", "provenance record",
+  "release package", "manifest", "debug", and "we retain" are suspect outside
+  artifact documentation. Keep them only when the term is a standard scientific
+  object that the reader must know; otherwise rewrite to the actual paper
+  object, such as metric, projection, signal, output, score, planner cost,
+  evidence, appendix note, or reproducibility artifact.
 - **Positive claim before boundary**: scope limitations may appear in the
   abstract only after the positive contribution and strongest supported result
   are clear. Do not end the abstract with a checklist of what the paper is not
@@ -221,8 +230,8 @@ Require:
 
 The review ledger must record any deletion or demotion triggered by this gate,
 especially duplicated appendix tables, internal-sounding abstract phrases,
-ambiguous table headers, and external-family artifacts that do not meet the
-current core-evidence standard.
+internal diagnostic-engineering prose, ambiguous table headers, and
+external-family artifacts that do not meet the current core-evidence standard.
 
 ## Writing And Structure Audit
 

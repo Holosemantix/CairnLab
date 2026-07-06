@@ -47,7 +47,7 @@ def test_protocol_prevents_large_unverified_score_jump():
 
 def test_skill_entry_mentions_score_disagreement_gate():
     text = SKILL.read_text(encoding="utf-8")
-    assert 'version: "0.2.6"' in text
+    assert 'version: "0.2.7"' in text
     assert "score-disagreement ledger" in text
     assert "separate main-track and diagnostic" in text
     assert "corrected score ceiling" in text
@@ -119,6 +119,9 @@ def test_protocol_has_claim_hygiene_writing_gate():
     required = (
         "The claim is",
         "readouts:",
+        "Internal diagnostic-engineering prose gate",
+        "diagnostic engineering document",
+        "metric, projection, signal, output, score, planner cost",
         "table headers",
         "No table self-interpretation columns",
         "Main/appendix duplication check",
@@ -137,4 +140,5 @@ def test_skill_entry_mentions_claim_hygiene_writing_gate():
     assert "abstracts must avoid internal audit phrases" in text
     assert "duplicated main/appendix tables" in text
     assert "interpretation columns must move to prose" in text
+    assert "internal diagnostic-engineering prose" in text
     assert "external-family or old-metric artifacts" in text

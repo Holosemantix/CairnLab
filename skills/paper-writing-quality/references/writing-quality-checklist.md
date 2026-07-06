@@ -289,6 +289,13 @@ Require:
   "scope decision", "legacy", and "provenance" are review notes, not polished
   abstract prose. Rewrite them as direct contribution, evidence, and boundary
   sentences.
+- run an internal diagnostic-engineering prose pass across the whole
+  manuscript. If wording sounds like an internal review ledger, project
+  management note, or diagnostic engineering document, rewrite it as
+  reader-facing science. Treat "readout", "paper-facing", "scope decision",
+  "legacy audit", "provenance record", "release package", "manifest",
+  "debug", and "we retain" as suspect outside artifact documentation unless
+  the term is a standard scientific object that the reader must know.
 
 ### B. Terminology Consistency Constraints
 
@@ -304,7 +311,11 @@ Require:
   universally standard for the target venue;
 - keep internal engineering and project-management terms out of the main paper.
   Avoid legacy, provenance, archived, remediation, release package, manifest,
-  artifact hash, rendering command, and old path in the main narrative;
+  artifact hash, rendering command, debug, audit ledger, and old path in the
+  main narrative;
+- use "readout" only when it is a standard field term or a defined measured
+  object. Otherwise prefer the concrete object: projection, metric, signal,
+  output, score, planner cost, representation, or diagnostic;
 - if artifact history matters, move it to an appendix artifact note rather than
   making it part of the main contribution story.
 
@@ -405,7 +416,11 @@ Require:
 - no unrelated motivation, implementation history, artifact bookkeeping, or
   reviewer-defense prose;
 - no internal claim-audit wording such as "The claim is", "readouts:",
-  "paper-facing claim", "scope decision", "legacy", or "provenance";
+  "paper-facing claim", "scope decision", "legacy", "provenance", "we
+  retain", "manifest", or "release package";
+- no sentence explains the review process, scope ledger, or diagnostic
+  engineering bookkeeping when it should state the scientific object, evidence,
+  and boundary directly;
 - no unsupported superlatives;
 - no more than three nonstandard acronyms unless the venue or field makes them
   unavoidable;
@@ -571,6 +586,8 @@ The module is incomplete if it does not catch:
 - discussion inflates results beyond evidence strength;
 - limitations are long but do not change reader interpretation;
 - related work is a citation dump;
+- prose sounds like an internal diagnostic engineering document or internal
+  review ledger instead of reader-facing scientific prose;
 - venue style, page limit, anonymization, or citation format is ignored.
 
 ## Interaction With Review And Remediation

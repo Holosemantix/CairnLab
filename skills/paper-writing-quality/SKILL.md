@@ -31,6 +31,7 @@ Use it as the checklist for:
 - plateau/range language instead of point-best selector language;
 - terminology consistency: score, screen, view;
 - acronym expansion and removal of internal engineering terms from main text;
+- internal diagnostic-engineering prose rewritten as reader-facing science;
 - experiment paragraphs ordered as question, protocol, result, boundary;
 - caveat budget and caveat-to-positive-claim binding;
 - table metric ordering, caption purpose, and "how not to read this" sentence;

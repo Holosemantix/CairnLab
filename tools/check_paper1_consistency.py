@@ -104,8 +104,6 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "closest 35\% state-distance neighborhood",
     "hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation",
     "These proofs calibrate ATR and SMPR",
-    "Heteroscedastic-loss negative result",
-    "Target-view ablation",
     "Future methods can turn ATR/SMPR into objectives",
 ]
 
@@ -159,6 +157,13 @@ FORBIDDEN_SNIPPETS = [
     "small CEM trace audit",
     "other downstream readouts are treated only as exploratory diagnostics",
     "point-optimal std prediction",
+    "heteroscedastic",
+    "Heteroscedastic",
+    "target-view",
+    "Target-view",
+    "Target-View",
+    "clean-target denoising",
+    "negative ablation",
 ]
 
 

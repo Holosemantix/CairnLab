@@ -136,7 +136,7 @@ This diagnostic view changes what counts as a useful robustness measurement. Enc
 
 \subsection{Existing noisy-evaluation results as a controlled probe}\label{sec:intro-tension}
 
-We use input-side noise augmentation as the controlled intervention. The \stdmax{} $\in \{0.01,\dots,0.08\}$ sweep across four tasks creates paired baseline/recovered checkpoints for asking whether closed-loop Gaussian recovery is accompanied by lower same-state predictive tail risk and preserved task-grounded separations. Because the sweep forms broad task-dependent plateaus under finite evaluation variance, we do not treat a single point-best \stdmax{} or small within-plateau score differences as meaningful checkpoint ordering. Appendix~\ref{sec:appendix-target-view} records a negative target-view ablation: perturbed-history $\to$ original-future denoising is not a sufficient closed-loop fix, so the retained empirical branch is full-sequence perturbed-target training.
+We use input-side noise augmentation as the controlled intervention. The \stdmax{} $\in \{0.01,\dots,0.08\}$ sweep across four tasks creates paired baseline/recovered checkpoints for asking whether closed-loop Gaussian recovery is accompanied by lower same-state predictive tail risk and preserved task-grounded separations. Because the sweep forms broad task-dependent plateaus under finite evaluation variance, we do not treat a single point-best \stdmax{} or small within-plateau score differences as meaningful checkpoint ordering.
 
 \subsection{Contributions}\label{sec:intro-contributions}
 
@@ -144,7 +144,7 @@ We use input-side noise augmentation as the controlled intervention. The \stdmax
 
 \paragraph{C2 --- Theory-matched compression.} ATR estimates the ACPC-tail term exposed by the sampled-pool analysis and local Gaussian sensitivity calculation. SMPR estimates the discriminability/no-collapse countercondition that makes low ATR meaningful. The clean-margin term remains a formal caveat explaining why the diagnostic is not a closed-loop guarantee.
 
-\paragraph{C3 --- Fixed-checkpoint evidence.} Across three LeWM training seeds, matched-Gaussian robustness plateaus coincide with large ATR reductions and near-one SMPR at recovered endpoints. Unseen-stressor scores and negative ablations bound the scope without turning the diagnostic into a method or universal transfer claim.
+\paragraph{C3 --- Fixed-checkpoint evidence.} Across three LeWM training seeds, matched-Gaussian robustness plateaus coincide with large ATR reductions and near-one SMPR at recovered endpoints. Unseen-stressor scores bound the perturbation scope without turning the diagnostic into a method or universal transfer claim.
 
 %% ===========================================================================
 \section{Related Work}\label{sec:related}
@@ -418,20 +418,20 @@ There exist encoder--predictor pairs for which $\mathrm{ACPC}_H=0$ for every sam
 Let $E_\theta(h)=z_0$ for every history and let $F_\theta^k(z_0,\mathbf a)=u_0$ for every horizon $k$ and action sequence $\mathbf a$. Then clean and perturbed branches always have identical rollout readouts, so same-state ACPC is zero. However, any two states that require different actions, costs, or transitions also have identical readouts, violating the discriminability condition in \Cref{eq:acpc-disc}.
 \end{proof}
 
-Thus low ACPC is meaningful only with a guard on action-relevant separation. This is the role of SMPR in the paper-facing diagnostic, and it is the failure exposed by the heteroscedastic-loss ablation in Appendix~\ref{sec:appendix-D}. This is where ACPC differs from existing nuisance-feature analyses of latent prediction: those results help explain why latent prediction may suppress irrelevant or noisy features at the representation level, whereas the condition above asks whether the remaining perturbation changes action-conditioned rollout readouts while preserving task-grounded separations.
+Thus low ACPC is meaningful only with a guard on action-relevant separation. This is the role of SMPR in the paper-facing diagnostic. This is where ACPC differs from existing nuisance-feature analyses of latent prediction: those results help explain why latent prediction may suppress irrelevant or noisy features at the representation level, whereas the condition above asks whether the remaining perturbation changes action-conditioned rollout readouts while preserving task-grounded separations.
 
 %% ===========================================================================
 \section{Study protocol}\label{sec:bg}
 
 \subsection{Models and noise intervention}\label{sec:bg-models}
 
-LeWM~\cite{maes2026lewm} is an end-to-end JEPA world model trained with a latent prediction loss and SIGReg regularization for latent-space model-predictive control. PushT (2D pushing), TwoRoom (2D navigation), Reacher (2D arm), and Cube (3D manipulation) form a heterogeneous stress panel spanning different nuisance/discriminability regimes. We add per-frame Gaussian noise to the input sequence as a full-sequence augmentation: each frame is independently noised with probability $p=1.0$, and the standard deviation is drawn from $\mathrm{Uniform}(0,\stdmax{})$. Because the target future frame is also encoded from the noised sequence, this intervention is not an original-target denoising objective. We sweep \stdmax{} $\in \{0.01,\dots,0.08\}$ and evaluate observation-only Gaussian noise with the goal image unperturbed as the primary robustness endpoint. Observation+goal Gaussian noise is retained as an auxiliary stress condition.
+LeWM~\cite{maes2026lewm} is an end-to-end JEPA world model trained with a latent prediction loss and SIGReg regularization for latent-space model-predictive control. PushT (2D pushing), TwoRoom (2D navigation), Reacher (2D arm), and Cube (3D manipulation) form a heterogeneous stress panel spanning different nuisance/discriminability regimes. We add per-frame Gaussian noise to the input sequence as a full-sequence augmentation: each frame is independently noised with probability $p=1.0$, and the standard deviation is drawn from $\mathrm{Uniform}(0,\stdmax{})$. This is a full-sequence input-side augmentation. We sweep \stdmax{} $\in \{0.01,\dots,0.08\}$ and evaluate observation-only Gaussian noise with the goal image unperturbed as the primary robustness endpoint. Observation+goal Gaussian noise is retained as an auxiliary stress condition.
 
 \subsection{Evaluation and diagnostics}\label{sec:bg-protocol}
 
 The canonical LeWM development grid contains 36 epoch-10 checkpoints for training seed 3072: four tasks and, for each task, a no-noise baseline plus eight noise-trained checkpoints. Each checkpoint is evaluated with three evaluation seeds (42/43/44) and 100 trajectories per seed; canonical tables report the population mean $\pm$ population std across those three evaluation seeds. A completed Gaussian training-seed replication adds independent LeWM training seeds 3073 and 3074 under the same nine-point Gaussian sweep and evaluation protocol. Together, seed 3072 plus replication seeds 3073/3074 provide three training seeds for the main Gaussian closed-loop endpoint in \Cref{tab:training-seed-gaussian-lockbox}.
 
-The main results follow the compressed evidence chain used in the claims. Closed-loop tables report training-seed mean/std for Gaussian robustness. ATR measures whether same-state clean/noisy rollout-disagreement tails contract at recovered endpoints, and SMPR checks whether task-grounded near-boundary separations survive that contraction. Unseen-stressor scores and negative ablations are auxiliary scope checks rather than additional core diagnostics.
+The main results follow the compressed evidence chain used in the claims. Closed-loop tables report training-seed mean/std for Gaussian robustness. ATR measures whether same-state clean/noisy rollout-disagreement tails contract at recovered endpoints, and SMPR checks whether task-grounded near-boundary separations survive that contraction. Unseen-stressor scores are auxiliary scope checks rather than additional core diagnostics.
 
 
 %% ===========================================================================
@@ -582,7 +582,7 @@ This is a controlled diagnostic study, not a method paper. Closed-loop evaluatio
 Gaussian pixel noise remains the training/evaluation axis. The blur/resize rows are bounded behavior outside the matched Gaussian setting, not a transfer theorem. ATR/SMPR are not a point-best \stdmax{} predictor and do not replace closed-loop evaluation inside a broad plateau. We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods; the contribution is a no-retraining diagnostic for JEPA latent world-model checkpoints under a controlled Gaussian stressor.
 
 \paragraph{What remains.}
-The results argue against a too-strong reading of latent prediction: future-latent prediction alone does not guarantee closed-loop visual robustness. Stronger discriminability evidence would require hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels, especially for PushT and Cube. The heteroscedastic NLL probe and target-view ablation bound the method story: prediction difficulty alone is the wrong gate, and perturbed-history $\to$ original-future targets are not sufficient here. Future methods can turn ATR/SMPR into objectives, but this paper keeps that as a separate method-paper path after diagnostic validity is established.
+The results argue against a too-strong reading of latent prediction: future-latent prediction alone does not guarantee closed-loop visual robustness. Stronger discriminability evidence would require hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels, especially for PushT and Cube. Future methods can turn ATR/SMPR into objectives, but this paper keeps that as a separate method-paper path after diagnostic validity is established.
 
 %% ===========================================================================
 \section{Conclusion}\label{sec:conc}
@@ -637,32 +637,6 @@ LeWM is evaluated on PushT, TwoRoom, Reacher, and Cube using the canonical three
 
 ATR is computed at each task--training-seed--checkpoint row as the 90th percentile same-state ACPC-H distance normalized by the clean transition scale. SMPR uses task-grounded near-boundary proxy labels at margin zero. The paper reports population mean/std across training seeds 3072/3073/3074.
 
-\section{Heteroscedastic-loss negative result}\label{sec:appendix-D}
-
-\paragraph{Reading.} This ablation tests whether simply down-weighting high-error transitions is a sufficient route to robustness. It is not.
-
-\begin{table}[H]
-\centering
-\caption{Heteroscedastic-loss evaluation under the canonical three-seed evaluation protocol. Values are success rates.}
-\label{tab:hetero-eval}
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lrrrrrr}
-\toprule
-Task / model & unpert. & goal .05 & obs .05 & obs+goal .05 & goal .08 & obs+goal .08 \\
-\midrule
-TwoRoom LeWM-base       & 94.00 & 73.33 & 72.33 & 61.33 & 58.67 & 50.00 \\
-TwoRoom LeWM+noise row & 98.33 & 98.00 & 98.33 & 98.00 & 98.67 & 98.67 \\
-TwoRoom hetero          & 99.67 & 85.33 & 96.67 & 84.67 & 73.33 & 55.33 \\
-PushT LeWM-base         & 86.33 & 38.00 & 17.00 & 12.00 & 11.33 &  4.67 \\
-PushT LeWM+noise row   & 89.33 & 87.67 & 88.00 & 88.33 & 89.67 & 87.00 \\
-PushT hetero            & 13.33 &  7.67 &  7.67 &  7.67 &  9.67 &  6.00 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-TwoRoom hetero reaches high unperturbed success but lags noise training under high-noise robustness. PushT hetero is a method-level failure: unperturbed success drops to $13.33\%$. The result is a negative example of non-selective consistency pressure; hard transitions in PushT can be contact-critical rather than unimportant.
-
 \section{Unseen-Stressor Score Check}\label{sec:appendix-unseen-transfer}
 
 \paragraph{Reading.} This appendix reports behavior outside the matched Gaussian family without expanding the paper's main claim.
@@ -686,47 +660,5 @@ Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ & $-0.89 \pm 1.40$ & 
 \bottomrule
 \end{tabularx}
 \end{table}
-
-\section{Target-view ablation}\label{sec:appendix-target-view}
-
-\paragraph{Reading.} This ablation tests whether clean-target denoising alone explains the robustness recovery.
-
-This ablation uses Gaussian-perturbed histories while keeping the prediction target as the original future latent. It tests whether clean-target denoising alone is sufficient. It is not.
-
-\begin{table}[H]
-\centering
-\caption{LeWM perturbed-history $\to$ original-future target-view ablation. Values are success rate mean $\pm$ population std over the eight target-noise checkpoints.}
-\label{tab:target-view-origin}
-\small
-\begin{tabular}{lrrrr}
-\toprule
-Task & unperturbed & obs 0.03 & obs 0.05 & obs 0.08 \\
-\midrule
-TwoRoom & $93.33 \pm 1.72$ & $88.67 \pm 6.04$ & $77.71 \pm 9.12$ & $61.75 \pm 7.65$ \\
-PushT   & $82.92 \pm 4.00$ & $57.71 \pm 8.96$ & $20.21 \pm 11.68$ & $\phantom{0}6.75 \pm 5.00$ \\
-Reacher & $59.92 \pm 1.80$ & $40.38 \pm 2.78$ & $32.00 \pm 4.57$ & $19.62 \pm 3.97$ \\
-Cube    & $65.00 \pm 2.01$ & $61.42 \pm 2.06$ & $44.29 \pm 1.32$ & $39.62 \pm 1.22$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[H]
-\centering
-\caption{Closed-loop target-view comparison at observation-noise 0.08. Values are success rate mean $\pm$ population std over the eight training-noise checkpoints.}
-\label{tab:target-view-closed-loop}
-\small
-\begin{tabular}{lrrr}
-\toprule
-Task & full-sequence perturbed target & perturbed-history $\to$ original future & full-seq advantage \\
-\midrule
-TwoRoom & $94.71 \pm 1.90$ & $61.75 \pm 7.65$ & $+32.96$ \\
-PushT   & $72.83 \pm 12.84$ & $\phantom{0}6.75 \pm 5.00$ & $+66.08$ \\
-Reacher & $76.17 \pm 10.89$ & $19.62 \pm 3.97$ & $+56.54$ \\
-Cube    & $59.83 \pm 5.55$ & $39.62 \pm 1.22$ & $+20.21$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The comparison supports a closed-loop train/eval consistency explanation: full-sequence noise augmentation better matches the latent autoregressive feedback used at evaluation time, while one-step original-future denoising does not.
 
 \end{document}

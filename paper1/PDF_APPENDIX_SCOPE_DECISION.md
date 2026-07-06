@@ -292,7 +292,7 @@ proofs / calibration for ATR and SMPR
 minimal experimental details
 noise implementation details if needed
 semantic label construction for SMPR
-negative target-view / heteroscedastic ablation only if directly used to motivate the future-method boundary
+negative target-view / heteroscedastic ablations should stay outside the Paper1 PDF unless a later version makes them necessary for a paper-facing core claim
 ```
 
 Delete from PDF appendix:

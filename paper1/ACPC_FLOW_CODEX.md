@@ -31,82 +31,72 @@ Thus there are two coupled dimensions:
 
 Paper1 defines same-state visual robustness as selective action-conditioned predictive consistency:
 
-\[
-z_t = E_\theta(h_t),\qquad \tilde z_t = E_\theta(\tilde h_t),
-\]
+```text
+z_t = E_theta(h_t),   z_tilde_t = E_theta(h_tilde_t)
+zhat_{t+k} = F_theta^k(z_t, a_{0:k-1})
+zhat_tilde_{t+k} = F_theta^k(z_tilde_t, a_{0:k-1})
+```
 
-\[
-\hat z_{t+k}=F_\theta^k(z_t,\mathbf a_{0:k-1}),\qquad
-\hat{\tilde z}_{t+k}=F_\theta^k(\tilde z_t,\mathbf a_{0:k-1}).
-\]
+ACPC-H measures the projected rollout discrepancy:
 
-ACPC-H measures the projected rollout discrepancy
-
-\[
-\sum_{k=1}^H \alpha_k d\big(\Pi(\hat z_{t+k}),\Pi(\hat{\tilde z}_{t+k})\big).
-\]
+```text
+sum_k alpha_k * d(Pi(zhat_{t+k}), Pi(zhat_tilde_{t+k}))
+```
 
 ATR is the high-tail version of this same-state clean/noisy rollout disagreement. SMPR checks that task-grounded near-boundary pairs remain separated. Therefore a method should aim for:
 
-\[
-\text{low ATR} \quad + \quad \text{high SMPR}.
-\]
+```text
+low ATR + high SMPR
+```
 
 ### 1.3 Transport version of the diagnostic
 
-Introduce a transport map \(T_\phi\) applied to a perturbed/off-manifold latent history:
+Introduce a transport map `T_phi` applied to a perturbed/off-manifold latent history:
 
-\[
-z_{t:t+C-1}^\phi = T_\phi(\tilde z_{t:t+C-1}),
-\]
+```text
+z_phi_{t:t+C-1} = T_phi(z_tilde_{t:t+C-1})
+```
 
-where \(C=\texttt{ctx_len}\) is the predictor history length. The diagnostic-space transport target is:
+where `C = ctx_len` is the predictor history length. The diagnostic-space transport target is:
 
-\[
-\Pi(F_\theta^{1:H}(T_\phi(\tilde z_{t:t+C-1}),\mathbf a))
-\approx
-\Pi(F_\theta^{1:H}(z_{t:t+C-1},\mathbf a)).
-\]
+```text
+Pi(F_theta^{1:H}(T_phi(z_tilde_{t:t+C-1}), a))
+  ~= Pi(F_theta^{1:H}(z_{t:t+C-1}, a))
+```
 
 This is the key connection: transport success is measured **after action-conditioned rollout of the transported history**, not only in raw latent space.
 
 ### 1.4 Candidate-cost stability connection
 
-Paper1's cost-drift and top-1 stability arguments say that if every candidate action sequence has clean/perturbed projected-rollout discrepancy at most \(\epsilon\), then candidate cost drift is at most \(L_J\epsilon\), and a clean top-1 margin \(\Delta>2L_J\epsilon\) preserves the top-1 candidate.
+Paper1's cost-drift and top-1 stability arguments say that if every candidate action sequence has clean/perturbed projected-rollout discrepancy at most `eps`, then candidate cost drift is at most `L_J * eps`, and a clean top-1 margin `Delta > 2 L_J eps` preserves the top-1 candidate.
 
-With transport, the relevant discrepancy becomes
+With transport, the relevant discrepancy becomes:
 
-\[
-\epsilon_\phi
-=
-d_H\big(
-\Pi(F^{1:H}(T_\phi(\tilde z),\mathbf a)),
-\Pi(F^{1:H}(z,\mathbf a))
-\big).
-\]
+```text
+eps_phi = d_H(Pi(F^{1:H}(T_phi(z_tilde), a)), Pi(F^{1:H}(z, a))).
+```
 
-ACPC-Flow tries to reduce \(\epsilon_\phi\), thereby reducing ATR, cost drift, and candidate-rank flip risk under the same fixed-candidate/margin caveats.
+ACPC-Flow tries to reduce `eps_phi`, thereby reducing ATR, cost drift, and candidate-rank flip risk under the same fixed-candidate/margin caveats.
 
 ### 1.5 Local sensitivity connection
 
-Paper1's local Gaussian sensitivity shows that the action-conditioned sensitivity is governed by the product
+Paper1's local Gaussian sensitivity shows that the action-conditioned sensitivity is governed by the product:
 
-\[
-J_{G_\mathbf a}(E(o))J_E(o),\qquad
-G_\mathbf a(z)=\Pi(F^{1:H}(z,\mathbf a)).
-\]
+```text
+J_Ga(E(o)) * J_E(o),    G_a(z) = Pi(F^{1:H}(z, a)).
+```
 
-With a transport map, the effective map becomes
+With a transport map, the effective map becomes:
 
-\[
-G_\mathbf a(T_\phi(E(o))).
-\]
+```text
+G_a(T_phi(E(o))).
+```
 
-The local sensitivity includes
+The local sensitivity includes:
 
-\[
-J_{G_\mathbf a}\,J_{T_\phi}\,J_E.
-\]
+```text
+J_Ga * J_Tphi * J_E.
+```
 
 Thus the desired transport contracts nuisance/corruption-induced representation directions before they reach the predictor, while avoiding contraction along task-relevant directions. This is exactly why SMPR and neighborhood-crossing diagnostics remain necessary.
 
@@ -118,19 +108,19 @@ This method should not claim generic image-generation Flow Matching unless the c
 
 The transport is **paired/conditional**, not marginal:
 
-\[
-\tilde z_i \mapsto z_i \quad \text{or} \quad \tilde z_i \mapsto \mathcal C_{ACPC}(z_i),
-\]
+```text
+z_tilde_i -> z_i, or z_tilde_i -> C_ACPC(z_i)
+```
 
-where \(\tilde z_i\) and \(z_i\) represent the same underlying state, and \(\mathcal C_{ACPC}(z_i)\) is the clean action-conditioned predictive equivalence class.
+where `z_tilde_i` and `z_i` represent the same underlying state, and `C_ACPC(z_i)` is the clean action-conditioned predictive equivalence class.
 
 Avoid this incorrect objective:
 
-\[
-T_\phi\#p_{pert}(z) \approx p_{clean}(z).
-\]
+```text
+T_phi# p_pert(z) ~= p_clean(z)
+```
 
-Marginal matching can map a perturbed latent from state \(i\) to a clean latent from state \(j\). That may look distributionally clean but is wrong for control.
+Marginal matching can map a perturbed latent from state `i` to a clean latent from state `j`. That may look distributionally clean but is wrong for control.
 
 ## 3. Theoretical feasibility of feature/latent perturbation coverage
 
@@ -138,173 +128,173 @@ This section is the precondition for the method. ACPC-Flow should **not** be tra
 
 ### 3.1 Notation
 
-Let \(H(o)\) denote the encoder output **before** the LeWM projection head, e.g. ViT CLS feature. Let \(P\) denote the LeWM projection head. The post-projector latent is:
+Let `H(o)` denote the encoder output **before** the LeWM projection head, e.g. ViT CLS feature. Let `P` denote the LeWM projection head. The post-projector latent is:
 
-\[
-z=P(H(o)).
-\]
+```text
+z = P(H(o)).
+```
 
-A pixel perturbation \(\tau\) induces a pre-projector feature shift:
+A pixel perturbation `tau` induces a pre-projector feature shift:
 
-\[
-\Delta^H_\tau(o)=H(\tau(o))-H(o),
-\]
+```text
+Delta_H_tau(o) = H(tau(o)) - H(o),
+```
 
 and a post-projector latent shift:
 
-\[
-\Delta^z_\tau(o)=P(H(\tau(o)))-P(H(o)).
-\]
+```text
+Delta_z_tau(o) = P(H(tau(o))) - P(H(o)).
+```
 
 If ACPC-Flow trains with synthetic representation perturbations, then its source is one of:
 
 Pre-projector version:
 
-\[
-\tilde h=H(o)+\epsilon_H,\qquad \tilde z=P(\tilde h).
-\]
+```text
+h_tilde = H(o) + eps_H,   z_tilde = P(h_tilde).
+```
 
 Post-projector version:
 
-\[
-\tilde z=z+\epsilon_z.
-\]
+```text
+z_tilde = z + eps_z.
+```
 
-The method can cover a pixel perturbation family only if the pixel-induced shifts \(\Delta^H_\tau\) or \(\Delta^z_\tau\) lie inside, or near, the synthetic perturbation tube used during training.
+The method can cover a pixel perturbation family only if the pixel-induced shifts `Delta_H_tau` or `Delta_z_tau` lie inside, or near, the synthetic perturbation tube used during training.
 
 ### 3.2 Sufficient coverage condition
 
-Define
+Define:
 
-\[
-G_\mathbf a(z)=\Pi(F^{1:H}(z,\mathbf a)).
-\]
+```text
+G_a(z) = Pi(F^{1:H}(z, a)).
+```
 
-For pre-projector analysis, use
+For pre-projector analysis, use:
 
-\[
-\bar G_\mathbf a(h)=G_\mathbf a(P(h)).
-\]
+```text
+Gbar_a(h) = G_a(P(h)).
+```
 
 Assume:
 
-1. **Coverage**: for each diagnostic pixel perturbation \(\tau\), there exists a synthetic perturbation \(\epsilon^\star\) used in training such that
-   \[
-   \|\Delta^H_\tau(o)-\epsilon^\star\|\le \kappa.
-   \]
+1. **Coverage**: for each diagnostic pixel perturbation `tau`, there exists a synthetic perturbation `eps_star` used in training such that
+
+   ```text
+   ||Delta_H_tau(o) - eps_star|| <= kappa.
+   ```
+
 2. **Transport accuracy on the synthetic tube**:
-   \[
-   d_H\big(\bar G_\mathbf a(T_\phi(H(o)+\epsilon^\star)),\bar G_\mathbf a(H(o))\big)\le \varepsilon.
-   \]
-3. **Local Lipschitz continuity** of \(\bar G_\mathbf a\circ T_\phi\) on the tube with constant \(L\).
-4. **No task-neighborhood crossing**: \(H(\tau(o))\) remains in the same-state predictive basin and does not enter a task-distinct basin.
+
+   ```text
+   d_H(Gbar_a(T_phi(H(o)+eps_star)), Gbar_a(H(o))) <= eps_train.
+   ```
+
+3. **Local Lipschitz continuity** of `Gbar_a o T_phi` on the tube with constant `L`.
+4. **No task-neighborhood crossing**: `H(tau(o))` remains in the same-state predictive basin and does not enter a task-distinct basin.
 5. **SMPR preservation**: task-grounded different-state margins are preserved after transport.
 
 Then the pixel perturbation satisfies:
 
-\[
-d_H\big(\bar G_\mathbf a(T_\phi(H(\tau(o)))),\bar G_\mathbf a(H(o))\big)
-\le \varepsilon + L\kappa.
-\]
+```text
+d_H(Gbar_a(T_phi(H(tau(o)))), Gbar_a(H(o))) <= eps_train + L * kappa.
+```
 
-This is the main theoretical feasibility statement: representation perturbation training can cover pixel perturbations only up to the coverage error \(\kappa\). If \(\kappa\) is large, the method relies on extrapolation and has no guarantee.
+This is the main theoretical feasibility statement: representation perturbation training can cover pixel perturbations only up to the coverage error `kappa`. If `kappa` is large, the method relies on extrapolation and has no guarantee.
 
 ### 3.3 Proof sketch for the sufficient condition
 
-Since
+Since:
 
-\[
-H(\tau(o))=H(o)+\Delta^H_\tau(o),
-\]
+```text
+H(tau(o)) = H(o) + Delta_H_tau(o),
+```
 
-and \(\Delta^H_\tau(o)\) is within \(\kappa\) of \(\epsilon^\star\), Lipschitz continuity gives:
+and `Delta_H_tau(o)` is within `kappa` of `eps_star`, Lipschitz continuity gives:
 
-\[
-d_H\big(\bar G T(H(o)+\Delta^H_\tau),\bar G T(H(o)+\epsilon^\star)\big)
-\le L\kappa.
-\]
+```text
+d_H(Gbar T(H(o)+Delta_H_tau), Gbar T(H(o)+eps_star)) <= L*kappa.
+```
 
 By triangle inequality:
 
-\[
-d_H\big(\bar G T(H(o)+\Delta^H_\tau),\bar G(H(o))\big)
-\le
-L\kappa+arepsilon.
-\]
+```text
+d_H(Gbar T(H(o)+Delta_H_tau), Gbar(H(o))) <= L*kappa + eps_train.
+```
 
-The post-projector version is identical after replacing \(H\) by \(z\) and \(\Delta^H_\tau\) by \(\Delta^z_\tau\).
+The post-projector version is identical after replacing `H` by `z` and `Delta_H_tau` by `Delta_z_tau`.
 
 ### 3.4 Local Gaussian pixel noise analysis
 
-For small Gaussian pixel noise
+For small Gaussian pixel noise:
 
-\[
-\tau(o)=o+\xi,\qquad \xi\sim\mathcal N(0,\sigma^2 I),
-\]
+```text
+tau(o) = o + xi,    xi ~ N(0, sigma^2 I),
+```
 
-if \(H\) is locally differentiable:
+if `H` is locally differentiable:
 
-\[
-H(o+\xi)-H(o)=J_H(o)\xi+R_\xi.
-\]
+```text
+H(o+xi)-H(o) = J_H(o) xi + R_xi.
+```
 
 Ignoring higher-order terms:
 
-\[
-\Delta^H_\tau(o)\sim \mathcal N(0,\sigma^2 J_H(o)J_H(o)^\top).
-\]
+```text
+Delta_H_tau(o) ~ N(0, sigma^2 J_H(o) J_H(o)^T).
+```
 
-If training uses isotropic pre-projector feature noise
+If training uses isotropic pre-projector feature noise:
 
-\[
-\epsilon_H\sim \mathcal N(0,\sigma_H^2 I),
-\]
+```text
+eps_H ~ N(0, sigma_H^2 I),
+```
 
 then a covariance-dominance sufficient condition is:
 
-\[
-\sigma_H^2 I \succeq \sigma^2 J_H(o)J_H(o)^\top.
-\]
+```text
+sigma_H^2 I >= sigma^2 J_H(o) J_H(o)^T   in PSD order.
+```
 
 Equivalently, a crude radius condition is:
 
-\[
-\sigma_H^2 \ge \sigma^2\lambda_{\max}(J_HJ_H^\top).
-\]
+```text
+sigma_H^2 >= sigma^2 * lambda_max(J_H J_H^T).
+```
 
-This explains both why feature perturbation can cover small Gaussian pixel noise in principle, and why isotropic feature noise can be inefficient: if \(J_HJ_H^\top\) is anisotropic, covering the largest corruption direction may over-perturb many irrelevant directions.
+This explains both why feature perturbation can cover small Gaussian pixel noise in principle, and why isotropic feature noise can be inefficient: if `J_H J_H^T` is anisotropic, covering the largest corruption direction may over-perturb many irrelevant directions.
 
 ### 3.5 Structured perturbations: blur, resize, compression
 
 Blur, resize, JPEG, compression, brightness shifts, camera changes, and occlusion are not guaranteed to be small local Gaussian perturbations in feature space. For these stressors, coverage must be measured empirically:
 
-\[
-\Delta^H_\tau(o)=H(\tau(o))-H(o).
-\]
+```text
+Delta_H_tau(o) = H(tau(o)) - H(o).
+```
 
 The method is plausible only when these shifts remain local, same-state, and non-crossing. If they are large, structured, or aligned with task-neighbor directions, clean-only feature noise is unlikely to cover them.
 
 ### 3.6 Impossibility: task-neighborhood crossing
 
-Suppose two task-distinct states \(i,j\) have different action-conditioned predictive targets:
+Suppose two task-distinct states `i,j` have different action-conditioned predictive targets:
 
-\[
-d_H(G_\mathbf a(z_i),G_\mathbf a(z_j))>m.
-\]
+```text
+d_H(G_a(z_i), G_a(z_j)) > margin_m.
+```
 
 If pixel corruptions make their encoder features collide:
 
-\[
-H(\tau_i(o_i))=H(\tau_j(o_j)),
-\]
+```text
+H(tau_i(o_i)) = H(tau_j(o_j)),
+```
 
-then any deterministic transport \(T_\phi\) produces the same output for both inputs. It cannot simultaneously recover the two different predictive targets. Therefore deterministic ACPC-Flow cannot solve representation crossing that has already erased task identity.
+then any deterministic transport `T_phi` produces the same output for both inputs. It cannot simultaneously recover the two different predictive targets. Therefore deterministic ACPC-Flow cannot solve representation crossing that has already erased task identity.
 
 This is why coverage audit must include nearest-neighbor crossing and task-label crossing metrics.
 
 ### 3.7 Impossibility: outside-tube extrapolation
 
-If training perturbations satisfy \(\|\epsilon\|\le r\), but a pixel stressor induces \(\|\Delta_\tau\|\gg r\), then the transport head is unconstrained on that region. Any success there is extrapolation, not supported by the ACPC-Flow objective. Do not claim coverage of such perturbations without empirical evidence.
+If training perturbations satisfy `||eps|| <= r`, but a pixel stressor induces `||Delta_tau|| >> r`, then the transport head is unconstrained on that region. Any success there is extrapolation, not supported by the ACPC-Flow objective. Do not claim coverage of such perturbations without empirical evidence.
 
 ## 4. Coverage audit: must run before training at scale
 
@@ -376,11 +366,11 @@ If exposing `encoder_feat` slows Codex down, run the first coverage audit on `em
 
 ### 4.4 Coverage metrics: magnitude
 
-For each corruption \(\tau\) and feature space \(s\in\{H,z\}\), compute:
+For each corruption `tau` and feature space `s in {H,z}`, compute:
 
-\[
-\Delta^s_\tau = s(\tau(o))-s(o).
-\]
+```text
+Delta_s_tau = s(tau(o)) - s(o).
+```
 
 Report:
 
@@ -393,12 +383,11 @@ delta_norm_q95
 delta_norm_q99
 ```
 
-For each synthetic noise scale \(\alpha\), compute synthetic noise radius quantiles and coverage rate:
+For each synthetic noise scale `alpha`, compute synthetic noise radius quantiles and coverage rate:
 
-\[
-\mathrm{coverage}_{q}(\tau,\alpha)=
-\Pr_o[\|\Delta_\tau(o)\|\le q_q(\|\epsilon_\alpha\|)].
-\]
+```text
+coverage_q(tau, alpha) = Pr_o[ ||Delta_tau(o)|| <= q_quantile(||eps_alpha||) ].
+```
 
 Report coverage for q90/q95/q99 synthetic radii.
 
@@ -406,15 +395,15 @@ Report coverage for q90/q95/q99 synthetic radii.
 
 Build a clean representation bank for the same task and feature space. For each clean representation, compute kNN distance to other clean states:
 
-\[
-d_{kNN}(o)=\frac1k\sum_{j\in kNN(o)}\|s(o)-s(o_j)\|.
-\]
+```text
+d_kNN(o) = mean_{j in kNN(o)} ||s(o)-s(o_j)||.
+```
 
 Report:
 
-\[
-r_\tau(o)=\frac{\|\Delta_\tau(o)\|}{d_{kNN}(o)+10^{-6}}.
-\]
+```text
+ratio_to_knn(o) = ||Delta_tau(o)|| / (d_kNN(o) + 1e-6).
+```
 
 Quantiles:
 
@@ -446,9 +435,9 @@ These metrics operationalize the non-crossing condition. If crossing is high, a 
 
 Compute covariance of corruption shifts:
 
-\[
-\Sigma_\tau=\mathrm{Cov}(\Delta_\tau).
-\]
+```text
+Sigma_tau = Cov(Delta_tau).
+```
 
 Report:
 
@@ -469,9 +458,9 @@ Interpretation:
 
 For each anchor, take nearest clean neighbors with different task proxy label. Compute maximum cosine alignment:
 
-\[
-\max_j \cos(\Delta_\tau(o_i), s(o_j)-s(o_i)).
-\]
+```text
+max_j cos(Delta_tau(o_i), s(o_j)-s(o_i)).
+```
 
 Report:
 
@@ -487,9 +476,9 @@ High alignment means the pixel perturbation moves along task-relevant directions
 
 For each clean/corrupted pair and a fixed recorded action sequence, compute one-step or short-horizon diagnostic gap:
 
-\[
-d_H(G_\mathbf a(s(\tau(o))),G_\mathbf a(s(o))).
-\]
+```text
+d_H(G_a(s(tau(o))), G_a(s(o))).
+```
 
 Report:
 
@@ -645,15 +634,15 @@ The same transport is applied to origin and perturbed inputs. At inference the m
 Intended behavior:
 
 ```text
-origin input:    emb_trans ≈ emb
+origin input:    emb_trans ~= emb
 perturbed input: emb_trans moves toward same-state clean predictive basin
 ```
 
 Therefore every ACPC-Flow mode should include clean identity:
 
-\[
-\mathcal L_{id}=\|T_\phi(z)-z\|^2.
-\]
+```text
+L_id = ||T_phi(z)-z||^2.
+```
 
 This is the origin zero-velocity condition.
 
@@ -668,9 +657,9 @@ ctx_act = act_emb[:, :ctx_len]
 
 Therefore ACPC-Flow first acts on the full predictor history:
 
-\[
-T_\phi(z_{t:t+C-1})=(T_\phi(z_t),\ldots,T_\phi(z_{t+C-1})).
-\]
+```text
+T_phi(z_{t:t+C-1}) = (T_phi(z_t), ..., T_phi(z_{t+C-1})).
+```
 
 First implementation:
 
@@ -694,55 +683,41 @@ Do **not** assume diagnostic-space loss will automatically dominate latent or pr
 
 First run pure variants separately. Only after those are understood, test a hybrid:
 
-\[
-\mathcal L_{hybrid}=\lambda_z\mathcal L_z+\lambda_{ACPC}\mathcal L_{ACPC}+\lambda_{id}\mathcal L_{id}.
-\]
+```text
+L_hybrid = lambda_z L_z + lambda_ACPC L_ACPC + lambda_id L_id.
+```
 
 ## 7. Three core objective variants
 
 ### Variant A: Latent-Z Transport Loss
 
-\[
-\mathcal L_z=\|T_\phi(\tilde z)-z\|^2.
-\]
+```text
+L_z = ||T_phi(z_tilde)-z||^2.
+```
 
 ### Variant B: Predictor-Feature Transport Loss
 
-\[
-\mathcal L_{pred}
-=
-\sum_{k=1}^{H}
-\|F^k(T_\phi(\tilde z),\mathbf a)-F^k(z,\mathbf a)\|^2.
-\]
+```text
+L_pred = sum_k ||F^k(T_phi(z_tilde), a)-F^k(z, a)||^2.
+```
 
 ### Variant C: Diagnostic-Space ACPC Transport Loss
 
-\[
-\mathcal L_{ACPC}
-=
-D_{diag}
-\left(
-\Pi(F^{1:H}(T_\phi(\tilde z),\mathbf a)),
-\Pi(F^{1:H}(z,\mathbf a))
-\right).
-\]
+```text
+L_ACPC = D_diag(Pi(F^{1:H}(T_phi(z_tilde), a)), Pi(F^{1:H}(z, a))).
+```
 
 Recommended first implementation:
 
-\[
-\mathcal L_{ACPC-CVaR}
-=
-\mathrm{CVaR}_{q=0.90}
-\left[
-\frac{d_H(\Pi F^{1:H}(T_\phi(\tilde z),\mathbf a),\Pi F^{1:H}(z,\mathbf a))}{\text{clean transition scale}}
-\right].
-\]
+```text
+L_ACPC_CVaR = CVaR_q90[ d_H(Pi F^{1:H}(T_phi(z_tilde), a), Pi F^{1:H}(z, a)) / clean_transition_scale ].
+```
 
 Every variant includes clean identity unless deliberately ablated:
 
-\[
-\mathcal L = \mathcal L_{variant} + \lambda_{id}\mathcal L_{id}.
-\]
+```text
+L = L_variant + lambda_id L_id.
+```
 
 ## 8. Minimal experiment design
 

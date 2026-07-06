@@ -47,7 +47,7 @@ def test_protocol_prevents_large_unverified_score_jump():
 
 def test_skill_entry_mentions_score_disagreement_gate():
     text = SKILL.read_text(encoding="utf-8")
-    assert 'version: "0.2.5"' in text
+    assert 'version: "0.2.6"' in text
     assert "score-disagreement ledger" in text
     assert "separate main-track and diagnostic" in text
     assert "corrected score ceiling" in text
@@ -111,3 +111,30 @@ def test_skill_entry_mentions_subtractive_remediation_gate():
     assert "Subtractive Remediation Gate" in text
     assert "deleted, merged, demoted, or moved to appendix" in text
     assert "before adding more caveats, diagnostics, tables, or reviewer patches" in text
+
+
+def test_protocol_has_claim_hygiene_writing_gate():
+    text = PROTOCOL.read_text(encoding="utf-8")
+    assert "## Claim-Hygiene Writing Gate" in text
+    required = (
+        "The claim is",
+        "readouts:",
+        "table headers",
+        "No table self-interpretation columns",
+        "Main/appendix duplication check",
+        "External-family evidence gate",
+        "Old metric quarantine",
+        "old-metric",
+        "current core-evidence standard",
+    )
+    for phrase in required:
+        assert phrase in text
+
+
+def test_skill_entry_mentions_claim_hygiene_writing_gate():
+    text = SKILL.read_text(encoding="utf-8")
+    assert "Claim-Hygiene Writing Gate" in text
+    assert "abstracts must avoid internal audit phrases" in text
+    assert "duplicated main/appendix tables" in text
+    assert "interpretation columns must move to prose" in text
+    assert "external-family or old-metric artifacts" in text

@@ -177,6 +177,53 @@ The review output must include a `remove/merge/demote` group alongside the
 `no-retraining`, `new evaluation/diagnostic with fixed checkpoints`,
 `retraining-required`, and `writing-only` groups. A remediation round is incomplete if it only lists additions.
 
+## Claim-Hygiene Writing Gate
+
+Before editing or accepting an abstract, contribution paragraph, result table,
+or appendix, run a claim-hygiene pass. This pass catches manuscript text that
+looks like an internal review note, project-management memo, or scope ledger
+instead of reader-facing scientific prose.
+
+Require:
+
+- **Abstract prose**: the abstract must not contain internal claim-audit
+  phrases such as "The claim is", "the paper-facing claim", "readouts:",
+  "scope decision", "we retain", "legacy", or "provenance". Rewrite them as
+  direct contribution, evidence, and boundary sentences.
+- **Positive claim before boundary**: scope limitations may appear in the
+  abstract only after the positive contribution and strongest supported result
+  are clear. Do not end the abstract with a checklist of what the paper is not
+  unless the venue explicitly expects such a statement.
+- **Reader-facing terminology**: table headers, figure labels, section names,
+  and captions must name the experimental object being compared. Avoid headers
+  such as "baseline stress" or "std0.08 stress" unless the caption and column
+  name make clear which checkpoint, training condition, and evaluation stressor
+  they denote.
+- **No table self-interpretation columns**: columns such as "reading",
+  "interpretation", "decision", "claim status", or redundant difference columns
+  should be removed unless they are the measured quantity under review. Put the
+  interpretation in prose after the table.
+- **Main/appendix duplication check**: if a main-text table and appendix table
+  report the same rows, same conditions, and same conclusion, keep one display.
+  Retain the main-text version when it is a necessary scope or boundary check;
+  retain the appendix version only when it adds distinct evidence, protocol
+  detail, calibration, or reproducibility support.
+- **External-family evidence gate**: method-family replication, alternative
+  model-family rows, or old diagnostic artifacts belong in the paper only when
+  they use the current evidence standard for the paper's core claim. If they
+  are single-run, old-metric, unmatched-scope, or development-grid artifacts,
+  keep them in repository provenance or future-work notes rather than
+  reintroducing a method-comparison obligation.
+- **Old metric quarantine**: a metric family removed from the main claim must
+  not re-enter through appendix tables, captions, or figures under a new name
+  unless the paper explicitly reopens the theory-to-metric mapping and the
+  review ledger accepts the added attack surface.
+
+The review ledger must record any deletion or demotion triggered by this gate,
+especially duplicated appendix tables, internal-sounding abstract phrases,
+ambiguous table headers, and external-family artifacts that do not meet the
+current core-evidence standard.
+
 ## Writing And Structure Audit
 
 Review every section, paragraph, sentence, figure, table, formula, and caption.
@@ -470,6 +517,11 @@ Require:
 - no stale labels, old terminology, or implementation strings in figure text;
 - axes, legends, captions, and table headers that are interpretable without
   reading scripts;
+- table headers name the compared checkpoint, method, condition, or evaluation
+  stressor directly enough that the table remains understandable without
+  internal shorthand;
+- interpretation columns are absent unless they are measured data; table
+  interpretations should live in captions or adjacent prose;
 - formulas whose symbols are introduced before use and reused consistently;
 - theorem/proposition names that match the actual claim strength;
 - tables that fit, align units, avoid overprecision, and expose the conclusion;

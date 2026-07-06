@@ -34,7 +34,14 @@ Use it as the checklist for:
 - experiment paragraphs ordered as question, protocol, result, boundary;
 - caveat budget and caveat-to-positive-claim binding;
 - table metric ordering, caption purpose, and "how not to read this" sentence;
+- table headers that name the checkpoint, method, condition, or evaluation
+  stressor without internal shorthand;
+- no interpretation-only table columns such as "reading" or "claim status";
 - appendix `Reading:` sentences and `not paper-facing evidence` markings;
+- deletion or merge of appendix tables that duplicate main-text rows and
+  conclusions;
+- external-family or old-metric artifacts kept out of the appendix unless they
+  meet the current core-evidence standard;
 - compiled-PDF checks for formulas, tables, fonts, layout, anonymity, and page
   limits.
 

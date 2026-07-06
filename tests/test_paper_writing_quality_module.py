@@ -29,7 +29,7 @@ PROTOCOL = (
 def test_skill_routes_paper_writing_to_quality_module() -> None:
     text = SKILL.read_text(encoding="utf-8")
 
-    assert 'version: "0.2.5"' in text
+    assert 'version: "0.2.6"' in text
     assert "paper-writing-quality-module.md" in text
     assert "writing-quality ledgers" in text.lower()
     assert "non-authoritative evidence" in text
@@ -289,3 +289,24 @@ def test_review_protocol_checks_project_specific_writing_constraints() -> None:
     missing = [phrase for phrase in required if phrase not in text]
 
     assert missing == []
+
+
+def test_writing_module_catches_claim_hygiene_table_and_appendix_failures() -> None:
+    module_text = MODULE.read_text(encoding="utf-8")
+    standalone_text = STANDALONE_REFERENCE.read_text(encoding="utf-8")
+
+    required = [
+        "The claim is",
+        "readouts:",
+        "baseline stress",
+        "no-noise checkpoint score under blur",
+        "remove interpretation columns",
+        "appendix table repeats the same rows",
+        "method-family replication",
+        "old-metric",
+        "development-grid artifacts",
+    ]
+
+    for text in (module_text, standalone_text):
+        missing = [phrase for phrase in required if phrase not in text]
+        assert missing == []

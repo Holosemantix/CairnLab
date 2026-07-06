@@ -225,6 +225,11 @@ Require:
   conclusion; write "within plateau" or "not treated as meaningful ordering";
 - do not use caveats to hide the main line. If too many caveats are needed, the
   claim must be rewritten instead of padded with disclaimers.
+- avoid internal audit phrasing in the abstract and contribution paragraph:
+  phrases such as "The claim is", "paper-facing claim", "readouts:",
+  "scope decision", "legacy", and "provenance" are review notes, not polished
+  abstract prose. Rewrite them as direct contribution, evidence, and boundary
+  sentences.
 
 ### B. Terminology Consistency Constraints
 
@@ -305,6 +310,15 @@ Require:
 - every table reading includes how not to read it. Example: "This is not evidence of selector dominance";
 - every reference baseline explains what it is and what it is not;
 - the high-std reference is a coarse intervention-order screen, not a plateau-internal ranker.
+- table headers must identify the compared checkpoint, method, condition, or
+  evaluation stressor without relying on internal shorthand. Replace ambiguous
+  headers such as "baseline stress" with reader-facing labels such as
+  "no-noise checkpoint score under blur";
+- remove interpretation columns such as "reading", "decision", or "claim
+  status" unless they are measured data. Put the interpretation in the caption
+  or adjacent prose;
+- remove redundant difference columns when the table's purpose is a compact
+  scope or boundary check and the prose can state the direction of change.
 
 ### F. Appendix Constraints
 
@@ -324,6 +338,15 @@ Require:
 - appendix material is either evidence expansion, reproducibility support, or
   scoped audit context. Otherwise remove it.
 - short rule: appendix extends evidence; it is not a main-text junk drawer.
+- if an appendix table repeats the same rows, columns, and conclusion already
+  present in the main text, delete or merge it. A table may remain in the
+  appendix only when it adds distinct evidence, protocol detail, calibration,
+  or reproducibility support;
+- method-family replication, alternative-model rows, or old diagnostic
+  artifacts belong in the appendix only when they use the current evidence
+  standard for the paper's claim. Single-run, old-metric, unmatched-scope, or
+  development-grid artifacts should stay in repository provenance or
+  future-work notes.
 
 ### Abstract Gate
 
@@ -339,6 +362,8 @@ Require:
 - one sentence for the key limitation or scope condition when material;
 - no unrelated motivation, implementation history, artifact bookkeeping, or
   reviewer-defense prose;
+- no internal claim-audit wording such as "The claim is", "readouts:",
+  "paper-facing claim", "scope decision", "legacy", or "provenance";
 - no unsupported superlatives;
 - no more than three nonstandard acronyms unless the venue or field makes them
   unavoidable;

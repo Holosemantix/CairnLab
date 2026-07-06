@@ -101,7 +101,7 @@
 \maketitle
 
 \begin{abstract}
-Latent predictive world models avoid pixel reconstruction, but pixel-free prediction is not a robustness definition for closed-loop control. We study this gap with action-conditioned predictive consistency (ACPC), a no-retraining diagnostic for JEPA-style control checkpoints. The compressed diagnostic has two theory-aligned readouts: ACPC tail risk (ATR), the high-quantile same-state clean/noisy action-conditioned rollout disagreement, and selective-margin pass rate (SMPR), a task-grounded near-boundary check that action-relevant distinctions remain separated. Across three independent LeWM training seeds and four control tasks, no-noise checkpoints are fragile under observation-only Gaussian noise, while input-side noise training yields broad matched-Gaussian robustness plateaus. At recovered endpoints, ATR drops sharply and SMPR rises to near one across tasks. The claim is a controlled diagnostic for matched-Gaussian robustness plateaus, not a closed-loop stability guarantee, universal perturbation-transfer result, or new training objective.
+Latent predictive world models avoid pixel reconstruction, but pixel-free prediction is not a robustness definition for closed-loop control. We study this gap with action-conditioned predictive consistency (ACPC), a no-retraining diagnostic for JEPA-style control checkpoints. The diagnostic combines ACPC Tail Risk (ATR), which measures high-quantile clean/noisy rollout disagreement for the same state under the same action sequence, with Selective Margin Pass Rate (SMPR), which checks that task-grounded near-boundary distinctions remain separated. Across three independent LeWM training seeds and four control tasks, no-noise checkpoints are fragile under observation-only Gaussian noise, while input-side noise training yields broad matched-Gaussian robustness plateaus. At recovered endpoints, ATR drops sharply and SMPR rises to near one across tasks. These results support ACPC as a bounded diagnostic for matched-Gaussian robustness plateaus in fixed JEPA world-model checkpoints.
 
 \smallskip
 \noindent\textbf{Keywords:} visual world models; JEPA; action-conditioned predictive consistency; visual robustness; predictive-dynamics diagnostics.
@@ -121,13 +121,13 @@ JEPAs predict future representations instead of reconstructing pixels, which can
 
 We study this gap as a controlled diagnostic problem for JEPA latent world-model control. Let a clean history and a visually perturbed history describe the same underlying state, and evaluate both branches under the same action sequence. The desired behavior is not necessarily identical encoder latents. It is that task-relevant predicted futures agree after the shared action intervention, while states that differ in action, transition, cost, or goal relation remain separable. This selective requirement is the core of action-conditioned predictive consistency (ACPC).
 
-The selective tension matters because consistency alone can be misleading. A collapsed model can make clean and corrupted views agree while erasing distinctions needed for planning. Conversely, a large encoder shift can be harmless if the action-conditioned predictor contracts nuisance directions before they affect the rollout readout. The diagnostic must therefore pair a same-state predictive-stability readout with an anti-collapse readout that checks task-grounded near-boundary separations.
+The selective tension matters because consistency alone can be misleading. A collapsed model can make clean and corrupted views agree while erasing distinctions needed for planning. Conversely, a large encoder shift can be harmless if the action-conditioned predictor contracts nuisance directions before they affect the predicted rollout used by planning. The diagnostic must therefore pair a same-state predictive-stability metric with an anti-collapse margin check for task-grounded near-boundary separations.
 
 We instantiate this diagnostic with a fixed Gaussian intervention. Across PushT, TwoRoom, Reacher, and Cube, we evaluate no-noise LeWM~\cite{maes2026lewm} checkpoints and full-sequence input-side Gaussian-noise checkpoints over \stdmax{} $\in \{0.01,\dots,0.08\}$. The primary endpoint is observation-only Gaussian evaluation noise with the goal image kept clean. Across three independent LeWM training seeds, the no-noise baseline remains strong on clean observations but loses $74.56 \pm 5.55$ points on PushT and $41.00 \pm 1.44$ points on Reacher at evaluation noise $\sigma=0.08$. Test-time visual fragility is not new~\cite{kostrikov2020drq,yarats2022drqv2,hansen2021soda,vigmo}; our focus is what it reveals about fixed JEPA world-model checkpoints.
 
-The evidence shows broad matched-Gaussian recovery plateaus rather than a stable universal point optimum. Input-side noise training recovers the observation-noise endpoint on TwoRoom, PushT, and Reacher and gives a weaker but positive Cube signal across training seeds. At recovered endpoints, ACPC Tail Risk (ATR) drops sharply and Selective Margin Pass Rate (SMPR) rises to near one across tasks. Bounded blur/resize checks are included only to delimit perturbation scope, not to claim universal transfer.
+The evidence shows broad matched-Gaussian recovery plateaus rather than a stable universal point optimum. Input-side noise training recovers the observation-noise endpoint on TwoRoom, PushT, and Reacher and gives a weaker but positive Cube signal across training seeds. At recovered endpoints, ACPC Tail Risk (ATR) drops sharply and Selective Margin Pass Rate (SMPR) rises to near one across tasks. Bounded blur/resize checks delimit perturbation scope.
 
-This paper makes three contributions. First, it formulates visual robustness for JEPA world-model control as selective action-conditioned predictive consistency rather than encoder invariance. Second, it compresses the diagnostic into two theory-aligned readouts: ATR for same-state predictive tail risk and SMPR for task-grounded anti-collapse margins. Third, it provides a fixed-checkpoint Gaussian robustness study across four tasks and three LeWM training seeds, with bounded unseen-stressor checks that delimit rather than broaden the claim.
+This paper makes three contributions. First, it formulates visual robustness for JEPA world-model control as selective action-conditioned predictive consistency rather than encoder invariance. Second, it instantiates this diagnostic with ATR for same-state predictive tail risk and SMPR for task-grounded anti-collapse margins. Third, it provides a fixed-checkpoint Gaussian robustness study across four tasks and three LeWM training seeds, with bounded unseen-stressor checks that delimit the perturbation scope.
 
 %% ===========================================================================
 \section{Related Work}\label{sec:related}
@@ -161,7 +161,7 @@ Let $o_t$ be an unperturbed observation and $\tilde o_t = \tau(o_t)$ a visually 
   \hat{\tilde z}_{t+k} = F_\theta^{k}(\tilde z_t, \mathbf a_{0:k-1}).
   \label{eq:acpc-objects}
 \end{equation}
-Let $\Pi$ denote a \emph{task-relevant predictive readout} --- the full latent, a transition delta, goal-distance or cost features, or a learned projection --- and let $d$ be a distance on its range.
+Let $\Pi$ denote a \emph{task-relevant predictive projection} --- the full latent, a transition delta, goal-distance or cost features, or a learned projection --- and let $d$ be a distance on its range.
 
 \paragraph{Action-conditioned predictive consistency.} For a same-state perturbation pair under the shared action sequence,
 \begin{equation}
@@ -176,10 +176,10 @@ For the theoretical statements below, we use the induced horizon metric
   = \sum_{k=1}^{H}\alpha_k d(u_k,v_k),
   \label{eq:acpc-horizon-metric}
 \end{equation}
-so that \Cref{eq:acpc-h} is exactly the clean/perturbed rollout-readout distance under the shared action sequence. In experiments, ATR uses the 90th percentile of this normalized same-state rollout disagreement.
+so that \Cref{eq:acpc-h} is exactly the clean/perturbed projected-rollout distance under the shared action sequence. In experiments, ATR uses the 90th percentile of this normalized same-state rollout disagreement.
 In this diagnostic framing, robustness corresponds to small $\mathrm{ACPC}_H$ together with action-relevant discriminability, not to the encoder distance $d(z_t, \tilde z_t)$ alone. Encoder closeness is a useful first-stage risk signal, but it is neither necessary (a large but task-irrelevant encoder shift can wash out through $F_\theta$ and $\Pi$) nor sufficient (a small encoder shift can still change the predicted future enough to flip the planned action).
 
-\paragraph{Action-relevant discriminability (countercondition).} Consistency must be \emph{selective}. Let $Y^{H}(s,\mathbf a)$ denote a task-relevant future readout that is external to the learned predictor --- simulator state, cost-to-go, inverse-dynamics label, contact/keyframe tag, or another diagnostic proxy available in the dataset. For two genuinely different states $s_i, s_j$ (with latents $z_i, z_j$) that admit an action sequence under which this external future readout diverges,
+\paragraph{Action-relevant discriminability (countercondition).} Consistency must be \emph{selective}. Let $Y^{H}(s,\mathbf a)$ denote a task-relevant future signal that is external to the learned predictor --- simulator state, cost-to-go, inverse-dynamics label, contact/keyframe tag, or another diagnostic proxy available in the dataset. For two genuinely different states $s_i, s_j$ (with latents $z_i, z_j$) that admit an action sequence under which this external future signal diverges,
 \begin{equation}
   \Delta^{H}_{\mathrm{dyn}}(s_i, s_j, \mathbf a)
   = d_Y\!\big(Y^{H}(s_i, \mathbf a),\, Y^{H}(s_j, \mathbf a)\big) > m,
@@ -190,11 +190,11 @@ the representation and predictions should keep them separable,
   d\!\big(\Psi(z_i),\, \Psi(z_j)\big) > m',
   \label{eq:acpc-disc}
 \end{equation}
-where $\Psi$ is a discriminability readout, possibly action-conditioned (latent, predicted delta under $\mathbf a$, inverse-dynamics feature, cost feature, or rollout embedding), and $m, m' > 0$ are margins. Equations~\eqref{eq:acpc-h}--\eqref{eq:acpc-disc} state the target: lower predictive disagreement for same-state visual perturbations must preserve discriminability among state/action/transition-distinct pairs. A method that drove $\mathrm{ACPC}_H \to 0$ by collapsing the latent would violate \eqref{eq:acpc-disc}, so the two conditions are inseparable.
+where $\Psi$ is a discriminability projection, possibly action-conditioned (latent, predicted delta under $\mathbf a$, inverse-dynamics feature, cost feature, or rollout embedding), and $m, m' > 0$ are margins. Equations~\eqref{eq:acpc-h}--\eqref{eq:acpc-disc} state the target: lower predictive disagreement for same-state visual perturbations must preserve discriminability among state/action/transition-distinct pairs. A method that drove $\mathrm{ACPC}_H \to 0$ by collapsing the latent would violate \eqref{eq:acpc-disc}, so the two conditions are inseparable.
 
 \subsection{Operational consistency diagnostics}\label{sec:acpc-diag}
 
-The reported diagnostic uses two readouts. ACPC Tail Risk (ATR) is the 90th percentile of normalized same-state clean/noisy ACPC-H rollout disagreement under a fixed recorded action sequence; lower is better. Selective Margin Pass Rate (SMPR) is the pass rate of task-grounded label-crossing pairs whose clean different-state rollout distance exceeds the same-state noisy radius at margin zero; higher is better.
+The reported diagnostic uses two metrics. ACPC Tail Risk (ATR) is the 90th percentile of normalized same-state clean/noisy ACPC-H rollout disagreement under a fixed recorded action sequence; lower is better. Selective Margin Pass Rate (SMPR) is the pass rate of task-grounded label-crossing pairs whose clean different-state rollout distance exceeds the same-state noisy radius at margin zero; higher is better.
 
 The compressed diagnostic keeps only the two empirical quantities required by the selective-ACPC logic. ATR estimates the high-tail term $\Pr[D > \epsilon]$ that appears in the sampled-pool stability calibration, using the 90th percentile of normalized same-state action-conditioned rollout disagreement. SMPR estimates the discriminability countercondition by checking whether task-grounded near-boundary pairs remain separated beyond the same-state noisy radius. Thus low ATR without high SMPR is not interpreted as robustness, because collapse can also make clean and corrupted views agree. Encoder geometry and planner-side audits remain useful development checks, but they are not separate reported diagnostics in this compressed version.
 
@@ -206,14 +206,14 @@ ACPC is connected to planning through the candidate costs evaluated by model-pre
   = J\!\left(\Pi(\hat z_{t+1}), \ldots, \Pi(\hat z_{t+H}), g\right),
   \label{eq:candidate-cost}
 \end{equation}
-where $J$ is the planner's cost readout on the rollout-readout sequence. $C_{\tilde h}(\mathbf a,g)$ is defined analogously from the perturbed branch. The following statements are sufficient conditions for stability on a fixed candidate set; they do not prove stability of the full CEM sampling distribution or of the closed-loop trajectory over repeated replanning.
+where $J$ is the planner cost on the projected-rollout sequence. $C_{\tilde h}(\mathbf a,g)$ is defined analogously from the perturbed branch. The following statements are sufficient conditions for stability on a fixed candidate set; they do not prove stability of the full CEM sampling distribution or of the closed-loop trajectory over repeated replanning.
 
 \begin{proposition}[Encoder shift as one route to rollout disagreement]\label{prop:encoder-route}
 Fix an action sequence $\mathbf a$ and write
 \[
   G_{\mathbf a}(z)=\Pi(F_\theta^{1:H}(z,\mathbf a))
 \]
-for the rollout-readout map. If $G_{\mathbf a}$ is locally $L_G$-Lipschitz between $E_\theta(h)$ and $E_\theta(\tilde h)$ under encoder metric $d_Z$ and rollout-readout metric $d_H$, then
+for the projected-rollout map. If $G_{\mathbf a}$ is locally $L_G$-Lipschitz between $E_\theta(h)$ and $E_\theta(\tilde h)$ under encoder metric $d_Z$ and projected-rollout metric $d_H$, then
 \[
  d_H\!\left(G_{\mathbf a}(E_\theta(h)),G_{\mathbf a}(E_\theta(\tilde h))\right)
  \le L_G\, d_Z\!\left(E_\theta(h),E_\theta(\tilde h)\right).
@@ -224,10 +224,10 @@ for the rollout-readout map. If $G_{\mathbf a}$ is locally $L_G$-Lipschitz betwe
 This is the local Lipschitz condition applied to the two encoded histories.
 \end{proof}
 
-This bound makes encoder geometry a first-stage risk signal: small encoder shifts imply small rollout disagreement only under local insensitivity, large shifts can be contracted by $G_{\mathbf a}$, and small shifts can be amplified by the predictor or cost readout. This is why the empirical diagnostic measures the tail of action-conditioned rollout disagreement rather than encoder distance alone.
+This bound makes encoder geometry a first-stage risk signal: small encoder shifts imply small rollout disagreement only under local insensitivity, large shifts can be contracted by $G_{\mathbf a}$, and small shifts can be amplified by the predictor or planner cost. This is why the empirical diagnostic measures the tail of action-conditioned rollout disagreement rather than encoder distance alone.
 
 \begin{proposition}[ACPC controls candidate-cost drift]\label{prop:cost-drift}
-Assume that $J$ is locally $L_J$-Lipschitz on the clean/perturbed rollout-readout neighborhood evaluated by the fixed candidate set under metric $d_H$. If
+Assume that $J$ is locally $L_J$-Lipschitz on the clean/perturbed projected-rollout neighborhood evaluated by the fixed candidate set under metric $d_H$. If
 \[
  d_H\!\left(\Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a)),
              \Pi(F_\theta^{1:H}(E_\theta(\tilde h),\mathbf a))\right) \le \epsilon,
@@ -239,7 +239,7 @@ then
 \end{proposition}
 
 \begin{proof}
-The inequality is the local Lipschitz condition applied directly to the clean and perturbed rollout-readout sequences.
+The inequality is the local Lipschitz condition applied directly to the clean and perturbed projected-rollout sequences.
 \end{proof}
 
 In the compressed diagnostic, this condition is instantiated by the L2 rollout-token distance whose high-quantile tail defines ATR; empirical companion audits are kept outside the reported metric set.
@@ -268,7 +268,7 @@ Thus every non-top candidate remains more costly than the clean top-1 candidate 
 \end{proof}
 
 \begin{corollary}[ACPC-margin condition for candidate stability]\label{cor:acpc-margin}
-Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}$ be a shared candidate set and assume the cost readout $J$ is locally $L_J$-Lipschitz as in Proposition~\ref{prop:cost-drift}. If every candidate in $\mathcal A$ has rollout-readout discrepancy at most $\epsilon$ between the clean and perturbed branches, and the clean branch has top-1/top-2 margin $\Delta > 2L_J\epsilon$, then the two branches select the same top-1 candidate from $\mathcal A$.
+Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}$ be a shared candidate set and assume the planner cost $J$ is locally $L_J$-Lipschitz as in Proposition~\ref{prop:cost-drift}. If every candidate in $\mathcal A$ has projected-rollout discrepancy at most $\epsilon$ between the clean and perturbed branches, and the clean branch has top-1/top-2 margin $\Delta > 2L_J\epsilon$, then the two branches select the same top-1 candidate from $\mathcal A$.
 \end{corollary}
 
 \begin{proof}
@@ -280,7 +280,7 @@ The corollary gives a formal link between ACPC and fixed-candidate decisions wit
 
 \subsection{Sampled-pool stability and Gaussian sensitivity}\label{sec:acpc-sampled-gaussian}
 
-The fixed-candidate statement is the deterministic core. A sampled candidate pool adds finite-sample risk. The next bound keeps the same diagnostic scope while exposing why ATR must be a tail readout and why clean candidate margins remain a caveat.
+The fixed-candidate statement is the deterministic core. A sampled candidate pool adds finite-sample risk. The next bound keeps the same diagnostic scope while exposing why ATR must be a tail metric and why clean candidate margins remain a caveat.
 
 \begin{theorem}[Sampled-pool ACPC stability]\label{thm:sampled-pool-acpc}
 Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}\sim q^K$ be a once-sampled candidate pool, and use deterministic tie-breaking for $\arg\min$. For each sampled candidate define
@@ -288,7 +288,7 @@ Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}\sim q^K$ be a once-sampled ca
 D_j = d_H\!\left(\Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a^j)),
                   \Pi(F_\theta^{1:H}(E_\theta(\tilde h),\mathbf a^j))\right).
 \]
-Assume $J$ is locally $L_J$-Lipschitz on the evaluated rollout-readout neighborhood and that a single draw from $q$ satisfies
+Assume $J$ is locally $L_J$-Lipschitz on the evaluated projected-rollout neighborhood and that a single draw from $q$ satisfies
 \[
 \Pr_{\mathbf a\sim q}[D(\mathbf a)>\epsilon]\le \delta .
 \]
@@ -322,7 +322,7 @@ Fix the diagnostic sampling distribution used to draw independent paired clean/n
 \[
 X_i=\mathbf 1[D_i>\epsilon], \qquad i=1,\ldots,n,
 \]
-where $D_i$ is the paired ACPC rollout-readout discrepancy for diagnostic item $i$. Let $p_\epsilon=\Pr[D>\epsilon]$ and $\hat p_\epsilon=n^{-1}\sum_i X_i$. Then, with probability at least $1-\delta$ over the diagnostic sample,
+where $D_i$ is the paired ACPC projected-rollout discrepancy for diagnostic item $i$. Let $p_\epsilon=\Pr[D>\epsilon]$ and $\hat p_\epsilon=n^{-1}\sum_i X_i$. Then, with probability at least $1-\delta$ over the diagnostic sample,
 \[
 p_\epsilon \le \hat p_\epsilon + \sqrt{\frac{\log(1/\delta)}{2n}}.
 \]
@@ -350,7 +350,7 @@ where the remainder contributes higher-order terms, and
 \]
 \end{proposition}
 
-Thus Gaussian ACPC measures action-conditioned encoder--predictor sensitivity, not encoder invariance alone. Small encoder shifts can still be amplified by $J_{G_{\mathbf a}}$, while large nuisance shifts can become harmless after rollout if the product $J_{G_{\mathbf a}}J_E$ is small in those directions. The selective target is therefore asymmetric: the product should be small along nuisance perturbation directions, while rollout readouts for action-relevant state differences remain separated. The task-grounded near-boundary proxy margin pass event used later is
+Thus Gaussian ACPC measures action-conditioned encoder--predictor sensitivity, not encoder invariance alone. Small encoder shifts can still be amplified by $J_{G_{\mathbf a}}$, while large nuisance shifts can become harmless after rollout if the product $J_{G_{\mathbf a}}J_E$ is small in those directions. The selective target is therefore asymmetric: the product should be small along nuisance perturbation directions, while projected rollouts for action-relevant state differences remain separated. The task-grounded near-boundary proxy margin pass event used later is
 \[
 M=\mathbf 1\!\left[d_{\mathrm{proxy\ diff}}>d_{\mathrm{same\ state\ noise}}+\delta_m\right],
 \]
@@ -368,29 +368,29 @@ For a nonempty fixed candidate family $\mathcal A$, the stability condition can 
              \Pi(F_\theta^{1:H}(E_\theta(\tilde h),\mathbf a))\right).
   \label{eq:acpc-pseudometric}
 \end{equation}
-When $d_H$ is a metric (or a pseudo-metric, if some horizon weights vanish), $D_{\mathrm{ACPC}}^{\mathcal A}$ is a pseudo-metric on histories after passing through the encoder, predictor, and readout: distinct histories can have zero distance if all candidate rollouts are readout-equivalent. This follows because each map $h\mapsto \Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a))$ pulls back $d_H$ to a pseudo-metric, and the pointwise maximum of pseudo-metrics is again a pseudo-metric. The useful object is therefore \emph{selective} predictive stability. Small $D_{\mathrm{ACPC}}^{\mathcal A}$ for same-state visual perturbations gives candidate-cost and top-1 stability under the preceding Lipschitz and margin assumptions; the same contraction is not desirable for state/action pairs whose external task readouts differ, which is why the discriminability guard is part of the definition rather than an auxiliary aesthetic check.
+When $d_H$ is a metric (or a pseudo-metric, if some horizon weights vanish), $D_{\mathrm{ACPC}}^{\mathcal A}$ is a pseudo-metric on histories after passing through the encoder, predictor, and projection: distinct histories can have zero distance if all candidate rollouts are projection-equivalent. This follows because each map $h\mapsto \Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a))$ pulls back $d_H$ to a pseudo-metric, and the pointwise maximum of pseudo-metrics is again a pseudo-metric. The useful object is therefore \emph{selective} predictive stability. Small $D_{\mathrm{ACPC}}^{\mathcal A}$ for same-state visual perturbations gives candidate-cost and top-1 stability under the preceding Lipschitz and margin assumptions; the same contraction is not desirable for state/action pairs whose external task variables differ, which is why the discriminability guard is part of the definition rather than an auxiliary aesthetic check.
 
 \begin{corollary}[Fixed-candidate predictive stability]\label{cor:selective-stability}
-Assume $D_{\mathrm{ACPC}}^{\mathcal A}(h,\tilde h)\le\epsilon$ for a same-state visual-perturbation pair and that $J$ is locally $L_J$-Lipschitz on the rollout readout. If the clean candidate margin satisfies $\Delta>2L_J\epsilon$, then the clean and perturbed branches select the same top-1 candidate from the fixed set $\mathcal A$.
+Assume $D_{\mathrm{ACPC}}^{\mathcal A}(h,\tilde h)\le\epsilon$ for a same-state visual-perturbation pair and that $J$ is locally $L_J$-Lipschitz on the projected rollout. If the clean candidate margin satisfies $\Delta>2L_J\epsilon$, then the clean and perturbed branches select the same top-1 candidate from the fixed set $\mathcal A$.
 \end{corollary}
 
 \begin{proof}
-By definition of $D_{\mathrm{ACPC}}^{\mathcal A}$, every candidate in $\mathcal A$ has rollout-readout discrepancy at most $\epsilon$. Proposition~\ref{prop:cost-drift} bounds the cost drift of every candidate by $L_J\epsilon$, and Proposition~\ref{prop:top1-stability} gives top-1 stability when $\Delta>2L_J\epsilon$.
+By definition of $D_{\mathrm{ACPC}}^{\mathcal A}$, every candidate in $\mathcal A$ has projected-rollout discrepancy at most $\epsilon$. Proposition~\ref{prop:cost-drift} bounds the cost drift of every candidate by $L_J\epsilon$, and Proposition~\ref{prop:top1-stability} gives top-1 stability when $\Delta>2L_J\epsilon$.
 \end{proof}
 
 The statement becomes selective only when it is paired with a discriminability condition such as \Cref{eq:acpc-disc}. Without that second condition, fixed-candidate predictive stability can still be achieved by a collapsed encoder--predictor, as shown next.
 
-Encoder closeness is not the right substitute for this condition. It is not necessary: a nuisance-subspace change can move $E_\theta(h)$ and $E_\theta(\tilde h)$ far apart while leaving $\Pi(F_\theta^{1:H}(\cdot,\mathbf a))$ and the cost unchanged. It is not sufficient either: a small encoder displacement can flip a low-margin cost ranking when the predictor or cost readout has high local sensitivity.
+Encoder closeness is not the right substitute for this condition. It is not necessary: a nuisance-subspace change can move $E_\theta(h)$ and $E_\theta(\tilde h)$ far apart while leaving $\Pi(F_\theta^{1:H}(\cdot,\mathbf a))$ and the cost unchanged. It is not sufficient either: a small encoder displacement can flip a low-margin cost ranking when the predictor or planner cost has high local sensitivity.
 
 \begin{proposition}[ACPC alone permits collapse]\label{prop:acpc-collapse}
-There exist encoder--predictor pairs for which $\mathrm{ACPC}_H=0$ for every same-state perturbation pair and every action sequence, while action-distinct states are mapped to identical rollout readouts.
+There exist encoder--predictor pairs for which $\mathrm{ACPC}_H=0$ for every same-state perturbation pair and every action sequence, while action-distinct states are mapped to identical projected rollouts.
 \end{proposition}
 
 \begin{proof}
-Let $E_\theta(h)=z_0$ for every history and let $F_\theta^k(z_0,\mathbf a)=u_0$ for every horizon $k$ and action sequence $\mathbf a$. Then clean and perturbed branches always have identical rollout readouts, so same-state ACPC is zero. However, any two states that require different actions, costs, or transitions also have identical readouts, violating the discriminability condition in \Cref{eq:acpc-disc}.
+Let $E_\theta(h)=z_0$ for every history and let $F_\theta^k(z_0,\mathbf a)=u_0$ for every horizon $k$ and action sequence $\mathbf a$. Then clean and perturbed branches always have identical projected rollouts, so same-state ACPC is zero. However, any two states that require different actions, costs, or transitions also have identical projected rollouts, violating the discriminability condition in \Cref{eq:acpc-disc}.
 \end{proof}
 
-Thus low ACPC is meaningful only with a guard on action-relevant separation. This is the role of SMPR in the reported diagnostic. This is where ACPC differs from existing nuisance-feature analyses of latent prediction: those results help explain why latent prediction may suppress irrelevant or noisy features at the representation level, whereas the condition above asks whether the remaining perturbation changes action-conditioned rollout readouts while preserving task-grounded separations.
+Thus low ACPC is meaningful only with a guard on action-relevant separation. This is the role of SMPR in the reported diagnostic. This is where ACPC differs from existing nuisance-feature analyses of latent prediction: those results help explain why latent prediction may suppress irrelevant or noisy features at the representation level, whereas the condition above asks whether the remaining perturbation changes action-conditioned projected rollouts while preserving task-grounded separations.
 
 %% ===========================================================================
 \section{Study protocol}\label{sec:bg}
@@ -477,7 +477,7 @@ Cube & $43.11 \pm 3.27$ & $62.56 \pm 1.55$ & $19.45 \pm 4.53$ & $66.44 \pm 1.34$
 
 Across three training seeds, the no-noise checkpoints retain large observation-noise cliffs, while the fixed \stdmax{} $=0.08$ endpoint is within 0.56--3.89 pp of each task's best observed obs-$\sigma=0.08$ row. The task-level best rows occur within broad ranges: 0.05--0.08 for TwoRoom, 0.04--0.08 for PushT, 0.05--0.07 for Reacher, and 0.03--0.05 for Cube. PushT remains the sharpest stress case, improving by $78.56 \pm 5.18$ points at the fixed high-noise endpoint; Reacher improves by $63.34 \pm 1.25$ points. These gaps and ranges support plateau wording rather than a universal optimum at exactly \stdmax{} $=0.08$.
 
-A three-seed blur/resize score check is reported in Appendix~\ref{sec:appendix-unseen-transfer}. It is an auxiliary severe-stressor check, not part of the matched-Gaussian claim. The next subsection asks whether the recovered Gaussian endpoints also move in the two compressed diagnostic readouts.
+A three-seed blur/resize score check later in this section serves as an auxiliary severe-stressor check outside the matched-Gaussian endpoint. The next subsection asks whether the recovered Gaussian endpoints also move in the two compressed diagnostics.
 
 \subsection{Compressed selective-ACPC diagnostics}\label{sec:exp-compressed-diagnostics}
 
@@ -504,35 +504,37 @@ Cube & $2.320 \pm 0.045$ & $0.100 \pm 0.007$ & $0.45 \pm 0.03$ & $1.00 \pm 0.00$
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_acpc_basin_tsne.png}
-\caption{Qualitative PushT ACPC neighborhood t-SNE visualization for the no-noise versus \stdmax{} $=0.08$ contrast. The four panels show encoder features and post-predictor rollout features for repeated same-state perturbation views; colored clusters mark fixed random anchors. The t-SNE projection is qualitative. ATR and SMPR are the quantitative diagnostics and are computed in the original rollout-readout diagnostic space.}
+\caption{Qualitative PushT ACPC neighborhood t-SNE visualization for the no-noise versus \stdmax{} $=0.08$ contrast. The four panels show encoder features and post-predictor rollout features for repeated same-state perturbation views; colored clusters mark fixed random anchors. The t-SNE projection is qualitative. ATR and SMPR are the quantitative diagnostics and are computed in the original projected-rollout diagnostic space.}
 \label{fig:acpc-basin-tsne}
 \end{figure}
 
-The two readouts move in the intended selective direction on all four tasks: recovered endpoints have much smaller same-state predictive tails and much higher task-grounded margin pass rates. \Cref{fig:acpc-basin-tsne} provides qualitative visual intuition on PushT: repeated noisy views of the same state become tighter after noise training in both encoder and post-predictor feature projections. The quantitative claim still rests on ATR, SMPR, and closed-loop behavior, not on distances in the t-SNE plane. Cube remains the useful boundary case: the compressed diagnostics improve strongly, but the closed-loop Gaussian gain and gap in \Cref{tab:training-seed-gaussian-lockbox} are weaker than PushT or Reacher, so closed-loop evaluation remains the behavioral authority.
+The two diagnostics move in the intended selective direction on all four tasks: recovered endpoints have much smaller same-state predictive tails and much higher task-grounded margin pass rates. \Cref{fig:acpc-basin-tsne} provides qualitative visual intuition on PushT: repeated noisy views of the same state become tighter after noise training in both encoder and post-predictor feature projections. The quantitative claim still rests on ATR, SMPR, and closed-loop behavior, not on distances in the t-SNE plane. Cube remains the useful boundary case: the compressed diagnostics improve strongly, but the closed-loop Gaussian gain and gap in \Cref{tab:training-seed-gaussian-lockbox} are weaker than PushT or Reacher, so closed-loop evaluation remains the behavioral authority.
 
 SMPR uses programmatic task-state proxy labels, not oracle semantic annotations: TwoRoom uses doorway/room-side labels, PushT uses T-block pose cells, Reacher uses target/end-effector relation bins, and Cube uses cube-pose/goal-relation cells. Each anchor selects the closest label-crossing neighbor inside the closest 35\% state-distance neighborhood and passes if that clean different-state rollout distance exceeds the same-state noisy radius. The no-noise baselines are weak under this stricter audit, while the high-noise endpoint reaches near-one pass rate; stronger hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation.
 
 \subsection{Bounded unseen-stressor check}\label{sec:exp-unseen-scope}
 
-The main claim remains matched Gaussian-noise robustness. After freezing the Gaussian grid, we ran strongest-severity unseen-stressor score checks to test whether the fixed \stdmax{} $=0.08$ endpoint transfers outside the training perturbation family. \Cref{tab:unseen-scope-main} reports behavior only. TwoRoom and Reacher improve under strongest blur, whereas PushT and Cube do not show a clear resize gain at the scale of training-seed and evaluation variance. We use this as bounded behavior outside the matched Gaussian setting, not as a universal cross-perturbation robustness claim.
+The main evidence remains the matched Gaussian-noise endpoint. After freezing the Gaussian grid, we ran strongest-severity unseen-stressor score checks to test whether the fixed \stdmax{} $=0.08$ endpoint transfers outside the training perturbation family. \Cref{tab:unseen-scope-main} reports behavior only. TwoRoom and Reacher improve under strongest blur, whereas PushT and Cube do not show a clear resize gain at the scale of training-seed and evaluation variance. We treat this as bounded behavior outside the matched Gaussian setting.
 
 \begin{table}[H]
 \centering
-\caption{Bounded unseen-stressor score check. Values are mean $\pm$ population std across LeWM training seeds 3072/3073/3074; each seed point averages evaluation seeds 42/43/44 from strongest-severity unseen runs. Stress $\Delta$ is the fixed $\stdmax{}=0.08$ checkpoint minus the no-noise baseline.}
+\caption{Bounded unseen-stressor score check. Values are mean $\pm$ population std across LeWM training seeds 3072/3073/3074; each seed point averages evaluation seeds 42/43/44 from strongest-severity unseen runs. The two score columns compare the no-noise LeWM checkpoint with the fixed $\stdmax{}=0.08$ noise-trained checkpoint under the same non-Gaussian evaluation stressor.}
 \label{tab:unseen-scope-main}
 \small
-\setlength{\tabcolsep}{4pt}
-\begin{tabularx}{\textwidth}{llrrr>{\raggedright\arraybackslash}X}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{llrr}
 \toprule
-Task & stress & baseline stress & std0.08 stress & stress $\Delta$ & reading \\
+Task & evaluation stressor & no-noise ckpt & $\stdmax{}=0.08$ ckpt \\
 \midrule
-TwoRoom & blur $k=15$ & $47.67 \pm 5.44$ & $90.78 \pm 5.38$ & $+43.11 \pm 8.90$ & clear score gain \\
-Reacher & blur $k=15$ & $22.00 \pm 3.78$ & $71.22 \pm 1.10$ & $+49.22 \pm 3.29$ & clear score gain \\
-PushT & resize $0.25$ & $63.44 \pm 14.05$ & $66.33 \pm 8.38$ & $+2.89 \pm 17.98$ & no clear gain \\
-Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ & $-0.89 \pm 1.40$ & no clear gain \\
+TwoRoom & blur $k=15$ & $47.67 \pm 5.44$ & $90.78 \pm 5.38$ \\
+Reacher & blur $k=15$ & $22.00 \pm 3.78$ & $71.22 \pm 1.10$ \\
+PushT & resize $0.25$ & $63.44 \pm 14.05$ & $66.33 \pm 8.38$ \\
+Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \end{table}
+
+The pattern is mixed outside the training perturbation family: the $\stdmax{}=0.08$ checkpoint gives large gains for TwoRoom and Reacher under blur, while PushT and Cube are essentially unchanged under the resize stressor. These rows therefore delimit the Gaussian result rather than extending it into a general perturbation-transfer claim.
 
 %% ===========================================================================
 \section{Discussion and limitations}\label{sec:disc}
@@ -566,7 +568,7 @@ The theory is deliberately diagnostic: sampled-pool ACPC exposes why tail risk m
 \begin{proof}[Proof of \Cref{prop:cost-drift}]
 For any fixed action sequence $\mathbf a$, the assumption gives
 $d_H(U_h(\mathbf a), U_{\tilde h}(\mathbf a))\le \epsilon$.
-The cost readout $J$ is $L_J$-Lipschitz on the rollout-readout sequence, so
+The planner cost $J$ is $L_J$-Lipschitz on the projected-rollout sequence, so
 $|C_h(\mathbf a,g)-C_{\tilde h}(\mathbf a,g)|\le L_J\epsilon$.
 Taking the maximum over the fixed candidate set gives the claim.
 \end{proof}
@@ -622,29 +624,5 @@ Cube    & $43.11 \pm 3.27$ & $45.78 \pm 0.79$ \\
 \end{table}
 
 Perturbing both streams is generally harsher for TwoRoom, PushT, and Reacher, while Cube is within the observed training-seed variation. The main experiments keep the goal image clean so that the endpoint isolates robustness to corrupted observations rather than changing both the current observation and the target descriptor.
-
-\section{Unseen-Stressor Score Check}\label{sec:appendix-unseen-transfer}
-
-\paragraph{Reading.} This appendix reports behavior outside the matched Gaussian family without expanding the paper's main claim.
-
-After the Gaussian grid and training-seed replication were frozen, we ran strongest-severity unseen-stressor score checks on all three LeWM training seeds, comparing no-noise training to $\stdmax{}=0.08$ under Gaussian blur with kernel size 15 and resize/down-upsample with factor 0.25. This appendix reports behavior only; it does not broaden the main claim into cross-perturbation robustness.
-
-\begin{table}[H]
-\centering
-\caption{Three-training-seed unseen-stressor score check. Values are mean $\pm$ population std across LeWM training seeds 3072/3073/3074. Stress $\Delta$ is $\stdmax{}=0.08$ stress success minus no-noise stress success.}
-\label{tab:unseen-score-three-seed-appendix}
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabularx}{\textwidth}{llrrrr>{\raggedright\arraybackslash}X}
-\toprule
-Task & unseen stress & baseline stress & std0.08 stress & stress $\Delta$ & drop impr. & reading \\
-\midrule
-TwoRoom & blur $k=15$ & $47.67 \pm 5.44$ & $90.78 \pm 5.38$ & $+43.11 \pm 8.90$ & $+40.89 \pm 8.23$ & clear score gain \\
-Reacher & blur $k=15$ & $22.00 \pm 3.78$ & $71.22 \pm 1.10$ & $+49.22 \pm 3.29$ & $+30.22 \pm 4.16$ & clear score gain \\
-PushT & resize $0.25$ & $63.44 \pm 14.05$ & $66.33 \pm 8.38$ & $+2.89 \pm 17.98$ & $-3.78 \pm 15.56$ & no clear gain \\
-Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ & $-0.89 \pm 1.40$ & $+2.78 \pm 3.40$ & no clear gain \\
-\bottomrule
-\end{tabularx}
-\end{table}
 
 \end{document}

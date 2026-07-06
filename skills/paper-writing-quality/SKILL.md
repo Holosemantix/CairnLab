@@ -1,6 +1,6 @@
 ---
 name: paper-writing-quality
-description: Use this skill when drafting, rewriting, polishing, or reviewing scientific manuscripts, LaTeX papers, abstracts, introductions, experiment sections, tables/captions, appendices, or top-conference papers. Applies when Codex must enforce paper-writing constraints for claim framing, positive and boundary claims, plateau/range language, terminology consistency, acronym expansion, experiment narrative, caveat discipline, table metric ordering, caption readings, appendix evidence, citation/source grounding, and compiled-PDF layout checks.
+description: Use this skill when drafting, rewriting, polishing, or reviewing scientific manuscripts, LaTeX papers, abstracts, introductions, experiment sections, tables/captions, appendices, or top-conference papers. Applies when Codex must enforce paper-writing constraints for paper-facing claim framing, evidence compression, metric scope control, theory-to-metric mapping, positive and boundary claims, plateau/range language, terminology consistency, acronym expansion, experiment narrative, caveat discipline, table attack-surface review, appendix/provenance separation, citation/source grounding, and compiled-PDF layout checks.
 ---
 
 # Paper Writing Quality
@@ -24,6 +24,9 @@ references/writing-quality-checklist.md
 Use it as the checklist for:
 
 - claim framing: `This paper is X, not Y`;
+- evidence compression: main text and appendix only keep material needed for
+  the paper-facing claim;
+- theory-to-metric mapping and metric scope control;
 - abstract positive claim plus boundary claim;
 - plateau/range language instead of point-best selector language;
 - terminology consistency: score, screen, view;

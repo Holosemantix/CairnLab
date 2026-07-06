@@ -156,6 +156,65 @@ contains no more than three nonstandard acronyms.
 
 Plan the paper around claims and evidence, not around sections alone.
 
+Before writing section prose, run a claim-compression pass. The manuscript is
+not a project report, metric zoo, ablation dump, release note, or artifact
+index. It should expose the smallest evidence loop that supports the
+paper-facing claim.
+
+### Claim Compression And Metric Scope Gate
+
+Require:
+
+- name the paper-facing claim before choosing tables, figures, or appendix
+  material;
+- admit a table, figure, theorem, appendix subsection, or negative ablation
+  only when it is necessary for that claim or materially changes the reader's
+  interpretation of that claim;
+- map every core metric to a specific theory object, assumption, or final
+  necessary condition;
+- map every theory object used in the final claim to either an empirical
+  readout, a stated assumption, or a weakened claim;
+- keep behavioral endpoints separate from diagnostics: task score, reward,
+  accuracy, or downstream success establishes the phenomenon, while
+  diagnostics explain or localize it;
+- do not collapse multiple necessary theoretical conditions into one scalar
+  unless the paper also reports the components and explains the trade-off;
+- classify each non-core display as core evidence, scoped audit, reproducibility
+  support, internal provenance, debug material, or reviewer-defense material;
+- move internal provenance, pilot failures, debug traces, artifact hashes,
+  rendering commands, repository paths, and release-package bookkeeping out
+  of the paper and into repository documentation or manifests;
+- treat appendix as paper, not storage. Appendix material must extend evidence,
+  prove/calibrate a claim, document essential protocol, or support
+  reproducibility;
+- include a negative ablation only when it rules out a key alternative
+  explanation for the main claim and does not create a new method-comparison
+  obligation;
+- run an attack-surface check on every table: if the table looks like method
+  comparison, selector validation, stability proof, or anti-collapse proof,
+  the evidence must actually satisfy that reading or the table must be
+  removed/demoted;
+- preserve boundary cases with per-task, per-domain, per-seed, or per-scope
+  visibility instead of hiding them inside averages or composite scores;
+- allow theory caveats to remain caveats. Do not add a paper-facing metric for
+  every intermediate theorem term unless the final paper-facing claim needs
+  it;
+- match verbs to evidence strength: use language such as localizes, audits,
+  is consistent with, or calibrates for post-hoc diagnostics; reserve
+  predicts, improves, proves, guarantees, solves, and generalizes for evidence
+  that supports those exact claims.
+
+Hard numeric gates:
+
+- do not report a quantile, tail risk, confidence interval, or CVaR unless the
+  required sample-level or distributional data exists;
+- do not infer fine-grained diagnostics from means, medians, or aggregate
+  summaries;
+- do not call a result held-out, prospective, pre-registered, or lockbox if the
+  selection rule used outcome labels or was fixed after seeing the result;
+- every number in the paper must trace to a source artifact, script, or
+  documented manual calculation.
+
 The plan must include:
 
 - central thesis;
@@ -163,8 +222,8 @@ The plan must include:
 - claim/evidence matrix;
 - section map with each section's single job;
 - figure/table map with the question each display answers;
-- appendix demotion plan for extra audits, ledgers, diagnostic families, and
-  reproducibility material;
+- appendix/provenance split for extra audits, ledgers, diagnostic families,
+  failed experiments, artifact inventories, and reproducibility material;
 - citation scaffold with primary sources for novelty, methods, baselines, and
   theory;
 - known blockers that require new experiments, retraining, source lookup, or
@@ -236,10 +295,11 @@ Require:
   same object;
 - recommended usage: score is the numeric evaluation; screen returns a set;
   view is a reporting perspective;
-- every abbreviation is expanded at first use, including PCC, CRA, MAF, and
-  ACPC-H/trans when they appear;
-- keep internal engineering terms out of the main paper. Avoid legacy,
-  provenance, archived, remediation, and old path in the main narrative;
+- every field-specific abbreviation is expanded at first use unless it is
+  universally standard for the target venue;
+- keep internal engineering and project-management terms out of the main paper.
+  Avoid legacy, provenance, archived, remediation, release package, manifest,
+  artifact hash, rendering command, and old path in the main narrative;
 - if artifact history matters, move it to an appendix artifact note rather than
   making it part of the main contribution story.
 
@@ -249,13 +309,13 @@ Every experiment paragraph should answer one question.
 
 Require:
 
-- separate behavioral recovery, plateau membership, planner-side sensitivity,
-  and selectivity guard instead of piling them into one paragraph;
+- separate behavior endpoints, diagnostic readouts, scope checks, and
+  selectivity or safety guards instead of piling them into one paragraph;
 - order each experiment paragraph as question, protocol, result, boundary;
 - do not begin by stacking metrics before the experiment question is clear;
-- when baselines are weak, report that transparently and narrow the claim. A
-  high-std or MAF-only reference should narrow the claim instead of supporting a
-  broad dominance statement;
+- when baselines or reference screens are weak, report that transparently and
+  narrow the claim. A coarse intervention or single-metric reference should
+  narrow the claim instead of supporting a broad dominance statement;
 - if a metric is saturated, do not place it in the most prominent table or
   sentence position. For example, if presence hit is saturated, put
   precision/recall before presence;
@@ -297,11 +357,14 @@ The appendix extends evidence; it is not a main-text junk drawer.
 Require:
 
 - every appendix subsection has a sentence beginning with "Reading:";
-- artifact provenance can be preserved in the appendix, but provenance should
-  not drive the main narrative;
-- old experiments and old audits may be retained only when marked "not paper-facing evidence";
-- appendix material is either evidence expansion, reproducibility support, or
-  scoped audit context. Otherwise remove it.
+- appendix material is either evidence expansion, proof/calibration,
+  reproducibility support, or scoped audit context. Otherwise remove it;
+- artifact provenance, failed attempts, old experiments, old audits, debug logs,
+  and reviewer-defense material belong in repository/internal documentation
+  unless they are necessary to support the paper-facing claim;
+- when non-core appendix material is retained, mark the intended reading and
+  mark it as "not paper-facing evidence" when it only provides scoped support
+  or provenance.
 - short rule: appendix extends evidence; it is not a main-text junk drawer.
 
 ### Abstract Gate
@@ -369,6 +432,11 @@ Require:
 - every comparison has an appropriate baseline or is labeled as a scope check;
 - result labels match evidence strength: main result, sanity check, ablation,
   failure case, audit, or appendix diagnostic.
+- metrics that do not close the theory-to-evidence loop are demoted to audits,
+  internal provenance, or removed from the paper;
+- negative ablations are included only when they rule out a key alternative
+  explanation without changing the paper into a broader method-comparison
+  paper.
 
 ### Discussion And Limitation Gate
 
@@ -515,6 +583,9 @@ experiment_narrative_gate: pass | warn | fail
 acronym_notation_gate: pass | warn | fail
 formula_layout_gate: pass | warn | fail
 figure_table_caption_gate: pass | warn | fail
+claim_compression_gate: pass | warn | fail
+theory_metric_mapping_gate: pass | warn | fail
+appendix_provenance_split_gate: pass | warn | fail
 appendix_reading_gate: pass | warn | fail
 pdf_layout_gate: pass | warn | fail
 citation_source_gate: pass | warn | fail

@@ -21,9 +21,10 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 
 | 脚本 | 作用 | 输入 | 输出 / 用途 |
 |---|---|---|---|
+| `tools/paper1_base_noise_cliff_multistd.py` | 汇总 LeWM-base 多强度 observation-only noise cliff 表 | `assets/paper1_data/training_seed_eval_manifests/lewm_seed*_evals.json` | `assets/paper1_data/base_noise_cliff_multistd_20260706.{json,md}`；主文 Table 1 的源数据 |
 | `tools/paper1_figs.py` | 渲染主文 noise-sweep 图 | `assets/paper1_data/canonical_evals_20260517.json`, `assets/paper1_data/canonical_diagnostics_20260517.json` | 默认只输出 `assets/paper1_figs/fig2_sweep.png`；已下线的 `fig3_pareto.png`, `fig4_radar.png`, `fig5_scatter.png`, `fig6_mechanism.png` 仍可用 `--only` 生成但当前不进正文 |
-| `tools/paper1_atr_smpr_figure.py` | 渲染压缩 ATR/SMPR diagnostic-plane 图 | `assets/paper1_data/compressed_metrics_summary_20260706.json` | `assets/paper1_figs/fig_atr_smpr_plane.png`；只展示 ATR 下降和 SMPR 上升，不新增诊断指标 |
-| `tools/paper1_feature_neighborhood_figure.py` | 渲染 PushT encoder/predictor feature-neighborhood 定性图，并在侧栏标注 ATR/SMPR 读数 | `/tmp/paper1_selective_contraction_cache/pusht_lewm_fullseq_features_d82fffb5ef90.npz`, `assets/paper1_data/compressed_metrics_summary_20260706.json` | `assets/paper1_figs/fig_feature_neighborhood_atr_smpr.png`；有单实例 lock 和 BLAS 线程限制，避免重复运行抢资源 |
+| `tools/paper1_atr_smpr_figure.py` | Legacy diagnostic-plane renderer | `assets/paper1_data/compressed_metrics_summary_20260706.json` | 当前主文使用 ATR/SMPR 表，不再引用 diagnostic-plane 图 |
+| `tools/paper1_feature_neighborhood_figure.py` | Legacy PCA-style feature-neighborhood renderer | cached PushT feature arrays, compressed metric summary | 当前主文使用 `tools/paper1_selective_contraction.py --cluster-paper-facing` 生成 ACPC neighborhood t-SNE 图；该 legacy renderer 不再作为主文图源 |
 | `tools/build_partial_corr_bootstrap.py` | 为 partial Spearman 相关计算 95% percentile bootstrap CI | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/partial_corr_bootstrap_20260523.json`，用于主文 partial-correlation tables 和 PLDM appendix |
 | `tools/pldm_correlation_analysis.py` | 复算 LeWM/PLDM within-method 与 joint partial correlation | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/cross_method_corr_pldm_20260522.json`，用于 PLDM appendix 和 consistency checker |
 | `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / rollout-readout radius / contraction | LeWM/PLDM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；PLDM appendix 的 full-sweep replication 用 `assets/paper1_data/acpc_basin_diagnostics_pldm.json` |
@@ -39,6 +40,8 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 常用重生成命令：
 
 ```bash
+python -m tools.paper1_base_noise_cliff_multistd
+
 python -m tools.paper1_figs --out-dir assets/paper1_figs
 
 python -m tools.pldm_correlation_analysis \
@@ -104,7 +107,9 @@ python -m tools.paper1_selective_contraction \
   --cluster-perturb-repeats 6 \
   --feature-cache-dir /tmp/paper1_selective_contraction_cache \
   --cluster-out-dir assets/paper1_figs \
-  --cluster-envelope ellipse --cluster-envelope-coverage 0.90
+  --cluster-envelope ellipse --cluster-envelope-coverage 0.90 \
+  --metric-summary assets/paper1_data/compressed_metrics_summary_20260706.json \
+  --cluster-paper-facing
 
 DATA_ROOT=/path/to/world_model/quentinll \
 python -m tools.paper1_unseen_eval_grid --dry-run
@@ -127,7 +132,7 @@ ACPC basin runner 默认只接受 Gaussian-noise corruption specs，并使用 de
 
 Phase 0 ACPC runner 的 `--dry-run` 只解析 manifest 和 checkpoint 路径，不需要 `torch`；shell wrapper `run_phase0_acpc.sh --dry-run` 输出到 `/tmp/acpc_phase0_dry_run.json`，避免覆盖 canonical artifact。实际计算需要当前 Python 环境能 import `torch`、`stable_pretraining`、`stable_worldmodel`，且 canonical eval 里的 `path` 或 `--model-root` 下存在可 `torch.load` 的 model object checkpoint。当前 ADM 是 action-distance latent proxy，不是 oracle state/keypoint ADM。
 
-Selective-contraction cluster plots are paper-facing qualitative illustrations, not standalone proof. The default paper-facing path selects colored anchors by a fixed-seed random subset and writes the selected indices to the sidecar JSON; neither t-SNE coordinates nor high-D statistics are used for anchor selection. The small panel summaries (`median r/NN`, `r < NN`, `disjoint balls`) are computed in the original high-D feature space and must not be replaced by bottom-of-figure screenshot tables or in-axis legend boxes. The low-opacity 90% covariance ellipses are 2-D t-SNE visual summaries only, not high-D basin boundaries. Use `--cluster-envelope none` for point-only audits, `--cluster-envelope circle` only to reproduce the legacy max-distance circle view, and `--cluster-envelope hull` only as a sample hull.
+Selective-contraction cluster plots are qualitative illustrations, not standalone proof. In `--cluster-paper-facing` mode, visible panel titles show only encoder/post-predictor feature names and the figure-level annotation reports ATR and SMPR from the compressed metric summary. Legacy high-dimensional cluster-isolation stats stay in the sidecar JSON only and should not be copied into panel titles, legends, or captions. The low-opacity 90% covariance ellipses are 2-D t-SNE visual summaries only, not high-D basin boundaries. Use `--cluster-envelope none` for point-only audits, `--cluster-envelope circle` only to reproduce the legacy max-distance circle view, and `--cluster-envelope hull` only as a sample hull.
 
 For label/style-only redraws of these figures, pass `--feature-cache-dir /tmp/paper1_selective_contraction_cache`. The first run writes cached encoder/8-step-rollout feature arrays keyed by task, method, checkpoints, view stds, seed, and rendering sample parameters; later runs with the same parameters reuse the cache and do not reload checkpoints. Use `--refresh-feature-cache` only when the checkpoints, sampled windows, or feature-extraction parameters intentionally change. Do not commit the cache directory.
 

@@ -21,6 +21,7 @@ import copy
 import hashlib
 import json
 import math
+import statistics
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -305,7 +306,7 @@ def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
         "",
         f"Scope: existing {method_label} sweep. This is a branch diagnostic, not a new main claim.",
         "",
-        "| Task | best std | obs-noise 0.08 success | encoder radius R_E | rollout radius R_F | original NN L2 | transition L2 | aux ADM | aux SPRR | read |",
+        "| Task | best std | obs-noise 0.08 success | encoder radius | rollout radius | original NN L2 | transition L2 | aux ADM | aux SPRR | read |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     metric = payload["metadata"]["robust_metric"]
@@ -335,7 +336,7 @@ def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
     lines.extend(
         [
             "",
-            "Reading: lower R_E/R_F means smaller same-state perturbation spread "
+            "Reading: lower same-state radii mean smaller same-state perturbation spread "
             "in the reported feature space. "
             "Higher SPRR means the auxiliary action-distance margin is larger relative "
             "to paired rollout disagreement. ADM/SPRR come from the exploratory observation+goal "
@@ -711,7 +712,7 @@ def _cluster_isolation_stats(array: np.ndarray) -> dict[str, float]:
     return {
         "median_radius_over_nn": float(np.nanmedian(ratio)),
         "frac_radius_lt_nn": float(np.nanmean(ratio < 1.0)),
-        "frac_disjoint_balls": float(np.nanmean(max_pair_ratio < 1.0)),
+        "frac_nonoverlap_balls": float(np.nanmean(max_pair_ratio < 1.0)),
         "median_radius": float(np.nanmedian(radius)),
         "median_nearest_origin": float(np.nanmedian(nearest_origin)),
     }
@@ -719,9 +720,9 @@ def _cluster_isolation_stats(array: np.ndarray) -> dict[str, float]:
 
 def _cluster_stats_title(stats: Mapping[str, float]) -> str:
     return (
-        f"r/NN {stats['median_radius_over_nn']:.2f}; "
-        f"r<NN {100.0 * stats['frac_radius_lt_nn']:.0f}%; "
-        f"disjoint {100.0 * stats['frac_disjoint_balls']:.0f}%"
+        f"radius/nearest {stats['median_radius_over_nn']:.2f}; "
+        f"radius<nearest {100.0 * stats['frac_radius_lt_nn']:.0f}%; "
+        f"non-overlap {100.0 * stats['frac_nonoverlap_balls']:.0f}%"
     )
 
 
@@ -740,6 +741,47 @@ def _cluster_point_counts(array: np.ndarray, anchor_count: int) -> dict[str, int
         "colored_anchor_perturbed_points": max(0, view_count - 1) * anchors,
         "colored_anchor_total_points": view_count * anchors,
     }
+
+def _metric_mean(values: Sequence[float]) -> float:
+    return float(statistics.fmean(float(v) for v in values))
+
+
+def _metric_pstdev(values: Sequence[float]) -> float:
+    vals = [float(v) for v in values]
+    return float(statistics.pstdev(vals)) if len(vals) > 1 else 0.0
+
+
+def _paper_metric_annotations(metric_summary_path: Path, task: str) -> dict[str, Any]:
+    payload = _load_json(metric_summary_path)
+    rows = [r for r in payload.get("rows", []) if r.get("task") == task]
+    if not rows:
+        raise ValueError(f"metric summary has no rows for task {task!r}: {metric_summary_path}")
+    by_std: dict[str, list[Mapping[str, Any]]] = {"0.0": [], "0.08": []}
+    for row in rows:
+        std_key = str(row.get("std_key"))
+        if std_key in by_std:
+            by_std[std_key].append(row)
+    missing = [std for std, items in by_std.items() if not items]
+    if missing:
+        raise ValueError(f"metric summary missing {task} std rows: {missing}")
+
+    def block(std_key: str, metric: str) -> dict[str, float]:
+        values = [float(row[metric]) for row in by_std[std_key]]
+        return {"mean": _metric_mean(values), "pstdev": _metric_pstdev(values)}
+
+    return {
+        "task": task,
+        "source": _artifact_path(metric_summary_path),
+        "ATR_base": block("0.0", "ATR_q90"),
+        "ATR_std0.08": block("0.08", "ATR_q90"),
+        "SMPR_base": block("0.0", "SMPR"),
+        "SMPR_std0.08": block("0.08", "SMPR"),
+    }
+
+
+def _fmt_metric_annotation(value: float, digits: int = 2) -> str:
+    return f"{float(value):.{digits}f}"
+
 
 
 def _expanded_view_stds(view_stds: Sequence[float], perturb_repeats: int) -> list[float]:
@@ -1113,9 +1155,9 @@ def render_2d_task(
     fig, axes = plt.subplots(2, 2, figsize=(13.5, 10.5), sharex="col", sharey="col")
     panels = [
         ("base", "encoder_2d", "Encoder features"),
-        ("base", "predictor_2d", r"ACPC rollout readout $R_F$"),
+        ("base", "predictor_2d", "Post-predictor rollout features"),
         ("fullseq_robust", "encoder_2d", "Encoder features"),
-        ("fullseq_robust", "predictor_2d", r"ACPC rollout readout $R_F$"),
+        ("fullseq_robust", "predictor_2d", "Post-predictor rollout features"),
     ]
     for ax, (label, feature, title) in zip(axes.reshape(-1), panels):
         arr = encoded[label][feature]
@@ -1197,7 +1239,7 @@ def render_atlas_task(
     label_by_spec = _display_labels(summary, specs[1].std_key)
     feature_by_name = {
         "encoder": "Encoder",
-        "predictor": r"ACPC rollout readout $R_F$",
+        "predictor": "Post-predictor rollout features",
     }
 
     fig, axes = plt.subplots(2, 2, figsize=(7.4, 7.2))
@@ -1262,6 +1304,8 @@ def render_cluster_task(
     envelope: str,
     envelope_coverage: float,
     anchor_selection: str,
+    metric_summary_path: Path | None,
+    paper_facing: bool,
 ) -> Path:
     plt = _ensure_plot_deps()
     cluster_view_stds = _expanded_view_stds(view_stds, perturb_repeats)
@@ -1283,8 +1327,13 @@ def render_cluster_task(
     label_by_spec = _display_labels(summary, specs[1].std_key)
     feature_by_name = {
         "encoder": "Encoder features",
-        "predictor": r"ACPC rollout readout $R_F$",
+        "predictor": "Post-predictor rollout features",
     }
+    metric_annotations = (
+        _paper_metric_annotations(metric_summary_path, task)
+        if paper_facing and metric_summary_path is not None
+        else None
+    )
     panels = [
         ("base", "encoder"),
         ("base", "predictor"),
@@ -1322,6 +1371,7 @@ def render_cluster_task(
     if len(set(sample_shapes.values())) != 1:
         raise ValueError(f"cluster panels use inconsistent sample counts: {sample_shapes}")
     panel_point_counts = []
+    panel_high_d_stats = []
     for panel_idx, (ax, (label, feature)) in enumerate(zip(axes.reshape(-1), panels)):
         arr = encoded[label][feature]
         panel_point_counts.append(
@@ -1339,6 +1389,14 @@ def render_cluster_task(
             max_iter=tsne_max_iter,
         )
         stats = _cluster_isolation_stats(arr)
+        panel_high_d_stats.append(
+            {
+                "panel": f"{label}:{feature}",
+                "row_label": label,
+                "feature": feature,
+                **stats,
+            }
+        )
         origin = projected[0]
         perturbed = projected[1:]
         xlim, ylim = _axis_limits_2d_single(projected)
@@ -1388,12 +1446,10 @@ def render_cluster_task(
                 zorder=4,
             )
 
-        ax.set_title(
-            f"{label_by_spec[label]}: {feature_by_name[feature]}\n"
-            f"high-D: {_cluster_stats_title(stats)}",
-            fontsize=7.8,
-            pad=4,
-        )
+        title = f"{label_by_spec[label]}: {feature_by_name[feature]}"
+        if not paper_facing:
+            title = f"{title}\nhigh-D: {_cluster_stats_title(stats)}"
+        ax.set_title(title, fontsize=7.8, pad=4)
         ax.set_xlim(*xlim)
         ax.set_ylim(*ylim)
         ax.set_xlabel("t-SNE 1", fontsize=7.4)
@@ -1401,33 +1457,65 @@ def render_cluster_task(
         ax.tick_params(labelsize=6.8, pad=1)
         ax.grid(True, color="#EEEEEE", linewidth=0.45)
         ax.set_aspect("equal", adjustable="box")
-    fig.suptitle(
-        f"{task}: same-state perturbation clusters in encoder and ACPC rollout-readout spaces",
-        y=0.975,
-        fontsize=9.2,
-    )
-    envelope_note = {
-        "ellipse": (
-            f"colored ellipses are {100.0 * envelope_coverage:.0f}% covariance envelopes "
-            "in the t-SNE plane"
-        ),
-        "hull": "colored hulls are sample convex hulls in the t-SNE plane",
-        "circle": "colored circles use the legacy max-distance envelope in the t-SNE plane",
-        "none": "no colored envelope is drawn",
-    }[envelope]
-    fig.text(
-        0.5,
-        0.012,
-        "t-SNE is visualization only; panel annotations are computed in high-D space.\n"
-        f"Gray dots show sampled views; {envelope_note}.",
-        ha="center",
-        va="bottom",
-        fontsize=6.6,
-        linespacing=1.18,
-    )
+    if paper_facing:
+        fig.suptitle(
+            f"{task}: qualitative ACPC neighborhood t-SNE under repeated perturbations",
+            y=0.975,
+            fontsize=9.2,
+        )
+        if metric_annotations is None:
+            metric_text = "ATR/SMPR annotations unavailable"
+        else:
+            metric_text = (
+                "ATR "
+                f"{_fmt_metric_annotation(metric_annotations['ATR_base']['mean'])} -> "
+                f"{_fmt_metric_annotation(metric_annotations['ATR_std0.08']['mean'])}; "
+                "SMPR "
+                f"{_fmt_metric_annotation(metric_annotations['SMPR_base']['mean'])} -> "
+                f"{_fmt_metric_annotation(metric_annotations['SMPR_std0.08']['mean'])}"
+            )
+        fig.text(
+            0.5,
+            0.012,
+            "Qualitative t-SNE projection of repeated same-state views. "
+            f"{metric_text}. ATR/SMPR are computed in the original diagnostic space.",
+            ha="center",
+            va="bottom",
+            fontsize=6.6,
+            linespacing=1.18,
+        )
+    else:
+        fig.suptitle(
+            f"{task}: same-state perturbation clusters in encoder and ACPC rollout-readout spaces",
+            y=0.975,
+            fontsize=9.2,
+        )
+        envelope_note = {
+            "ellipse": (
+                f"colored ellipses are {100.0 * envelope_coverage:.0f}% covariance envelopes "
+                "in the t-SNE plane"
+            ),
+            "hull": "colored hulls are sample convex hulls in the t-SNE plane",
+            "circle": "colored circles use the legacy max-distance envelope in the t-SNE plane",
+            "none": "no colored envelope is drawn",
+        }[envelope]
+        fig.text(
+            0.5,
+            0.012,
+            "t-SNE is visualization only; panel annotations are computed in high-D space.\n"
+            f"Gray dots show sampled views; {envelope_note}.",
+            ha="center",
+            va="bottom",
+            fontsize=6.6,
+            linespacing=1.18,
+        )
     fig.tight_layout(rect=(0, 0.075, 1, 0.945), h_pad=2.0, w_pad=0.9)
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_clusters.png"
+    if paper_facing:
+        out_name = "fig_acpc_basin_tsne.png" if task == "PushT" else f"fig_{task.lower()}_acpc_basin_tsne.png"
+        out = out_dir / out_name
+    else:
+        out = out_dir / f"{task.lower()}_{_method_slug(summary)}{_branch_slug(summary)}_selective_contraction_clusters.png"
     fig.savefig(out, dpi=320)
     point_counts_out = out.with_name(f"{out.stem}_point_counts.json")
     _write_json(
@@ -1445,12 +1533,17 @@ def render_cluster_task(
             "seed": int(seed),
             "anchor_indices": [int(x) for x in anchors.tolist()],
             "anchor_selection": anchor_selection_meta,
+            "paper_facing": bool(paper_facing),
+            "metric_annotations": metric_annotations,
             "panels": panel_point_counts,
+            "panel_high_d_stats": panel_high_d_stats,
             "note": (
                 "All four cluster panels must have identical view_count_per_state "
                 "and sampled_state_count. Colored anchor points are overlaid on the "
                 "same background sample, so contraction can make the lower-row points "
-                "visually overlap even when the counts match."
+                "visually overlap even when the counts match. In paper-facing mode, "
+                "high-dimensional cluster-isolation statistics are retained here only "
+                "as sidecar audit metadata and are not visible panel annotations."
             ),
         },
     )
@@ -1528,9 +1621,9 @@ def render_3d_task(
     fig = plt.figure(figsize=(12, 9))
     panels = [
         ("base", "encoder_3d", "Encoder"),
-        ("base", "predictor_3d", r"ACPC rollout readout $R_F$"),
+        ("base", "predictor_3d", "Post-predictor rollout features"),
         ("fullseq_robust", "encoder_3d", "Encoder"),
-        ("fullseq_robust", "predictor_3d", r"ACPC rollout readout $R_F$"),
+        ("fullseq_robust", "predictor_3d", "Post-predictor rollout features"),
     ]
     for i, (label, feature, title) in enumerate(panels, start=1):
         ax = fig.add_subplot(2, 2, i, projection="3d")
@@ -1644,6 +1737,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--cluster-envelope", choices=["ellipse", "hull", "circle", "none"], default="ellipse")
     p.add_argument("--cluster-envelope-coverage", type=float, default=0.90)
     p.add_argument("--cluster-anchor-selection", choices=["random", "spread"], default="random")
+    p.add_argument("--metric-summary", type=Path, default=DEFAULT_DATA_DIR / "compressed_metrics_summary_20260706.json")
+    p.add_argument("--cluster-paper-facing", action="store_true", help="Render canonical paper-facing cluster figure with only ATR/SMPR visible annotations.")
     p.add_argument("--atlas-anchor-count", type=int, default=24)
     p.add_argument("--atlas-neighbor-count", type=int, default=8)
     return p
@@ -1729,6 +1824,8 @@ def main() -> None:
                 envelope=args.cluster_envelope,
                 envelope_coverage=args.cluster_envelope_coverage,
                 anchor_selection=args.cluster_anchor_selection,
+                metric_summary_path=args.metric_summary,
+                paper_facing=args.cluster_paper_facing,
             )
             print(f"[selective-contraction] wrote {out}")
 

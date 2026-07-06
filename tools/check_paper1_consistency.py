@@ -84,8 +84,9 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "cem_trace_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "compressed_metrics_summary_20260706.json",
     ROOT / "assets" / "paper1_data" / "compressed_metrics_summary_20260706.md",
-    ROOT / "assets" / "paper1_figs" / "fig_atr_smpr_plane.png",
-    ROOT / "assets" / "paper1_figs" / "fig_feature_neighborhood_atr_smpr.png",
+    ROOT / "assets" / "paper1_data" / "base_noise_cliff_multistd_20260706.json",
+    ROOT / "assets" / "paper1_data" / "base_noise_cliff_multistd_20260706.md",
+    ROOT / "assets" / "paper1_figs" / "fig_acpc_basin_tsne.png",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -93,15 +94,12 @@ REQUIRED_ARTIFACTS = [
 REQUIRED_MAIN_TEXT_SNIPPETS = [
     "ACPC Tail Risk (ATR)",
     "Selective Margin Pass Rate (SMPR)",
-    "Theory-to-metric mapping for compressed selective ACPC",
-    "The paper-facing diagnostic uses two readouts",
-    "Core theorem quantity",
+    "The compressed diagnostic keeps only the two empirical quantities",
+    "Thus low ATR without high SMPR is not interpreted as robustness",
     "Compressed selective-ACPC diagnostics",
-    "Compressed selective-ACPC diagnostic plane",
-    "qualitative feature-neighborhood illustration",
+    "Qualitative PushT ACPC neighborhood t-SNE visualization",
     "ATR base",
     "SMPR std0.08",
-    "point-ranking rule inside a plateau",
     "reports behavior only",
     "not as a universal cross-perturbation robustness claim",
     "programmatic task-state proxy labels",
@@ -110,6 +108,7 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "These proofs calibrate ATR and SMPR",
     "Future methods can turn ATR/SMPR into objectives",
 ]
+
 
 
 FORBIDDEN_SNIPPETS = [
@@ -137,8 +136,6 @@ FORBIDDEN_SNIPPETS = [
     "hash",
     "rendering",
     "scripts",
-    "ACPC-basin",
-    "acpc-basin",
     "selective_contraction",
     "fig:selective",
     "tab:acpc-basin",

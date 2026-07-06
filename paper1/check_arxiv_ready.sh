@@ -46,8 +46,12 @@ if ! grep -q "https://github.com/Anguo-star/lewm-acpc-diagnostics" arxiv_metadat
   fail "main.tex does not contain the intended public repository URL https://github.com/Anguo-star/lewm-acpc-diagnostics."
 fi
 
-if ! grep -q "Drop is clean success minus observation-noise 0.08 success" main.tex; then
-  fail "main.tex should define the corruption-table drop direction explicitly."
+if grep -q "tab:theory-metric-map\|tab:sweep-summary\|fig:atr-smpr-plane\|fig_atr_smpr_plane\|fig_feature_neighborhood_atr_smpr" main.tex; then
+  fail "main.tex still references a removed table or figure from the pre-convergence draft."
+fi
+
+if ! grep -q "fig_acpc_basin_tsne.png" main.tex; then
+  fail "main.tex should reference the canonical qualitative ACPC t-SNE figure."
 fi
 
 # Build first; build.sh also greps undefined refs/cites/fatal diagnostics.
@@ -62,8 +66,7 @@ cp main.tex arxiv_metadata.tex arxiv_release_notes.tex references.bib main.bbl /
 
 # Keep this list aligned with figure inclusions in main.tex.
 cp ../assets/paper1_figs/fig2_sweep.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_atr_smpr_plane.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_feature_neighborhood_atr_smpr.png /tmp/paper1_arxiv_src/figures/
+cp ../assets/paper1_figs/fig_acpc_basin_tsne.png /tmp/paper1_arxiv_src/figures/
 
 tar -czf /tmp/paper1_arxiv_v1_src.tar.gz -C /tmp/paper1_arxiv_src .
 

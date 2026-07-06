@@ -27,15 +27,26 @@ bash build.sh           # builds main.pdf
 bash build.sh --clean   # remove intermediates first
 ```
 
-To regenerate the script-generated main figures before building:
+To regenerate the script-generated main table artifact and figures before building:
 
 ```bash
-cd .. && python -m tools.paper1_figs --out-dir assets/paper1_figs
-cd .. && python tools/paper1_atr_smpr_figure.py
-cd .. && python tools/paper1_feature_neighborhood_figure.py
+cd ..
+python -m tools.paper1_base_noise_cliff_multistd
+python -m tools.paper1_figs --out-dir assets/paper1_figs
+OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/mplconfig \
+python -m tools.paper1_selective_contraction \
+  --plot-clusters --plot-tasks PushT \
+  --n-sequences 128 --cluster-anchor-count 16 \
+  --view-stds 0.0 0.01 0.04 0.08 \
+  --cluster-perturb-repeats 6 \
+  --feature-cache-dir /tmp/paper1_selective_contraction_cache \
+  --cluster-out-dir assets/paper1_figs \
+  --cluster-envelope ellipse --cluster-envelope-coverage 0.90 \
+  --metric-summary assets/paper1_data/compressed_metrics_summary_20260706.json \
+  --cluster-paper-facing
 ```
 
-The feature-neighborhood figure is a qualitative illustration. It reuses the cached PushT feature arrays in `/tmp/paper1_selective_contraction_cache`; if that cache is absent, regenerate it with the optional selective-contraction tooling documented in `../tools/README_paper1.md`.
+The ACPC neighborhood t-SNE figure is qualitative. It reuses cached PushT feature arrays in `/tmp/paper1_selective_contraction_cache`; the cache itself is not committed.
 
 Paper-specific tool usage is documented in `../tools/README_paper1.md`.
 
@@ -58,8 +69,7 @@ rm -rf /tmp/paper1_arxiv_src
 mkdir -p /tmp/paper1_arxiv_src/figures
 cp main.tex arxiv_metadata.tex arxiv_release_notes.tex references.bib main.bbl /tmp/paper1_arxiv_src/
 cp ../assets/paper1_figs/fig2_sweep.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_atr_smpr_plane.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_feature_neighborhood_atr_smpr.png /tmp/paper1_arxiv_src/figures/
+cp ../assets/paper1_figs/fig_acpc_basin_tsne.png /tmp/paper1_arxiv_src/figures/
 tar -czf /tmp/paper1_arxiv_v1_src.tar.gz -C /tmp/paper1_arxiv_src .
 tar -tzf /tmp/paper1_arxiv_v1_src.tar.gz | sort
 ```

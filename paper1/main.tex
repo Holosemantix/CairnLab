@@ -564,7 +564,7 @@ All & 2/12 & 10/12 & $2.25 \pm 2.51$ & $0.75/2$ \\
 
 Closed-loop evaluation establishes behavior; the frozen diagnostic screen tests whether ACPC-family readouts localize candidate regions that have entered a robustness plateau. Because the sweep has broad finite-variance plateaus, Appendix~\ref{sec:appendix-selector-audit} treats \stdmax{} as a candidate label inside each task--training-seed block and evaluates membership screens rather than point-best ranking.
 
-With a 5pp plateau label, 42 of the aggregate screen's 48 rows are plateau members (87.5\% precision, 61.8\% recall), matching the high-std top-half reference and trailing MAF-only, but above exact random top-half precision (70.8\%). Presence is saturated, so the result supports plateau-entry enrichment and boundary localization; plateau-internal ordering is not a claim.
+With a 5pp plateau label, 42 of the aggregate screen's 48 rows are plateau members (87.5\% precision, 61.8\% recall), above exact random top-half precision (70.8\%). Presence is saturated, so the result supports plateau-entry enrichment and boundary localization; plateau-internal ordering is not a claim.
 
 \subsection{Paired Gaussian-noise ACPC basin diagnostic}\label{sec:exp-acpc-basin}
 
@@ -699,7 +699,7 @@ The task-grounded near-boundary proxy margin supplies the missing selective half
 
 \subsection{Bounded unseen-stressor check}\label{sec:exp-unseen-scope}
 
-The main claim remains matched Gaussian-noise robustness. After freezing the Gaussian grid, we also ran a strongest-severity unseen-stressor check to test whether the diagnostic direction is specific outside the training perturbation family. \Cref{tab:unseen-scope-main} shows a split pattern. TwoRoom and Reacher exhibit clear positive score deltas under strongest blur, and the paired ACPC/PCC/CRA diagnostics move in the same direction. PushT and Cube do not show a clear score gain at the scale of training-seed and evaluation variance, and their diagnostic deltas are correspondingly weak or mixed. The selected rows follow the appendix convention: TwoRoom/Reacher blur are clear positive-transfer endpoints, while PushT/Cube resize are small-effect boundary endpoints. A full appendix audit over all task--family--seed endpoints for blur and resize gives the same directional readout: the composite ACPC/PCC/CRA/MAF rank has Spearman $\rho=0.94$ with stress-success delta over 24 rows. We therefore use this table only as bounded scope evidence: ACPC-style paired diagnostics localize clear out-of-family improvements when present, but the current evidence does not justify a universal cross-perturbation robustness claim.
+The main claim remains matched Gaussian-noise robustness. After freezing the Gaussian grid, we also ran a strongest-severity unseen-stressor check to ask whether the diagnostics reflect behavior outside the training perturbation family. \Cref{tab:unseen-scope-main} shows a split pattern. TwoRoom and Reacher improve under strongest blur, and paired ACPC/PCC/CRA diagnostics move in the same direction. PushT and Cube do not show a clear score gain at the scale of training-seed and evaluation variance, and their diagnostic deltas are weak or mixed. A full appendix audit over all task--family--seed endpoints for blur and resize gives the same directional readout: the composite ACPC/PCC/CRA/MAF rank has Spearman $\rho=0.94$ with stress-success delta over 24 rows. We therefore use this table as bounded diagnostic-specificity evidence, not as a universal cross-perturbation robustness claim.
 
 \begin{table}[H]
 \centering
@@ -1311,14 +1311,12 @@ This audit uses the same 96 nonzero LeWM rows as the three-training-seed Gaussia
 Rule & precision & recall & TP/FP/FN & presence hit & reading \\
 \midrule
 Aggregate ACPC/PCC/CRA/MAF & $87.5\%$ & $61.8\%$ & $42/6/26$ & $12/12$ & plateau-entry diagnostic screen \\
-MAF only & $91.7\%$ & $64.7\%$ & $44/4/24$ & $12/12$ & competitive single-readout reference \\
-High-std top-half reference & $87.5\%$ & $61.8\%$ & $42/6/26$ & $12/12$ & simple intervention-order reference \\
 Random top-half reference & $70.8\%$ & $50.0\%$ & $34.0/14.0/34.0$ & $11.96/12$ & exact random reference \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\paragraph{Reading.} The audit evaluates membership enrichment, not point-optimal ranking. The aggregate screen improves precision over exact random top-half screening (87.5\% vs.\ 70.8\%), but does not exceed MAF-only or the high-std reference; this is not evidence of selector dominance. The high-std reference is a coarse intervention-order screen: larger noise often helps before plateau entry, but once a task--seed block reaches the plateau, \stdmax{} is treated only as a candidate label, not as a monotone performance predictor. We therefore read the screen as diagnostic enrichment and failure localization.
+\paragraph{Reading.} The audit evaluates membership enrichment, not point-optimal ranking. The aggregate screen improves precision over exact random top-half screening (87.5\% vs.\ 70.8\%). Single-readout and high-noise reference rows remain in the released artifact as transparency checks, not paper-facing selector baselines, because the diagnostic screen is not meant to beat training-noise strength or individual readouts as a point selector. We therefore read the screen as diagnostic enrichment and failure localization.
 
 %% ===========================================================================
 \section{Reduced-budget offline CEM trace audit}\label{sec:appendix-cem-trace}

@@ -101,7 +101,7 @@
 \maketitle
 
 \begin{abstract}
-Latent predictive world models avoid pixel reconstruction, but pixel-free prediction is not a robustness definition for closed-loop control. We study this gap with action-conditioned predictive consistency (ACPC), a no-retraining diagnostic for JEPA-style control checkpoints. The diagnostic combines ACPC Tail Risk (ATR), which measures high-quantile clean/noisy rollout disagreement for the same state under the same action sequence, with Selective Margin Pass Rate (SMPR), which checks that task-grounded near-boundary distinctions remain separated. Across three independent LeWM training seeds and four control tasks, no-noise checkpoints are fragile under observation-only Gaussian noise, while input-side noise training yields broad matched-Gaussian robustness plateaus. At recovered endpoints, ATR drops sharply and SMPR rises to near one across tasks. These results support ACPC as a bounded diagnostic for matched-Gaussian robustness plateaus in fixed JEPA world-model checkpoints.
+Latent predictive world models avoid pixel reconstruction, but pixel-free prediction is not a robustness definition for closed-loop control. We study this gap with action-conditioned predictive consistency (ACPC), a no-retraining diagnostic for JEPA-style control checkpoints. The diagnostic combines ACPC Tail Risk (ATR), which measures high-quantile clean/noisy rollout disagreement for the same state under the same action sequence, with Selective Margin Pass Rate (SMPR), which checks that task-grounded near-boundary distinctions remain separated. Across three independent LeWM training seeds and four control tasks, no-noise checkpoints are fragile under observation-only Gaussian noise, while input-side noise training yields broad matched-Gaussian robustness plateaus. At recovered endpoints, ATR drops sharply and SMPR rises to near one across tasks. These results support ATR and SMPR as bounded ACPC diagnostics for matched-Gaussian robustness plateaus in fixed JEPA world-model checkpoints.
 
 \smallskip
 \noindent\textbf{Keywords:} visual world models; JEPA; action-conditioned predictive consistency; visual robustness; predictive-dynamics diagnostics.
@@ -176,10 +176,10 @@ For the theoretical statements below, we use the induced horizon metric
   = \sum_{k=1}^{H}\alpha_k d(u_k,v_k),
   \label{eq:acpc-horizon-metric}
 \end{equation}
-so that \Cref{eq:acpc-h} is exactly the clean/perturbed projected-rollout distance under the shared action sequence. In experiments, ATR uses the 90th percentile of this normalized same-state rollout disagreement.
+so that \Cref{eq:acpc-h} is exactly the clean/perturbed projected-rollout distance under the shared action sequence.
 In this diagnostic framing, robustness corresponds to small $\mathrm{ACPC}_H$ together with action-relevant discriminability, not to the encoder distance $d(z_t, \tilde z_t)$ alone. Encoder closeness is a useful first-stage risk signal, but it is neither necessary (a large but task-irrelevant encoder shift can wash out through $F_\theta$ and $\Pi$) nor sufficient (a small encoder shift can still change the predicted future enough to flip the planned action).
 
-\paragraph{Action-relevant discriminability (countercondition).} Consistency must be \emph{selective}. Let $Y^{H}(s,\mathbf a)$ denote a task-relevant future signal that is external to the learned predictor --- simulator state, cost-to-go, inverse-dynamics label, contact/keyframe tag, or another diagnostic proxy available in the dataset. For two genuinely different states $s_i, s_j$ (with latents $z_i, z_j$) that admit an action sequence under which this external future signal diverges,
+\paragraph{Action-relevant discriminability.} Consistency must be \emph{selective}. Let $Y^{H}(s,\mathbf a)$ denote a task-relevant future signal that is external to the learned predictor --- simulator state, cost-to-go, inverse-dynamics label, contact/keyframe tag, or another diagnostic proxy available in the dataset. For two genuinely different states $s_i, s_j$ (with latents $z_i, z_j$) that admit an action sequence under which this external future signal diverges,
 \begin{equation}
   \Delta^{H}_{\mathrm{dyn}}(s_i, s_j, \mathbf a)
   = d_Y\!\big(Y^{H}(s_i, \mathbf a),\, Y^{H}(s_j, \mathbf a)\big) > m,
@@ -192,11 +192,13 @@ the representation and predictions should keep them separable,
 \end{equation}
 where $\Psi$ is a discriminability projection, possibly action-conditioned (latent, predicted delta under $\mathbf a$, inverse-dynamics feature, cost feature, or rollout embedding), and $m, m' > 0$ are margins. Equations~\eqref{eq:acpc-h}--\eqref{eq:acpc-disc} state the target: lower predictive disagreement for same-state visual perturbations must preserve discriminability among state/action/transition-distinct pairs. A method that drove $\mathrm{ACPC}_H \to 0$ by collapsing the latent would violate \eqref{eq:acpc-disc}, so the two conditions are inseparable.
 
+The same guard can be posed over state--action pairs: if two pairs have external task-relevant futures that differ by more than a margin, their projected rollouts should remain separated. This includes the same clean state evaluated under two dynamically distinct actions. The reported SMPR instantiates the guard with task-grounded near-boundary state pairs rather than adding a separate action-faithfulness metric.
+
 \subsection{Operational consistency diagnostics}\label{sec:acpc-diag}
 
-The reported diagnostic uses two metrics. ACPC Tail Risk (ATR) is the 90th percentile of normalized same-state clean/noisy ACPC-H rollout disagreement under a fixed recorded action sequence; lower is better. Selective Margin Pass Rate (SMPR) is the pass rate of task-grounded label-crossing pairs whose clean different-state rollout distance exceeds the same-state noisy radius at margin zero; higher is better.
+The reported diagnostic uses two metrics matched to this logic. ACPC Tail Risk (ATR) summarizes the upper tail of normalized same-state clean/noisy ACPC-H rollout disagreement under a fixed recorded action sequence; lower is better. We use the 90th percentile in all experiments. This is a fixed empirical reporting choice, not a theoretical constant. Selective Margin Pass Rate (SMPR) is the pass rate of task-grounded label-crossing pairs whose clean different-state rollout distance exceeds the same-state noisy radius at margin zero; higher is better.
 
-The compressed diagnostic keeps only the two empirical quantities required by the selective-ACPC logic. ATR estimates the high-tail term $\Pr[D > \epsilon]$ that appears in the sampled-pool stability calibration, using the 90th percentile of normalized same-state action-conditioned rollout disagreement. SMPR estimates the discriminability countercondition by checking whether task-grounded near-boundary pairs remain separated beyond the same-state noisy radius. Thus low ATR without high SMPR is not interpreted as robustness, because collapse can also make clean and corrupted views agree. Encoder geometry and planner-side audits remain useful development checks, but they are not separate reported diagnostics in this compressed version.
+ATR estimates the high-tail term $\Pr[D > \epsilon]$ that appears in the sampled-pool stability calibration. SMPR estimates the discriminability guard by checking whether task-grounded near-boundary pairs remain separated beyond the same-state noisy radius. Thus low ATR without high SMPR is not interpreted as robustness, because collapse can also make clean and corrupted views agree. Encoder geometry and planner-side audits remain useful development checks, but they are not separate reported diagnostics here.
 
 \subsection{ACPC as a fixed-candidate stability condition}\label{sec:acpc-planner-stability}
 
@@ -242,7 +244,7 @@ then
 The inequality is the local Lipschitz condition applied directly to the clean and perturbed projected-rollout sequences.
 \end{proof}
 
-In the compressed diagnostic, this condition is instantiated by the L2 rollout-token distance whose high-quantile tail defines ATR; empirical companion audits are kept outside the reported metric set.
+In experiments, ATR instantiates this condition with the high-quantile tail of L2 rollout-token distance; companion planner-side audits remain outside the reported diagnostic.
 
 \begin{proposition}[Candidate top-1 stability]\label{prop:top1-stability}
 Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}$ be the shared candidate set. Assume lower cost is preferred, and let $\mathbf a^{(1)}$ and $\mathbf a^{(2)}$ denote the lowest- and second-lowest-cost candidates on the clean branch. Suppose that for every candidate $j$,
@@ -305,32 +307,6 @@ K\delta + \Pr_{\mathcal A}[\Delta_{\mathcal A}\le 2L_J\epsilon].
 
 \Cref{thm:sampled-pool-acpc} is not a convergence theorem for adaptive planning. It controls the instability of one sampled candidate pool. The first term is the probability that at least one candidate has a large clean/noisy rollout discrepancy, which motivates ATR. The second term is the probability that the clean candidate pool has too small a top-1 margin; it explains why ATR is not a closed-loop guarantee. SMPR is separate from this flip bound: it is the selective-discriminability condition required to make low ATR meaningful rather than collapsed.
 
-\begin{corollary}[Replanning union bound]\label{cor:replanning-union}
-If replanning step $t$ has sampled-pool flip-probability bound
-\[
-r_t=K_t\delta_t+\Pr[\Delta_{\mathcal A_t}\le 2L_J\epsilon_t],
-\]
-then over $T$ replanning steps,
-\[
-\Pr[\exists t\le T:\ \text{the sampled-pool top-1 flips at step }t]
-\le \sum_{t=1}^{T} r_t .
-\]
-\end{corollary}
-
-\begin{proposition}[Finite-sample tail calibration for paired diagnostics]\label{prop:finite-sample-tail-calibration}
-Fix the diagnostic sampling distribution used to draw independent paired clean/noisy histories and candidate action sequences. Let
-\[
-X_i=\mathbf 1[D_i>\epsilon], \qquad i=1,\ldots,n,
-\]
-where $D_i$ is the paired ACPC projected-rollout discrepancy for diagnostic item $i$. Let $p_\epsilon=\Pr[D>\epsilon]$ and $\hat p_\epsilon=n^{-1}\sum_i X_i$. Then, with probability at least $1-\delta$ over the diagnostic sample,
-\[
-p_\epsilon \le \hat p_\epsilon + \sqrt{\frac{\log(1/\delta)}{2n}}.
-\]
-The same one-sided calibration applies to SMPR after fixing its task-grounded pair construction.
-\end{proposition}
-
-This calibration is with respect to the fixed diagnostic sampling distribution and its independent-sample idealization. It does not convert an empirical quantile or pass-rate table into a uniform bound over all closed-loop states; when nearby dataset windows are dependent, we use it only as calibration.
-
 The Gaussian stressor also has a local sensitivity interpretation. Let $G_{\mathbf a}(z)=\Pi(F_\theta^{1:H}(z,\mathbf a))$ and let $\tilde o=o+\xi$ with $\xi\sim\mathcal N(0,\sigma^2 I)$.
 
 \begin{proposition}[Local Gaussian ACPC sensitivity]\label{prop:gaussian-sensitivity}
@@ -358,39 +334,8 @@ with $\delta_m=0$ in the reported table. It is a finite state-proxy selective-co
 
 The theoretical statements in this section are intended as diagnostic calibration rather than as closed-loop control guarantees. They identify the failure modes that a paired clean/noisy diagnostic should measure: rollout-disagreement tails, clean candidate-margin caveats, and collapse of task-grounded separations. They do not assert that a low empirical ATR is a uniform bound for adaptive planning, repeated replanning, or environment-feedback stability.
 
-\paragraph{Selective ACPC pseudo-metric.}
-For a nonempty fixed candidate family $\mathcal A$, the stability condition can be summarized by
-\begin{equation}
-  D_{\mathrm{ACPC}}^{\mathcal A}(h,\tilde h)
-  =
-  \max_{\mathbf a \in \mathcal A}
-  d_H\!\left(\Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a)),
-             \Pi(F_\theta^{1:H}(E_\theta(\tilde h),\mathbf a))\right).
-  \label{eq:acpc-pseudometric}
-\end{equation}
-When $d_H$ is a metric (or a pseudo-metric, if some horizon weights vanish), $D_{\mathrm{ACPC}}^{\mathcal A}$ is a pseudo-metric on histories after passing through the encoder, predictor, and projection: distinct histories can have zero distance if all candidate rollouts are projection-equivalent. This follows because each map $h\mapsto \Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a))$ pulls back $d_H$ to a pseudo-metric, and the pointwise maximum of pseudo-metrics is again a pseudo-metric. The useful object is therefore \emph{selective} predictive stability. Small $D_{\mathrm{ACPC}}^{\mathcal A}$ for same-state visual perturbations gives candidate-cost and top-1 stability under the preceding Lipschitz and margin assumptions; the same contraction is not desirable for state/action pairs whose external task variables differ, which is why the discriminability guard is part of the definition rather than an auxiliary aesthetic check.
-
-\begin{corollary}[Fixed-candidate predictive stability]\label{cor:selective-stability}
-Assume $D_{\mathrm{ACPC}}^{\mathcal A}(h,\tilde h)\le\epsilon$ for a same-state visual-perturbation pair and that $J$ is locally $L_J$-Lipschitz on the projected rollout. If the clean candidate margin satisfies $\Delta>2L_J\epsilon$, then the clean and perturbed branches select the same top-1 candidate from the fixed set $\mathcal A$.
-\end{corollary}
-
-\begin{proof}
-By definition of $D_{\mathrm{ACPC}}^{\mathcal A}$, every candidate in $\mathcal A$ has projected-rollout discrepancy at most $\epsilon$. Proposition~\ref{prop:cost-drift} bounds the cost drift of every candidate by $L_J\epsilon$, and Proposition~\ref{prop:top1-stability} gives top-1 stability when $\Delta>2L_J\epsilon$.
-\end{proof}
-
-The statement becomes selective only when it is paired with a discriminability condition such as \Cref{eq:acpc-disc}. Without that second condition, fixed-candidate predictive stability can still be achieved by a collapsed encoder--predictor, as shown next.
-
-Encoder closeness is not the right substitute for this condition. It is not necessary: a nuisance-subspace change can move $E_\theta(h)$ and $E_\theta(\tilde h)$ far apart while leaving $\Pi(F_\theta^{1:H}(\cdot,\mathbf a))$ and the cost unchanged. It is not sufficient either: a small encoder displacement can flip a low-margin cost ranking when the predictor or planner cost has high local sensitivity.
-
-\begin{proposition}[ACPC alone permits collapse]\label{prop:acpc-collapse}
-There exist encoder--predictor pairs for which $\mathrm{ACPC}_H=0$ for every same-state perturbation pair and every action sequence, while action-distinct states are mapped to identical projected rollouts.
-\end{proposition}
-
-\begin{proof}
-Let $E_\theta(h)=z_0$ for every history and let $F_\theta^k(z_0,\mathbf a)=u_0$ for every horizon $k$ and action sequence $\mathbf a$. Then clean and perturbed branches always have identical projected rollouts, so same-state ACPC is zero. However, any two states that require different actions, costs, or transitions also have identical projected rollouts, violating the discriminability condition in \Cref{eq:acpc-disc}.
-\end{proof}
-
-Thus low ACPC is meaningful only with a guard on action-relevant separation. This is the role of SMPR in the reported diagnostic. This is where ACPC differs from existing nuisance-feature analyses of latent prediction: those results help explain why latent prediction may suppress irrelevant or noisy features at the representation level, whereas the condition above asks whether the remaining perturbation changes action-conditioned projected rollouts while preserving task-grounded separations.
+\paragraph{Collapse caveat.}
+Low same-state ACPC alone is insufficient. A constant encoder--predictor can make every clean and perturbed rollout identical while also mapping action-distinct states to identical projected futures. This is why SMPR is part of the reported diagnostic: ATR measures predictive stability under nuisance perturbation, and SMPR checks that task-grounded separations have not been erased.
 
 %% ===========================================================================
 \section{Study protocol}\label{sec:bg}
@@ -403,15 +348,15 @@ LeWM~\cite{maes2026lewm} is an end-to-end JEPA world model trained with a latent
 
 \subsection{Evaluation and diagnostics}\label{sec:bg-protocol}
 
-The canonical LeWM development grid contains 36 epoch-10 checkpoints for training seed 3072: four tasks and, for each task, a no-noise baseline plus eight noise-trained checkpoints. Each checkpoint is evaluated with three evaluation seeds (42/43/44) and 100 trajectories per seed; canonical tables report the population mean $\pm$ population std across those three evaluation seeds. A completed Gaussian training-seed replication adds independent LeWM training seeds 3073 and 3074 under the same nine-point Gaussian sweep and evaluation protocol. Together, seed 3072 plus replication seeds 3073/3074 provide three training seeds for the main Gaussian closed-loop endpoint in \Cref{tab:training-seed-gaussian-lockbox}.
+The canonical LeWM development grid contains 36 epoch-10 checkpoints for training seed 3072: four tasks and, for each task, a no-noise baseline plus eight noise-trained checkpoints. Each checkpoint is evaluated with three evaluation seeds (42/43/44) and 100 trajectories per seed; canonical tables report the population mean $\pm$ population std across those three evaluation seeds. A completed Gaussian training-seed replication adds independent LeWM training seeds 3073 and 3074 under the same nine-point Gaussian sweep and evaluation protocol. Together, seed 3072 plus replication seeds 3073/3074 provide three training seeds for the main Gaussian closed-loop endpoint in \Cref{fig:sweep}.
 
-The main results follow the compressed evidence chain used in the claims. Closed-loop tables report training-seed mean/std for Gaussian robustness. ATR measures whether same-state clean/noisy rollout-disagreement tails contract at recovered endpoints, and SMPR checks whether task-grounded near-boundary separations survive that contraction. Unseen-stressor scores are auxiliary scope checks rather than additional core diagnostics.
+The main results follow a two-part evidence chain. Closed-loop figures and tables report training-seed mean/std for Gaussian robustness. ATR measures whether same-state clean/noisy rollout-disagreement tails contract at recovered endpoints, and SMPR checks whether task-grounded near-boundary separations survive that contraction. Unseen-stressor scores are auxiliary scope checks rather than additional core diagnostics.
 
 
 %% ===========================================================================
 \section{Experiments}\label{sec:exp}
 
-The experiments use additive Gaussian pixel noise as the primary controlled stressor for a representation-diagnostic question. We first show that the stressor changes closed-loop behavior. We then ask where recovery appears in the model, prioritizing cross-task ACPC/paired-rollout evidence and keeping task-specific representation measurements only as discriminability checks. The study is a matched-stressor trace through the encoder--predictor--planner chain; point-best noise-level ranking, external method comparison, and broad perturbation-family transfer are outside its scope.
+The experiments use additive Gaussian pixel noise as the primary controlled stressor for a representation-diagnostic question. We first show that the stressor changes closed-loop behavior. We then ask where recovery appears in the model, prioritizing cross-task ACPC/paired-rollout evidence and keeping task-specific representation measurements only as discriminability checks. The study is a matched-stressor trace through the encoder--predictor--planner chain; checkpoint ranking, external method comparison, and broad perturbation-family transfer are outside its scope.
 
 All results use the protocol in Section~\ref{sec:bg}: LeWM-base denotes the no-noise checkpoint, and LeWM+noise denotes the eight-level \stdmax{} sweep.
 
@@ -441,52 +386,28 @@ LeWM-base is strong on unperturbed images, but observation noise alone produces 
 
 \subsection{Noise augmentation supplies recovered checkpoints for diagnosis}\label{sec:exp-sweep}
 
-\Cref{fig:sweep} shows the full seed-3072 Gaussian sweep. The main qualitative pattern is a broad, task-dependent recovery plateau rather than a stable point-best training-noise level. Exact point-best rows are artifact-level bookkeeping rather than a ranking claim.
+\Cref{fig:sweep} shows the full LeWM Gaussian sweep aggregated across training seeds 3072/3073/3074. Each plotted point first averages evaluation seeds 42/43/44 within a training seed and then reports mean and population std across the three training seeds. The main qualitative pattern is a broad, task-dependent recovery plateau rather than a stable universal checkpoint ranking.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig2_sweep.png}
-\caption{Noise-training sweep across four tasks. Blue circles: unperturbed evaluation; red squares: observation-only Gaussian noise $\sigma=0.08$ with an unperturbed goal. Error bars show the population standard deviation across the three evaluation seeds. The curves document broad task-dependent recovery plateaus rather than point-optimal ranking.}
+\caption{Three-training-seed LeWM Gaussian sweep across four tasks. Each point averages evaluation seeds 42/43/44 within each training seed and then reports mean across training seeds 3072/3073/3074; error bars show population std across training seeds. Blue circles: unperturbed evaluation; red squares: observation-only Gaussian noise $\sigma=0.08$ with an unperturbed goal. The curves document broad task-dependent recovery plateaus rather than checkpoint rankings.}
 \label{fig:sweep}
 \end{figure}
 
-The sweep contributes two observations to the main argument. First, input-side noise can be an effective intervention in this protocol: PushT recovers from $4.33\%$ to $89.00\%$ at observation-noise 0.08, and Reacher from $18.33\%$ to $84.67\%$. Second, the grid supplies representative recovered checkpoints for the downstream diagnostic question: what changed in the encoder--predictor--planner chain?
+Because \Cref{fig:sweep} already aggregates the full sweep across three training seeds, we do not report a separate endpoint leaderboard in the main text. The fixed \stdmax{} $=0.08$ endpoint substantially improves the observation-noise endpoint on TwoRoom, PushT, and Reacher, with a weaker positive Cube signal. Exact all-seed sweep values are reported in Appendix~\ref{sec:appendix-gaussian-evals} for reproducibility.
 
-Reacher also shows a fixed-epoch clean-control lift. Noise training improves not only observation-noise robustness but also unperturbed control: the representative clean row rises from $58.67\%$ at the no-noise baseline to about $86\%$ under noise training. We interpret this as a fixed-protocol regularization or stabilization effect rather than pure robustness recovery. The three-training-seed replication below makes the endpoint less dependent on seed 3072, but longer learning curves would still be needed to separate regularization from optimization timing.
+A three-seed blur/resize score check later in this section serves as an auxiliary severe-stressor check outside the matched-Gaussian endpoint. The next subsection asks whether the recovered Gaussian endpoints also move in the ATR/SMPR diagnostics.
 
-The completed Gaussian training-seed replication strengthens the closed-loop part of the claim. It repeats the full Gaussian sweep for LeWM seeds 3073 and 3074 and combines them with the canonical seed-3072 sweep. \Cref{tab:training-seed-gaussian-lockbox} summarizes the observation-only Gaussian endpoint across all three training seeds.
+\subsection{ATR/SMPR selective-ACPC diagnostics}\label{sec:exp-acpc-diagnostics}
 
-\begin{table}[H]
-\centering
-\caption{Three-training-seed Gaussian endpoint for LeWM. Values are mean $\pm$ population std across training seeds 3072/3073/3074; each seed point averages evaluation seeds 42/43/44 with 100 trajectories per evaluation seed. The endpoint is observation-only Gaussian evaluation at $\sigma=0.08$ with a clean goal image.}
-\label{tab:training-seed-gaussian-lockbox}
-\small
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.08}
-\begin{tabular}{lccccc}
-\toprule
-Task & base obs $\sigma=0.08$ & std0.08 obs $\sigma=0.08$ & gain & best obs $\sigma=0.08$ & std0.08 gap \\
-\midrule
-TwoRoom & $68.78 \pm 2.46$ & $97.11 \pm 0.57$ & $28.33 \pm 2.68$ & $97.67 \pm 0.27$ & $0.56 \pm 0.79$ \\
-PushT & $\phantom{0}7.22 \pm 5.81$ & $85.78 \pm 3.45$ & $78.56 \pm 5.18$ & $87.67 \pm 0.98$ & $1.89 \pm 2.67$ \\
-Reacher & $18.22 \pm 0.42$ & $81.55 \pm 0.88$ & $63.34 \pm 1.25$ & $83.78 \pm 0.63$ & $2.22 \pm 0.87$ \\
-Cube & $43.11 \pm 3.27$ & $62.56 \pm 1.55$ & $19.45 \pm 4.53$ & $66.44 \pm 1.34$ & $3.89 \pm 2.20$ \\
-\bottomrule
-\end{tabular}
-\end{table}
 
-Across three training seeds, the no-noise checkpoints retain large observation-noise cliffs, while the fixed \stdmax{} $=0.08$ endpoint is within 0.56--3.89 pp of each task's best observed obs-$\sigma=0.08$ row. The task-level best rows occur within broad ranges: 0.05--0.08 for TwoRoom, 0.04--0.08 for PushT, 0.05--0.07 for Reacher, and 0.03--0.05 for Cube. PushT remains the sharpest stress case, improving by $78.56 \pm 5.18$ points at the fixed high-noise endpoint; Reacher improves by $63.34 \pm 1.25$ points. These gaps and ranges support plateau wording rather than a universal optimum at exactly \stdmax{} $=0.08$.
-
-A three-seed blur/resize score check later in this section serves as an auxiliary severe-stressor check outside the matched-Gaussian endpoint. The next subsection asks whether the recovered Gaussian endpoints also move in the two compressed diagnostics.
-
-\subsection{Compressed selective-ACPC diagnostics}\label{sec:exp-compressed-diagnostics}
-
-For the main diagnostic, ATR is the 90th percentile of same-state clean/noisy ACPC-H rollout distance normalized by the clean transition scale. SMPR is the task-grounded near-boundary selective-margin pass rate at margin zero. Both are computed without retraining on the fixed no-noise and \stdmax{} $=0.08$ checkpoints for training seeds 3072/3073/3074. \Cref{tab:compressed-selective-acpc} reports population mean/std across training seeds.
+For the main diagnostic, ATR is the 90th percentile of same-state clean/noisy ACPC-H rollout distance normalized by the clean transition scale. SMPR is the task-grounded near-boundary selective-margin pass rate at margin zero. Both are computed without retraining on the fixed no-noise and \stdmax{} $=0.08$ checkpoints for training seeds 3072/3073/3074. \Cref{tab:atr-smpr-selective-acpc} reports population mean/std across training seeds.
 
 \begin{table}[H]
 \centering
-\caption{Compressed selective-ACPC diagnostics over training seeds 3072/3073/3074. ATR is the q90 normalized same-state clean/noisy action-conditioned rollout disagreement; lower is better. SMPR is the task-grounded near-boundary selective-margin pass rate; higher is better.}
-\label{tab:compressed-selective-acpc}
+\caption{ATR/SMPR selective-ACPC diagnostics over training seeds 3072/3073/3074. ATR is the q90 normalized same-state clean/noisy action-conditioned rollout disagreement; lower is better. SMPR is the task-grounded near-boundary selective-margin pass rate; higher is better.}
+\label{tab:atr-smpr-selective-acpc}
 \small
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lrrrr}
@@ -508,7 +429,7 @@ Cube & $2.320 \pm 0.045$ & $0.100 \pm 0.007$ & $0.45 \pm 0.03$ & $1.00 \pm 0.00$
 \label{fig:acpc-basin-tsne}
 \end{figure}
 
-The two diagnostics move in the intended selective direction on all four tasks: recovered endpoints have much smaller same-state predictive tails and much higher task-grounded margin pass rates. \Cref{fig:acpc-basin-tsne} provides qualitative visual intuition on PushT: repeated noisy views of the same state become tighter after noise training in both encoder and post-predictor feature projections. The quantitative claim still rests on ATR, SMPR, and closed-loop behavior, not on distances in the t-SNE plane. Cube remains the useful boundary case: the compressed diagnostics improve strongly, but the closed-loop Gaussian gain and gap in \Cref{tab:training-seed-gaussian-lockbox} are weaker than PushT or Reacher, so closed-loop evaluation remains the behavioral authority.
+The two diagnostics move in the intended selective direction on all four tasks: recovered endpoints have much smaller same-state predictive tails and much higher task-grounded margin pass rates. \Cref{fig:acpc-basin-tsne} provides qualitative visual intuition on PushT: repeated noisy views of the same state become tighter after noise training in both encoder and post-predictor feature projections. The quantitative claim still rests on ATR, SMPR, and closed-loop behavior, not on distances in the t-SNE plane. Cube remains the useful boundary case: ATR and SMPR improve strongly, but the closed-loop Gaussian recovery in \Cref{fig:sweep} is weaker than PushT or Reacher, so closed-loop evaluation remains the behavioral authority.
 
 SMPR uses programmatic task-state proxy labels, not oracle semantic annotations: TwoRoom uses doorway/room-side labels, PushT uses T-block pose cells, Reacher uses target/end-effector relation bins, and Cube uses cube-pose/goal-relation cells. Each anchor selects the closest label-crossing neighbor inside the closest 35\% state-distance neighborhood and passes if that clean different-state rollout distance exceeds the same-state noisy radius. The no-noise baselines are weak under this stricter audit, while the high-noise endpoint reaches near-one pass rate; stronger hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation.
 
@@ -534,7 +455,7 @@ Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ \\
 \end{tabular}
 \end{table}
 
-The pattern is mixed outside the training perturbation family: the $\stdmax{}=0.08$ checkpoint gives large gains for TwoRoom and Reacher under blur, while PushT and Cube are essentially unchanged under the resize stressor. These rows therefore delimit the Gaussian result rather than extending it into a general perturbation-transfer claim.
+The pattern is mixed outside the training perturbation family: the $\stdmax{}=0.08$ checkpoint gives large improvements for TwoRoom and Reacher under blur, while PushT and Cube are essentially unchanged under the resize stressor. These rows therefore delimit the Gaussian result rather than extending it into a general perturbation-transfer claim.
 
 %% ===========================================================================
 \section{Discussion and limitations}\label{sec:disc}
@@ -543,7 +464,7 @@ The pattern is mixed outside the training perturbation family: the $\stdmax{}=0.
 This is a controlled diagnostic study, not a method paper. Closed-loop evaluation establishes the behavior; ATR checks whether same-state noisy views have small action-conditioned predictive tails; SMPR checks whether task-grounded near-boundary distinctions survive that contraction. The primary statistic is the full three-training-seed Gaussian replication, with evaluation-seed variance kept as the within-seed measurement scale. These standard deviations are descriptive over three training seeds, not asymptotic significance claims.
 
 \paragraph{Scope.}
-Gaussian pixel noise remains the training/evaluation axis. The blur/resize rows are bounded behavior outside the matched Gaussian setting, not a transfer theorem. ATR/SMPR are not a point-best \stdmax{} predictor and do not replace closed-loop evaluation inside a broad plateau. We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods; the contribution is a no-retraining diagnostic for JEPA latent world-model checkpoints under a controlled Gaussian stressor.
+Gaussian pixel noise remains the training/evaluation axis. The blur/resize rows are bounded behavior outside the matched Gaussian setting, not a transfer theorem. ATR/SMPR are not a checkpoint-ranker for \stdmax{} and do not replace closed-loop evaluation inside a broad plateau. We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods; the contribution is a no-retraining diagnostic for JEPA latent world-model checkpoints under a controlled Gaussian stressor.
 
 \paragraph{What remains.}
 The results argue against a too-strong reading of latent prediction: future-latent prediction alone does not guarantee closed-loop visual robustness. Stronger discriminability evidence would require hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels, especially for PushT and Cube. Future methods can turn ATR/SMPR into objectives, but this paper keeps that as a separate method-paper path after diagnostic validity is established.
@@ -551,7 +472,7 @@ The results argue against a too-strong reading of latent prediction: future-late
 %% ===========================================================================
 \section{Conclusion}\label{sec:conc}
 
-This paper frames Gaussian-noise robustness in JEPA latent world-model control as a selective diagnostic problem. Closed-loop behavior establishes the phenomenon; ATR measures same-state predictive-stability tails; SMPR checks task-grounded anti-collapse margins. On fixed LeWM checkpoints, input-side noise training recovers broad matched-Gaussian robustness plateaus across three training seeds, and the two compressed diagnostics move in the expected direction at recovered endpoints.
+This paper frames Gaussian-noise robustness in JEPA latent world-model control as a selective diagnostic problem. Closed-loop behavior establishes the phenomenon; ATR measures same-state predictive-stability tails; SMPR checks task-grounded anti-collapse margins. On fixed LeWM checkpoints, input-side noise training recovers broad matched-Gaussian robustness plateaus across three training seeds, and ATR/SMPR move in the expected direction at recovered endpoints.
 
 The theory is deliberately diagnostic: sampled-pool ACPC exposes why tail risk matters and why clean margins prevent closed-loop guarantees, while local Gaussian linearization connects the measured tail to action-conditioned encoder--predictor sensitivity. The broader implication is not solved generalization; it is a concrete audit target for future methods: stable action-conditioned predictive dynamics under nuisance variation, while preserving distinctions needed for planning.
 
@@ -560,6 +481,7 @@ The theory is deliberately diagnostic: sampled-pool ACPC exposes why tail risk m
 \bibliography{references}
 
 %% ===========================================================================
+\clearpage
 \appendix
 \section{Proofs and Calibration for ACPC Diagnostics}\label{sec:appendix-acpc-proofs}
 
@@ -601,28 +523,82 @@ LeWM is evaluated on PushT, TwoRoom, Reacher, and Cube using the canonical three
 
 ATR is computed at each task--training-seed--checkpoint row as the 90th percentile same-state ACPC-H distance normalized by the clean transition scale. SMPR uses task-grounded near-boundary proxy labels at margin zero. The paper reports population mean/std across training seeds 3072/3073/3074.
 
-\section{Auxiliary Observation+Goal Gaussian Stress}\label{sec:appendix-obs-goal}
+\section{Additional Gaussian Evaluation Tables}\label{sec:appendix-gaussian-evals}
 
-\paragraph{Reading.} This auxiliary table reports a harder Gaussian stress condition where the goal image is also perturbed. It explains why the main endpoint keeps the goal clean and does not broaden the main matched-observation claim.
+\paragraph{Reading.} These tables give compact exact summaries for the three-training-seed Gaussian sweep behind \Cref{fig:sweep}. Each training-seed value first averages evaluation seeds 42/43/44; table cells report mean $\pm$ population std across training seeds 3072/3073/3074.
 
 \begin{table}[H]
 \centering
-\caption{LeWM-base under auxiliary observation+goal Gaussian evaluation noise at $\sigma=0.08$. Values are mean $\pm$ population std across training seeds 3072/3073/3074; each training-seed value averages evaluation seeds 42/43/44 with 100 trajectories per evaluation seed.}
-\label{tab:appendix-obs-goal}
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lrr}
+\caption{Three-training-seed LeWM Gaussian sweep summary. The clean column reports unperturbed evaluation. The observation-noise column reports observation-only Gaussian evaluation at $\sigma=0.08$ with the goal image kept clean.}
+\label{tab:appendix-gaussian-sweep}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{0.95}
+\begin{tabular}{llrr}
 \toprule
-Task & observation-only $\sigma=0.08$ & observation+goal $\sigma=0.08$ \\
+Task & training \stdmax{} & clean eval & obs-only $\sigma=0.08$ eval \\
 \midrule
-TwoRoom & $68.78 \pm 2.45$ & $53.56 \pm 2.57$ \\
-PushT   & $\phantom{0}7.22 \pm 5.81$ & $\phantom{0}4.89 \pm 1.64$ \\
-Reacher & $18.22 \pm 0.42$ & $13.78 \pm 1.50$ \\
-Cube    & $43.11 \pm 3.27$ & $45.78 \pm 0.79$ \\
+TwoRoom & $0.00$ & $94.67 \pm 0.72$ & $68.78 \pm 2.45$ \\
+TwoRoom & $0.01$ & $94.89 \pm 1.10$ & $93.44 \pm 2.08$ \\
+TwoRoom & $0.02$ & $95.78 \pm 1.10$ & $95.44 \pm 1.57$ \\
+TwoRoom & $0.03$ & $95.11 \pm 0.87$ & $95.11 \pm 1.34$ \\
+TwoRoom & $0.04$ & $95.89 \pm 0.42$ & $95.89 \pm 0.57$ \\
+TwoRoom & $0.05$ & $96.11 \pm 1.50$ & $95.89 \pm 1.55$ \\
+TwoRoom & $0.06$ & $96.00 \pm 1.70$ & $95.78 \pm 1.55$ \\
+TwoRoom & $0.07$ & $96.44 \pm 0.63$ & $96.44 \pm 0.31$ \\
+TwoRoom & $0.08$ & $97.22 \pm 0.83$ & $97.11 \pm 0.57$ \\
+\addlinespace[2pt]
+PushT & $0.00$ & $81.78 \pm 4.89$ & $7.22 \pm 5.81$ \\
+PushT & $0.01$ & $85.89 \pm 1.50$ & $37.89 \pm 12.37$ \\
+PushT & $0.02$ & $87.33 \pm 0.72$ & $62.67 \pm 11.98$ \\
+PushT & $0.03$ & $89.67 \pm 0.00$ & $82.44 \pm 1.66$ \\
+PushT & $0.04$ & $89.11 \pm 0.83$ & $86.56 \pm 0.16$ \\
+PushT & $0.05$ & $84.00 \pm 3.03$ & $81.11 \pm 3.03$ \\
+PushT & $0.06$ & $88.22 \pm 1.34$ & $86.78 \pm 0.63$ \\
+PushT & $0.07$ & $86.44 \pm 0.87$ & $84.00 \pm 0.27$ \\
+PushT & $0.08$ & $86.89 \pm 1.59$ & $85.78 \pm 3.45$ \\
+\addlinespace[2pt]
+Reacher & $0.00$ & $59.22 \pm 1.03$ & $18.22 \pm 0.42$ \\
+Reacher & $0.01$ & $62.67 \pm 1.19$ & $44.56 \pm 2.57$ \\
+Reacher & $0.02$ & $77.00 \pm 6.18$ & $70.33 \pm 9.46$ \\
+Reacher & $0.03$ & $78.22 \pm 1.66$ & $76.78 \pm 4.17$ \\
+Reacher & $0.04$ & $81.78 \pm 1.59$ & $80.56 \pm 1.03$ \\
+Reacher & $0.05$ & $76.44 \pm 4.57$ & $77.78 \pm 5.67$ \\
+Reacher & $0.06$ & $82.22 \pm 2.79$ & $80.67 \pm 1.19$ \\
+Reacher & $0.07$ & $82.11 \pm 2.20$ & $83.33 \pm 1.09$ \\
+Reacher & $0.08$ & $81.33 \pm 2.33$ & $81.56 \pm 0.87$ \\
+\addlinespace[2pt]
+Cube & $0.00$ & $65.22 \pm 1.10$ & $43.11 \pm 3.27$ \\
+Cube & $0.01$ & $66.78 \pm 1.81$ & $48.78 \pm 0.31$ \\
+Cube & $0.02$ & $63.67 \pm 2.62$ & $56.67 \pm 3.07$ \\
+Cube & $0.03$ & $64.56 \pm 1.66$ & $66.00 \pm 1.70$ \\
+Cube & $0.04$ & $68.11 \pm 1.03$ & $64.11 \pm 0.83$ \\
+Cube & $0.05$ & $62.67 \pm 3.40$ & $63.56 \pm 2.53$ \\
+Cube & $0.06$ & $66.00 \pm 1.19$ & $64.89 \pm 1.85$ \\
+Cube & $0.07$ & $64.67 \pm 2.16$ & $65.22 \pm 1.55$ \\
+Cube & $0.08$ & $61.67 \pm 3.57$ & $62.56 \pm 1.55$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Perturbing both streams is generally harsher for TwoRoom, PushT, and Reacher, while Cube is within the observed training-seed variation. The main experiments keep the goal image clean so that the endpoint isolates robustness to corrupted observations rather than changing both the current observation and the target descriptor.
+\paragraph{Auxiliary observation+goal stress.} The main endpoint keeps the goal image clean to isolate corrupted observations. The auxiliary table below perturbs both observation and goal streams at $\sigma=0.08$ for the no-noise checkpoint and the fixed \stdmax{} $=0.08$ checkpoint; it is a harder stress condition, not a separate core diagnostic.
+
+\begin{table}[H]
+\centering
+\caption{Auxiliary observation+goal Gaussian evaluation at $\sigma=0.08$. Values are mean $\pm$ population std across training seeds 3072/3073/3074; each training-seed value averages evaluation seeds 42/43/44 with 100 trajectories per evaluation seed.}
+\label{tab:appendix-observation-goal-gaussian}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lrr}
+\toprule
+Task & no-noise ckpt & \stdmax{} $=0.08$ ckpt \\
+\midrule
+TwoRoom & $53.56 \pm 2.57$ & $97.56 \pm 0.83$ \\
+PushT & $4.89 \pm 1.64$ & $85.11 \pm 1.91$ \\
+Reacher & $13.78 \pm 1.50$ & $82.22 \pm 2.38$ \\
+Cube & $45.78 \pm 0.79$ & $62.11 \pm 3.25$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \end{document}

@@ -22,12 +22,13 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 | 脚本 | 作用 | 输入 | 输出 / 用途 |
 |---|---|---|---|
 | `tools/paper1_base_noise_cliff_multistd.py` | 汇总 LeWM-base 多强度 observation-only noise cliff 表 | `assets/paper1_data/training_seed_eval_manifests/lewm_seed*_evals.json` | `assets/paper1_data/base_noise_cliff_multistd_20260706.{json,md}`；主文 Table 1 的源数据 |
-| `tools/paper1_figs.py` | 渲染主文 noise-sweep 图 | `assets/paper1_data/canonical_evals_20260517.json`, `assets/paper1_data/canonical_diagnostics_20260517.json` | 默认只输出 `assets/paper1_figs/fig2_sweep.png`；已下线的 `fig3_pareto.png`, `fig4_radar.png`, `fig5_scatter.png`, `fig6_mechanism.png` 仍可用 `--only` 生成但当前不进正文 |
+| `tools/paper1_three_seed_gaussian_sweep.py` | 汇总三训练种子完整 Gaussian sweep | `assets/paper1_data/training_seed_eval_manifests/lewm_seed*_evals.json` | `assets/paper1_data/three_seed_gaussian_sweep_summary_20260706.{json,md}`；主文 Figure 1 和附录 Gaussian sweep 表的源数据 |
+| `tools/paper1_figs.py` | 渲染主文 noise-sweep 图 | `assets/paper1_data/three_seed_gaussian_sweep_summary_20260706.json` | 默认只输出 `assets/paper1_figs/fig2_sweep.png`；已下线的 `fig3_pareto.png`, `fig4_radar.png`, `fig5_scatter.png`, `fig6_mechanism.png` 仍可用 `--only` 生成但当前不进正文 |
 | `tools/paper1_atr_smpr_figure.py` | Legacy diagnostic-plane renderer | `assets/paper1_data/compressed_metrics_summary_20260706.json` | 当前主文使用 ATR/SMPR 表，不再引用 diagnostic-plane 图 |
 | `tools/paper1_feature_neighborhood_figure.py` | Legacy PCA-style feature-neighborhood renderer | cached PushT feature arrays, compressed metric summary | 当前主文使用 `tools/paper1_selective_contraction.py --cluster-paper-facing` 生成 ACPC neighborhood t-SNE 图；该 legacy renderer 不再作为主文图源 |
 | `tools/build_partial_corr_bootstrap.py` | 为 partial Spearman 相关计算 95% percentile bootstrap CI | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/partial_corr_bootstrap_20260523.json`，用于主文 partial-correlation tables 和 PLDM appendix |
 | `tools/pldm_correlation_analysis.py` | 复算 LeWM/PLDM within-method 与 joint partial correlation | LeWM/PLDM canonical eval + diagnostics artifact | `assets/paper1_data/cross_method_corr_pldm_20260522.json`，用于 PLDM appendix 和 consistency checker |
-| `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / rollout-readout radius / contraction | LeWM/PLDM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；PLDM appendix 的 full-sweep replication 用 `assets/paper1_data/acpc_basin_diagnostics_pldm.json` |
+| `tools/paper1_acpc_basin.py` | Paper-facing Gaussian-noise ACPC basin runner：dense std 0.01--0.08 same-state views，统计 encoder radius / rollout-feature radius / contraction | LeWM/PLDM canonical eval manifest + 本地 epoch-10 model object checkpoints | `assets/paper1_data/acpc_basin_diagnostics.json`；PLDM appendix 的 full-sweep replication 用 `assets/paper1_data/acpc_basin_diagnostics_pldm.json` |
 | `tools/paper1_phase0_acpc.py` | 低频 paired ACPC 诊断 runner：ACPC-1/H、PCC、CRA、MAF、ADM proxy、SPRR | LeWM/PLDM canonical eval manifest + 本地 loadable model checkpoints | `assets/paper1_data/acpc_phase0_clean_goal_seed9101.json`；three-seed LeWM run 输出 `assets/paper1_data/acpc_phase0_lewm_three_seed.json`，旧 `acpc_phase0_diagnostics.json` 仅作 observation+goal archived sanity |
 | `tools/paper1_training_seed_eval_manifests.py` | 生成 LeWM seed 3072/3073/3074 的 canonical-shaped eval manifests | canonical seed-3072 JSON + seed3073/3074 checkpoint `eval_summary.csv` | `assets/paper1_data/training_seed_eval_manifests/lewm_seed*_evals.json` |
 | `tools/paper1_three_seed_diagnostic_validation.py` | 固定 ACPC/PCC/CRA/MAF rank rule 并汇总 three-seed full-grid validation | `assets/paper1_data/acpc_phase0_lewm_three_seed.json` | `assets/paper1_data/three_seed_diagnostic_validation.json` / `.md` |
@@ -41,6 +42,7 @@ rg -n "Overfull|undefined references|Citation .* undefined|Reference .* undefine
 
 ```bash
 python -m tools.paper1_base_noise_cliff_multistd
+python -m tools.paper1_three_seed_gaussian_sweep
 
 python -m tools.paper1_figs --out-dir assets/paper1_figs
 
@@ -182,7 +184,7 @@ groups are `pixels_blur_ks15` and `pixels_rs_factor0.25`.
 
 Interpretation: TwoRoom is a strong positive seed-3072 pilot signal. Reacher is
 also positive, but part of the gain is a better origin checkpoint, so the
-drop-improvement columns are the cleaner robustness readout. PushT and Cube have score movements small enough to read as no clear effect
+drop-improvement columns give the cleaner robustness comparison. PushT and Cube have score movements small enough to read as no clear effect
 under this strongest-only check. This supports a task-dependent transfer reading,
 not a universal cross-perturbation robustness claim; keep it out of paper-facing
 claims until independent training seeds are evaluated.

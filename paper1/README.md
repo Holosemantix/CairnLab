@@ -27,11 +27,12 @@ bash build.sh           # builds main.pdf
 bash build.sh --clean   # remove intermediates first
 ```
 
-To regenerate the script-generated main table artifact and figures before building:
+To regenerate the script-generated main data artifacts and figures before building:
 
 ```bash
 cd ..
 python -m tools.paper1_base_noise_cliff_multistd
+python -m tools.paper1_three_seed_gaussian_sweep
 python -m tools.paper1_figs --out-dir assets/paper1_figs
 OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/mplconfig \
 python -m tools.paper1_selective_contraction \

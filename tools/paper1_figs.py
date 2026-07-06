@@ -18,7 +18,8 @@ LaTeX caption is the single source of truth and figure numbers cannot drift.
 
 Data sources (no new computation needed):
 
-- Eval tables (§4.2, §4.3): assets/paper1_data/canonical_evals_20260517.json
+- Main sweep figure (§5.2): assets/paper1_data/three_seed_gaussian_sweep_summary_20260706.json
+- Legacy eval tables / archival figures: assets/paper1_data/canonical_evals_20260517.json
 - Diagnostic tables / scatter rollout metrics:
   assets/paper1_data/canonical_diagnostics_20260517.json
 """
@@ -43,6 +44,10 @@ import numpy as np
 SWEEP_STDS = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
 ROBUST_EVAL_METRIC = "pixels_std0.08"
 ROBUST_EVAL_LABEL = r"Eval: observation noise $\sigma=0.08$ (unperturbed goal)"
+THREE_SEED_SWEEP_SUMMARY = (
+    Path(__file__).resolve().parent.parent
+    / "assets" / "paper1_data" / "three_seed_gaussian_sweep_summary_20260706.json"
+)
 
 # §4.4 Table 3 — 6 diagnostic metrics × {base, fixed 0.08} × 4 tasks
 # Metric order chosen so "compression" metrics group on one side of the radar.
@@ -75,6 +80,21 @@ _CANONICAL_EVALS_CACHE: Dict[str, Dict] = {}
 _CANONICAL_TABLES_CACHE: Dict[str, Dict] = {}
 _CANONICAL_DIAGNOSTICS_CACHE: Dict[str, Dict] = {}
 _CANONICAL_DIAG_TABLES_CACHE: Dict[str, Dict] = {}
+_THREE_SEED_SWEEP_CACHE: Dict[str, Dict] = {}
+
+
+def _load_three_seed_sweep_summary() -> Dict:
+    """Load the three-training-seed Gaussian sweep summary artifact."""
+    if _THREE_SEED_SWEEP_CACHE:
+        return _THREE_SEED_SWEEP_CACHE
+    if not THREE_SEED_SWEEP_SUMMARY.exists():
+        raise FileNotFoundError(
+            f"Missing three-seed sweep summary: {THREE_SEED_SWEEP_SUMMARY}. "
+            "Run `python -m tools.paper1_three_seed_gaussian_sweep` first."
+        )
+    with THREE_SEED_SWEEP_SUMMARY.open("r", encoding="utf-8") as f:
+        _THREE_SEED_SWEEP_CACHE.update(json.load(f))
+    return _THREE_SEED_SWEEP_CACHE
 
 
 def _load_canonical_evals() -> Dict:
@@ -195,16 +215,24 @@ def _canonical_diag_tables() -> Dict[str, Dict]:
 # ============================================================================
 
 def fig2_sweep(out_path: Path):
-    tables = _canonical_eval_tables()
-    sweep = tables["sweep"]
-    tasks = tables["tasks"]
+    payload = _load_three_seed_sweep_summary()
+    tasks = payload["metadata"].get("tasks", ["TwoRoom", "PushT", "Reacher", "Cube"])
+    rows_by_task = {task: {} for task in tasks}
+    for row in payload["summary_rows"]:
+        rows_by_task[row["task"]][float(row["stdmax"])] = row
+
     fig, axes = plt.subplots(1, 4, figsize=(13, 3.7), sharey=True)
     for ax, t in zip(axes, tasks):
-        ax.errorbar(SWEEP_STDS, sweep[t]["clean"], yerr=sweep[t]["clean_std"],
+        rows = rows_by_task[t]
+        clean = [rows[std]["metrics"]["clean"]["mean"] for std in SWEEP_STDS]
+        clean_std = [rows[std]["metrics"]["clean"]["pstdev"] for std in SWEEP_STDS]
+        px08 = [rows[std]["metrics"]["obs_sigma_0.08"]["mean"] for std in SWEEP_STDS]
+        px08_std = [rows[std]["metrics"]["obs_sigma_0.08"]["pstdev"] for std in SWEEP_STDS]
+        ax.errorbar(SWEEP_STDS, clean, yerr=clean_std,
                     fmt="o-", color="#4477AA",
                     label="Eval: unperturbed images",
                     linewidth=1.7, markersize=4.5, capsize=2.2, elinewidth=0.85)
-        ax.errorbar(SWEEP_STDS, sweep[t]["px08"], yerr=sweep[t]["px08_std"],
+        ax.errorbar(SWEEP_STDS, px08, yerr=px08_std,
                     fmt="s-", color="#EE6677",
                     label=ROBUST_EVAL_LABEL,
                     linewidth=1.7, markersize=4.5, capsize=2.2, elinewidth=0.85)
@@ -216,7 +244,6 @@ def fig2_sweep(out_path: Path):
         ax.grid(alpha=0.3, linewidth=0.5)
         ax.tick_params(labelsize=9.5)
     axes[0].set_ylabel("Success rate (%)", fontsize=10.5)
-    # Shared legend above the panels so the two evaluation curves are unambiguous.
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center",
                bbox_to_anchor=(0.5, 1.04), ncol=2,

@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 RELEASE_FILES = [
     # PDF-facing text gate. Legacy diagnostics remain in repository artifacts,
-    # but the compressed Paper1 PDF must not re-import them into the main claim.
+    # but Paper1 must not re-import them into the main claim.
     ROOT / "paper1" / "main.tex",
 ]
 
@@ -86,6 +86,8 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "compressed_metrics_summary_20260706.md",
     ROOT / "assets" / "paper1_data" / "base_noise_cliff_multistd_20260706.json",
     ROOT / "assets" / "paper1_data" / "base_noise_cliff_multistd_20260706.md",
+    ROOT / "assets" / "paper1_data" / "three_seed_gaussian_sweep_summary_20260706.json",
+    ROOT / "assets" / "paper1_data" / "three_seed_gaussian_sweep_summary_20260706.md",
     ROOT / "assets" / "paper1_figs" / "fig_acpc_basin_tsne.png",
     ROOT / "DATA_MANIFEST.md",
 ]
@@ -94,9 +96,13 @@ REQUIRED_ARTIFACTS = [
 REQUIRED_MAIN_TEXT_SNIPPETS = [
     "ACPC Tail Risk (ATR)",
     "Selective Margin Pass Rate (SMPR)",
-    "The compressed diagnostic keeps only the two empirical quantities",
+    "The reported diagnostic uses two metrics matched to this logic",
+    "This is a fixed empirical reporting choice, not a theoretical constant",
+    "The same guard can be posed over state--action pairs",
     "Thus low ATR without high SMPR is not interpreted as robustness",
-    "Compressed selective-ACPC diagnostics",
+    "Three-training-seed LeWM Gaussian sweep",
+    "Because \Cref{fig:sweep} already aggregates the full sweep across three training seeds",
+    "ATR/SMPR selective-ACPC diagnostics",
     "Qualitative PushT ACPC neighborhood t-SNE visualization",
     "ATR base",
     "SMPR std0.08",
@@ -107,8 +113,12 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "closest 35\% state-distance neighborhood",
     "hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation",
     "These proofs calibrate ATR and SMPR",
+    "Additional Gaussian Evaluation Tables",
+    "These tables give compact exact summaries for the three-training-seed Gaussian sweep",
+    "Auxiliary observation+goal stress",
     "Future methods can turn ATR/SMPR into objectives",
 ]
+
 
 
 
@@ -186,6 +196,13 @@ REQUIRED_METRICS = {
     "pixels_std0.08",
     "pixels_goal_std0.05",
     "pixels_goal_std0.08",
+}
+THREE_SEED_SWEEP_METRICS = {
+    "clean",
+    "obs_sigma_0.03",
+    "obs_sigma_0.05",
+    "obs_sigma_0.08",
+    "obs_goal_sigma_0.08",
 }
 REQUIRED_DIAG_TASKS = EXPECTED_TASKS
 EXPECTED_METHODS = {"LeWM", "PLDM"}
@@ -273,6 +290,22 @@ def check_forbidden_text() -> None:
         "appendix-unseen-transfer",
         "unseen-score-three-seed-appendix",
         "drop impr.",
+        "In experiments, ATR uses the 90th percentile",
+        "Action-relevant discriminability (countercondition)",
+        "The compressed diagnostic keeps",
+        "Compressed selective-ACPC",
+        "tab:training-seed-gaussian-lockbox",
+        "best obs",
+        "std0.08 gap",
+        "point-best",
+        "point-optimal",
+        "full seed-3072 Gaussian sweep",
+        "population standard deviation across the three evaluation seeds",
+        "Auxiliary Observation+Goal Gaussian Stress",
+        "appendix-unseen-transfer",
+        "appendix-obs-goal",
+        "Replanning union bound",
+        "Selective ACPC pseudo-metric",
     ]
     for snippet in main_forbidden:
         if snippet in main_tex:
@@ -1084,6 +1117,86 @@ def check_partial_corr_bootstrap_json() -> None:
         data, "Reacher", "within_lewm", "drift", "partial_metric_drop_on_std",
         0.37, (-0.35, 0.99),
     )
+
+
+def check_three_seed_gaussian_sweep_summary_json() -> None:
+    path = ROOT / "assets" / "paper1_data" / "three_seed_gaussian_sweep_summary_20260706.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    meta = data.get("metadata", {})
+    if meta.get("schema_version") != "paper1-three-seed-gaussian-sweep-summary-20260706-v1":
+        fail(f"three-seed Gaussian sweep schema changed: {meta.get('schema_version')!r}")
+    if meta.get("tasks") != ["TwoRoom", "PushT", "Reacher", "Cube"]:
+        fail(f"three-seed Gaussian sweep task order changed: {meta.get('tasks')}")
+    if meta.get("training_seeds") != [3072, 3073, 3074]:
+        fail(f"three-seed Gaussian sweep seeds changed: {meta.get('training_seeds')}")
+    if set(meta.get("sweep_stdmax", [])) != EXPECTED_CONFIGS:
+        fail(f"three-seed Gaussian sweep std grid changed: {meta.get('sweep_stdmax')}")
+    if set(meta.get("metric_keys", {})) != THREE_SEED_SWEEP_METRICS:
+        fail(f"three-seed Gaussian sweep metric keys changed: {meta.get('metric_keys')}")
+
+    summary_rows = data.get("summary_rows", [])
+    per_seed_rows = data.get("per_seed_rows", [])
+    if len(summary_rows) != len(EXPECTED_TASKS) * len(EXPECTED_CONFIGS):
+        fail(f"three-seed Gaussian sweep expected 36 summary rows, got {len(summary_rows)}")
+    if len(per_seed_rows) != len(EXPECTED_TASKS) * len(EXPECTED_CONFIGS) * 3:
+        fail(f"three-seed Gaussian sweep expected 108 per-seed rows, got {len(per_seed_rows)}")
+
+    per_seed = {}
+    for row in per_seed_rows:
+        key = (row.get("task"), str(row.get("stdmax")), int(row.get("training_seed")))
+        if key in per_seed:
+            fail(f"duplicate three-seed Gaussian per-seed row: {key}")
+        if key[0] not in EXPECTED_TASKS or key[1] not in EXPECTED_CONFIGS or key[2] not in (3072, 3073, 3074):
+            fail(f"unexpected three-seed Gaussian per-seed key: {key}")
+        metrics = row.get("metrics", {})
+        if set(metrics) != THREE_SEED_SWEEP_METRICS:
+            fail(f"three-seed Gaussian per-seed metrics changed for {key}: {sorted(metrics)}")
+        for metric, cell in metrics.items():
+            values = cell.get("eval_seed_values", [])
+            if not isinstance(values, list) or len(values) != 3:
+                fail(f"three-seed Gaussian {key}/{metric} must contain three eval-seed values")
+            if not all(isinstance(v, (int, float)) for v in values):
+                fail(f"three-seed Gaussian {key}/{metric} has non-numeric eval-seed values")
+            mean = statistics.fmean(values)
+            if not math.isclose(float(cell.get("mean_over_eval_seeds")), mean, rel_tol=0.0, abs_tol=1e-6):
+                fail(f"three-seed Gaussian {key}/{metric} eval-seed mean mismatch")
+        per_seed[key] = row
+
+    summary = {}
+    for row in summary_rows:
+        key = (row.get("task"), str(row.get("stdmax")))
+        if key in summary:
+            fail(f"duplicate three-seed Gaussian summary row: {key}")
+        if key[0] not in EXPECTED_TASKS or key[1] not in EXPECTED_CONFIGS:
+            fail(f"unexpected three-seed Gaussian summary key: {key}")
+        if row.get("training_seeds") != [3072, 3073, 3074] or row.get("n_training_seeds") != 3:
+            fail(f"three-seed Gaussian summary row must use seeds 3072/3073/3074: {key}")
+        metrics = row.get("metrics", {})
+        if set(metrics) != THREE_SEED_SWEEP_METRICS:
+            fail(f"three-seed Gaussian summary metrics changed for {key}: {sorted(metrics)}")
+        for metric, cell in metrics.items():
+            values = [
+                float(per_seed[(key[0], key[1], seed)]["metrics"][metric]["mean_over_eval_seeds"])
+                for seed in (3072, 3073, 3074)
+            ]
+            if [round(float(v), 6) for v in cell.get("per_training_seed_means", [])] != [round(v, 6) for v in values]:
+                fail(f"three-seed Gaussian {key}/{metric} per-training-seed means mismatch")
+            if not math.isclose(float(cell.get("mean")), statistics.fmean(values), rel_tol=0.0, abs_tol=1e-6):
+                fail(f"three-seed Gaussian {key}/{metric} mean mismatch")
+            if not math.isclose(float(cell.get("pstdev")), statistics.pstdev(values), rel_tol=0.0, abs_tol=1e-6):
+                fail(f"three-seed Gaussian {key}/{metric} pstdev mismatch")
+        summary[key] = row
+
+    expected_obs08 = {
+        "TwoRoom": 97.11,
+        "PushT": 85.78,
+        "Reacher": 81.56,
+        "Cube": 62.56,
+    }
+    for task, want in expected_obs08.items():
+        got = round2(float(summary[(task, "0.08")]["metrics"]["obs_sigma_0.08"]["mean"]))
+        if got != want:
+            fail(f"three-seed Gaussian std=0.08 obs endpoint changed for {task}: {got} != {want}")
 
 
 def check_training_seed_gaussian_lockbox_json() -> None:
@@ -1945,6 +2058,7 @@ def main() -> int:
         ("compressed metrics summary json", check_compressed_metrics_summary_json),
         ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
         ("training-seed Gaussian lockbox json", check_training_seed_gaussian_lockbox_json),
+        ("three-seed Gaussian sweep summary json", check_three_seed_gaussian_sweep_summary_json),
         ("three-seed diagnostic validation json", check_three_seed_diagnostic_validation_json),
         ("selector-baseline audit json", check_selector_baseline_audit_json),
         ("selector plateau audit json", check_selector_plateau_audit_json),

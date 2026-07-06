@@ -12,8 +12,6 @@ Short form:
 
 The main target is **not** marginal distribution matching and not only raw latent closeness. The main target is agreement **after the transported latent is rolled out by the predictor under the same action sequence**, in the same diagnostic space that defines ATR.
 
----
-
 ## 1. How this connects to Paper1 theory and diagnostics
 
 ### 1.1 Paper1 diagnostic target
@@ -107,8 +105,6 @@ Do **not** write that encoder geometry is unimportant. Better wording:
 
 Therefore ACPC-Flow should use raw latent matching as a baseline/anchor, but the main criterion must be diagnostic-space predictive matching.
 
----
-
 ## 2. What Flow Matching means here
 
 This method should not claim generic image-generation Flow Matching unless the code implements a full time-conditioned ODE/vector field. The safer description is:
@@ -171,9 +167,98 @@ T_\phi(\tilde z)=\tilde z+v_\phi(\tilde z,0).
 
 Do **not** implement the time-conditioned version until the one-step residual version has working tests and offline diagnostics.
 
----
+## 3. Important architecture change: expose `info["emb_trans"]` in `encode()`
 
-## 3. Three core objective variants that must be compared
+The preferred implementation is **not** to keep transport as an external temporary call only. Instead, make `encode()` expose both the canonical LeWM latent and the transported latent:
+
+```python
+output = self.encoder(pixels, interpolate_pos_encoding=True)
+pixels_emb = output.last_hidden_state[:, 0]
+emb = self.projector(pixels_emb)
+info["emb"] = rearrange(emb, "(b t) d -> b t d", b=b)
+info["emb_trans"] = self.transport_emb(info["emb"])
+```
+
+where `transport_emb()` returns identity when no ACPC-Flow head is attached or transport is disabled.
+
+### 3.1 Why this is better than an external-only post-projector call
+
+1. `info["emb"]` remains the exact original LeWM projected latent.
+2. `info["emb_trans"]` becomes the stable interface for all future ACPC-Flow training/eval paths.
+3. Training can compare `emb`, `emb_trans`, and transported noisy/source latents cleanly.
+4. Inference can later switch predictor input from `emb` to `emb_trans` with a config flag, without rewriting all downstream code.
+5. Diagnostic scripts can read both fields from the same encoded batch and compute before/after ATR, rank flip, and neighborhood crossing.
+
+### 3.2 Non-breaking contract
+
+Do **not** replace `info["emb"]` by default. Existing LeWM behavior must remain unchanged when ACPC-Flow is disabled.
+
+Required behavior:
+
+```python
+class JEPA(nn.Module):
+    def transport_emb(self, emb):
+        head = getattr(self, "acpc_flow_head", None)
+        enabled = bool(getattr(self, "acpc_flow_enabled", False))
+        if head is None or not enabled:
+            return emb
+        return head(emb)
+```
+
+Then in `encode()`:
+
+```python
+info["emb"] = emb
+info["emb_trans"] = self.transport_emb(info["emb"])
+```
+
+`emb_trans` may share storage with `emb` in the disabled path; no `.clone()` is required unless a later mutation requires it.
+
+### 3.3 Predictor input selection
+
+Add a model/config-level selector:
+
+```yaml
+loss:
+  acpc_flow:
+    predictor_input_key: emb_trans  # emb | emb_trans
+```
+
+During training, when ACPC-Flow is enabled, the main prediction context may use `emb_trans`:
+
+```python
+ctx_emb = output[predictor_input_key][:, :ctx_len]
+```
+
+Keep the clean target branch anchored to the canonical clean `emb` unless explicitly testing another ablation:
+
+```python
+tgt_emb = output["emb"][:, n_preds:]
+```
+
+This makes the method end-to-end: the flow head is actually in the predictor path, while the target remains the original clean latent/predictive reference.
+
+### 3.4 Inference selection, second step
+
+Add later, after training losses pass tests:
+
+```yaml
+wm:
+  inference:
+    embedding_key: emb_trans  # default emb
+```
+
+In `rollout()` and `get_cost()`, use:
+
+```python
+key = getattr(self, "inference_embedding_key", "emb")
+init_emb = _init.get(key, _init["emb"])
+goal_emb = goal.get(key, goal["emb"])
+```
+
+Do not make this the first blocking change if it slows Codex down; but the `encode()` interface should be added now so training and offline diagnostics use the same fields.
+
+## 4. Three core objective variants that must be compared
 
 The whole point is to show that ACPC diagnostic-space transport is not the same as raw latent transport.
 
@@ -244,16 +329,21 @@ Use the existing `self_bounded_aux_loss(base_loss, aux_raw)` pattern in `train.p
 
 Do not combine all three variants in one run.
 
----
+## 5. Source latent construction
 
-## 4. Source latent construction
+### 5.1 Clean-only source, strongest claim
 
-### 4.1 Clean-only source, strongest claim
-
-Use synthetic local latent perturbation:
+Use synthetic local latent perturbation around the canonical clean `emb`:
 
 \[
-\tilde z=z+\epsilon.
+\tilde z=z+\epsilon,
+\qquad z=\texttt{info["emb"]}.
+\]
+
+Then transport it using the same head that defines `emb_trans`:
+
+\[
+T_\phi(\tilde z)=\texttt{model.transport_emb}(z+\epsilon).
 \]
 
 No pixel corruption is used during training. This is the strongest method claim:
@@ -273,7 +363,7 @@ noise:
 
 Use local bounded noise. Do not claim coverage of arbitrary perturbations.
 
-### 4.2 Pixel-paired source, baseline only
+### 5.2 Pixel-paired source, baseline only
 
 Use paired clean/pixel-corrupted views:
 
@@ -283,15 +373,13 @@ Use paired clean/pixel-corrupted views:
 
 This is easier but weakens the claim because it uses a specified pixel corruption family. Use it only as a baseline or debugging mode.
 
-### 4.3 Do not tune on target corruptions for generalization claims
+### 5.3 Do not tune on target corruptions for generalization claims
 
 If `std/blur/resize` corruptions are used to choose source noise or weights, do not call those corruptions held-out. For strongest claims, choose latent noise scale from clean latent statistics only, then evaluate on Gaussian/blur/resize/JPEG as held-out stressors.
 
----
+## 6. Minimal experiment design
 
-## 5. Minimal experiment design
-
-### 5.1 Models / training variants
+### 6.1 Models / training variants
 
 Run at least these:
 
@@ -312,7 +400,7 @@ If parameter-count criticism matters, add:
 | P1 | random frozen transport head | rules out architecture-only improvement |
 | P2 | same-param transport trained with only identity loss | controls for extra parameters |
 
-### 5.2 Tasks
+### 6.2 Tasks
 
 Start with:
 
@@ -322,7 +410,7 @@ Start with:
 
 Add Cube after offline diagnostics show signal.
 
-### 5.3 Evaluation corruptions
+### 6.3 Evaluation corruptions
 
 Minimum:
 
@@ -333,7 +421,7 @@ Minimum:
 - resize 0.25 or 0.5;
 - optional JPEG/brightness/compression if already supported.
 
-### 5.4 Required diagnostics
+### 6.4 Required diagnostics
 
 For each trained checkpoint:
 
@@ -347,7 +435,7 @@ For each trained checkpoint:
 5. Clean prediction loss and clean closed-loop success.
 6. Parameter count and training overhead.
 
-### 5.5 Success criteria
+### 6.5 Success criteria
 
 Promote ACPC-Flow only if:
 
@@ -366,13 +454,11 @@ No-go if:
 - gains only appear in one task or one eval seed;
 - same-budget longer LeWM training matches the gains.
 
----
-
-## 6. Offline feasibility before expensive CEM eval
+## 7. Offline feasibility before expensive CEM eval
 
 Before full closed-loop eval, run offline paired diagnostics.
 
-### 6.1 Coverage analysis
+### 7.1 Coverage analysis
 
 For clean observations `o` and diagnostic-only corruptions `T(o)`, compute:
 
@@ -390,7 +476,7 @@ Compare:
 
 If pixel-corruption-induced shifts are much larger than planned latent perturbation radius or align with task-neighbor directions, clean-only latent perturbation may not work. Record this before training.
 
-### 6.2 Transport repair check
+### 7.2 Transport repair check
 
 After training M1/M2/M3, evaluate on clean/corrupt pairs not used in training:
 
@@ -407,13 +493,11 @@ should reduce:
 
 It must not reduce SMPR.
 
-Only run expensive CEM eval if offline ATR/rank/crossing improves.
+Only run expensive CEM eval if offline ATR/rank/crossing improve.
 
----
+## 8. Codex implementation guide
 
-## 7. Codex implementation guide
-
-### 7.1 Current code facts
+### 8.1 Current code facts
 
 `jepa.py` currently computes encoder CLS features and immediately applies `self.projector`:
 
@@ -428,28 +512,28 @@ info["emb"] = rearrange(emb, "(b t) d -> b t d", b=b)
 
 `train.py` already has paired-view infrastructure, `mse_token`, `get_pred_loss_tensor`, and `self_bounded_aux_loss`. It also has `snap_acpc` and `generic_latent_consistency` code paths that are useful templates.
 
-### 7.2 First implementation scope
+### 8.2 First implementation scope
 
-Implement only post-projector latent transport first because `emb` already exists.
+Implement ACPC-Flow as a transported-embedding path:
 
-Do **not** modify CEM, eval policy, or data loaders.
+```text
+emb         = original projected LeWM latent
+emb_trans   = transport_emb(emb)
+```
 
 Files to add/modify:
 
 ```text
 acpc_flow.py                       # new helpers / transport head
+jepa.py                            # add transport_emb() and info["emb_trans"]
 train.py                           # integrate loss into lejepa_forward
 config/train/lewm.yaml             # add loss.acpc_flow config block
 scripts or tools optional          # offline diagnostic script if easy
 ```
 
-Optional later:
+Do not modify CEM for this PR.
 
-```text
-jepa.py                            # expose pre-projector encoder feature if needed
-```
-
-### 7.3 New module: `acpc_flow.py`
+### 8.3 New module: `acpc_flow.py`
 
 Create:
 
@@ -476,11 +560,9 @@ def diagnostic_distance(pred_a, pred_b, *, normalize=None, tail_mode="mean", q=0
 
 Keep these functions pure and unit-testable.
 
-### 7.4 Attach transport head to model
+### 8.4 Attach transport head to model
 
-Preferred minimal route:
-
-- in `train.py` model construction, if `cfg.loss.acpc_flow.enabled`, attach:
+In model construction, if `cfg.loss.acpc_flow.enabled`, attach:
 
 ```python
 model.acpc_flow_head = ResidualTransportHead(
@@ -488,13 +570,40 @@ model.acpc_flow_head = ResidualTransportHead(
     hidden_dim=cfg.loss.acpc_flow.hidden_dim,
     scale_init=cfg.loss.acpc_flow.scale_init,
 )
+model.acpc_flow_enabled = True
+model.acpc_flow_predictor_input_key = cfg.loss.acpc_flow.predictor_input_key
 ```
 
-Make sure it is included in optimizer parameters automatically because it is a submodule of `model`.
+If disabled:
 
-If model construction is hard to edit, attach it in the Lightning module initialization path, but saving/loading object checkpoints is cleaner if it lives on `model`.
+```python
+model.acpc_flow_enabled = False
+```
 
-### 7.5 Config block
+### 8.5 Modify `JEPA.encode()`
+
+Required patch shape:
+
+```python
+emb = self.projector(pixels_emb)
+emb = rearrange(emb, "(b t) d -> b t d", b=b)
+info["emb"] = emb
+info["emb_trans"] = self.transport_emb(emb)
+```
+
+Add:
+
+```python
+def transport_emb(self, emb):
+    head = getattr(self, "acpc_flow_head", None)
+    if head is None or not bool(getattr(self, "acpc_flow_enabled", False)):
+        return emb
+    return head(emb)
+```
+
+Do not detach inside `transport_emb`; gradient should flow unless caller explicitly detaches source/target.
+
+### 8.6 Config block
 
 Add to `config/train/lewm.yaml`:
 
@@ -507,6 +616,7 @@ loss:
     weight: 0.1
     hidden_dim: 32
     scale_init: 0.0
+    predictor_input_key: emb_trans  # emb | emb_trans
     detach_target: true
     stop_grad_clean_branch: true
     use_bounded_aux: true
@@ -524,53 +634,64 @@ loss:
       q: 0.90
 ```
 
-### 7.6 Integrate into `lejepa_forward`
+### 8.7 Integrate into `lejepa_forward`
 
-Add after `pred_emb`, `pred_loss_emb`, `tgt_loss_emb`, and `pred_mse_loss` are available, but before final `output["loss"]` is assembled.
-
-Pseudo-code:
+After `output = self.model.encode(...)`, use the configured predictor input key when ACPC-Flow is enabled:
 
 ```python
 flow_cfg = cfg.loss.get("acpc_flow", {})
-if flow_cfg.get("enabled", False):
-    ctx_clean = ctx_emb
-    ctx_act = ctx_act
+flow_enabled = bool(flow_cfg.get("enabled", False))
+pred_input_key = flow_cfg.get("predictor_input_key", "emb_trans") if flow_enabled else "emb"
 
-    # source branch
-    if flow_cfg.get("source", "latent_noise") == "latent_noise":
-        noise = sample_latent_noise(ctx_clean.detach() if detach_source else ctx_clean, ...)
-        source_ctx = ctx_clean + noise
-    elif flow_cfg.get("source") == "pixel_paired":
-        # optional baseline only; reuse existing paired-view infrastructure if available
-        source_ctx = noisy_or_perturbed_ctx
+emb = output["emb"]
+emb_trans = output.get("emb_trans", emb)
+ctx_emb = output[pred_input_key][:, :ctx_len]
+```
+
+Keep target anchored to canonical clean `emb`:
+
+```python
+tgt_emb = output["emb"][:, n_preds:]
+```
+
+Then add variant-specific auxiliary loss after `pred_mse_loss` exists:
+
+```python
+if flow_enabled:
+    clean_ctx = output["emb"][:, :ctx_len]
+    clean_ctx_trans = output.get("emb_trans", output["emb"])[:, :ctx_len]
+
+    if source == "latent_noise":
+        noise = sample_latent_noise(clean_ctx, ...)
+        source_ctx = clean_ctx + noise
+    elif source == "pixel_paired":
+        source_ctx = paired_or_noisy_ctx
     else:
         raise ValueError(...)
 
-    transported_ctx = self.model.acpc_flow_head(source_ctx)
+    transported_ctx = self.model.transport_emb(source_ctx)
 
-    mode = flow_cfg.get("mode", "diagnostic")
     if mode == "latent_z":
-        raw = mse_token(transported_ctx, ctx_clean.detach()).mean()
+        raw = mse_token(transported_ctx, clean_ctx.detach()).mean()
     else:
         transported_pred = self.model.predict(transported_ctx, ctx_act)
         with torch.no_grad() if stop_grad_clean_branch else nullcontext():
-            clean_pred = self.model.predict(ctx_clean, ctx_act)
+            clean_pred = self.model.predict(clean_ctx_trans, ctx_act)
+
         if mode == "predictor":
             raw = mse_token(
                 get_pred_loss_tensor(transported_pred, space=pred_space),
                 get_pred_loss_tensor(clean_pred.detach(), space=pred_space),
             ).mean()
         elif mode == "diagnostic":
-            # normalized ACPC-like discrepancy; start with one-step pred
             per_token = mse_token(
                 get_pred_loss_tensor(transported_pred, space=pred_space),
                 get_pred_loss_tensor(clean_pred.detach(), space=pred_space),
             )
             if normalize_by_transition_scale:
-                # simple first scale: clean transition target scale
                 scale = mse_token(
                     get_pred_loss_tensor(tgt_emb.detach(), space=pred_space),
-                    get_pred_loss_tensor(ctx_clean.detach(), space=pred_space),
+                    get_pred_loss_tensor(clean_ctx.detach(), space=pred_space),
                 ).mean().sqrt().clamp_min(1e-6)
                 per_token = per_token / scale.detach()
             raw = cvar_loss(per_token.reshape(-1), q=q) if tail_mode == "cvar" else per_token.mean()
@@ -584,48 +705,40 @@ if flow_cfg.get("enabled", False):
     output["pred_loss"] = output["pred_loss"] + flow_weight * aux
 ```
 
-Notes:
+### 8.8 Inference path, optional second PR
 
-- Start with horizon=1 because current `wm.num_preds=1` in the main config.
-- Multi-step rollout can be added later by recursively feeding predictions, but do not block the first implementation on it.
-- Do not train all modes at once.
-
-### 7.7 Pre-projector version, later optional
-
-If post-projector results are promising, expose encoder CLS features in `jepa.py`:
+Once training works, make `rollout()` and `get_cost()` optionally use `emb_trans`:
 
 ```python
-info["encoder_feat"] = rearrange(pixels_emb, "(b t) d -> b t d", b=b)
+key = getattr(self, "inference_embedding_key", "emb")
+init_emb = _init.get(key, _init["emb"])
+goal_emb = goal.get(key, goal["emb"])
 ```
 
-Add helper:
+Add eval override in `eval.py` later:
 
-```python
-def project_features(self, feat):
-    flat = rearrange(feat, "b t d -> (b t) d")
-    emb = self.projector(flat)
-    return rearrange(emb, "(b t) d -> b t d", b=feat.size(0))
+```yaml
+eval:
+  inference:
+    embedding_key: emb_trans
 ```
 
-Then compare:
+Do not block the first training PR on this unless Codex can implement it cleanly.
 
-- perturb post-projector `emb`;
-- perturb pre-projector `encoder_feat` and pass through `projector`;
-- transport post-projector `emb`.
-
-This addresses the question of whether the method trains predictor robustness only or actually shapes encoder/projector geometry.
-
-### 7.8 Unit tests
+### 8.9 Unit tests
 
 Add tests without MuJoCo/data:
 
 1. `ResidualTransportHead` with `scale_init=0` returns input exactly or near-exactly.
-2. `sample_latent_noise` returns correct shape and finite values.
-3. `cvar_loss` equals top-tail mean on a known tensor.
-4. `mode=latent_z`, `mode=predictor`, and `mode=diagnostic` produce scalar finite losses on dummy tensors.
-5. `self_bounded_aux_loss` path does not increase aux above base loss scale when raw aux is large.
+2. `JEPA.encode()` returns both `emb` and `emb_trans`.
+3. With no flow head or `acpc_flow_enabled=False`, `emb_trans is emb` or `allclose(emb_trans, emb)`.
+4. With a nonzero dummy flow head, `emb_trans` changes and gradients flow.
+5. `sample_latent_noise` returns correct shape and finite values.
+6. `cvar_loss` equals top-tail mean on a known tensor.
+7. `mode=latent_z`, `mode=predictor`, and `mode=diagnostic` produce scalar finite losses on dummy tensors.
+8. `self_bounded_aux_loss` path does not increase aux above base loss scale when raw aux is large.
 
-### 7.9 Training commands
+### 8.10 Training commands
 
 Latent-Z baseline:
 
@@ -673,7 +786,7 @@ python train.py data=tworoom \
   image_noise.std_max=0.08
 ```
 
-### 7.10 Logging keys
+### 8.11 Logging keys
 
 Log at minimum:
 
@@ -685,6 +798,7 @@ acpc_flow_noise_norm_mean
 acpc_flow_correction_norm_mean
 acpc_flow_transport_to_clean_l2
 acpc_flow_mode_id
+acpc_flow_pred_input_key_id
 ```
 
 For diagnostic mode:
@@ -695,9 +809,7 @@ acpc_flow_diag_q
 acpc_flow_diag_scale
 ```
 
----
-
-## 8. Analysis scripts to add after training works
+## 9. Analysis scripts to add after training works
 
 Create `tools/acpc_flow/analyze_acpc_flow_offline.py` or extend existing diagnostic scripts.
 
@@ -728,9 +840,7 @@ Fields:
 
 Do not run large CEM eval unless offline ATR/rank/crossing improve.
 
----
-
-## 9. Paper-writing frame if successful
+## 10. Paper-writing frame if successful
 
 Do not frame this as generic Flow Matching. Frame it as:
 
@@ -748,28 +858,29 @@ Main claim, only if data supports it:
 
 Do not claim universal perturbation robustness.
 
----
-
-## 10. Implementation checklist for Codex
+## 11. Implementation checklist for Codex
 
 - [ ] Add `acpc_flow.py` with residual transport head and pure helper losses.
 - [ ] Add `loss.acpc_flow` config block to `config/train/lewm.yaml`, default disabled.
 - [ ] Attach `model.acpc_flow_head` only when enabled.
+- [ ] Add `JEPA.transport_emb()` and make `JEPA.encode()` output both `emb` and `emb_trans`.
+- [ ] Add `predictor_input_key` config and use it in `lejepa_forward` when ACPC-Flow is enabled.
 - [ ] Integrate three mutually exclusive modes into `lejepa_forward`: `latent_z`, `predictor`, `diagnostic`.
 - [ ] Use `self_bounded_aux_loss` by default.
 - [ ] Keep `image_noise.std_max=0.0` for clean-only ACPC-Flow experiments.
 - [ ] Add logging keys.
-- [ ] Add unit tests for transport head, noise sampler, CVaR, and scalar loss outputs.
-- [ ] Do not modify eval/CEM for this PR.
-- [ ] Do not implement pre-projector feature transport until the post-projector version has tests and offline metrics.
+- [ ] Add unit tests for transport head, `encode()` output, noise sampler, CVaR, and scalar loss outputs.
+- [ ] Do not modify CEM for this PR.
+- [ ] Make inference `embedding_key=emb_trans` a second PR unless it is straightforward.
 
 Suggested commit message:
 
 ```text
-Add ACPC-Flow latent transport training mode
+Add ACPC-Flow transported embedding path
 
 - Add residual latent transport head and diagnostic-space loss helpers
+- Expose emb_trans from JEPA.encode while preserving canonical emb
 - Add latent_z, predictor, and diagnostic ACPC-Flow objectives
 - Wire optional loss.acpc_flow block into LeWM training
-- Add unit tests and logging for offline ATR/SMPR follow-up
+- Add tests and logging for offline ATR/SMPR follow-up
 ```

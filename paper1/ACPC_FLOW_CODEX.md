@@ -1,506 +1,452 @@
-# ACPC-Flow / Predictive Plateau Transport: method theory, feasibility audit, and Codex implementation plan
+# ACPC-Flow / Predictive Plateau Transport: theory, t-conditioned FM audit, and execution plan
 
-This document specifies the next-method direction that follows from Paper1's selective-ACPC diagnostic. It is written for Codex implementation. The goal is a **clean, testable method family**, not a loss soup.
+This document is the current working plan for the ACPC-Flow direction after the first core coverage audit. It is written for Codex execution.
 
-## 0. One-sentence method idea
+The short conclusion is:
 
-Paper1 shows that robust LeWM checkpoints occupy a **selective ACPC plateau**: same-state visual perturbations have low action-conditioned predictive tail risk (ATR), while task-grounded different-state pairs remain separated (SMPR). ACPC-Flow learns a **state-paired latent/feature transport map** that moves perturbed/off-manifold representations into the same action-conditioned predictive equivalence class as their clean representations.
+> Do not train post-projector clean-only latent-noise ACPC-Flow at scale. The core coverage audit shows that small synthetic noise in `emb` does not cover pixel-corruption-induced shifts. The next viable direction is a staged audit and small experiment around **projector-as-transport** and possibly **predictor-projector plateau**. A pure time-conditioned FM variant is only a candidate if a separate `t`-calibration audit shows that inference-time `t_start` can be chosen without clean/noisy labels.
 
-Short form:
+---
 
-> Flow/transport supplies the mechanism; ACPC supplies the success criterion.
+## 0. Current empirical status from core coverage audit
 
-The main target is **not** marginal distribution matching and not only raw latent closeness. The main target is agreement **after the transported history is rolled out by the predictor under the same action sequence**, in the same diagnostic space that defines ATR.
+Existing artifacts:
+
+```text
+assets/paper1_data/acpc_flow_coverage_tworoom_baseline_seed3073_core64.json
+assets/paper1_data/acpc_flow_coverage_tworoom_baseline_seed3073_core64.csv
+```
+
+The core64 audit used TwoRoom `baseline_seed3073` and found:
+
+### Post-projector `emb`
+
+```text
+gaussian 0.03: no_go, ratio_q90 ~= 2.266, coverage@0.04/q95 = 0, wrong_nn ~= 0.137
+gaussian 0.08: no_go, ratio_q90 ~= 7.752, coverage@0.04/q95 = 0, wrong_nn ~= 0.836
+blur k7:       no_go, ratio_q90 ~= 17.871, coverage@0.04/q95 = 0, wrong_nn ~= 0.918
+resize 0.5:    no_go, ratio_q90 ~= 16.304, coverage@0.04/q95 = 0, wrong_nn ~= 0.941
+```
+
+For `emb` Gaussian 0.03:
+
+```text
+pixel shift delta_q90 ~= 10.27
+synthetic std=0.04 radius_q95 ~= 0.70
+synthetic std=0.12 radius_q95 ~= 2.10
+```
+
+Interpretation:
+
+> `emb + epsilon` clean-only latent noise does not cover even weak Gaussian pixel corruption in the post-projector latent space. This is not a small hyperparameter issue.
+
+### Pre-projector `encoder_feat`
+
+`encoder_feat` is less hopeless for weak Gaussian but still weak:
+
+```text
+encoder_feat gaussian 0.03: low, ratio_q90 ~= 3.231, coverage@0.12/q95 ~= 0.824
+encoder_feat gaussian 0.08: no_go
+blur / resize: no_go
+```
+
+Interpretation:
+
+> The current evidence does not support broad clean-only feature-noise generalization. At most it leaves a small opening for weak Gaussian/local-sensor-noise experiments through the original encoder projector.
+
+### Immediate conclusion
+
+Do not run large ACPC-Flow training yet. First expand the audit to answer:
+
+1. Does the encoder projector `P` amplify pixel-induced shifts?
+2. Does the predictor backbone or `pred_proj` amplify residual shifts?
+3. Are candidate rankings actually affected in the same way as synthetic feature perturbations?
+4. Can a time-conditioned FM model choose a useful inference-time `t_start` without an oracle clean/noisy flag?
+
+---
 
 ## 1. Correct conceptual framing
 
-### 1.1 ACPC does not say encoder geometry is unimportant
+ACPC does **not** say encoder geometry is unimportant. The correct framing is:
 
-ACPC should be stated as an end-to-end diagnostic, not as a rejection of encoder analysis.
+> Encoder geometry is a first-stage risk signal. Same-state perturbed views should remain in the same-state predictive basin and should not cross into task-distinct neighborhoods. ACPC then asks whether the remaining encoder/projector shift changes action-conditioned predicted futures, candidate costs, and rankings. SMPR checks that this contraction does not collapse action-relevant distinctions.
 
-The correct interpretation is:
-
-> Encoder geometry is a first-stage risk signal. Same-state perturbed views should remain in the same-state predictive basin and should not cross into task-distinct neighborhoods. ACPC then asks whether the remaining encoder/projection shift changes action-conditioned predicted futures, candidate costs, and rankings. SMPR checks that the contraction does not collapse action-relevant distinctions.
-
-Thus there are two coupled dimensions:
+Thus there are two coupled requirements:
 
 1. **Neighborhood consistency / non-crossing**: clean and perturbed representations for the same state should stay in the same predictive basin; they should not become closer to task-distinct states.
 2. **Predictive plateau + anti-collapse**: after the same action rollout, transported perturbed histories should match clean histories in diagnostic space, while task-grounded different-state pairs remain separated.
 
-### 1.2 Paper1 diagnostic target
-
-Paper1 defines same-state visual robustness as selective action-conditioned predictive consistency:
+Paper1's diagnostic target can be written as:
 
 ```text
 z_t = E_theta(h_t),   z_tilde_t = E_theta(h_tilde_t)
-zhat_{t+k} = F_theta^k(z_t, a_{0:k-1})
+zhat_{t+k}       = F_theta^k(z_t,       a_{0:k-1})
 zhat_tilde_{t+k} = F_theta^k(z_tilde_t, a_{0:k-1})
+ACPC-H = sum_k alpha_k * d(Pi(zhat_{t+k}), Pi(zhat_tilde_{t+k}))
 ```
 
-ACPC-H measures the projected rollout discrepancy:
-
-```text
-sum_k alpha_k * d(Pi(zhat_{t+k}), Pi(zhat_tilde_{t+k}))
-```
-
-ATR is the high-tail version of this same-state clean/noisy rollout disagreement. SMPR checks that task-grounded near-boundary pairs remain separated. Therefore a method should aim for:
-
-```text
-low ATR + high SMPR
-```
-
-### 1.3 Transport version of the diagnostic
-
-Introduce a transport map `T_phi` applied to a perturbed/off-manifold latent history:
-
-```text
-z_phi_{t:t+C-1} = T_phi(z_tilde_{t:t+C-1})
-```
-
-where `C = ctx_len` is the predictor history length. The diagnostic-space transport target is:
-
-```text
-Pi(F_theta^{1:H}(T_phi(z_tilde_{t:t+C-1}), a))
-  ~= Pi(F_theta^{1:H}(z_{t:t+C-1}, a))
-```
-
-This is the key connection: transport success is measured **after action-conditioned rollout of the transported history**, not only in raw latent space.
-
-### 1.4 Candidate-cost stability connection
-
-Paper1's cost-drift and top-1 stability arguments say that if every candidate action sequence has clean/perturbed projected-rollout discrepancy at most `eps`, then candidate cost drift is at most `L_J * eps`, and a clean top-1 margin `Delta > 2 L_J eps` preserves the top-1 candidate.
-
-With transport, the relevant discrepancy becomes:
+ACPC-Flow inserts a transport/projection mechanism before the rollout comparison:
 
 ```text
 eps_phi = d_H(Pi(F^{1:H}(T_phi(z_tilde), a)), Pi(F^{1:H}(z, a))).
 ```
 
-ACPC-Flow tries to reduce `eps_phi`, thereby reducing ATR, cost drift, and candidate-rank flip risk under the same fixed-candidate/margin caveats.
+The method is useful only if it reduces this planner-facing discrepancy while preserving SMPR/non-crossing.
 
-### 1.5 Local sensitivity connection
+---
 
-Paper1's local Gaussian sensitivity shows that the action-conditioned sensitivity is governed by the product:
+## 2. Why pure large-noise FM is not automatically a solution
 
-```text
-J_Ga(E(o)) * J_E(o),    G_a(z) = Pi(F^{1:H}(z, a)).
-```
-
-With a transport map, the effective map becomes:
+A tempting idea is to use standard Flow Matching with a full noise path:
 
 ```text
-G_a(T_phi(E(o))).
+x_s = (1-s) * clean_latent + s * pure_noise,  s in [0,1]
 ```
 
-The local sensitivity includes:
+and train a vector field that maps from noisy points back to clean/origin latent. This appears to solve coverage because pure noise has large radius.
+
+This is not sufficient for control.
+
+### 2.1 Radius coverage is not state-preserving coverage
+
+Standard marginal FM learns:
 
 ```text
-J_Ga * J_Tphi * J_E.
+noise distribution -> clean latent distribution
 ```
 
-Thus the desired transport contracts nuisance/corruption-induced representation directions before they reach the predictor, while avoiding contraction along task-relevant directions. This is exactly why SMPR and neighborhood-crossing diagnostics remain necessary.
-
-## 2. What Flow Matching means here
-
-This method should not claim generic image-generation Flow Matching unless the code implements a full time-conditioned ODE/vector field. The safer description is:
-
-> flow-inspired state-paired latent transport.
-
-The transport is **paired/conditional**, not marginal:
+or
 
 ```text
-z_tilde_i -> z_i, or z_tilde_i -> C_ACPC(z_i)
+T_phi# p_noise ~= p_clean.
 ```
 
-where `z_tilde_i` and `z_i` represent the same underlying state, and `C_ACPC(z_i)` is the clean action-conditioned predictive equivalence class.
-
-Avoid this incorrect objective:
+But control requires paired/conditional transport:
 
 ```text
-T_phi# p_pert(z) ~= p_clean(z)
+same-state perturbed latent -> same-state clean predictive basin.
 ```
 
-Marginal matching can map a perturbed latent from state `i` to a clean latent from state `j`. That may look distributionally clean but is wrong for control.
+If the source is too noisy, two different states can produce overlapping intermediate points. A deterministic vector field cannot map the same input region to two different clean states. This creates identity ambiguity.
 
-## 3. Theoretical feasibility of feature/latent perturbation coverage
+Therefore:
 
-This section is the precondition for the method. ACPC-Flow should **not** be trained at scale before this coverage audit is run.
+> Full-radius FM may cover the geometric magnitude of pixel corruption, but it may destroy the state identity needed for control.
 
-### 3.1 Notation
+### 2.2 Large-noise paths can cross task basins
 
-Let `H(o)` denote the encoder output **before** the LeWM projection head, e.g. ViT CLS feature. Let `P` denote the LeWM projection head. The post-projector latent is:
+The coverage audit already shows that pixel corruption can move `emb` several clean-neighborhood radii away. Pushing synthetic noise even larger may match the radius, but it moves samples into cross-neighborhood regions. This violates the non-crossing condition.
+
+A pure FM model trained on such large paths risks learning an average or marginal clean latent manifold, not a state-preserving correction.
+
+### 2.3 Acceptable FM variant: local conditional FM
+
+The acceptable FM-style version is local and paired:
 
 ```text
-z = P(H(o)).
+source = z + sigma(s) * epsilon
+target = z
+condition = same state / same action rollout
 ```
 
-A pixel perturbation `tau` induces a pre-projector feature shift:
+where `sigma_max` is chosen from a coverage audit and must remain inside the same-state basin. This is better described as:
 
 ```text
-Delta_H_tau(o) = H(tau(o)) - H(o),
+local conditional ACPC-Flow
 ```
 
-and a post-projector latent shift:
+not unconditional marginal FM.
+
+---
+
+## 3. Inference-time `t_start`: feasibility and risks
+
+If the projector/transport is time-conditioned, inference may choose a starting time/noise level `t_start`:
 
 ```text
-Delta_z_tau(o) = P(H(tau(o))) - P(H(o)).
+T_phi(x, t_start)
 ```
 
-If ACPC-Flow trains with synthetic representation perturbations, then its source is one of:
+This is potentially useful: clean/origin inputs can use `t_start=0`, while corrupted inputs can use larger `t_start`.
 
-Pre-projector version:
+However, this raises a critical question:
+
+> At inference time, how does the model know which `t_start` to use when it does not know whether the input is clean or perturbed?
+
+### 3.1 Fixed `t_start` is weak
+
+A fixed nonzero `t_start` applies correction to every input, including clean inputs. This can hurt clean control. A fixed zero `t_start` does nothing for corrupted inputs.
+
+Therefore fixed `t_start` is only a baseline.
+
+### 3.2 Oracle `t_start` is not allowed for main claims
+
+If evaluation uses knowledge of the corruption type/severity to set `t_start`, then the method is no longer corruption-agnostic. It becomes a matched test-time intervention.
+
+This can be an upper bound, but not the main method.
+
+### 3.3 Learnable `t_start` estimator is possible but must be audited
+
+A practical design is:
 
 ```text
-h_tilde = H(o) + eps_H,   z_tilde = P(h_tilde).
+t_hat = q_psi(x)
+output = T_phi(x, t_hat)
 ```
 
-Post-projector version:
+where `x` may be `encoder_feat`, `emb`, predictor hidden, or another internal representation.
+
+Possible signals for `q_psi`:
+
+- distance to clean representation bank / kNN radius;
+- SIGReg density / latent norm anomaly;
+- predictor self-consistency under small local perturbations;
+- candidate rank instability proxy;
+- correction norm predicted by the transport head;
+- learned source-noise labels from synthetic perturbation training.
+
+But `q_psi` can fail if synthetic noise labels do not correspond to real pixel-corruption shifts. Therefore it requires a `t_calibration_audit` before training.
+
+### 3.4 Multi-`t` self-selection is possible but expensive
+
+At inference, one could evaluate multiple candidate `t_start` values:
 
 ```text
-z_tilde = z + eps_z.
+t in {0, 0.25, 0.5, 0.75, 1.0}
 ```
 
-The method can cover a pixel perturbation family only if the pixel-induced shifts `Delta_H_tau` or `Delta_z_tau` lie inside, or near, the synthetic perturbation tube used during training.
+and choose the one minimizing a no-reference score, such as:
 
-### 3.2 Sufficient coverage condition
+- predicted rollout stability under small local perturbations;
+- small correction norm subject to low predictor disagreement;
+- candidate cost/rank stability;
+- distance to clean latent bank.
 
-Define:
+This is test-time selection. It may be useful, but it increases compute and risks becoming another weak planner-side trick unless it clearly beats compute-matched baselines.
+
+### 3.5 Required `t_calibration_audit`
+
+Before implementing time-conditioned FM training, add an audit to answer:
+
+1. For each pixel corruption, what `t_star` would be needed to cover its representation shift?
+2. Is `t_star` near 0 for clean/origin inputs?
+3. Are `t_star` values separable between clean and corrupted inputs using non-oracle features?
+4. Does the required `t_star` remain inside same-state neighborhoods, or does it imply cross-neighborhood transport?
+5. Can a simple estimator predict `t_star` without knowing the corruption type?
+
+Operational definition:
 
 ```text
-G_a(z) = Pi(F^{1:H}(z, a)).
+t_star(o, tau) = smallest t in grid such that synthetic_radius_q95(t) >= ||Delta_tau(o)||
 ```
 
-For pre-projector analysis, use:
+Also compute an ACPC version:
 
 ```text
-Gbar_a(h) = G_a(P(h)).
+t_star_acpc(o, tau) = smallest t such that synthetic_acpc_gap_q95(t) >= pixel_acpc_gap(o,tau)
 ```
 
-Assume:
-
-1. **Coverage**: for each diagnostic pixel perturbation `tau`, there exists a synthetic perturbation `eps_star` used in training such that
-
-   ```text
-   ||Delta_H_tau(o) - eps_star|| <= kappa.
-   ```
-
-2. **Transport accuracy on the synthetic tube**:
-
-   ```text
-   d_H(Gbar_a(T_phi(H(o)+eps_star)), Gbar_a(H(o))) <= eps_train.
-   ```
-
-3. **Local Lipschitz continuity** of `Gbar_a o T_phi` on the tube with constant `L`.
-4. **No task-neighborhood crossing**: `H(tau(o))` remains in the same-state predictive basin and does not enter a task-distinct basin.
-5. **SMPR preservation**: task-grounded different-state margins are preserved after transport.
-
-Then the pixel perturbation satisfies:
+Report:
 
 ```text
-d_H(Gbar_a(T_phi(H(tau(o)))), Gbar_a(H(o))) <= eps_train + L * kappa.
+t_star_median
+t_star_q90
+t_star_q95
+clean_false_positive_rate_at_t_threshold
+wrong_label_rate_at_required_t
+coverage_at_t_grid
 ```
 
-This is the main theoretical feasibility statement: representation perturbation training can cover pixel perturbations only up to the coverage error `kappa`. If `kappa` is large, the method relies on extrapolation and has no guarantee.
+Decision:
 
-### 3.3 Proof sketch for the sufficient condition
+- If `t_star_q90` for the target stressor is large and wrong-label crossing is high, time-conditioned FM is no-go.
+- If `t_star` is small for weak Gaussian and separable from clean, run a small local conditional FM experiment.
+- Do not train full pure-noise FM unless a state-preserving conditioning mechanism is implemented and audited.
 
-Since:
+---
+
+## 4. Two projector chain: encoder projector and predictor projector
+
+LeWM has two relevant projection points:
 
 ```text
-H(tau(o)) = H(o) + Delta_H_tau(o),
+pixels -> encoder H -> encoder projector P -> emb z -> predictor backbone B -> pred_proj R -> predicted emb
 ```
 
-and `Delta_H_tau(o)` is within `kappa` of `eps_star`, Lipschitz continuity gives:
+The previous post-projector ACPC-Flow idea focused only on `emb` after `P`. That is incomplete.
+
+### 4.1 Encoder projector `P` as transport / plateau projector
+
+Primary candidate method:
 
 ```text
-d_H(Gbar T(H(o)+Delta_H_tau), Gbar T(H(o)+eps_star)) <= L*kappa.
+h = H(o)
+z = P(h)
+h_source = h + eps
+z_source = P(h_source)
 ```
 
-By triangle inequality:
+Training objectives:
 
 ```text
-d_H(Gbar T(H(o)+Delta_H_tau), Gbar(H(o))) <= L*kappa + eps_train.
+latent_z:   ||P(h+eps) - sg(P(h))||^2
+predictor:  ||F(P(h+eps), a) - sg(F(P(h), a))||^2
+diagnostic: ACPC_diag(F(P(h+eps), a), F(P(h), a))
 ```
 
-The post-projector version is identical after replacing `H` by `z` and `Delta_H_tau` by `Delta_z_tau`.
+This is stronger than adding a post-projector adapter because:
 
-### 3.4 Local Gaussian pixel noise analysis
+- it adds no new inference module;
+- it makes the original LeWM projector learn a local predictive plateau;
+- it directly targets the feature-shift coverage question from the audit.
+
+### 4.2 Predictor projector `R = pred_proj` as predictive plateau map
+
+A second candidate is to regularize predictor hidden/output projection:
+
+```text
+u_clean = B(z_clean, a)
+y_clean = R(u_clean)
+u_source = B(z_source, a)
+y_source = R(u_source)
+```
+
+Possible objectives:
+
+```text
+pred_proj_z:   ||R(u_source) - sg(R(u_clean))||^2
+pred_proj_diag: ACPC/diagnostic distance between y_source and y_clean
+```
+
+Motivation:
+
+> ACPC is measured after action-conditioned prediction. If the predictor backbone or `pred_proj` amplifies residual nuisance shifts, only training the encoder projector may be insufficient.
+
+### 4.3 Do not train both first
+
+Do not start with both projectors enabled. That makes attribution impossible and increases collapse risk.
+
+Required order:
+
+1. Audit amplification at `P` and `R`.
+2. Train encoder-projector-only small experiment if audit supports it.
+3. Train predictor-projector-only small experiment if audit supports it.
+4. Only then test two-sided training.
+
+---
+
+## 5. Feasibility theory for feature/latent perturbation coverage
+
+Let `H(o)` be the pre-projector encoder feature and `P` the encoder projector. A pixel perturbation induces:
+
+```text
+Delta_H_tau(o) = H(tau(o)) - H(o)
+Delta_z_tau(o) = P(H(tau(o))) - P(H(o))
+```
+
+Synthetic feature perturbation training can cover a pixel perturbation family only if these shifts lie inside, or near, the synthetic perturbation tube.
+
+Sufficient condition:
+
+```text
+||Delta_H_tau(o) - eps_star|| <= kappa
+```
+
+and training achieves:
+
+```text
+d_H(Gbar_a(T_phi(H(o)+eps_star)), Gbar_a(H(o))) <= eps_train
+```
+
+with local Lipschitz constant `L`. Then:
+
+```text
+d_H(Gbar_a(T_phi(H(tau(o)))), Gbar_a(H(o))) <= eps_train + L*kappa.
+```
+
+If `kappa` is large, the method is extrapolating.
 
 For small Gaussian pixel noise:
 
 ```text
-tau(o) = o + xi,    xi ~ N(0, sigma^2 I),
+H(o+xi)-H(o) ~= J_H(o) xi
+Delta_H_tau ~ N(0, sigma^2 J_H J_H^T)
 ```
 
-if `H` is locally differentiable:
+Isotropic feature noise covers it only if, roughly:
 
 ```text
-H(o+xi)-H(o) = J_H(o) xi + R_xi.
+sigma_H^2 I >= sigma^2 J_H J_H^T
 ```
 
-Ignoring higher-order terms:
+This is why large structured shifts from blur/resize/compression cannot be assumed covered.
 
-```text
-Delta_H_tau(o) ~ N(0, sigma^2 J_H(o) J_H(o)^T).
-```
+Impossibility condition:
 
-If training uses isotropic pre-projector feature noise:
+If two task-distinct corrupted inputs collide in representation space, deterministic transport cannot recover both different states. Therefore neighborhood crossing is a hard no-go signal.
 
-```text
-eps_H ~ N(0, sigma_H^2 I),
-```
+---
 
-then a covariance-dominance sufficient condition is:
+## 6. Coverage audit v2: must run before new training
 
-```text
-sigma_H^2 I >= sigma^2 J_H(o) J_H(o)^T   in PSD order.
-```
-
-Equivalently, a crude radius condition is:
-
-```text
-sigma_H^2 >= sigma^2 * lambda_max(J_H J_H^T).
-```
-
-This explains both why feature perturbation can cover small Gaussian pixel noise in principle, and why isotropic feature noise can be inefficient: if `J_H J_H^T` is anisotropic, covering the largest corruption direction may over-perturb many irrelevant directions.
-
-### 3.5 Structured perturbations: blur, resize, compression
-
-Blur, resize, JPEG, compression, brightness shifts, camera changes, and occlusion are not guaranteed to be small local Gaussian perturbations in feature space. For these stressors, coverage must be measured empirically:
-
-```text
-Delta_H_tau(o) = H(tau(o)) - H(o).
-```
-
-The method is plausible only when these shifts remain local, same-state, and non-crossing. If they are large, structured, or aligned with task-neighbor directions, clean-only feature noise is unlikely to cover them.
-
-### 3.6 Impossibility: task-neighborhood crossing
-
-Suppose two task-distinct states `i,j` have different action-conditioned predictive targets:
-
-```text
-d_H(G_a(z_i), G_a(z_j)) > margin_m.
-```
-
-If pixel corruptions make their encoder features collide:
-
-```text
-H(tau_i(o_i)) = H(tau_j(o_j)),
-```
-
-then any deterministic transport `T_phi` produces the same output for both inputs. It cannot simultaneously recover the two different predictive targets. Therefore deterministic ACPC-Flow cannot solve representation crossing that has already erased task identity.
-
-This is why coverage audit must include nearest-neighbor crossing and task-label crossing metrics.
-
-### 3.7 Impossibility: outside-tube extrapolation
-
-If training perturbations satisfy `||eps|| <= r`, but a pixel stressor induces `||Delta_tau|| >> r`, then the transport head is unconstrained on that region. Any success there is extrapolation, not supported by the ACPC-Flow objective. Do not claim coverage of such perturbations without empirical evidence.
-
-## 4. Coverage audit: must run before training at scale
-
-The coverage audit answers:
-
-> Can synthetic pre-/post-projector perturbations plausibly cover the representation shifts induced by target pixel corruptions?
-
-This is a cheap offline diagnostic and should be run before expensive training or CEM evaluation.
-
-### 4.1 Required script
-
-Create:
+Create or extend:
 
 ```text
 tools/acpc_flow/coverage_audit.py
 ```
 
-Required output:
+Existing core audit should be extended. Required outputs:
 
 ```text
-assets/paper1_data/acpc_flow_coverage_<task>_<checkpoint>_<date>.json
-assets/paper1_data/acpc_flow_coverage_<task>_<checkpoint>_<date>.csv
+assets/paper1_data/acpc_flow_coverage_v2_<task>_<checkpoint>_<date>.json
+assets/paper1_data/acpc_flow_coverage_v2_<task>_<checkpoint>_<date>.csv
 ```
 
-The script must not train anything.
+### 6.1 Increase sample size
 
-### 4.2 Inputs
-
-Config arguments:
-
-```yaml
-checkpoint: <run>/lewm
-task: tworoom | reacher | pusht | cube
-num_samples: 1000             # start with 1000, scale to 5000 if cheap
-history_size: ${wm.history_size}
-feature_spaces:
-  - encoder_feat              # pre-projector H(o), if exposed
-  - emb                       # post-projector z=P(H(o))
-corruptions:
-  - {type: gaussian_noise, std: 0.03}
-  - {type: gaussian_noise, std: 0.05}
-  - {type: gaussian_noise, std: 0.08}
-  - {type: gaussian_blur, kernel_size: 7}
-  - {type: gaussian_blur, kernel_size: 15}
-  - {type: resize, factor: 0.75}
-  - {type: resize, factor: 0.50}
-  - {type: resize, factor: 0.25}
-synthetic_noise:
-  std_grid: [0.01, 0.02, 0.04, 0.08, 0.12]
-  mode: token_std             # token_std | rms | fixed
-knn:
-  k: 5
-candidate_rank:
-  num_candidates: 64
-  horizon: 5
-```
-
-### 4.3 Required code preparation
-
-Expose pre-projector encoder feature if possible:
-
-```python
-info["encoder_feat"] = rearrange(pixels_emb, "(b t) d -> b t d", b=b)
-info["emb"] = self.projector(pixels_emb)
-info["emb_trans"] = self.transport_emb(info["emb"])
-```
-
-If exposing `encoder_feat` slows Codex down, run the first coverage audit on `emb` only, but mark `encoder_feat_missing=true` in JSON.
-
-### 4.4 Coverage metrics: magnitude
-
-For each corruption `tau` and feature space `s in {H,z}`, compute:
+Run at least:
 
 ```text
-Delta_s_tau = s(tau(o)) - s(o).
+num_samples: 1000
 ```
+
+Core64 is enough to reject the old post-projector direction, but not enough for final task/stressor decisions.
+
+### 6.2 Required representation levels
+
+Compute clean/corrupted shifts at:
+
+```text
+encoder_feat:      h = H(o)
+emb:               z = P(h)
+predictor_hidden:  u = B(z, a) before pred_proj
+pred_emb:          y = R(u)
+```
+
+If `predictor_hidden` is not exposed, add a helper or hook to return the predictor backbone hidden before `pred_proj`.
+
+### 6.3 Amplification metrics
 
 Report:
 
 ```text
-delta_norm_mean
-delta_norm_median
-delta_norm_q75
-delta_norm_q90
-delta_norm_q95
-delta_norm_q99
-```
-
-For each synthetic noise scale `alpha`, compute synthetic noise radius quantiles and coverage rate:
-
-```text
-coverage_q(tau, alpha) = Pr_o[ ||Delta_tau(o)|| <= q_quantile(||eps_alpha||) ].
-```
-
-Report coverage for q90/q95/q99 synthetic radii.
-
-### 4.5 Coverage metrics: clean-neighbor scale
-
-Build a clean representation bank for the same task and feature space. For each clean representation, compute kNN distance to other clean states:
-
-```text
-d_kNN(o) = mean_{j in kNN(o)} ||s(o)-s(o_j)||.
-```
-
-Report:
-
-```text
-ratio_to_knn(o) = ||Delta_tau(o)|| / (d_kNN(o) + 1e-6).
-```
-
-Quantiles:
-
-```text
-ratio_to_knn_median
-ratio_to_knn_q75
-ratio_to_knn_q90
-ratio_to_knn_q95
+amp_P = ||Delta_emb|| / (||Delta_encoder_feat|| + eps)
+amp_B = ||Delta_predictor_hidden|| / (||Delta_emb|| + eps)
+amp_R = ||Delta_pred_emb|| / (||Delta_predictor_hidden|| + eps)
+amp_total = ||Delta_pred_emb|| / (||Delta_encoder_feat|| + eps)
 ```
 
 Interpretation:
 
-- `ratio_to_knn_q90 < 0.3`: high hope; corruption shift is mostly local.
-- `0.3 <= ratio_to_knn_q90 < 0.8`: medium hope; may work for smoother tasks.
-- `ratio_to_knn_q90 >= 0.8`: low hope; high risk of state-neighbor crossing.
+- high `amp_P`: encoder projector is a failure amplifier; prioritize projector-as-transport.
+- high `amp_R`: pred_proj is a failure amplifier; prioritize predictor-projector plateau.
+- high `amp_B`: predictor backbone itself amplifies; simple projector-only method may be insufficient.
 
-### 4.6 Coverage metrics: neighborhood crossing
+### 6.4 Candidate rank metrics
 
-Using task proxy labels if available, compute:
+The previous audit had `candidate_rank_metrics_computed=false`. This must be fixed.
 
-1. `paired_clean_rank`: rank of the paired clean representation among nearest clean neighbors of corrupted representation.
-2. `wrong_label_nn_rate`: nearest clean neighbor of corrupted representation has different task proxy label than paired clean.
-3. `closer_to_wrong_than_pair_rate`: there exists a wrong-label clean neighbor closer than the paired clean representation.
-4. `same_label_topk_rate`: proportion of top-k clean neighbors sharing the paired clean proxy label.
-
-These metrics operationalize the non-crossing condition. If crossing is high, a deterministic transport cannot reliably recover state identity.
-
-### 4.7 Coverage metrics: direction and anisotropy
-
-Compute covariance of corruption shifts:
-
-```text
-Sigma_tau = Cov(Delta_tau).
-```
-
-Report:
-
-```text
-effective_rank
-lambda_max_over_trace
-top1_eigen_ratio
-top5_eigen_ratio
-```
-
-Interpretation:
-
-- Low effective rank / high top eigen ratio means pixel stressor induces structured feature shifts.
-- If structured, isotropic synthetic noise may be inefficient.
-- Consider covariance-shaped feature noise only after isotropic baseline is understood.
-
-### 4.8 Coverage metrics: task-direction alignment
-
-For each anchor, take nearest clean neighbors with different task proxy label. Compute maximum cosine alignment:
-
-```text
-max_j cos(Delta_tau(o_i), s(o_j)-s(o_i)).
-```
-
-Report:
-
-```text
-task_alignment_mean
-task_alignment_q90
-task_alignment_q95
-```
-
-High alignment means the pixel perturbation moves along task-relevant directions, not nuisance directions. Treat this as a risk signal for over-contraction.
-
-### 4.9 Coverage metrics: ACPC / rollout shift
-
-For each clean/corrupted pair and a fixed recorded action sequence, compute one-step or short-horizon diagnostic gap:
-
-```text
-d_H(G_a(s(tau(o))), G_a(s(o))).
-```
-
-Report:
-
-```text
-acpc_gap_mean
-acpc_gap_q90
-acpc_gap_q95
-```
-
-Also compare synthetic perturbation gaps for each synthetic noise scale:
-
-```text
-synthetic_acpc_gap_mean[alpha]
-synthetic_acpc_gap_q90[alpha]
-synthetic_acpc_gap_q95[alpha]
-```
-
-If pixel-induced ACPC gaps are far outside the synthetic gap range, training on that synthetic perturbation scale is unlikely to cover the stressor.
-
-### 4.10 Coverage metrics: candidate rank flip
-
-Sample a shared candidate action set per anchor. Compute candidate costs or rollout proxies for clean and corrupted features. Report:
+For a shared candidate pool, compute:
 
 ```text
 candidate_rank_spearman
@@ -510,479 +456,248 @@ candidate_margin_clean_q10
 candidate_margin_clean_q50
 ```
 
-These connect coverage directly to Paper1's fixed-candidate stability logic.
+Compute these for:
 
-### 4.11 Summary decision rules
+1. clean vs pixel-corrupted;
+2. clean vs synthetic encoder-feature perturbation through `P`;
+3. clean vs synthetic post-projector latent perturbation;
+4. clean vs synthetic predictor-hidden perturbation through `R`, if implemented.
 
-For each task/stressor/feature-space pair, output:
+### 6.5 Time-conditioned FM calibration audit
 
-```json
-"coverage_decision": "high" | "medium" | "low" | "no_go"
-```
-
-Suggested rules:
-
-High:
-
-```text
-ratio_to_knn_q90 < 0.3
-wrong_label_nn_rate < 0.05
-closer_to_wrong_than_pair_rate < 0.10
-coverage_q95_at_alpha_0.04 > 0.80
-candidate_top1_flip_rate not much larger than synthetic alpha=0.04
-```
-
-Medium:
-
-```text
-ratio_to_knn_q90 < 0.8
-wrong_label_nn_rate < 0.15
-coverage_q95_at_alpha_0.08 > 0.70
-```
-
-Low:
-
-```text
-ratio_to_knn_q90 >= 0.8
-or wrong_label_nn_rate >= 0.15
-or coverage_q95_at_alpha_0.08 < 0.50
-```
-
-No-go:
-
-```text
-wrong_label_nn_rate >= 0.30
-or closer_to_wrong_than_pair_rate >= 0.40
-or pixel ACPC gap q90 > 2x largest synthetic ACPC gap q90
-```
-
-Do not train ACPC-Flow for a task/stressor as a generalization claim if coverage is no-go.
-
-### 4.12 Required JSON schema
-
-```json
-{
-  "schema_version": "acpc-flow-coverage-v1",
-  "task": "tworoom",
-  "checkpoint": "baseline_seed3073/lewm",
-  "num_samples": 1000,
-  "feature_spaces": ["encoder_feat", "emb"],
-  "synthetic_noise_grid": [0.01, 0.02, 0.04, 0.08, 0.12],
-  "results": {
-    "emb": {
-      "gaussian_std0.08": {
-        "delta_norm_q90": 0.0,
-        "ratio_to_knn_q90": 0.0,
-        "wrong_label_nn_rate": 0.0,
-        "closer_to_wrong_than_pair_rate": 0.0,
-        "coverage_q95_by_alpha": {"0.04": 0.0, "0.08": 0.0},
-        "effective_rank": 0.0,
-        "top1_eigen_ratio": 0.0,
-        "task_alignment_q90": 0.0,
-        "acpc_gap_q90": 0.0,
-        "synthetic_acpc_gap_q90_by_alpha": {"0.04": 0.0},
-        "candidate_top1_flip_rate": 0.0,
-        "coverage_decision": "medium"
-      }
-    }
-  },
-  "recommendation": {
-    "train_clean_only_latent_noise": true,
-    "preferred_feature_space": "emb",
-    "suggested_noise_std_max": 0.04,
-    "no_go_stressors": []
-  }
-}
-```
-
-## 5. Architecture and training design
-
-### 5.1 Expose `info["emb_trans"]` in `encode()`
-
-Make `encode()` expose both canonical LeWM latent and transported latent:
-
-```python
-output = self.encoder(pixels, interpolate_pos_encoding=True)
-pixels_emb = output.last_hidden_state[:, 0]
-info["encoder_feat"] = rearrange(pixels_emb, "(b t) d -> b t d", b=b)  # if feasible
-emb = self.projector(pixels_emb)
-emb = rearrange(emb, "(b t) d -> b t d", b=b)
-info["emb"] = emb
-info["emb_trans"] = self.transport_emb(info["emb"])
-```
-
-`transport_emb()` returns identity when no ACPC-Flow head is attached or transport is disabled.
-
-### 5.2 Non-breaking contract
-
-Do **not** replace `info["emb"]` by default. Existing LeWM behavior must remain unchanged when ACPC-Flow is disabled.
-
-```python
-class JEPA(nn.Module):
-    def transport_emb(self, emb):
-        head = getattr(self, "acpc_flow_head", None)
-        enabled = bool(getattr(self, "acpc_flow_enabled", False))
-        if head is None or not enabled:
-            return emb
-        return head(emb)
-```
-
-### 5.3 Shared transport for origin and perturbed inputs
-
-The same transport is applied to origin and perturbed inputs. At inference the model usually does not know whether the current observation is clean or corrupted.
-
-Intended behavior:
-
-```text
-origin input:    emb_trans ~= emb
-perturbed input: emb_trans moves toward same-state clean predictive basin
-```
-
-Therefore every ACPC-Flow mode should include clean identity:
-
-```text
-L_id = ||T_phi(z)-z||^2.
-```
-
-This is the origin zero-velocity condition.
-
-### 5.4 Time-step and span design
-
-The phrase “transport context tokens” means: **transport every latent token in the predictor history that the predictor consumes**, not just one state.
-
-```text
-ctx_emb = emb[:, :ctx_len]       # shape (B, ctx_len, D)
-ctx_act = act_emb[:, :ctx_len]
-```
-
-Therefore ACPC-Flow first acts on the full predictor history:
-
-```text
-T_phi(z_{t:t+C-1}) = (T_phi(z_t), ..., T_phi(z_{t+C-1})).
-```
-
-First implementation:
+Add a `t_grid`:
 
 ```yaml
-loss:
-  acpc_flow:
-    horizon: 1
-    apply_tokens: context
-    source_time_policy: aligned
-    rollout_mode: one_step
+t_grid: [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0]
+noise_schedule: linear_or_variance_preserving
 ```
 
-## 6. Objective hierarchy: anchors vs diagnostic target
-
-Do **not** assume diagnostic-space loss will automatically dominate latent or predictor supervision.
-
-- `latent_z` matching is the strongest state-preserving anchor. It directly discourages wrong-neighborhood transport.
-- `predictor` matching is a strong dynamics-preserving baseline.
-- `diagnostic` matching is the control-facing objective that directly matches Paper1's ATR/candidate-stability object, but it is looser and must be checked with SMPR and crossing metrics.
-- `identity` matching on clean/origin latents is a safety constraint for the shared head, not an optional baseline.
-
-First run pure variants separately. Only after those are understood, test a hybrid:
+For each representation level and stressor, compute:
 
 ```text
-L_hybrid = lambda_z L_z + lambda_ACPC L_ACPC + lambda_id L_id.
+t_star_radius = min t such that synthetic_radius_q95(t) >= pixel_delta_norm
+t_star_acpc   = min t such that synthetic_acpc_gap_q95(t) >= pixel_acpc_gap
 ```
 
-## 7. Three core objective variants
-
-### Variant A: Latent-Z Transport Loss
+Report:
 
 ```text
-L_z = ||T_phi(z_tilde)-z||^2.
+t_star_radius_median/q90/q95
+t_star_acpc_median/q90/q95
+wrong_label_rate_at_t_star
+clean_false_positive_rate
+is_t_start_separable_from_clean
 ```
 
-### Variant B: Predictor-Feature Transport Loss
+If `t_star` is large and crossing is high, pure/t-conditioned FM is no-go.
+
+### 6.6 Decision table
+
+Output a concise table:
 
 ```text
-L_pred = sum_k ||F^k(T_phi(z_tilde), a)-F^k(z, a)||^2.
+task, stressor, level, decision, reason, recommended_next_action
 ```
 
-### Variant C: Diagnostic-Space ACPC Transport Loss
+Decision values:
 
 ```text
-L_ACPC = D_diag(Pi(F^{1:H}(T_phi(z_tilde), a)), Pi(F^{1:H}(z, a))).
+no_go
+weak_local_only
+encoder_projector_small_train
+predictor_projector_small_train
+t_conditioned_fm_upper_bound_only
+t_conditioned_fm_candidate
+pixel_paired_source_candidate
 ```
 
-Recommended first implementation:
+---
+
+## 7. Training roadmap after audit v2
+
+### Stage A: no training if audit remains no-go
+
+If v2 audit says no-go for all levels except weak Gaussian, do not train broad ACPC-Flow.
+
+### Stage B: encoder projector-as-transport small experiment
+
+Run only if v2 audit supports `encoder_projector_small_train`.
+
+Task:
 
 ```text
-L_ACPC_CVaR = CVaR_q90[ d_H(Pi F^{1:H}(T_phi(z_tilde), a), Pi F^{1:H}(z, a)) / clean_transition_scale ].
+TwoRoom first
 ```
 
-Every variant includes clean identity unless deliberately ablated:
+Stressors:
 
 ```text
-L = L_variant + lambda_id L_id.
+clean
+gaussian_std0.03
+gaussian_std0.05
+gaussian_std0.08 only as stress, not success target
 ```
 
-## 8. Minimal experiment design
+Models:
 
-### 8.1 Models / training variants
+```text
+origin baseline
+encoder_projector_latent_z
+encoder_projector_predictor
+encoder_projector_diagnostic
+```
 
-| ID | Name | Pixel corruption aug during training? | Extra transport? | Objective |
-|---|---|---:|---:|---|
-| M0 | origin LeWM | no | no | baseline |
-| M1 | Latent-Z Flow | no | yes/tiny | `L_z + L_id` |
-| M2 | Predictor-Feature Flow | no | yes/tiny | `L_pred + L_id` |
-| M3 | ACPC-Flow | no | yes/tiny | `L_ACPC + L_id` |
-| M4 | Gaussian-aug LeWM | yes | no | strong matched baseline |
-| M5 | ACPC-Flow + Gaussian aug | yes | yes/tiny | optional stacking |
-| M6 | Hybrid Z+ACPC Flow | no | yes/tiny | optional after M1-M3 |
+No blur/resize in this stage unless audit is medium/high for them.
 
-### 8.2 Required diagnostics
+### Stage C: predictor projector plateau small experiment
 
-For each trained checkpoint:
+Run only if v2 audit shows high `amp_R` or candidate rank instability after predictor projection.
 
-1. ATR.
-2. SMPR.
-3. Encoder neighborhood crossing / basin preservation.
-4. Candidate rank agreement / top-1 flip.
-5. Clean prediction loss and clean closed-loop success.
-6. Parameter count and training overhead.
-7. Clean correction norm `||emb_trans-emb||`.
-8. Source correction norm and transport-to-clean distance.
+Models:
 
-### 8.3 Success criteria
+```text
+predproj_latent/prediction
+predproj_diagnostic
+```
 
-Promote ACPC-Flow only if:
+Keep encoder projector unchanged for attribution.
 
-1. Coverage audit is high or medium for the claimed stressor family.
-2. M3 reduces ATR more than M1/M2 at comparable clean performance, **or** M6 clearly outperforms M1/M2 while preserving clean performance.
-3. M3/M6 preserves or improves SMPR.
-4. M3/M6 improves corrupted closed-loop success over M0 on at least two stressors or two tasks.
-5. Clean correction norm remains small; clean success drop stays under 5 pp.
-6. M3/M6 beats identity/random/same-param controls.
+### Stage D: t-conditioned FM only as upper bound first
+
+Before a learned `t_start` estimator, run an oracle upper bound:
+
+```text
+choose t_start using known corruption severity / audit-derived t_star
+```
+
+This is not a valid main method, but it tells whether time-conditioned correction could help at all.
+
+If oracle t does not help, stop.
+
+If oracle t helps, implement non-oracle `t_start` estimator and compare:
+
+```text
+fixed t
+oracle t
+estimated t
+multi-t self-selection
+```
+
+### Stage E: two-sided training only after single-sided wins
+
+Only if Stage B or C gives clear gains, test:
+
+```text
+encoder projector plateau + predictor projector plateau
+```
+
+Do not start here.
+
+---
+
+## 8. Method variants to keep
+
+### Variant 1: Projector-as-transport, latent anchor
+
+```text
+L_z = ||P(H(o)+eps) - sg(P(H(o)))||^2
+```
+
+### Variant 2: Projector-as-transport, predictor matching
+
+```text
+L_pred = ||F(P(H(o)+eps), a) - sg(F(P(H(o)), a))||^2
+```
+
+### Variant 3: Projector-as-transport, diagnostic ACPC
+
+```text
+L_ACPC = D_diag(Pi(F(P(H(o)+eps), a)), Pi(F(P(H(o)), a)))
+```
+
+### Variant 4: Predictor-projector plateau
+
+```text
+u_clean = B(P(H(o)), a)
+u_source = B(P(H(o)+eps), a)
+L_predproj = ||R(u_source) - sg(R(u_clean))||^2
+```
+
+### Variant 5: Local t-conditioned FM
+
+Only after t-calibration audit:
+
+```text
+source = z + sigma(t) eps
+target = z
+loss = ||v_phi(source, t) - (target-source)||^2 + ACPC loss
+```
+
+Must include clean/origin identity:
+
+```text
+t=0 -> correction near zero
+```
+
+Do not implement pure marginal noise-to-clean FM as the main method.
+
+---
+
+## 9. Success and no-go criteria
+
+Promote any ACPC-Flow method only if:
+
+1. v2 coverage audit supports the claimed stressor/level.
+2. Offline ATR decreases and SMPR does not drop.
+3. Candidate rank flip/top-k overlap improves.
+4. Clean performance remains within 5 pp.
+5. Small closed-loop eval improves over origin on the target stressor.
+6. The method beats same-parameter identity/random controls.
+7. For t-conditioned FM, estimated/non-oracle `t_start` works; oracle-only success is insufficient.
 
 No-go if:
 
-- coverage audit is no-go for the target stressor;
-- ATR drops but SMPR drops;
-- clean correction becomes large and clean success drops;
-- M1/M2 perform the same as M3 and M6 adds no benefit;
-- same-budget longer LeWM training matches the gains.
+- target stressor remains no-go in v2 coverage audit;
+- required `t_start` is large and causes neighborhood crossing;
+- pure synthetic noise only covers radius by leaving same-state basin;
+- M1/M2/M3 all match or underperform origin;
+- clean success drops;
+- candidate rank metrics do not improve.
 
-## 9. Codex implementation guide
+---
 
-### 9.1 Files to add/modify
+## 10. Codex implementation checklist
 
-```text
-acpc_flow.py
-tools/acpc_flow/coverage_audit.py
-jepa.py
-train.py
-config/train/lewm.yaml
-tests/...
-```
+### Immediate PR: audit only
 
-Do not modify CEM for the first PR.
+- [ ] Extend `coverage_audit.py` to v2.
+- [ ] Increase sample size option to 1000+.
+- [ ] Expose `encoder_feat`, `emb`, `predictor_hidden`, and `pred_emb` if feasible.
+- [ ] Compute `amp_P`, `amp_B`, `amp_R`, and `amp_total`.
+- [ ] Compute candidate rank metrics.
+- [ ] Add `t_grid` and `t_star` calibration metrics.
+- [ ] Emit JSON/CSV artifacts and a printed decision table.
+- [ ] Do not run training in this PR.
 
-### 9.2 `acpc_flow.py`
+### Second PR: only if audit supports it
 
-Create:
+- [ ] Implement encoder projector-as-transport training.
+- [ ] Add `project_features()` helper for `P(H(o)+eps)`.
+- [ ] Add latent_z / predictor / diagnostic objective modes.
+- [ ] Run only TwoRoom weak Gaussian first.
 
-```python
-class ResidualTransportHead(nn.Module):
-    def __init__(self, dim, hidden_dim=32, scale_init=0.0, norm="layernorm"):
-        ...
-    def forward(self, z):
-        return z + alpha * residual(z)
-```
+### Third PR: optional
 
-Utilities:
+- [ ] Implement predictor-projector plateau if v2 audit indicates `pred_proj` amplification.
+- [ ] Implement t-conditioned FM only after oracle t upper bound looks useful.
 
-```python
-def sample_latent_noise(z, std_min, std_max, mode="token_std", relative=True): ...
-
-def cvar_loss(values, q=0.90): ...
-
-def token_mse(a, b): ...
-
-def diagnostic_distance(pred_a, pred_b, *, normalize=None, tail_mode="mean", q=0.90): ...
-```
-
-### 9.3 Config block
-
-Add to `config/train/lewm.yaml`:
-
-```yaml
-loss:
-  acpc_flow:
-    enabled: false
-    mode: diagnostic        # latent_z | predictor | diagnostic | hybrid
-    source: latent_noise
-    weight: 0.1
-    identity_weight: 0.1
-    hidden_dim: 32
-    scale_init: 0.0
-    predictor_input_key: emb_trans
-    detach_target: true
-    stop_grad_clean_branch: true
-    use_bounded_aux: true
-    apply_tokens: context
-    source_time_policy: aligned
-    horizon: 1
-    rollout_mode: one_step
-    noise:
-      std_min: 0.0
-      std_max: 0.04
-      mode: token_std
-      relative: true
-    pred_space: ${loss.pred.space}
-    hybrid:
-      latent_weight: 0.1
-      acpc_weight: 1.0
-    diagnostic:
-      projection: identity
-      normalize_by_transition_scale: true
-      tail_mode: cvar
-      q: 0.90
-```
-
-### 9.4 `jepa.py` patch
-
-Add:
-
-```python
-def transport_emb(self, emb):
-    head = getattr(self, "acpc_flow_head", None)
-    if head is None or not bool(getattr(self, "acpc_flow_enabled", False)):
-        return emb
-    return head(emb)
-```
-
-Modify `encode()`:
-
-```python
-output = self.encoder(pixels, interpolate_pos_encoding=True)
-pixels_emb = output.last_hidden_state[:, 0]
-info["encoder_feat"] = rearrange(pixels_emb, "(b t) d -> b t d", b=b)
-emb = self.projector(pixels_emb)
-emb = rearrange(emb, "(b t) d -> b t d", b=b)
-info["emb"] = emb
-info["emb_trans"] = self.transport_emb(emb)
-```
-
-### 9.5 `train.py` integration sketch
-
-After encoding:
-
-```python
-flow_cfg = cfg.loss.get("acpc_flow", {})
-flow_enabled = bool(flow_cfg.get("enabled", False))
-pred_input_key = flow_cfg.get("predictor_input_key", "emb_trans") if flow_enabled else "emb"
-
-emb = output["emb"]
-emb_trans = output.get("emb_trans", emb)
-ctx_emb = output[pred_input_key][:, :ctx_len]
-```
-
-Target remains canonical:
-
-```python
-tgt_emb = output["emb"][:, n_preds:]
-```
-
-Auxiliary loss sketch:
-
-```python
-if flow_enabled:
-    clean_ctx = output["emb"][:, :ctx_len]
-    clean_ctx_trans = output.get("emb_trans", output["emb"])[:, :ctx_len]
-    identity_raw = mse_token(clean_ctx_trans, clean_ctx.detach()).mean()
-
-    noise = sample_latent_noise(clean_ctx, ...)
-    source_ctx = clean_ctx + noise
-    transported_ctx = self.model.transport_emb(source_ctx)
-
-    latent_raw = mse_token(transported_ctx, clean_ctx.detach()).mean()
-
-    if mode == "latent_z":
-        variant_raw = latent_raw
-    else:
-        transported_pred = self.model.predict(transported_ctx, ctx_act)
-        with torch.no_grad() if stop_grad_clean_branch else nullcontext():
-            clean_pred = self.model.predict(clean_ctx_trans, ctx_act)
-
-        pred_raw = mse_token(
-            get_pred_loss_tensor(transported_pred, space=pred_space),
-            get_pred_loss_tensor(clean_pred.detach(), space=pred_space),
-        ).mean()
-
-        if mode == "predictor":
-            variant_raw = pred_raw
-        else:
-            per_token = mse_token(
-                get_pred_loss_tensor(transported_pred, space=pred_space),
-                get_pred_loss_tensor(clean_pred.detach(), space=pred_space),
-            )
-            if normalize_by_transition_scale:
-                scale = mse_token(
-                    get_pred_loss_tensor(tgt_emb.detach(), space=pred_space),
-                    get_pred_loss_tensor(clean_ctx.detach(), space=pred_space),
-                ).mean().sqrt().clamp_min(1e-6)
-                per_token = per_token / scale.detach()
-            diag_raw = cvar_loss(per_token.reshape(-1), q=q) if tail_mode == "cvar" else per_token.mean()
-            variant_raw = diag_raw if mode == "diagnostic" else hybrid_latent_weight * latent_raw + hybrid_acpc_weight * diag_raw
-
-    raw = variant_raw + identity_weight * identity_raw
-    aux, aux_scale = self_bounded_aux_loss(pred_mse_loss, raw) if use_bounded_aux else (raw, 1.0)
-    output["acpc_flow_raw"] = raw
-    output["acpc_flow_identity_raw"] = identity_raw.detach()
-    output["acpc_flow_latent_raw"] = latent_raw.detach()
-    output["acpc_flow_clean_correction_norm"] = torch.linalg.vector_norm(clean_ctx_trans - clean_ctx, dim=-1).mean().detach()
-    output["acpc_flow_source_correction_norm"] = torch.linalg.vector_norm(transported_ctx - source_ctx, dim=-1).mean().detach()
-    output["acpc_flow_transport_to_clean_l2"] = torch.linalg.vector_norm(transported_ctx - clean_ctx, dim=-1).mean().detach()
-    output["pred_loss"] = output["pred_loss"] + flow_weight * aux
-```
-
-### 9.6 Coverage audit script checklist
-
-`tools/acpc_flow/coverage_audit.py` must:
-
-- load checkpoint and dataset windows;
-- compute clean `encoder_feat` and `emb`;
-- compute corrupted `encoder_feat` and `emb` for each stressor;
-- compute synthetic perturbation radii for each noise scale;
-- compute magnitude, kNN ratio, crossing, anisotropy, task alignment, ACPC gap, and rank flip metrics;
-- write JSON and CSV artifacts;
-- print a concise per-task/stressor decision table.
-
-### 9.7 Unit tests
-
-Add tests without MuJoCo/data:
-
-1. `ResidualTransportHead` with `scale_init=0` returns input near-exactly.
-2. `JEPA.encode()` returns `encoder_feat`, `emb`, and `emb_trans`.
-3. With no flow head or disabled flow, `emb_trans` equals `emb`.
-4. With a nonzero dummy flow head, `emb_trans` changes and gradients flow.
-5. `sample_latent_noise`, `cvar_loss`, and scalar loss modes are finite.
-6. Identity loss is near zero when `scale_init=0`.
-
-## 10. Implementation checklist for Codex
-
-- [ ] Add `acpc_flow.py`.
-- [ ] Add `tools/acpc_flow/coverage_audit.py` with JSON/CSV output.
-- [ ] Expose `encoder_feat`, `emb`, and `emb_trans` in `JEPA.encode()`.
-- [ ] Add explicit identity loss for origin near-zero correction.
-- [ ] Add `loss.acpc_flow` config block.
-- [ ] Add `latent_z`, `predictor`, `diagnostic`, and `hybrid` modes.
-- [ ] Transport all context/history tokens by default.
-- [ ] Add logging for correction norms and transport-to-clean distance.
-- [ ] Add unit tests.
-- [ ] Do not modify CEM in this PR.
-- [ ] Do not run large CEM eval before coverage audit and offline ATR/SMPR improve.
-
-Suggested commit message:
+Suggested commit message for immediate PR:
 
 ```text
-Add ACPC-Flow feasibility audit and training plan
+Extend ACPC-Flow coverage audit for projector and t-calibration
 
-- Formalize coverage and non-crossing conditions for feature perturbations
-- Add detailed coverage_audit.py specification before training
-- Expose encoder_feat, emb, and emb_trans for diagnostics
-- Keep latent, predictor, diagnostic, and hybrid objective modes
+- Add encoder/projector/predictor/pred_proj shift decomposition
+- Add amplification and candidate-rank metrics
+- Add t-grid calibration for time-conditioned FM feasibility
+- Keep training disabled until audit supports a path
 ```

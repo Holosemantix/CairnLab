@@ -357,27 +357,27 @@ SMPR uses programmatic task-state proxy labels, not oracle semantic annotations:
 
 \subsection{Bounded unseen-stressor check}\label{sec:exp-unseen-scope}
 
-The main evidence remains the matched Gaussian-noise endpoint. After freezing the Gaussian grid, we ran strongest-severity unseen-stressor score checks to test whether the fixed \stdmax{} $=0.08$ endpoint transfers outside the training perturbation family. \Cref{tab:unseen-scope-main} reports behavior only. TwoRoom and Reacher improve under strongest blur, whereas PushT and Cube do not show a clear resize gain at the scale of training-seed and evaluation variance. We treat this as bounded behavior outside the matched Gaussian setting.
+The main evidence remains the matched Gaussian-noise endpoint. After freezing the Gaussian grid, we ran strongest-severity unseen-stressor score checks to test whether the fixed \stdmax{} $=0.08$ endpoint transfers outside the training perturbation family. \Cref{tab:unseen-scope-main} reports the non-Gaussian behavior together with the matched-Gaussian ATR/SMPR movement for the same no-noise and noise-trained checkpoints. TwoRoom and Reacher improve under strongest blur, whereas PushT and Cube do not show a clear resize gain at the scale of training-seed and evaluation variance. We treat this as bounded behavior outside the matched Gaussian setting.
 
 \begin{table}[H]
 \centering
-\caption{Bounded unseen-stressor score check. Values are mean $\pm$ population std across LeWM training seeds 3072/3073/3074; each seed point averages evaluation seeds 42/43/44 from strongest-severity unseen runs. The two score columns compare the no-noise LeWM checkpoint with the fixed $\stdmax{}=0.08$ noise-trained checkpoint under the same non-Gaussian evaluation stressor.}
+\caption{Bounded unseen-stressor score check with matched-Gaussian endpoint diagnostics. Score values are mean $\pm$ population std across LeWM training seeds 3072/3073/3074; each seed point averages evaluation seeds 42/43/44 from strongest-severity unseen runs. ATR drop and SMPR gain summarize the same checkpoints' matched-Gaussian diagnostic movement from \Cref{tab:atr-smpr-selective-acpc}; they are included as diagnostic context, not as blur/resize-specific recomputations.}
 \label{tab:unseen-scope-main}
 \small
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{llrr}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{llrrrr}
 \toprule
-Task & evaluation stressor & no-noise ckpt & $\stdmax{}=0.08$ ckpt \\
+Task & evaluation stressor & no-noise score & noise-trained score & ATR drop & SMPR gain \\
 \midrule
-TwoRoom & blur $k=15$ & $47.67 \pm 5.44$ & $90.78 \pm 5.38$ \\
-Reacher & blur $k=15$ & $22.00 \pm 3.78$ & $71.22 \pm 1.10$ \\
-PushT & resize $0.25$ & $63.44 \pm 14.05$ & $66.33 \pm 8.38$ \\
-Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ \\
+TwoRoom & blur $k=15$ & $47.67 \pm 5.44$ & $90.78 \pm 5.38$ & $1.40$ & $0.65$ \\
+Reacher & blur $k=15$ & $22.00 \pm 3.78$ & $71.22 \pm 1.10$ & $2.55$ & $0.26$ \\
+PushT & resize $0.25$ & $63.44 \pm 14.05$ & $66.33 \pm 8.38$ & $3.33$ & $0.56$ \\
+Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ & $2.22$ & $0.55$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The pattern is mixed outside the training perturbation family: the $\stdmax{}=0.08$ checkpoint gives large improvements for TwoRoom and Reacher under blur, while PushT and Cube are essentially unchanged under the resize stressor. These rows therefore delimit the Gaussian result rather than extending it into a general perturbation-transfer claim.
+The pattern is mixed outside the training perturbation family. The blur rows show large behavior gains alongside large matched-Gaussian ATR drops and positive SMPR gains. The resize rows are the boundary cases: PushT and Cube also have strong matched-Gaussian ATR/SMPR movement, but their strongest-resize scores are essentially unchanged. These rows therefore delimit the Gaussian result rather than extending ATR/SMPR into a general perturbation-transfer predictor.
 
 %% ===========================================================================
 \section{Discussion and limitations}\label{sec:disc}

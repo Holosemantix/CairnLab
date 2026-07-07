@@ -41,6 +41,20 @@
 #   loss_hetero_mode, loss_hetero_probe_weight,
 #   loss_hetero_logvar_hidden_dim, loss_hetero_s_min, loss_hetero_s_max,
 #   loss_hetero_tau_floor,
+#   loss_acpc_flow_enabled (lewm-only ACPC-Flow latent transport; first
+#                           implementation supports source=latent_noise,
+#                           apply_tokens=context, horizon=1),
+#   loss_acpc_flow_mode (latent_z | predictor | diagnostic | hybrid),
+#   loss_acpc_flow_weight, loss_acpc_flow_identity_weight,
+#   loss_acpc_flow_hidden_dim, loss_acpc_flow_scale_init, loss_acpc_flow_norm,
+#   loss_acpc_flow_predictor_input_key (emb | emb_trans),
+#   loss_acpc_flow_noise_std_min/max, loss_acpc_flow_noise_mode,
+#   loss_acpc_flow_noise_relative, loss_acpc_flow_noise_sample_per_token,
+#   loss_acpc_flow_diagnostic_tail_mode, loss_acpc_flow_diagnostic_q,
+#   loss_acpc_flow_diagnostic_normalize_by_transition_scale,
+#   loss_acpc_flow_hybrid_latent_weight, loss_acpc_flow_hybrid_acpc_weight,
+#   loss_acpc_flow_detach_target, loss_acpc_flow_stop_grad_clean_branch,
+#   loss_acpc_flow_use_bounded_aux,
 #   loss_generic_latent_consistency_enabled (lewm-only GLC baseline; when true,
 #                                            image noise is applied in-forward
 #                                            as clean/noisy paired views),
@@ -323,6 +337,27 @@ add_override "loss.pred.space" "${loss_pred_space:-}"
 add_override "loss.pred.target_view" "${pred_target:-${target_view:-${loss_pred_target_view:-}}}"
 add_override "loss.target_stop_grad" "${loss_target_stop_grad:-}"
 add_override "loss.pred.type" "${loss_pred_type:-}"
+add_override "loss.acpc_flow.enabled" "${loss_acpc_flow_enabled:-}"
+add_override "loss.acpc_flow.mode" "${loss_acpc_flow_mode:-}"
+add_override "loss.acpc_flow.weight" "${loss_acpc_flow_weight:-}"
+add_override "loss.acpc_flow.identity_weight" "${loss_acpc_flow_identity_weight:-}"
+add_override "loss.acpc_flow.hidden_dim" "${loss_acpc_flow_hidden_dim:-}"
+add_override "loss.acpc_flow.scale_init" "${loss_acpc_flow_scale_init:-}"
+add_override "loss.acpc_flow.norm" "${loss_acpc_flow_norm:-}"
+add_override "loss.acpc_flow.predictor_input_key" "${loss_acpc_flow_predictor_input_key:-}"
+add_override "loss.acpc_flow.detach_target" "${loss_acpc_flow_detach_target:-}"
+add_override "loss.acpc_flow.stop_grad_clean_branch" "${loss_acpc_flow_stop_grad_clean_branch:-}"
+add_override "loss.acpc_flow.use_bounded_aux" "${loss_acpc_flow_use_bounded_aux:-}"
+add_override "loss.acpc_flow.noise.std_min" "${loss_acpc_flow_noise_std_min:-}"
+add_override "loss.acpc_flow.noise.std_max" "${loss_acpc_flow_noise_std_max:-}"
+add_override "loss.acpc_flow.noise.mode" "${loss_acpc_flow_noise_mode:-}"
+add_override "loss.acpc_flow.noise.relative" "${loss_acpc_flow_noise_relative:-}"
+add_override "loss.acpc_flow.noise.sample_per_token" "${loss_acpc_flow_noise_sample_per_token:-}"
+add_override "loss.acpc_flow.diagnostic.tail_mode" "${loss_acpc_flow_diagnostic_tail_mode:-}"
+add_override "loss.acpc_flow.diagnostic.q" "${loss_acpc_flow_diagnostic_q:-}"
+add_override "loss.acpc_flow.diagnostic.normalize_by_transition_scale" "${loss_acpc_flow_diagnostic_normalize_by_transition_scale:-}"
+add_override "loss.acpc_flow.hybrid.latent_weight" "${loss_acpc_flow_hybrid_latent_weight:-}"
+add_override "loss.acpc_flow.hybrid.acpc_weight" "${loss_acpc_flow_hybrid_acpc_weight:-}"
 add_override "loss.hetero.enabled" "${loss_hetero_enabled:-}"
 add_override "loss.hetero.mode" "${loss_hetero_mode:-}"
 add_override "loss.hetero.probe_weight" "${loss_hetero_probe_weight:-}"

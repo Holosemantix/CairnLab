@@ -55,6 +55,16 @@ SWEEP_VARS=(
     loss_inverse_dynamics_weight loss_transition_distance_weight
     loss_target_stop_grad
     loss_pred_space pred_target target_view loss_pred_target_view loss_pred_type loss_rollout_weight loss_rollout_steps
+    loss_acpc_flow_enabled loss_acpc_flow_mode loss_acpc_flow_weight
+    loss_acpc_flow_identity_weight loss_acpc_flow_hidden_dim loss_acpc_flow_scale_init
+    loss_acpc_flow_norm loss_acpc_flow_predictor_input_key
+    loss_acpc_flow_detach_target loss_acpc_flow_stop_grad_clean_branch
+    loss_acpc_flow_use_bounded_aux
+    loss_acpc_flow_noise_std_min loss_acpc_flow_noise_std_max loss_acpc_flow_noise_mode
+    loss_acpc_flow_noise_relative loss_acpc_flow_noise_sample_per_token
+    loss_acpc_flow_diagnostic_tail_mode loss_acpc_flow_diagnostic_q
+    loss_acpc_flow_diagnostic_normalize_by_transition_scale
+    loss_acpc_flow_hybrid_latent_weight loss_acpc_flow_hybrid_acpc_weight
     loss_hetero_enabled loss_hetero_mode loss_hetero_probe_weight loss_hetero_logvar_hidden_dim
     loss_hetero_s_min loss_hetero_s_max loss_hetero_tau_floor
     loss_generic_latent_consistency_enabled loss_snap_acpc_enabled loss_paired_view_control_enabled

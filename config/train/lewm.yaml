@@ -91,6 +91,38 @@ loss:
     #            SIGReg also uses that perturbed input view so anti-collapse
     #            regularizes the representation actually consumed by predictor.
     target_view: perturbed
+  acpc_flow:
+    enabled: false
+    mode: diagnostic        # latent_z | predictor | diagnostic | hybrid
+    source: latent_noise    # latent_noise only in first implementation
+    weight: 0.1
+    identity_weight: 0.1
+    hidden_dim: 32
+    scale_init: 0.0
+    norm: layernorm
+    predictor_input_key: emb_trans  # emb | emb_trans
+    detach_target: true
+    stop_grad_clean_branch: true
+    use_bounded_aux: true
+    apply_tokens: context
+    source_time_policy: aligned
+    horizon: 1
+    rollout_mode: one_step
+    noise:
+      std_min: 0.0
+      std_max: 0.04
+      mode: token_std
+      relative: true
+      sample_per_token: true
+    pred_space: ${loss.pred.space}
+    hybrid:
+      latent_weight: 0.1
+      acpc_weight: 1.0
+    diagnostic:
+      projection: identity
+      normalize_by_transition_scale: true
+      tail_mode: cvar
+      q: 0.90
   generic_latent_consistency:
     enabled: false
   snap_acpc:

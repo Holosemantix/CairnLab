@@ -32,6 +32,13 @@ class JEPA(nn.Module):
         # model behaves identically to the pure-MSE LeWM baseline.
         self.pred_logvar_proj = pred_logvar_proj
 
+    def transport_emb(self, emb):
+        head = getattr(self, "acpc_flow_head", None)
+        enabled = bool(getattr(self, "acpc_flow_enabled", False))
+        if head is None or not enabled:
+            return emb
+        return head(emb)
+
     def encode(self, info):
         """Encode observations and actions into embeddings.
         info: dict with pixels and action keys
@@ -42,8 +49,11 @@ class JEPA(nn.Module):
         pixels = rearrange(pixels, "b t ... -> (b t) ...")  # flatten for encoding
         output = self.encoder(pixels, interpolate_pos_encoding=True)
         pixels_emb = output.last_hidden_state[:, 0]  # cls token
+        info["encoder_feat"] = rearrange(pixels_emb, "(b t) d -> b t d", b=b)
         emb = self.projector(pixels_emb)
-        info["emb"] = rearrange(emb, "(b t) d -> b t d", b=b)
+        emb = rearrange(emb, "(b t) d -> b t d", b=b)
+        info["emb"] = emb
+        info["emb_trans"] = self.transport_emb(emb)
 
         if "action" in info:
             info["act_emb"] = self.action_encoder(info["action"])
@@ -289,6 +299,7 @@ class SphericalJEPA(JEPA):
         info = super().encode(info)
         info["emb_raw"] = info["emb"]
         info["emb"] = self.normalize_embeddings(info["emb_raw"])
+        info["emb_trans"] = self.transport_emb(info["emb"])
         return info
 
     def predict_raw(self, emb, act_emb):

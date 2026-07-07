@@ -1,6 +1,6 @@
 from functools import partial
 from pathlib import Path
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 
 import hydra
 import lightning as pl
@@ -17,6 +17,11 @@ except ImportError:
     SwanLabLogger = None
 from omegaconf import OmegaConf, open_dict
 
+from acpc_flow import (
+    ResidualTransportHead,
+    acpc_flow_loss_terms,
+    sample_latent_noise,
+)
 from jepa import JEPA
 from module import (
     ARPredictor,
@@ -492,6 +497,58 @@ def in_forward_noise_control_enabled(cfg) -> bool:
     return bool(cfg.loss.get("in_forward_noise_control", {}).get("enabled", False))
 
 
+def acpc_flow_enabled(cfg) -> bool:
+    return bool(cfg.loss.get("acpc_flow", {}).get("enabled", False))
+
+
+def validate_acpc_flow_config(cfg):
+    if not acpc_flow_enabled(cfg):
+        return
+    flow_cfg = cfg.loss.get("acpc_flow", {})
+    mode = str(flow_cfg.get("mode", "diagnostic")).lower()
+    if mode not in {"latent_z", "predictor", "diagnostic", "hybrid"}:
+        raise ValueError(f"Unsupported loss.acpc_flow.mode: {mode}")
+    source = str(flow_cfg.get("source", "latent_noise")).lower()
+    if source != "latent_noise":
+        raise NotImplementedError(
+            "ACPC-Flow first implementation supports only source=latent_noise"
+        )
+    apply_tokens = str(flow_cfg.get("apply_tokens", "context")).lower()
+    if apply_tokens != "context":
+        raise NotImplementedError(
+            "ACPC-Flow first implementation supports only apply_tokens=context"
+        )
+    source_time_policy = str(flow_cfg.get("source_time_policy", "aligned")).lower()
+    if source_time_policy != "aligned":
+        raise NotImplementedError(
+            "ACPC-Flow first implementation supports only source_time_policy=aligned"
+        )
+    rollout_mode = str(flow_cfg.get("rollout_mode", "one_step")).lower()
+    if rollout_mode != "one_step":
+        raise NotImplementedError(
+            "ACPC-Flow first implementation supports only rollout_mode=one_step"
+        )
+    horizon = int(flow_cfg.get("horizon", 1))
+    if horizon != 1:
+        raise NotImplementedError(
+            "ACPC-Flow first implementation supports only horizon=1"
+        )
+    pred_key = str(flow_cfg.get("predictor_input_key", "emb_trans"))
+    if pred_key not in {"emb", "emb_trans"}:
+        raise ValueError(
+            "loss.acpc_flow.predictor_input_key must be emb or emb_trans"
+        )
+
+
+def select_predictor_embedding(output: dict, cfg) -> torch.Tensor:
+    if not acpc_flow_enabled(cfg):
+        return output["emb"]
+    key = str(cfg.loss.acpc_flow.get("predictor_input_key", "emb_trans"))
+    if key not in output:
+        raise KeyError(f"Encoded output does not contain predictor input key: {key}")
+    return output[key]
+
+
 def paired_view_method_enabled(cfg) -> bool:
     enabled_methods = [
         generic_latent_consistency_enabled(cfg),
@@ -577,6 +634,113 @@ def resolve_adaptive_detach_origin(cons_cfg) -> bool:
     return bool(detach_origin)
 
 
+def _acpc_flow_correction_monitors(
+    terms,
+    *,
+    clean_ctx,
+    clean_ctx_trans,
+    transported_ctx,
+    source_ctx,
+    noise,
+):
+    monitors = {f"acpc_flow_{k}": v for k, v in terms.items()}
+    monitors["acpc_flow_clean_correction_norm"] = torch.linalg.vector_norm(
+        clean_ctx_trans - clean_ctx, dim=-1
+    ).mean()
+    monitors["acpc_flow_source_correction_norm"] = torch.linalg.vector_norm(
+        transported_ctx - source_ctx, dim=-1
+    ).mean()
+    monitors["acpc_flow_transport_to_clean_l2"] = torch.linalg.vector_norm(
+        transported_ctx - clean_ctx, dim=-1
+    ).mean()
+    monitors["acpc_flow_source_noise_norm"] = torch.linalg.vector_norm(
+        noise, dim=-1
+    ).mean()
+    return monitors
+
+
+def compute_acpc_flow_auxiliary(model, output, ctx_act, pred_mse_loss, cfg):
+    flow_cfg = cfg.loss.get("acpc_flow", {})
+    if not bool(getattr(model, "acpc_flow_enabled", False)):
+        raise RuntimeError("loss.acpc_flow.enabled=True but model transport is disabled")
+    ctx_len = int(cfg.wm.history_size)
+    pred_space = cfg.loss.get("pred", {}).get("space", "raw")
+    mode = str(flow_cfg.get("mode", "diagnostic")).lower()
+    clean_ctx = output["emb"][:, :ctx_len]
+    clean_ctx_trans = output.get("emb_trans", output["emb"])[:, :ctx_len]
+
+    noise_cfg = flow_cfg.get("noise", {})
+    noise = sample_latent_noise(
+        clean_ctx,
+        std_min=float(noise_cfg.get("std_min", 0.0)),
+        std_max=float(noise_cfg.get("std_max", 0.04)),
+        mode=str(noise_cfg.get("mode", "token_std")),
+        relative=bool(noise_cfg.get("relative", True)),
+        sample_per_token=bool(noise_cfg.get("sample_per_token", True)),
+    )
+    source_ctx = clean_ctx + noise
+    transported_ctx = model.transport_emb(source_ctx)
+
+    transported_pred = None
+    clean_pred = None
+    transition_scale = None
+    if mode != "latent_z":
+        transported_pred = get_pred_loss_tensor(
+            model.predict(transported_ctx, ctx_act), space=pred_space
+        )
+        stop_clean = bool(flow_cfg.get("stop_grad_clean_branch", True))
+        clean_context = torch.no_grad() if stop_clean else nullcontext()
+        with clean_context:
+            clean_pred_raw = model.predict(clean_ctx_trans, ctx_act)
+        clean_pred = get_pred_loss_tensor(clean_pred_raw, space=pred_space)
+
+        diag_cfg = flow_cfg.get("diagnostic", {})
+        if bool(diag_cfg.get("normalize_by_transition_scale", True)):
+            tgt = output["emb"][:, int(cfg.wm.num_preds):]
+            ref = output["emb"][:, : tgt.size(1)]
+            n = min(tgt.size(1), ref.size(1))
+            tgt_loss = get_pred_loss_tensor(tgt[:, :n], space=pred_space)
+            ref_loss = get_pred_loss_tensor(ref[:, :n], space=pred_space)
+            transition_scale = mse_token(tgt_loss, ref_loss).mean().sqrt()
+
+    diag_cfg = flow_cfg.get("diagnostic", {})
+    hybrid_cfg = flow_cfg.get("hybrid", {})
+    raw, terms = acpc_flow_loss_terms(
+        mode=mode,
+        clean_ctx=clean_ctx,
+        clean_ctx_trans=clean_ctx_trans,
+        transported_ctx=transported_ctx,
+        transported_pred=transported_pred,
+        clean_pred=clean_pred,
+        transition_scale=transition_scale,
+        identity_weight=float(flow_cfg.get("identity_weight", 0.1)),
+        diagnostic_tail_mode=str(diag_cfg.get("tail_mode", "cvar")),
+        diagnostic_q=float(diag_cfg.get("q", 0.90)),
+        hybrid_latent_weight=float(hybrid_cfg.get("latent_weight", 0.1)),
+        hybrid_acpc_weight=float(hybrid_cfg.get("acpc_weight", 1.0)),
+        detach_clean_pred=bool(flow_cfg.get("detach_target", True)),
+    )
+    if bool(flow_cfg.get("use_bounded_aux", True)):
+        aux_loss, aux_scale = self_bounded_aux_loss(pred_mse_loss, raw)
+    else:
+        aux_loss = raw
+        aux_scale = raw.new_tensor(1.0)
+
+    monitors = _acpc_flow_correction_monitors(
+        terms,
+        clean_ctx=clean_ctx,
+        clean_ctx_trans=clean_ctx_trans,
+        transported_ctx=transported_ctx,
+        source_ctx=source_ctx,
+        noise=noise,
+    )
+    monitors["acpc_flow_loss"] = aux_loss
+    monitors["acpc_flow_scale"] = aux_scale
+    weighted_loss = float(flow_cfg.get("weight", 0.1)) * aux_loss
+    monitors["acpc_flow_weighted_loss"] = weighted_loss
+    return monitors, weighted_loss
+
+
 def compute_temporal_hinge(output, *, model, cfg):
     """Upper hinge loss on consecutive latent pairs (LeWM variant).
 
@@ -655,6 +819,16 @@ def lejepa_forward(self, batch, stage, cfg):
     paired_control_enabled = paired_view_control_enabled(cfg)
     paired_view = paired_view_method_enabled(cfg)
     in_forward_noise_enabled = in_forward_noise_control_enabled(cfg)
+    flow_enabled = acpc_flow_enabled(cfg)
+    validate_acpc_flow_config(cfg)
+    if flow_enabled and paired_view:
+        raise ValueError(
+            "loss.acpc_flow is mutually exclusive with paired-view methods in this implementation"
+        )
+    if flow_enabled and in_forward_noise_enabled:
+        raise ValueError(
+            "loss.acpc_flow is mutually exclusive with in-forward noise control"
+        )
     if paired_view and in_forward_noise_enabled:
         raise ValueError(
             "loss.in_forward_noise_control is mutually exclusive with paired-view "
@@ -700,7 +874,7 @@ def lejepa_forward(self, batch, stage, cfg):
         output["in_forward_noise_active"] = emb.new_tensor(1.0)
 
     if paired_view:
-        ctx_emb = emb[:, :ctx_len]
+        ctx_emb = select_predictor_embedding(output, cfg)[:, :ctx_len]
         with torch.no_grad():
             output["target_view_paired_context_noise_l2"] = torch.linalg.vector_norm(
                 ctx_emb.detach() - origin_emb[:, :ctx_len].detach(), dim=-1
@@ -711,7 +885,7 @@ def lejepa_forward(self, batch, stage, cfg):
                     "target_view_paired_context_noise_l2"
                 ]
     elif target_view == "perturbed":
-        ctx_emb = emb[:, :ctx_len]
+        ctx_emb = select_predictor_embedding(output, cfg)[:, :ctx_len]
     elif target_view == "origin":
         perturbed_pixels = apply_configured_pixel_perturbation(batch, cfg, stage)
         if perturbed_pixels is batch["pixels"]:
@@ -721,7 +895,7 @@ def lejepa_forward(self, batch, stage, cfg):
             perturbed_batch["pixels"] = perturbed_pixels
             perturbed_output = self.model.encode(perturbed_batch)
         perturbed_emb = perturbed_output["emb"]
-        ctx_emb = perturbed_emb[:, :ctx_len]
+        ctx_emb = select_predictor_embedding(perturbed_output, cfg)[:, :ctx_len]
         sigreg_emb = perturbed_emb
         with torch.no_grad():
             origin_ctx = emb[:, :ctx_len]
@@ -855,6 +1029,18 @@ def lejepa_forward(self, batch, stage, cfg):
         output["paired_noaux_pair_to_base"] = (
             noaux_pred_raw.detach() / pred_mse_loss.detach().clamp_min(1e-8)
         )
+    if flow_enabled:
+        flow_monitors, flow_weighted_loss = compute_acpc_flow_auxiliary(
+            self.model,
+            output,
+            ctx_act,
+            pred_mse_loss,
+            cfg,
+        )
+        for k, v in flow_monitors.items():
+            output[k] = v
+        output["pred_loss"] = output["pred_loss"] + flow_weighted_loss
+
     gate_cfg = cfg.loss.get("action_gate", {})
     if gate_cfg.get("enabled", False):
         warmup_epochs = int(gate_cfg.get("warmup_epochs", 3))
@@ -1110,6 +1296,7 @@ def lejepa_forward(self, batch, stage, cfg):
                 or k.startswith("hetero_")
                 or k.startswith("sigma_probe_")
                 or k.startswith("adaptive_")
+                or k.startswith("acpc_flow_")
                 or k.startswith("glc_")
                 or k.startswith("snap_acpc_")
                 or k.startswith("paired_noaux_")
@@ -1128,6 +1315,8 @@ def lejepa_forward(self, batch, stage, cfg):
 
 @hydra.main(version_base=None, config_path="./config/train", config_name="lewm")
 def run(cfg):
+    validate_acpc_flow_config(cfg)
+
     #########################
     ##       dataset       ##
     #########################
@@ -1286,6 +1475,25 @@ def run(cfg):
         pred_proj=predictor_proj,
         pred_logvar_proj=pred_logvar_head,
     )
+    validate_acpc_flow_config(cfg)
+    flow_cfg_init = cfg.loss.get("acpc_flow", {})
+    world_model.acpc_flow_enabled = bool(flow_cfg_init.get("enabled", False))
+    if world_model.acpc_flow_enabled:
+        world_model.acpc_flow_head = ResidualTransportHead(
+            dim=embed_dim,
+            hidden_dim=int(flow_cfg_init.get("hidden_dim", 32)),
+            scale_init=float(flow_cfg_init.get("scale_init", 0.0)),
+            norm=str(flow_cfg_init.get("norm", "layernorm")),
+        )
+        flow_mode = flow_cfg_init.get("mode", "diagnostic")
+        flow_hidden_dim = int(flow_cfg_init.get("hidden_dim", 32))
+        flow_scale_init = float(flow_cfg_init.get("scale_init", 0.0))
+        print(
+            "[acpc_flow] enabled: "
+            f"mode={flow_mode}, "
+            f"hidden_dim={flow_hidden_dim}, "
+            f"scale_init={flow_scale_init}"
+        )
     gate_cfg_init = cfg.loss.get("action_gate", {})
     if gate_cfg_init.get("enabled", False):
         # Scalar EMA buffers for zscore normalisation of log A_t and s_t.

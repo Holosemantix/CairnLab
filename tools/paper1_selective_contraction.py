@@ -417,14 +417,14 @@ def _display_labels(summary: Mapping[str, Any], robust_std_key: str) -> dict[str
     method = str(meta.get("method", "LeWM"))
     method_label = str(meta.get("method_label") or method)
     if method == "LeWM":
-        robust = str(meta.get("robust_label") or f"noise-trained {method_label} {robust_std_key}")
+        robust = str(meta.get("robust_label") or f"Noise-trained {method_label}")
         return {
-            "base": f"origin {method_label}",
+            "base": f"Origin {method_label}",
             "fullseq_robust": robust,
         }
-    robust = str(meta.get("robust_label") or f"noise-trained {method_label} {robust_std_key}")
+    robust = str(meta.get("robust_label") or f"Noise-trained {method_label}")
     return {
-        "base": f"origin {method_label}",
+        "base": f"Origin {method_label}",
         "fullseq_robust": robust,
     }
 
@@ -1165,9 +1165,9 @@ def render_2d_task(
     fig, axes = plt.subplots(2, 2, figsize=(13.5, 10.5), sharex="col", sharey="col")
     panels = [
         ("base", "encoder_2d", "Encoder features"),
-        ("base", "predictor_2d", "Post-predictor rollout features"),
+        ("base", "predictor_2d", "8-step rollout predicted features"),
         ("fullseq_robust", "encoder_2d", "Encoder features"),
-        ("fullseq_robust", "predictor_2d", "Post-predictor rollout features"),
+        ("fullseq_robust", "predictor_2d", "8-step rollout predicted features"),
     ]
     for ax, (label, feature, title) in zip(axes.reshape(-1), panels):
         arr = encoded[label][feature]
@@ -1249,7 +1249,7 @@ def render_atlas_task(
     label_by_spec = _display_labels(summary, specs[1].std_key)
     feature_by_name = {
         "encoder": "Encoder",
-        "predictor": "Post-predictor rollout features",
+        "predictor": "8-step rollout predicted features",
     }
 
     fig, axes = plt.subplots(2, 2, figsize=(7.4, 7.2))
@@ -1337,7 +1337,7 @@ def render_cluster_task(
     label_by_spec = _display_labels(summary, specs[1].std_key)
     feature_by_name = {
         "encoder": "Encoder features",
-        "predictor": "Post-predictor rollout features",
+        "predictor": "8-step rollout predicted features",
     }
     metric_annotations = (
         _paper_metric_annotations(metric_summary_path, task)
@@ -1630,9 +1630,9 @@ def render_3d_task(
     fig = plt.figure(figsize=(12, 9))
     panels = [
         ("base", "encoder_3d", "Encoder"),
-        ("base", "predictor_3d", "Post-predictor rollout features"),
+        ("base", "predictor_3d", "8-step rollout predicted features"),
         ("fullseq_robust", "encoder_3d", "Encoder"),
-        ("fullseq_robust", "predictor_3d", "Post-predictor rollout features"),
+        ("fullseq_robust", "predictor_3d", "8-step rollout predicted features"),
     ]
     for i, (label, feature, title) in enumerate(panels, start=1):
         ax = fig.add_subplot(2, 2, i, projection="3d")

@@ -4,7 +4,9 @@ This document is the current working plan for the ACPC-Flow direction after the 
 
 The short conclusion is:
 
-> Do not train post-projector clean-only latent-noise ACPC-Flow at scale. The core coverage audit shows that small synthetic noise in `emb` does not cover pixel-corruption-induced shifts. The next viable direction is a staged audit and small experiment around **projector-as-transport** and possibly **predictor-projector plateau**. A pure time-conditioned FM variant is only a candidate if a separate `t`-calibration audit shows that inference-time `t_start` can be chosen without clean/noisy labels.
+> Do not train post-projector clean-only latent-noise ACPC-Flow at scale. The core64 and v2 audits reject frozen synthetic local-noise repair (`emb + epsilon -> clean emb`, or analogous repair at `encoder_feat`, `predictor_hidden`, `pred_emb`). That closes post-hoc transport on a trained baseline, but it does **not** close training-time projector distribution migration. The four-task origin-vs-noise v2 audit shows that ordinary input-noise training reshapes the `P/R` path and candidate rankings relative to origin, and those movements align with ATR/SMPR/eval for matched Gaussian and with task-dependent held-out blur/resize evidence. Treat `no_go` labels as strict method gates for frozen synthetic repair, not as paper-facing conclusions about whether noise training improved robustness.
+
+> Do not route this document's next step to robust CEM, noisy-only in-forward control, or pixel/paired-source ablations. Robust CEM has a separate no-go record (`paper1/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md`), and the Paper2 direct-regularization/data-path controls are recorded elsewhere (`paper1/ROBUSTNESS_TRIAGE_NEXT_STEP_PLAN_20260628.md`, `experiments.md`).
 
 ---
 
@@ -54,14 +56,147 @@ Interpretation:
 
 > The current evidence does not support broad clean-only feature-noise generalization. At most it leaves a small opening for weak Gaussian/local-sensor-noise experiments through the original encoder projector.
 
+### v2 audit update: four-level fixed-checkpoint repair is no-go
+
+New artifacts:
+
+```text
+assets/paper1_data/acpc_flow_coverage_v2_tworoom_baseline_seed3073_core128_fullstress.json
+assets/paper1_data/acpc_flow_coverage_v2_tworoom_baseline_seed3073_core128_fullstress.csv
+```
+
+The v2 audit used TwoRoom `baseline_seed3073`, 128 sampled sequences, candidate-rank metrics, amplification metrics, and `t` calibration. It audited:
+
+```text
+encoder_feat:      h = H(o)
+emb:               z = P(h)
+predictor_hidden:  u = B(z, a) before pred_proj
+pred_emb:          y = R(u)
+```
+
+Decision table summary:
+
+```text
+gaussian 0.03: no_go at encoder_feat, emb, predictor_hidden, pred_emb
+gaussian 0.05: no_go at encoder_feat, emb, predictor_hidden, pred_emb
+gaussian 0.08: no_go at encoder_feat, emb, predictor_hidden, pred_emb
+blur k7:       no_go at encoder_feat, emb, predictor_hidden, pred_emb
+resize 0.5:    no_go at encoder_feat, emb, predictor_hidden, pred_emb
+```
+
+Important readouts:
+
+```text
+amp_P_q90 is high across stressors (~5.1--6.0), so the encoder projector P
+strongly amplifies pixel-induced shifts in this trained baseline.
+
+This does not open an encoder-projector training gate, because the same audit
+shows crossing and coverage failures before a local synthetic-noise repair can
+be trusted. Gaussian 0.03 already has wrong_nn ~= 0.193 at encoder_feat and
+wrong_nn ~= 0.497 at pred_emb. Gaussian 0.08, blur, and resize are severe
+no-go cases across all levels.
+
+Candidate rank is genuinely affected: top1 flip is ~=0.20 for Gaussian 0.03,
+~=0.45 for Gaussian 0.05, ~=0.66 for Gaussian 0.08, ~=0.83 for blur, and
+~=0.79 for resize.
+
+`t` calibration is not separable for any audited stressor/level. Most
+radius/acpc uncovered rates are near 1.0 outside the weakest encoder_feat
+Gaussian 0.03 case.
+```
+
+### v2 cross-checkpoint update: noise training reshapes the P/R path
+
+New artifacts:
+
+```text
+assets/paper1_data/acpc_flow_coverage_v2_tworoom_noise008_seed3073_core128_fullstress.json
+assets/paper1_data/acpc_flow_coverage_v2_tworoom_noise008_seed3073_core128_fullstress.csv
+assets/paper1_data/acpc_flow_v2_four_task_origin_vs_noise008_aligned_summary.json
+assets/paper1_data/acpc_flow_v2_four_task_origin_vs_noise008_aligned_summary.md
+```
+
+The same v2 audit was run on origin and ordinary input-noise-trained seed3073
+checkpoints for all four tasks. The aligned four-task summary uses stressors that
+match the existing Paper1 eval artifacts:
+
+```text
+Tasks:       TwoRoom, Reacher, PushT, Cube
+Checkpoints: origin baseline seed3073 and noise_0to008_p1 seed3073
+Stressors:   Gaussian 0.03/0.05/0.08, blur ks15, resize factor0.25
+Readout:     continuous origin -> noise movement, plus eval and diagnostics
+```
+
+Important interpretation rule:
+
+```text
+strict_gate_label / no_go = can we train frozen synthetic local repair here?
+continuous movement      = did training reshape the P/R path and planner-facing ranks?
+```
+
+For paper planning, the second readout is the mechanism evidence. The strict gate
+still blocks post-hoc synthetic repair, but it should not be used to deny
+relative robustness improvements from ordinary training.
+
+Matched Gaussian 0.08 is now aligned across all four tasks:
+
+```text
+Task      eval pixels_std0.08  ATR q90        SMPR          amp_P q90     emb wrongNN   pred wrongNN  top1 flip    top5 overlap
+TwoRoom   68.8 -> 97.1         1.509 -> 0.111 0.339 -> 0.989 5.192 -> 1.358 0.828 -> 0.003 0.906 -> 0.042 0.664 -> 0.016 0.534 -> 0.977
+Reacher   18.2 -> 81.6         2.628 -> 0.082 0.733 -> 0.997 2.926 -> 1.031 0.930 -> 0.003 0.927 -> 0.000 0.797 -> 0.008 0.516 -> 0.980
+PushT      7.2 -> 85.8         3.580 -> 0.247 0.439 -> 1.000 1.545 -> 1.140 0.732 -> 0.000 0.711 -> 0.003 0.867 -> 0.023 0.364 -> 0.970
+Cube      43.1 -> 62.6         2.320 -> 0.100 0.453 -> 1.000 2.012 -> 1.207 0.932 -> 0.000 0.932 -> 0.000 0.859 -> 0.000 0.413 -> 0.988
+```
+
+Held-out blur/resize is task-dependent, not globally negative:
+
+```text
+TwoRoom blur k15:    eval 47.7 -> 83.7, Phase-0 diagnostics 5/5 improve,
+                     v2 primary metrics 6/6 improve.
+TwoRoom resize 0.25: eval 44.7 -> 84.7, v2 primary metrics 6/6 improve.
+Reacher blur k15:    eval 19.7 -> 72.0, Phase-0 diagnostics 5/5 improve,
+                     v2 primary metrics 6/6 improve.
+Reacher resize 0.25: eval 38.3 -> 78.3, v2 primary metrics 6/6 improve.
+PushT blur k15:      eval 51.3 -> 58.7, v2 primary metrics 6/6 improve.
+PushT resize 0.25:   eval 43.7 -> 68.0, Phase-0 diagnostics 5/5 improve,
+                     v2 primary metrics 6/6 improve.
+Cube blur k15:       eval 56.0 -> 58.3, but rank-side v2 movement is mixed/worse.
+Cube resize 0.25:    eval 57.7 -> 56.3, Phase-0 diagnostics 0/5 improve,
+                     rank-side v2 movement is mixed/worse.
+```
+
+Current reading:
+
+> Ordinary noise training provides positive evidence that the `P/R` path is
+> trainably shapeable. For matched Gaussian this is strong across all four tasks.
+> For blur/resize, the scope must remain task/stressor-specific: TwoRoom and
+> Reacher align with eval and diagnostics, PushT is positive especially on
+> resize, and Cube is the boundary case. We should keep this as a shared analysis
+> object rather than turning it into a broad go/no-go conclusion.
+
+This update still does not reopen time-conditioned FM: the available `t_start`
+calibration is not a usable non-oracle route for the current method.
+
 ### Immediate conclusion
 
-Do not run large ACPC-Flow training yet. First expand the audit to answer:
+Do not train a post-hoc ACPC-Flow adapter, fixed-checkpoint projector repair, or
+time-conditioned FM from synthetic local latent/feature noise for the origin
+baseline. The fixed-checkpoint audit answered the previous open questions:
 
-1. Does the encoder projector `P` amplify pixel-induced shifts?
-2. Does the predictor backbone or `pred_proj` amplify residual shifts?
-3. Are candidate rankings actually affected in the same way as synthetic feature perturbations?
-4. Can a time-conditioned FM model choose a useful inference-time `t_start` without an oracle clean/noisy flag?
+1. `P` does amplify pixel-induced shifts in the origin baseline.
+2. `R` can add mild amplification, but `P` is the dominant origin amplifier.
+3. Candidate rankings are affected, especially at stronger Gaussian, blur, and resize stressors.
+4. Non-oracle `t_start` is not supported by the calibration audit.
+
+The four-task origin-vs-noise audit answers the next question more carefully:
+from-scratch training can reshape the `P/R` path and planner-facing candidate
+rankings. This is strongest and cleanest for matched Gaussian, and it is also
+consistent with held-out blur/resize improvements on TwoRoom/Reacher and PushT
+where eval and diagnostics move in the same direction. Cube remains a boundary
+case. Therefore the live ACPC-Flow hypothesis is no longer frozen repair; it is
+training-time P/R distribution migration with real corrupted-view pressure and
+discriminability guards, to be analyzed by task/stressor rather than by a single
+binary label.
 
 ---
 
@@ -333,6 +468,40 @@ Required order:
 3. Train predictor-projector-only small experiment if audit supports it.
 4. Only then test two-sided training.
 
+### 4.4 Fixed-checkpoint repair vs. from-scratch projector migration
+
+The v2 audit is a **fixed-checkpoint repair audit**. It asks whether a trained
+baseline's corrupted representations are close enough to clean representations
+that a synthetic local-noise transport can repair them after the fact. The answer
+for TwoRoom `baseline_seed3073` is no.
+
+This is not the same as asking whether training can shape the representation
+path. A from-scratch projector-migration method would change the training
+dynamics of `P` and/or `R` while the encoder/predictor are still forming their
+basins. The plausible hypothesis is:
+
+```text
+clean/corrupted pixel views -> H -> P should learn a local same-state predictive plateau
+B -> R should avoid turning residual nuisance shift into planner-facing candidate-rank flips
+```
+
+Therefore the current fixed-repair result should be read as:
+
+```text
+no:  post-projector synthetic-noise transport on a frozen baseline
+no:  fixed-checkpoint local repair when the audit already shows crossing
+maybe: training-time distribution migration through the original P/R projectors,
+       using real corrupted-view pressure and discriminability guards
+```
+
+That analysis is now partially done in the four-task aligned summary. Ordinary
+noise training lowers `amp_P`, same-state crossing proxies, and candidate-rank
+flips for matched Gaussian across all four tasks; held-out blur/resize shows
+aligned positive movement on TwoRoom/Reacher and PushT, with Cube as the current
+boundary. The next decision is not whether to train a frozen adapter, but which
+from-scratch `P` or `R` intervention would isolate this mechanism without merely
+reproducing ordinary input-noise training.
+
 ---
 
 ## 5. Feasibility theory for feature/latent perturbation coverage
@@ -511,87 +680,125 @@ t_conditioned_fm_candidate
 pixel_paired_source_candidate
 ```
 
+`pixel_paired_source_candidate` is retained here as a legacy audit-schema label,
+not as the current recommended backup route. Existing paired/pixel-source
+training analyses are negative or out of scope for this ACPC-Flow plan; do not
+reopen them without a separate positive artifact.
+
 ---
 
 ## 7. Training roadmap after audit v2
 
-### Stage A: no training if audit remains no-go
+### Stage A: current fixed-checkpoint ACPC-Flow is closed
 
-If v2 audit says no-go for all levels except weak Gaussian, do not train broad ACPC-Flow.
-
-### Stage B: encoder projector-as-transport small experiment
-
-Run only if v2 audit supports `encoder_projector_small_train`.
-
-Task:
+The v2 full-stress audit is no-go at all four levels. For TwoRoom
+`baseline_seed3073`, do not train any of the following as post-hoc repair:
 
 ```text
-TwoRoom first
+post-projector residual transport
+encoder_feat synthetic-noise repair
+predictor_hidden synthetic-noise repair
+time-conditioned FM with synthetic local noise
 ```
 
-Stressors:
+This closes the previous immediate training roadmap for this checkpoint.
+
+### Stage B: projector-migration feasibility audit across checkpoints
+
+Status: completed for seed3073 with aligned stressors.
 
 ```text
-clean
-gaussian_std0.03
-gaussian_std0.05
-gaussian_std0.08 only as stress, not success target
+assets/paper1_data/acpc_flow_v2_four_task_origin_vs_noise008_aligned_summary.json
+assets/paper1_data/acpc_flow_v2_four_task_origin_vs_noise008_aligned_summary.md
 ```
 
-Models:
+The comparison joins three signals, not only v2 geometry:
 
 ```text
-origin baseline
-encoder_projector_latent_z
-encoder_projector_predictor
-encoder_projector_diagnostic
+1. v2 projector/rank movement:
+   amp_P_q90, amp_R_q90, emb/pred wrong_nn, candidate_top1_flip, top-k overlap
+
+2. paper-facing diagnostic trend:
+   ATR and SMPR for matched Gaussian; Phase-0 ACPC-H/MAF/CRA/PCC directional
+   checks for held-out cases where those diagnostics are available.
+
+3. closed-loop eval trend:
+   origin/noise success under the matched stressor from existing eval artifacts.
 ```
 
-No blur/resize in this stage unless audit is medium/high for them.
+Current reading:
 
-### Stage C: predictor projector plateau small experiment
+- Matched Gaussian: all four tasks show eval up, ATR down, SMPR up, and 6/6 v2
+  primary metrics improving. This is strong evidence that training can shape the
+  `P/R` path and reduce planner-facing rank instability.
+- TwoRoom/Reacher blur and resize: eval improves strongly, available Phase-0
+  diagnostics improve on blur, and v2 continuous metrics improve. This supports
+  blur/resize transfer for these tasks even when strict synthetic-repair gates
+  remain unfavorable.
+- PushT: resize is aligned across eval, Phase-0 diagnostics, and v2; blur has
+  mild eval gain and v2 improvement but lacks the Phase-0 diagnostic subset.
+- Cube: resize is a boundary/negative control with eval slightly down, Phase-0
+  diagnostics 0/5, and mixed rank-side v2 movement. Blur has slight eval gain but
+  mixed/worse rank-side v2 movement, so it should remain uncertain.
 
-Run only if v2 audit shows high `amp_R` or candidate rank instability after predictor projection.
+Do not collapse this into a single blur/resize verdict. The useful conclusion is
+that ordinary training can reshape projector/rank behavior, with transfer scope
+that depends on task and stressor.
 
-Models:
+### Stage C: candidate from-scratch single-projector MVE, pending joint analysis
+
+If we decide to test a method after analyzing Stage B, run a small from-scratch
+MVE rather than a frozen-checkpoint adapter. Start with one side for attribution:
 
 ```text
-predproj_latent/prediction
-predproj_diagnostic
+P-only distribution migration: real clean/corrupted pixel pairs -> P plateau
+R-only predictive plateau: real clean/corrupted branches -> R output stability
 ```
 
-Keep encoder projector unchanged for attribution.
+Do not start with both projectors unless one-sided evidence is already positive.
+The objective must use real corrupted-view pressure or an audited source that
+matches it; synthetic local latent noise alone is not enough.
 
-### Stage D: t-conditioned FM only as upper bound first
-
-Before a learned `t_start` estimator, run an oracle upper bound:
+Candidate slices to discuss before training:
 
 ```text
-choose t_start using known corruption severity / audit-derived t_star
+Matched Gaussian all-task slice:
+  strongest evidence; best for proving P/R path is trainably shapeable.
+
+TwoRoom/Reacher blur/resize slice:
+  best for showing transfer beyond matched Gaussian, but claims must be scoped.
+
+Cube boundary slice:
+  useful as a falsification/control case; not the first method target.
 ```
 
-This is not a valid main method, but it tells whether time-conditioned correction could help at all.
-
-If oracle t does not help, stop.
-
-If oracle t helps, implement non-oracle `t_start` estimator and compare:
+Minimum gates for any MVE:
 
 ```text
-fixed t
-oracle t
-estimated t
-multi-t self-selection
+clean drop <= 5 pp
+corrupted behavior improves over origin on the target slice
+v2 continuous metrics improve relative to origin
+ATR/SMPR or Phase-0 diagnostics move in the same direction as eval
+SMPR / task-discriminability guard does not degrade
+beats ordinary noise training only if making a method-strength claim; otherwise
+explain exactly what mechanism it isolates or simplifies
 ```
 
-### Stage E: two-sided training only after single-sided wins
+### Routes not reopened here
 
-Only if Stage B or C gives clear gains, test:
+Do not list the following as current next steps in this ACPC-Flow document:
 
 ```text
-encoder projector plateau + predictor projector plateau
+robust CEM system eval
+noisy-only in-forward control
+pixel/paired-source ablation as an unqualified next step
 ```
 
-Do not start here.
+Robust CEM has a separate no-go record in
+`paper1/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md`. The older Paper2
+regularization/data-path controls are recorded in `experiments.md`,
+`paper2/PLAN.md`, and `paper1/ROBUSTNESS_TRIAGE_NEXT_STEP_PLAN_20260628.md`;
+they should not be mixed into the ACPC-Flow next-step plan.
 
 ---
 
@@ -643,61 +850,95 @@ Do not implement pure marginal noise-to-clean FM as the main method.
 
 ---
 
-## 9. Success and no-go criteria
+## 9. Promotion and stop criteria
 
 Promote any ACPC-Flow method only if:
 
-1. v2 coverage audit supports the claimed stressor/level.
-2. Offline ATR decreases and SMPR does not drop.
+1. V2 continuous movement supports the claimed task/stressor/level.
+2. Offline diagnostics move in the same direction as eval: ATR down and SMPR not
+   down for matched Gaussian, or ACPC-H/MAF/PCC down and CRA/elite overlap up
+   for held-out Phase-0 cases.
 3. Candidate rank flip/top-k overlap improves.
 4. Clean performance remains within 5 pp.
 5. Small closed-loop eval improves over origin on the target stressor.
 6. The method beats same-parameter identity/random controls.
-7. For t-conditioned FM, estimated/non-oracle `t_start` works; oracle-only success is insufficient.
+7. For t-conditioned FM, estimated/non-oracle `t_start` works; oracle-only
+   success is insufficient.
 
-No-go if:
+Stop or hold a route if:
 
-- target stressor remains no-go in v2 coverage audit;
+- eval, diagnostics, and v2 movement disagree and the mechanism cannot be
+  isolated;
+- pure synthetic noise only covers radius by leaving the same-state basin;
 - required `t_start` is large and causes neighborhood crossing;
-- pure synthetic noise only covers radius by leaving same-state basin;
-- M1/M2/M3 all match or underperform origin;
-- clean success drops;
-- candidate rank metrics do not improve.
+- clean success drops beyond the planned tolerance;
+- candidate rank metrics do not improve;
+- M1/M2/M3 all match or underperform origin.
 
----
+Important caveat:
+
+> A strict v2 `no_go` label stops frozen synthetic local repair. By itself, it
+> does not stop a from-scratch P/R migration hypothesis when eval, diagnostics,
+> and continuous v2 origin->noise movement show relative improvement.
 
 ## 10. Codex implementation checklist
 
-### Immediate PR: audit only
+### Completed audit step
 
-- [ ] Extend `coverage_audit.py` to v2.
-- [ ] Increase sample size option to 1000+.
-- [ ] Expose `encoder_feat`, `emb`, `predictor_hidden`, and `pred_emb` if feasible.
-- [ ] Compute `amp_P`, `amp_B`, `amp_R`, and `amp_total`.
-- [ ] Compute candidate rank metrics.
-- [ ] Add `t_grid` and `t_star` calibration metrics.
-- [ ] Emit JSON/CSV artifacts and a printed decision table.
-- [ ] Do not run training in this PR.
+- [x] Extend `coverage_audit.py` to v2.
+- [x] Expose `encoder_feat`, `emb`, `predictor_hidden`, and `pred_emb`.
+- [x] Compute `amp_P`, `amp_B`, `amp_R`, and `amp_total`.
+- [x] Compute candidate rank metrics.
+- [x] Add `t_grid` and `t_star` calibration metrics.
+- [x] Emit JSON/CSV artifacts and a printed decision table.
+- [x] Keep training disabled until audit supports a path.
 
-### Second PR: only if audit supports it
-
-- [ ] Implement encoder projector-as-transport training.
-- [ ] Add `project_features()` helper for `P(H(o)+eps)`.
-- [ ] Add latent_z / predictor / diagnostic objective modes.
-- [ ] Run only TwoRoom weak Gaussian first.
-
-### Third PR: optional
-
-- [ ] Implement predictor-projector plateau if v2 audit indicates `pred_proj` amplification.
-- [ ] Implement t-conditioned FM only after oracle t upper bound looks useful.
-
-Suggested commit message for immediate PR:
+Current key artifact:
 
 ```text
-Extend ACPC-Flow coverage audit for projector and t-calibration
+assets/paper1_data/acpc_flow_coverage_v2_tworoom_baseline_seed3073_core128_fullstress.json
+assets/paper1_data/acpc_flow_coverage_v2_tworoom_baseline_seed3073_core128_fullstress.csv
+```
 
-- Add encoder/projector/predictor/pred_proj shift decomposition
-- Add amplification and candidate-rank metrics
-- Add t-grid calibration for time-conditioned FM feasibility
-- Keep training disabled until audit supports a path
+### Current ACPC-Flow analysis step
+
+- [x] Run the same v2 audit on ordinary noise-trained TwoRoom seed3073 std0.08.
+- [x] Compare origin vs noise-trained `amp_P`, `amp_R`, crossing, candidate-rank
+      flip, top-k overlap, and `t` calibration.
+- [x] Decide whether from-scratch P/R distribution migration is plausible for
+      matched Gaussian.
+- [x] Run the aligned four-task origin-vs-noise v2 audit.
+- [x] Join v2 movement with ATR/SMPR or corresponding Phase-0 diagnostics and
+      closed-loop eval scores.
+- [ ] Jointly inspect the four-task summary and choose whether the first MVE
+      should target matched Gaussian, TwoRoom/Reacher held-out transfer, or a
+      falsification/control slice.
+- [ ] Optional before training: repeat on seed3074 or a std sweep to separate
+      projector-path repair from checkpoint-specific variance.
+
+Current summary artifacts:
+
+```text
+assets/paper1_data/acpc_flow_v2_four_task_origin_vs_noise008_aligned_summary.json
+assets/paper1_data/acpc_flow_v2_four_task_origin_vs_noise008_aligned_summary.md
+```
+
+### Training only if the cross-checkpoint audit supports it
+
+- [ ] Implement P-only from-scratch projector distribution migration.
+- [ ] Implement R-only from-scratch predictive plateau.
+- [ ] Do not implement a frozen post-projector adapter.
+- [ ] Do not implement t-conditioned FM unless non-oracle `t_start` becomes
+      separable in a later audit.
+- [ ] Do not start two-projector training until one-sided evidence is positive.
+
+Suggested commit message for the audit update:
+
+```text
+Record ACPC-Flow v2 audits and projector-migration evidence
+
+- Add four-task origin-vs-noise aligned audit summary
+- Join v2 projector/rank movement with eval and diagnostics
+- Treat strict no_go labels as frozen-repair gates, not global conclusions
+- Keep from-scratch P/R migration as the current hypothesis under joint review
 ```

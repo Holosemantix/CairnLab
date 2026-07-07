@@ -33,16 +33,19 @@ DATASET_ROOTS = {
     "tworoom": "lewm-tworooms",
     "reacher": "lewm-reacher",
     "pusht": "lewm-pusht",
+    "cube": "lewm-cube",
 }
 DATASET_NAMES = {
     "tworoom": "tworoom",
     "reacher": "reacher",
     "pusht": "pusht_expert_train",
+    "cube": "ogbench/cube_single_expert",
 }
 STATE_KEYS = {
     "tworoom": "proprio",
-    "reacher": "proprio",
-    "pusht": None,
+    "reacher": "observation",
+    "pusht": "state",
+    "cube": "observation",
 }
 FEATURE_LEVELS = ("encoder_feat", "emb", "predictor_hidden", "pred_emb")
 EPS = 1e-8

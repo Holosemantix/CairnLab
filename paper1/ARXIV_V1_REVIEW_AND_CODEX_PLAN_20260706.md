@@ -347,9 +347,9 @@ Modify the cluster rendering path so that:
 
 1. The panel layout remains 2 × 2:
    - baseline encoder features;
-   - baseline post-predictor rollout features;
+   - baseline 8-step rollout predicted features;
    - std0.08 encoder features;
-   - std0.08 post-predictor rollout features.
+   - std0.08 8-step rollout predicted features.
 2. The t-SNE points and selected anchors are reused from the existing cached feature arrays.
 3. The only visible quantitative annotations are the two current theory-matched metrics:
    - ATR: base → std0.08;

@@ -101,7 +101,7 @@
 \maketitle
 
 \begin{abstract}
-Latent predictive world models avoid pixel reconstruction, but pixel-free prediction is not a robustness definition for closed-loop control. We study this gap with action-conditioned predictive consistency (ACPC), a no-retraining diagnostic for JEPA-style control checkpoints. The diagnostic combines ACPC Tail Risk (ATR), which measures high-quantile clean/noisy rollout disagreement for the same state under the same action sequence, with Selective Margin Pass Rate (SMPR), which checks that task-grounded near-boundary distinctions remain separated. Across three independent LeWM training seeds and four control tasks, no-noise checkpoints are fragile under observation-only Gaussian noise, while input-side noise training yields broad matched-Gaussian robustness plateaus. At recovered endpoints, ATR drops sharply and SMPR rises to near one across tasks. These results support ATR and SMPR as bounded ACPC diagnostics for matched-Gaussian robustness plateaus in fixed JEPA world-model checkpoints.
+Latent predictive world models avoid pixel reconstruction, but pixel-free prediction is not a robustness definition for closed-loop control. We study this gap with action-conditioned predictive consistency (ACPC), a no-retraining diagnostic for JEPA-style control checkpoints. The diagnostic combines ACPC Tail Risk (ATR), which measures high-quantile clean/noisy rollout disagreement for the same state under the same action sequence, with Selective Margin Pass Rate (SMPR), which checks that task-grounded near-boundary distinctions remain separated. Across three independent LeWM training seeds and four control tasks, no-noise checkpoints are fragile under observation-only Gaussian noise, while input-side noise training yields broad matched-Gaussian robustness plateaus. At recovered endpoints, ATR is substantially lower and SMPR is near one across tasks. These results support ATR and SMPR as bounded ACPC diagnostics for matched-Gaussian robustness plateaus in fixed JEPA world-model checkpoints.
 
 \smallskip
 \noindent\textbf{Keywords:} visual world models; JEPA; action-conditioned predictive consistency; visual robustness; predictive-dynamics diagnostics.
@@ -125,7 +125,7 @@ The selective tension matters because consistency alone can be misleading. A col
 
 We instantiate this diagnostic with a fixed Gaussian intervention. Across PushT, TwoRoom, Reacher, and Cube, we evaluate no-noise LeWM~\cite{maes2026lewm} checkpoints and full-sequence input-side Gaussian-noise checkpoints over \stdmax{} $\in \{0.01,\dots,0.08\}$. The primary endpoint is observation-only Gaussian evaluation noise with the goal image kept clean. Across three independent LeWM training seeds, the no-noise baseline remains strong on clean observations but loses $74.56 \pm 5.55$ points on PushT and $41.00 \pm 1.44$ points on Reacher at evaluation noise $\sigma=0.08$. Test-time visual fragility is not new~\cite{kostrikov2020drq,yarats2022drqv2,hansen2021soda,vigmo}; our focus is what it reveals about fixed JEPA world-model checkpoints.
 
-The evidence shows broad matched-Gaussian recovery plateaus rather than a stable universal point optimum. Input-side noise training recovers the observation-noise endpoint on TwoRoom, PushT, and Reacher and gives a weaker but positive Cube signal across training seeds. At recovered endpoints, ACPC Tail Risk (ATR) drops sharply and Selective Margin Pass Rate (SMPR) rises to near one across tasks. Bounded blur/resize checks delimit perturbation scope.
+The evidence shows broad matched-Gaussian recovery plateaus rather than a stable universal point optimum. Input-side noise training recovers the observation-noise endpoint on TwoRoom, PushT, and Reacher and gives a weaker but positive Cube signal across training seeds. At recovered endpoints, ACPC Tail Risk (ATR) is substantially lower and Selective Margin Pass Rate (SMPR) is near one across tasks. Bounded blur/resize checks delimit perturbation scope.
 
 This paper makes three contributions. First, it formulates visual robustness for JEPA world-model control as selective action-conditioned predictive consistency rather than encoder invariance. Second, it instantiates this diagnostic with ATR for same-state predictive tail risk and SMPR for task-grounded anti-collapse margins. Third, it provides a fixed-checkpoint Gaussian robustness study across four tasks and three LeWM training seeds, with bounded unseen-stressor checks that delimit the perturbation scope.
 
@@ -361,23 +361,23 @@ The main evidence remains the matched Gaussian-noise endpoint. After freezing th
 
 \begin{table}[H]
 \centering
-\caption{Bounded unseen-stressor score check with stressor-specific ATR/SMPR diagnostics. Score values are mean $\pm$ population std across LeWM training seeds 3072/3073/3074; each seed point averages evaluation seeds 42/43/44 from strongest-severity unseen runs. ATR drop is no-noise ATR minus noise-trained ATR under the row stressor; SMPR gain is noise-trained SMPR minus no-noise SMPR under the row stressor.}
+\caption{Bounded unseen-stressor score check with stressor-specific ATR/SMPR diagnostics. Score values are mean $\pm$ population std across LeWM training seeds 3072/3073/3074; each seed point averages evaluation seeds 42/43/44 from strongest-severity unseen runs. The ATR and SMPR columns report raw no-noise $\to$ noise-trained diagnostic values under the row stressor; lower ATR and higher SMPR are better.}
 \label{tab:unseen-scope-main}
 \small
 \setlength{\tabcolsep}{3.5pt}
-\begin{tabular}{llrrrr}
+\begin{tabular}{llrrcc}
 \toprule
-Task & evaluation stressor & no-noise score & noise-trained score & ATR drop & SMPR gain \\
+Task & evaluation stressor & no-noise score & noise-trained score & ATR & SMPR \\
 \midrule
-TwoRoom & blur $k=15$ & $47.67 \pm 5.44$ & $90.78 \pm 5.38$ & $0.37$ & $0.61$ \\
-Reacher & blur $k=15$ & $22.00 \pm 3.78$ & $71.22 \pm 1.10$ & $2.28$ & $0.38$ \\
-PushT & resize $0.25$ & $63.44 \pm 14.05$ & $66.33 \pm 8.38$ & $0.24$ & $0.03$ \\
-Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ & $-0.24$ & $-0.03$ \\
+TwoRoom & blur $k=15$ & $47.67 \pm 5.44$ & $90.78 \pm 5.38$ & $1.61 \to 1.24$ & $0.16 \to 0.77$ \\
+Reacher & blur $k=15$ & $22.00 \pm 3.78$ & $71.22 \pm 1.10$ & $2.81 \to 0.54$ & $0.60 \to 0.98$ \\
+PushT & resize $0.25$ & $63.44 \pm 14.05$ & $66.33 \pm 8.38$ & $1.77 \to 1.53$ & $0.93 \to 0.96$ \\
+Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ & $1.35 \to 1.59$ & $0.98 \to 0.95$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The recomputed unseen diagnostics co-move with behavior at this severe-stressor scale. The blur rows show large behavior gains with positive ATR drops and SMPR gains; PushT resize has only small score and diagnostic movement; Cube resize is neutral to slightly negative on both behavior and diagnostics. These rows therefore support only a bounded severe-stressor association rather than a general perturbation-transfer claim.
+The raw unseen diagnostics co-move with behavior at this severe-stressor scale. The blur rows combine large behavior gains with lower ATR and higher SMPR after noise training; PushT resize has only small score and diagnostic movement; Cube resize is neutral to slightly negative on behavior and also moves in the wrong diagnostic direction. These rows therefore support only a bounded severe-stressor association rather than a general perturbation-transfer claim.
 
 %% ===========================================================================
 \section{Discussion and limitations}\label{sec:disc}

@@ -220,23 +220,25 @@ def build(*, subset_path: Path, blur_smpr_path: Path, resize_smpr_path: Path, ou
         lines = [
             "# Paper1 Unseen ATR/SMPR Summary",
             "",
-            "Values are population mean over training seeds 3072/3073/3074. ATR drop is no-noise minus noise-trained ATR under the same unseen stressor; SMPR gain is noise-trained minus no-noise SMPR under the same unseen stressor.",
+            "Values are population mean over training seeds 3072/3073/3074. ATR and SMPR are reported as raw no-noise -> noise-trained values under the same unseen stressor; lower ATR and higher SMPR are better.",
             "",
-            "| Task | stressor | no-noise score | noise-trained score | ATR drop | SMPR gain |",
+            "| Task | stressor | no-noise score | noise-trained score | ATR raw | SMPR raw |",
             "|---|---:|---:|---:|---:|---:|",
         ]
         for row in summary_rows:
             stressor = f"{row['family']} {row['magnitude']:g}"
             lines.append(
-                "| {task} | {stressor} | {base} +/- {base_sd} | {rob} +/- {rob_sd} | {atr} | {smpr} |".format(
+                "| {task} | {stressor} | {base} +/- {base_sd} | {rob} +/- {rob_sd} | {atr_base} -> {atr_rob} | {smpr_base} -> {smpr_rob} |".format(
                     task=row["task"],
                     stressor=stressor,
                     base=_fmt(row["baseline_stress_success"]["mean"]),
                     base_sd=_fmt(row["baseline_stress_success"]["pstdev"]),
                     rob=_fmt(row["std008_stress_success"]["mean"]),
                     rob_sd=_fmt(row["std008_stress_success"]["pstdev"]),
-                    atr=_fmt(row["ATR_drop"]["mean"]),
-                    smpr=_fmt(row["SMPR_gain"]["mean"]),
+                    atr_base=_fmt(row["ATR_q90_0.0"]["mean"]),
+                    atr_rob=_fmt(row["ATR_q90_0.08"]["mean"]),
+                    smpr_base=_fmt(row["SMPR_0.0"]["mean"]),
+                    smpr_rob=_fmt(row["SMPR_0.08"]["mean"]),
                 )
             )
         lines.extend([
@@ -271,8 +273,9 @@ def main() -> None:
         print(f"wrote {args.md_out}")
     for row in payload["summary_rows"]:
         print(
-            f"{row['task']}: score_delta={row['stress_success_delta']['mean']:.2f}, "
-            f"ATR_drop={row['ATR_drop']['mean']:.2f}, SMPR_gain={row['SMPR_gain']['mean']:.2f}"
+            f"{row['task']}: score={row['baseline_stress_success']['mean']:.2f}->{row['std008_stress_success']['mean']:.2f}, "
+            f"ATR={row['ATR_q90_0.0']['mean']:.2f}->{row['ATR_q90_0.08']['mean']:.2f}, "
+            f"SMPR={row['SMPR_0.0']['mean']:.2f}->{row['SMPR_0.08']['mean']:.2f}"
         )
 
 

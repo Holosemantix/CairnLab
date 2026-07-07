@@ -115,7 +115,7 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "ATR base",
     "SMPR std0.08",
     "stressor-specific ATR/SMPR diagnostics",
-    "ATR drop is no-noise ATR minus noise-trained ATR under the row stressor",
+    "raw no-noise $\\to$ noise-trained diagnostic values under the row stressor",
     "We treat this as bounded behavior outside the matched Gaussian setting",
     "These rows therefore support only a bounded severe-stressor association rather than a general perturbation-transfer claim",
     "programmatic task-state proxy labels",
@@ -1942,10 +1942,10 @@ def check_unseen_atr_smpr_summary_json() -> None:
         fail("unseen SMPR definition must remain stressor-specific")
     rows = {row.get("task"): row for row in data.get("summary_rows", [])}
     expected = {
-        "TwoRoom": (47.67, 90.78, 0.37, 0.61),
-        "Reacher": (22.00, 71.22, 2.28, 0.38),
-        "PushT": (63.44, 66.33, 0.24, 0.03),
-        "Cube": (57.00, 56.11, -0.24, -0.03),
+        "TwoRoom": (47.67, 90.78, 1.61, 1.24, 0.16, 0.77),
+        "Reacher": (22.00, 71.22, 2.81, 0.54, 0.60, 0.98),
+        "PushT": (63.44, 66.33, 1.77, 1.53, 0.93, 0.96),
+        "Cube": (57.00, 56.11, 1.35, 1.59, 0.98, 0.95),
     }
     if set(rows) != set(expected):
         fail(f"unseen ATR/SMPR summary task coverage changed: {sorted(rows)}")
@@ -1954,8 +1954,10 @@ def check_unseen_atr_smpr_summary_json() -> None:
         got = (
             round2(float(row["baseline_stress_success"]["mean"])),
             round2(float(row["std008_stress_success"]["mean"])),
-            round2(float(row["ATR_drop"]["mean"])),
-            round2(float(row["SMPR_gain"]["mean"])),
+            round2(float(row["ATR_q90_0.0"]["mean"])),
+            round2(float(row["ATR_q90_0.08"]["mean"])),
+            round2(float(row["SMPR_0.0"]["mean"])),
+            round2(float(row["SMPR_0.08"]["mean"])),
         )
         if got != want:
             fail(f"unseen ATR/SMPR summary {task} changed: got {got}, want {want}")

@@ -8,7 +8,7 @@
   },
   "metadata": {
     "atr_definition": "ATR_q90 = acpc_h_l2_p90 / clean_transition_l2_median from unseen Phase-0 paired diagnostic rows; lower is better.",
-    "created_utc": "2026-07-07T07:18:04.980794+00:00",
+    "created_utc": "2026-07-07T07:46:33.487454+00:00",
     "schema_version": "paper1-unseen-atr-smpr-summary-20260707-v1",
     "scope": "strongest-severity unseen-stressor diagnostics under the same blur/resize stressor as the closed-loop score rows; no retraining",
     "smpr_definition": "SMPR_m0 = task-grounded near-boundary semantic margin pass-rate recomputed under the same unseen stressor; higher is better.",

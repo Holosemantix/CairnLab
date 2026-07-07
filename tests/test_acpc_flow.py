@@ -15,6 +15,12 @@ from acpc_flow import (
     sample_latent_noise,
 )
 from jepa import JEPA
+from tools.acpc_flow.coverage_audit import (
+    _add_predictor_levels,
+    _amplification_metrics,
+    _candidate_rank_bundle,
+    _candidate_rank_metrics,
+)
 
 
 class DummyEncoder(nn.Module):
@@ -27,10 +33,15 @@ class DummyEncoder(nn.Module):
         return SimpleNamespace(last_hidden_state=cls.unsqueeze(1))
 
 
+class DummyPredictor(nn.Module):
+    def forward(self, x, c):
+        return x + 0.1 * c[..., : x.size(-1)]
+
+
 def build_dummy_jepa(dim=4):
     return JEPA(
         encoder=DummyEncoder(dim),
-        predictor=nn.Identity(),
+        predictor=DummyPredictor(),
         action_encoder=nn.Linear(2, dim),
         projector=nn.Identity(),
         pred_proj=nn.Identity(),
@@ -139,3 +150,64 @@ def test_jepa_encode_uses_transport_head_and_backpropagates():
 
     assert not torch.allclose(out["emb_trans"], out["emb"])
     assert model.acpc_flow_head.alpha.grad is not None
+
+
+def test_coverage_audit_v2_predictor_levels_and_amplification():
+    model = build_dummy_jepa()
+    batch = {
+        "pixels": torch.randn(3, 4, 5),
+        "action": torch.randn(3, 4, 2),
+    }
+
+    clean = _add_predictor_levels(model, model.encode(dict(batch)), history_size=3)
+    corrupt_batch = {"pixels": batch["pixels"] + 0.05, "action": batch["action"]}
+    corrupt = _add_predictor_levels(model, model.encode(corrupt_batch), history_size=3)
+    amp = _amplification_metrics(
+        {k: clean[k][:, :3] for k in ("encoder_feat", "emb", "predictor_hidden", "pred_emb")},
+        {k: corrupt[k][:, :3] for k in ("encoder_feat", "emb", "predictor_hidden", "pred_emb")},
+    )
+
+    assert clean["predictor_hidden"].shape == (3, 3, 4)
+    assert clean["pred_emb"].shape == (3, 3, 4)
+    assert "amp_P_q90" in amp
+    assert "amp_B_q90" in amp
+    assert "amp_R_q90" in amp
+
+
+def test_coverage_audit_candidate_rank_metrics_identity_costs():
+    clean = torch.tensor([[0.0, 1.0, 2.0], [2.0, 1.0, 0.0]])
+    metrics = _candidate_rank_metrics(clean, clean.clone(), topk=2)
+
+    assert abs(metrics["candidate_rank_spearman"] - 1.0) < 1e-6
+    assert metrics["candidate_top1_flip_rate"] == 0.0
+    assert metrics["candidate_topk_overlap_rate"] == 1.0
+
+
+def test_coverage_audit_candidate_rank_bundle_smoke():
+    model = build_dummy_jepa()
+    batch = {
+        "pixels": torch.randn(3, 5, 5),
+        "action": torch.randn(3, 5, 2),
+    }
+    clean = _add_predictor_levels(model, model.encode(dict(batch)), history_size=2)
+    corrupt_batch = {"pixels": batch["pixels"] + 0.01, "action": batch["action"]}
+    corrupt = _add_predictor_levels(model, model.encode(corrupt_batch), history_size=2)
+
+    bundle = _candidate_rank_bundle(
+        model,
+        batch,
+        clean,
+        corrupt,
+        history_size=2,
+        future_steps=3,
+        random_action_trials=2,
+        topk=2,
+        std_grid=[0.01],
+        noise_mode="token_std",
+        seed=11,
+    )
+
+    assert bundle["computed"] is True
+    assert "candidate_rank_spearman" in bundle["pixel"]
+    assert "0.01" in bundle["synthetic_encoder_by_alpha"]
+    assert bundle["synthetic_predictor_hidden"]["computed"] is False

@@ -196,5 +196,5 @@
       "median_nearest_origin": 10.484732627868652
     }
   ],
-  "note": "All four cluster panels must have identical view_count_per_state and sampled_state_count. Colored anchor points are overlaid on the same background sample, so contraction can make the lower-row points visually overlap even when the counts match. In paper-facing mode, high-dimensional cluster-isolation statistics are retained here only as sidecar audit metadata and are not visible panel annotations."
+  "note": "All four cluster panels must have identical view_count_per_state and sampled_state_count. Colored anchor points are overlaid on the same background sample, so contraction can make the lower-row points visually overlap even when the counts match. In paper-facing mode, only compact ATR/SMPR panel insets are visible; high-dimensional cluster-isolation statistics are retained here only as sidecar audit metadata and are not visible panel annotations."
 }

@@ -419,12 +419,12 @@ def _display_labels(summary: Mapping[str, Any], robust_std_key: str) -> dict[str
     if method == "LeWM":
         robust = str(meta.get("robust_label") or f"noise-trained {method_label} {robust_std_key}")
         return {
-            "base": f"no-noise {method_label}",
+            "base": f"origin {method_label}",
             "fullseq_robust": robust,
         }
     robust = str(meta.get("robust_label") or f"noise-trained {method_label} {robust_std_key}")
     return {
-        "base": f"no-noise {method_label}",
+        "base": f"origin {method_label}",
         "fullseq_robust": robust,
     }
 
@@ -781,6 +781,16 @@ def _paper_metric_annotations(metric_summary_path: Path, task: str) -> dict[str,
 
 def _fmt_metric_annotation(value: float, digits: int = 2) -> str:
     return f"{float(value):.{digits}f}"
+
+
+def _panel_metric_text(metric_annotations: Mapping[str, Any] | None, label: str) -> str | None:
+    if metric_annotations is None:
+        return None
+    suffix = "base" if label == "base" else "std0.08"
+    return (
+        f"ATR={_fmt_metric_annotation(metric_annotations[f'ATR_{suffix}']['mean'])}\n"
+        f"SMPR={_fmt_metric_annotation(metric_annotations[f'SMPR_{suffix}']['mean'])}"
+    )
 
 
 
@@ -1457,33 +1467,30 @@ def render_cluster_task(
         ax.tick_params(labelsize=6.8, pad=1)
         ax.grid(True, color="#EEEEEE", linewidth=0.45)
         ax.set_aspect("equal", adjustable="box")
+        if paper_facing:
+            metric_text = _panel_metric_text(metric_annotations, label)
+            if metric_text:
+                ax.text(
+                    0.025,
+                    0.975,
+                    metric_text,
+                    transform=ax.transAxes,
+                    ha="left",
+                    va="top",
+                    fontsize=6.7,
+                    linespacing=1.05,
+                    color="#222222",
+                    bbox={
+                        "boxstyle": "round,pad=0.22",
+                        "facecolor": "white",
+                        "edgecolor": "#D9D9D9",
+                        "linewidth": 0.45,
+                        "alpha": 0.76,
+                    },
+                    zorder=8,
+                )
     if paper_facing:
-        fig.suptitle(
-            f"{task}: qualitative ACPC neighborhood t-SNE under repeated perturbations",
-            y=0.975,
-            fontsize=9.2,
-        )
-        if metric_annotations is None:
-            metric_text = "ATR/SMPR annotations unavailable"
-        else:
-            metric_text = (
-                "ATR "
-                f"{_fmt_metric_annotation(metric_annotations['ATR_base']['mean'])} -> "
-                f"{_fmt_metric_annotation(metric_annotations['ATR_std0.08']['mean'])}; "
-                "SMPR "
-                f"{_fmt_metric_annotation(metric_annotations['SMPR_base']['mean'])} -> "
-                f"{_fmt_metric_annotation(metric_annotations['SMPR_std0.08']['mean'])}"
-            )
-        fig.text(
-            0.5,
-            0.012,
-            "Qualitative t-SNE projection of repeated same-state views. "
-            f"{metric_text}. ATR/SMPR are computed in the original diagnostic space.",
-            ha="center",
-            va="bottom",
-            fontsize=6.6,
-            linespacing=1.18,
-        )
+        pass
     else:
         fig.suptitle(
             f"{task}: same-state perturbation clusters in encoder and ACPC rollout-readout spaces",
@@ -1509,7 +1516,8 @@ def render_cluster_task(
             fontsize=6.6,
             linespacing=1.18,
         )
-    fig.tight_layout(rect=(0, 0.075, 1, 0.945), h_pad=2.0, w_pad=0.9)
+    layout_rect = (0, 0.02, 1, 0.985) if paper_facing else (0, 0.075, 1, 0.945)
+    fig.tight_layout(rect=layout_rect, h_pad=2.0, w_pad=0.9)
     out_dir.mkdir(parents=True, exist_ok=True)
     if paper_facing:
         out_name = "fig_acpc_basin_tsne.png" if task == "PushT" else f"fig_{task.lower()}_acpc_basin_tsne.png"
@@ -1542,8 +1550,9 @@ def render_cluster_task(
                 "and sampled_state_count. Colored anchor points are overlaid on the "
                 "same background sample, so contraction can make the lower-row points "
                 "visually overlap even when the counts match. In paper-facing mode, "
-                "high-dimensional cluster-isolation statistics are retained here only "
-                "as sidecar audit metadata and are not visible panel annotations."
+                "only compact ATR/SMPR panel insets are visible; high-dimensional "
+                "cluster-isolation statistics are retained here only as sidecar audit "
+                "metadata and are not visible panel annotations."
             ),
         },
     )

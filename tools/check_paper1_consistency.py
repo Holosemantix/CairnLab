@@ -80,6 +80,10 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "semantic_local_margin_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_three_seed.md",
+    ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_unseen_blur_lewm_three_seed.json",
+    ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_unseen_resize_lewm_three_seed.json",
+    ROOT / "assets" / "paper1_data" / "unseen_atr_smpr_summary_20260707.json",
+    ROOT / "assets" / "paper1_data" / "unseen_atr_smpr_summary_20260707.md",
     ROOT / "assets" / "paper1_data" / "cem_trace_audit_20260704.json",
     ROOT / "assets" / "paper1_data" / "cem_trace_audit_20260704.md",
     ROOT / "assets" / "paper1_data" / "compressed_metrics_summary_20260706.json",
@@ -110,10 +114,10 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Qualitative PushT ACPC neighborhood t-SNE visualization",
     "ATR base",
     "SMPR std0.08",
-    "matched-Gaussian ATR/SMPR movement",
-    "not as blur/resize-specific recomputations",
+    "stressor-specific ATR/SMPR diagnostics",
+    "ATR drop is no-noise ATR minus noise-trained ATR under the row stressor",
     "We treat this as bounded behavior outside the matched Gaussian setting",
-    "These rows therefore delimit the Gaussian result rather than extending ATR/SMPR into a general perturbation-transfer predictor",
+    "These rows therefore support only a bounded severe-stressor association rather than a general perturbation-transfer claim",
     "programmatic task-state proxy labels",
     "closest 35\% state-distance neighborhood",
     "hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation",
@@ -1902,6 +1906,67 @@ def check_margin_flip_curve_json() -> None:
             fail(f"margin flip robust all-sample flip unexpectedly high for {task}: {robust_all}")
 
 
+
+def check_unseen_atr_smpr_summary_json() -> None:
+    for rel, expected_coverage in {
+        "semantic_task_grounded_margin_unseen_blur_lewm_three_seed.json": {
+            "TwoRoom:0.0": [3072, 3073, 3074],
+            "TwoRoom:0.08": [3072, 3073, 3074],
+            "Reacher:0.0": [3072, 3073, 3074],
+            "Reacher:0.08": [3072, 3073, 3074],
+        },
+        "semantic_task_grounded_margin_unseen_resize_lewm_three_seed.json": {
+            "PushT:0.0": [3072, 3073, 3074],
+            "PushT:0.08": [3072, 3073, 3074],
+            "Cube:0.0": [3072, 3073, 3074],
+            "Cube:0.08": [3072, 3073, 3074],
+        },
+    }.items():
+        data = json.loads((ROOT / "assets" / "paper1_data" / rel).read_text(encoding="utf-8"))
+        meta = data.get("metadata", {})
+        if meta.get("pair_rule") != "task_grounded_near_boundary":
+            fail(f"{rel} must use task_grounded_near_boundary")
+        if round2(float(meta.get("local_quantile"))) != 0.35:
+            fail(f"{rel} local quantile changed")
+        if data.get("coverage") != expected_coverage:
+            fail(f"{rel} coverage mismatch: {data.get('coverage')}")
+        if len(data.get("rows", [])) != 12 or any(row.get("status") != "ok" for row in data.get("rows", [])):
+            fail(f"{rel} must contain 12 ok rows")
+
+    path = ROOT / "assets" / "paper1_data" / "unseen_atr_smpr_summary_20260707.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    meta = data.get("metadata", {})
+    if meta.get("schema_version") != "paper1-unseen-atr-smpr-summary-20260707-v1":
+        fail(f"unseen ATR/SMPR schema changed: {meta.get('schema_version')!r}")
+    if "same unseen stressor" not in meta.get("smpr_definition", ""):
+        fail("unseen SMPR definition must remain stressor-specific")
+    rows = {row.get("task"): row for row in data.get("summary_rows", [])}
+    expected = {
+        "TwoRoom": (47.67, 90.78, 0.37, 0.61),
+        "Reacher": (22.00, 71.22, 2.28, 0.38),
+        "PushT": (63.44, 66.33, 0.24, 0.03),
+        "Cube": (57.00, 56.11, -0.24, -0.03),
+    }
+    if set(rows) != set(expected):
+        fail(f"unseen ATR/SMPR summary task coverage changed: {sorted(rows)}")
+    for task, want in expected.items():
+        row = rows[task]
+        got = (
+            round2(float(row["baseline_stress_success"]["mean"])),
+            round2(float(row["std008_stress_success"]["mean"])),
+            round2(float(row["ATR_drop"]["mean"])),
+            round2(float(row["SMPR_gain"]["mean"])),
+        )
+        if got != want:
+            fail(f"unseen ATR/SMPR summary {task} changed: got {got}, want {want}")
+    corr = data.get("correlations", {})
+    if int(corr.get("seed_rows_n", 0)) != 12:
+        fail("unseen ATR/SMPR correlations must use 12 seed rows")
+    if round2(float(corr.get("spearman_stress_delta_vs_ATR_drop"))) != 0.84:
+        fail("unseen ATR-drop Spearman association changed")
+    if round2(float(corr.get("spearman_stress_delta_vs_SMPR_gain"))) != 0.87:
+        fail("unseen SMPR-gain Spearman association changed")
+
 def check_compressed_metrics_summary_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "compressed_metrics_summary_20260706.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -2060,6 +2125,7 @@ def main() -> int:
         ("acpc basin json", check_acpc_basin_json),
         ("pldm acpc basin json", check_pldm_acpc_basin_json),
         ("compressed metrics summary json", check_compressed_metrics_summary_json),
+        ("unseen ATR/SMPR summary json", check_unseen_atr_smpr_summary_json),
         ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
         ("training-seed Gaussian lockbox json", check_training_seed_gaussian_lockbox_json),
         ("three-seed Gaussian sweep summary json", check_three_seed_gaussian_sweep_summary_json),

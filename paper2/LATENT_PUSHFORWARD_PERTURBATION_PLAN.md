@@ -3,8 +3,8 @@
 **Status:** technical-report draft for Paper2 method development  
 **Branch:** `ag/dev`  
 **Date:** 2026-07-07  
-**Intended role:** a structured bridge from Paper1 diagnostics to a possible Paper2 method. This document is written so that large parts can later be moved into a paper draft.  
-**Current claim level:** hypothesis + theory + audit plan + integration of existing evidence. No new method claim should be made until the planned pushforward audit and training MVE pass their gates.
+**Intended role:** a structured bridge from Paper1 diagnostics and ACPC-Flow audits to a possible Paper2 method. This document is written so that large parts can later be moved into a paper draft.  
+**Current claim level:** hypothesis + theory + completed diagnostic/audit evidence + next audit/training plan. No new method claim should be made until the planned pushforward replay and training MVE pass their gates.
 
 ---
 
@@ -12,7 +12,9 @@
 
 Latent predictive world models such as LeWM avoid pixel reconstruction and plan in compact learned representations, but Paper1 shows that this alone does not guarantee closed-loop visual robustness. Under matched Gaussian observation noise, no-noise LeWM checkpoints can suffer large control failures, while input-side Gaussian noise training recovers broad task-dependent robustness plateaus. ACPC-family diagnostics localize this recovery to reduced same-action clean/noisy predictive drift and improved candidate-ranking stability, but several direct method conversions have failed: generic encoder consistency, one-step predictive consistency, paired clean/noisy no-aux controls, and planner-side robust CEM reranking are insufficient or weak.
 
-This report proposes a new method hypothesis: pixel-space corruptions do not induce small isotropic Gaussian shifts in JEPA latent spaces. Instead, they induce layer-, task-, token-, and corruption-family-dependent **pushforward shifts** through the encoder, projector, predictor backbone, and predictor projection. A latent perturbation method should therefore match the measured pushforward geometry rather than inject scalar isotropic noise. We formalize coverage, non-crossing, and planner-facing relevance conditions for latent perturbation distributions; derive local covariance and rank-flip criteria; and propose a staged audit-to-method pipeline. The first deliverable is a **Pushforward Noise Geometry Audit** that compares isotropic, diagonal, low-rank-plus-diagonal, mean-shifted, mixture, and token/state-conditioned latent perturbation families against measured pixel-induced representation shifts. Only if the audit shows feasible coverage without basin crossing should training proceed to structured latent perturbation and predictive plateau objectives.
+The ACPC-Flow audits provide a sharper constraint. A core TwoRoom audit rejected post-projector clean-only local latent-noise repair: even weak pixel Gaussian corruption at `emb` produced shifts far outside the synthetic latent-noise tube. A later v2 four-level audit over `encoder_feat`, `emb`, `predictor_hidden`, and `pred_emb` found no-go fixed-checkpoint local repair across Gaussian, blur, and resize stressors; it also showed that candidate rankings are genuinely affected by corruption and that non-oracle time-conditioned FM calibration is not separable. However, the four-task origin-vs-noise v2 aligned summary shows that ordinary input-noise training **does** reshape the `P/R` path and planner-facing ranks: for matched Gaussian 0.08, ATR, SMPR, `amp_P`, wrong-neighbor rates, top-1 flips, and top-k overlaps all move strongly in the robust direction across TwoRoom, Reacher, PushT, and Cube.
+
+This report proposes a new method hypothesis: pixel-space corruptions do not induce small isotropic Gaussian shifts in JEPA latent spaces. Instead, they induce layer-, task-, token-, and corruption-family-dependent **pushforward shifts** through the encoder, projector, predictor backbone, and predictor projection. A latent perturbation method should therefore match the measured pushforward geometry rather than inject scalar isotropic noise. We formalize coverage, non-crossing, and planner-facing relevance conditions for latent perturbation distributions; derive local covariance and rank-flip criteria; integrate the completed ACPC-Flow audit results as empirical constraints; and propose a staged audit-to-method pipeline. The next deliverable is not a frozen adapter, but a **Pushforward Noise Geometry and Replay Audit** that compares isotropic, diagonal, low-rank-plus-diagonal, mean-shifted, mixture, and token/state-conditioned latent perturbation families against measured pixel-induced representation shifts and the completed ACPC-Flow v2 metrics.
 
 If successful, the contribution would be a theory-backed, diagnosis-guided latent perturbation method for robust JEPA world-model control. If the audit fails, it will still explain why naive latent-noise ACPC-Flow fails and will provide a principled no-go boundary for latent perturbation training.
 
@@ -34,13 +36,75 @@ The direct routes from diagnostic to method are now bounded by negative evidence
 - **One-step SNAP-ACPC** fails: matching one-step noisy predictions to detached clean predictions does not reproduce ordinary noise training.
 - **Paired no-aux control** fails: the paired clean/noisy in-forward path itself does not behave like ordinary `TransformDataset` noise training.
 - **Planner-side Robust CEM** is weak/no-go: rank-vote and robust inner-loop scoring do not clearly beat compute-matched CEM and do not transfer beyond the small TwoRoom signal.
+- **Frozen ACPC-Flow local repair** is no-go: post-hoc synthetic local-noise repair on a trained origin checkpoint fails coverage and non-crossing gates across audited representation levels.
 - **Heteroscedastic loss reweighting** is unsafe: hard transitions can be action-relevant, so downweighting prediction difficulty can erase important control information.
 
 These failures suggest that the next method should not simply add another consistency loss or final-stage planner selector. It should first answer a more basic geometric question:
 
-> What directions, scales, and covariance structures do pixel perturbations actually induce in the representations consumed by the world model and planner?
+> What directions, scales, and covariance structures do pixel perturbations actually induce in the representations consumed by the world model and planner, and which of those shifts are safely trainable?
 
-### 1.3 Thesis of this report
+### 1.3 What ACPC-Flow has already established
+
+The updated `paper1/ACPC_FLOW_CODEX.md` should be treated as a completed empirical constraint on this report, not as an unrelated plan.
+
+**Core64 audit.** On TwoRoom `baseline_seed3073`, post-projector `emb` synthetic local noise did not cover measured pixel-induced shifts:
+
+```text
+emb gaussian 0.03: no_go, ratio_q90 ~= 2.266, coverage@0.04/q95 = 0, wrong_nn ~= 0.137
+emb gaussian 0.08: no_go, ratio_q90 ~= 7.752, coverage@0.04/q95 = 0, wrong_nn ~= 0.836
+emb blur k7:       no_go, ratio_q90 ~= 17.871, coverage@0.04/q95 = 0, wrong_nn ~= 0.918
+emb resize 0.5:    no_go, ratio_q90 ~= 16.304, coverage@0.04/q95 = 0, wrong_nn ~= 0.941
+```
+
+For `emb` Gaussian 0.03, the pixel shift `delta_q90` was about `10.27`, while synthetic std=0.04 had radius q95 about `0.70` and synthetic std=0.12 had radius q95 about `2.10`. This is not a small hyperparameter miss.
+
+**V2 fixed-checkpoint audit.** The v2 audit used TwoRoom `baseline_seed3073`, 128 sequences, candidate-rank metrics, amplification metrics, and `t` calibration. It audited:
+
+```text
+encoder_feat
+emb
+predictor_hidden
+pred_emb
+```
+
+It found no-go fixed-checkpoint synthetic repair for all audited stressors and levels:
+
+```text
+gaussian 0.03 / 0.05 / 0.08: no_go at encoder_feat, emb, predictor_hidden, pred_emb
+blur k7: no_go at all four levels
+resize 0.5: no_go at all four levels
+```
+
+Important readouts:
+
+```text
+amp_P_q90 is high across stressors (~5.1--6.0), so encoder projector P strongly amplifies pixel-induced shifts.
+wrong_nn is already non-trivial at weak Gaussian 0.03 and severe for stronger stressors.
+candidate top1 flip rises from ~=0.20 at Gaussian 0.03 to ~=0.66 at Gaussian 0.08, ~=0.83 for blur, and ~=0.79 for resize.
+t calibration is not separable for any audited stressor/level.
+```
+
+**Four-task origin-vs-noise v2 aligned summary.** The same v2 audit was then used to compare origin and ordinary input-noise-trained seed3073 checkpoints on TwoRoom, Reacher, PushT, and Cube. The crucial distinction is:
+
+```text
+strict_gate_label / no_go = can we train frozen synthetic local repair here?
+continuous movement      = did ordinary training reshape the P/R path and planner-facing ranks?
+```
+
+For matched Gaussian 0.08, ordinary noise training reshapes the P/R path in a way that aligns with behavior and Paper1 diagnostics:
+
+| Task | eval px0.08 | ATR q90 | SMPR | amp_P q90 | emb wrongNN | pred wrongNN | top1 flip | top5 overlap |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| TwoRoom | 68.8 -> 97.1 | 1.509 -> 0.111 | 0.339 -> 0.989 | 5.192 -> 1.358 | 0.828 -> 0.003 | 0.906 -> 0.042 | 0.664 -> 0.016 | 0.534 -> 0.977 |
+| Reacher | 18.2 -> 81.6 | 2.628 -> 0.082 | 0.733 -> 0.997 | 2.926 -> 1.031 | 0.930 -> 0.003 | 0.927 -> 0.000 | 0.797 -> 0.008 | 0.516 -> 0.980 |
+| PushT | 7.2 -> 85.8 | 3.580 -> 0.247 | 0.439 -> 1.000 | 1.545 -> 1.140 | 0.732 -> 0.000 | 0.711 -> 0.003 | 0.867 -> 0.023 | 0.364 -> 0.970 |
+| Cube | 43.1 -> 62.6 | 2.320 -> 0.100 | 0.453 -> 1.000 | 2.012 -> 1.207 | 0.932 -> 0.000 | 0.932 -> 0.000 | 0.859 -> 0.000 | 0.413 -> 0.988 |
+
+Held-out blur/resize is task-dependent rather than globally negative. TwoRoom and Reacher align strongly with eval and diagnostics, PushT is positive especially on resize, and Cube remains the current boundary case.
+
+**Interpretation for this report.** The live method hypothesis is no longer frozen post-hoc ACPC-Flow repair. It is **training-time P/R distribution migration**: can we identify the structured representation shifts that ordinary pixel-noise training implicitly induces, and reproduce or sharpen them with pushforward-calibrated latent perturbations plus discriminability guards?
+
+### 1.4 Thesis of this report
 
 The key hypothesis is:
 
@@ -55,16 +119,16 @@ clean latent + Gaussian noise -> clean latent
 to:
 
 ```text
-measured pixel-pushforward geometry -> feasible structured latent perturbation -> predictive plateau repair
+measured pixel-pushforward geometry -> feasible structured latent perturbation -> training-time P/R distribution migration -> predictive plateau repair
 ```
 
-### 1.4 Intended contributions if the route succeeds
+### 1.5 Intended contributions if the route succeeds
 
 1. **Theory.** Pixel corruptions induce anisotropic and possibly low-rank pushforward distributions in JEPA world-model representation chains. Isotropic latent noise has a coverage-vs-crossing conflict.
-2. **Diagnostic audit.** A frozen, no-training audit measures pushforward covariance, layer amplification, non-crossing risk, and planner-facing candidate-rank sensitivity.
-3. **Method.** A pushforward-calibrated structured latent perturbation family, combined with predictive plateau objectives and discriminability guards.
+2. **Diagnostic audit.** A frozen, no-training audit measures pushforward covariance, layer amplification, non-crossing risk, and planner-facing candidate-rank sensitivity, extending the completed ACPC-Flow v2 metrics.
+3. **Method.** A pushforward-calibrated structured latent perturbation family, combined with predictive plateau objectives and discriminability guards, aimed at training-time P/R distribution migration rather than frozen adapters.
 4. **Evidence.** Structured latent perturbations mimic measured pixel-induced feature-shift directions better than isotropic noise and improve closed-loop robustness under matched Gaussian stress, with bounded unseen-stressor checks.
-5. **Negative clarity.** Existing negative controls show why naive encoder invariance, one-step prediction matching, and planner-side reranking are insufficient.
+5. **Negative clarity.** Existing negative controls show why naive encoder invariance, one-step prediction matching, frozen ACPC-Flow repair, and planner-side reranking are insufficient.
 
 ---
 
@@ -82,7 +146,7 @@ These works motivate latent prediction as a representation-learning and world-mo
 
 Visual-control robustness is often improved by input-side augmentation. DrQ-v2 is a strong model-free baseline that uses data augmentation for visual continuous control. DreamerV3 and TD-MPC2 show that learned world models and latent planning can scale across many control tasks, but their robustness stories are not the same as ACPC-style paired clean/corrupted predictive consistency in a fixed JEPA checkpoint.
 
-Paper1 observes that ordinary input-side Gaussian noise training is surprisingly strong for LeWM under matched Gaussian observation noise, but it is a coarse scalar pressure: the best training-noise level is task- and seed-dependent, and transfer to blur/resize is bounded. This report asks whether we can explain and partially reproduce that robustness using a latent perturbation distribution calibrated to the encoder's measured pixel-pushforward geometry.
+Paper1 observes that ordinary input-side Gaussian noise training is surprisingly strong for LeWM under matched Gaussian observation noise, but it is a coarse scalar pressure: the best training-noise level is task- and seed-dependent, and transfer to blur/resize is bounded. ACPC-Flow v2 adds that this training also reshapes projector/predictor paths and candidate ranks. This report asks whether we can explain and partially reproduce that robustness using a latent perturbation distribution calibrated to measured pixel-pushforward geometry.
 
 ### 2.3 Feature-space augmentation and latent perturbation
 
@@ -102,7 +166,7 @@ Existing feature augmentation work usually chooses perturbation families directl
 
 > measure how pixel perturbations are pushed forward through the world model, then design latent perturbations that cover those measured directions without crossing control-relevant basins.
 
-This is the gap this report formalizes.
+The completed ACPC-Flow audits show why this gap matters: scalar synthetic local latent noise fails fixed-checkpoint repair, but ordinary input-noise training still moves the P/R path and planner-facing ranks in the robust direction. The method opportunity is therefore to make that migration explicit, structured, and testable.
 
 ---
 
@@ -157,7 +221,7 @@ and trains the model so that perturbing level `l` by `eps_l` does not change act
 r_l_source = r_l(o) + eps_l,    eps_l ~ Q_l(o)
 ```
 
-The central design question is whether `Q_l` can safely approximate the measured pushforward deltas `Delta_l,tau`.
+The central design question is whether `Q_l` can safely approximate the measured pushforward deltas `Delta_l,tau` and induce the same kind of P/R path migration that ordinary input-noise training produced in the ACPC-Flow v2 aligned summary.
 
 ---
 
@@ -182,7 +246,7 @@ M_i = (Delta_i - mu_Q)^T Sigma_Q^{-1} (Delta_i - mu_Q)
 coverage_q95 = Pr_i[ M_i <= empirical_q95(Q_l) ]
 ```
 
-Coverage should be evaluated by severity and perturbation family, not only by aggregate norm.
+Coverage should be evaluated by severity and perturbation family, not only by aggregate norm. The ACPC-Flow core64 audit is a concrete failure case: `emb` Gaussian 0.03 had pixel `delta_q90 ~= 10.27`, while synthetic std=0.12 still had radius q95 only about `2.10`.
 
 #### Criterion 2: non-crossing / basin safety
 
@@ -201,6 +265,8 @@ same_label_topk_rate
 SMPR_after_noise
 ```
 
+The ACPC-Flow v2 fixed-checkpoint audit shows why this criterion is non-negotiable: even weak Gaussian 0.03 already produces non-trivial wrong-neighbor rates, and stronger Gaussian, blur, and resize are severe no-go cases across representation levels.
+
 #### Criterion 3: planner-facing relevance
 
 Large representation shift is not necessarily a control failure. The perturbation should be relevant to action-conditioned prediction or candidate ranking:
@@ -213,7 +279,7 @@ candidate_topk_overlap
 candidate_margin_clean_q10/q50
 ```
 
-Training should focus on directions that are both real pixel-pushforward directions and planner-facing failure directions.
+The ACPC-Flow v2 audit verifies planner-facing relevance: top-1 candidate flips are about `0.20` for Gaussian 0.03, about `0.66` for Gaussian 0.08, and about `0.83/0.79` for blur/resize. Training should therefore focus on directions that are both real pixel-pushforward directions and planner-facing failure directions.
 
 ### 4.2 Local pushforward covariance
 
@@ -303,6 +369,8 @@ amp_total = ||Delta_Y|| / (||Delta_H|| + eps)
 
 High `amp_P` suggests the encoder projector is a failure amplifier; high `amp_B` suggests the predictor backbone amplifies residual nuisance; high `amp_R` suggests the predictor projection is a planner-facing amplifier. This determines where structured perturbation or plateau training should be applied.
 
+The ACPC-Flow v2 audit already gives a strong prior: in the TwoRoom origin baseline, `amp_P_q90` is high across stressors, about `5.1--6.0`, making `P` the dominant fixed-checkpoint amplifier. Yet fixed repair remains no-go because coverage and non-crossing fail. This motivates training-time `P/R` distribution migration rather than post-hoc adapters.
+
 ### 4.6 Proposition: rank-flip risk from covariance geometry
 
 Let `J_j(z)` be the model-predicted cost for candidate action sequence `j`, and suppose:
@@ -339,7 +407,7 @@ A latent perturbation family is no-go at level `l` if any of the following hold:
 2. Coverage requires a covariance that yields high wrong-neighbor or low SMPR rates.
 3. Dominant pixel-pushforward directions are action/task-relevant and should not be contracted.
 4. Candidate ranking changes are caused by upstream prediction errors that cannot be repaired by perturbing level `l`.
-5. Oracle corruption-family labels are required for main-claim performance.
+5. Oracle corruption-family labels or non-separable `t_start` labels are required for main-claim performance.
 
 ---
 
@@ -347,13 +415,25 @@ A latent perturbation family is no-go at level `l` if any of the following hold:
 
 The method is intentionally staged. The audit is part of the method, not a preliminary convenience.
 
-### 5.1 Stage A: Pushforward Noise Geometry Audit
+### 5.1 Stage A: Completed ACPC-Flow constraints
 
-Create:
+Before adding a new audit, reuse the completed ACPC-Flow evidence as hard constraints:
+
+1. **Do not train frozen post-hoc ACPC-Flow adapters.** Core64 and v2 reject fixed-checkpoint local synthetic repair.
+2. **Do not use pure time-conditioned FM as the next method.** V2 `t` calibration is not separable.
+3. **Do not interpret `no_go` labels as saying ordinary noise training failed.** They only gate frozen synthetic repair.
+4. **Treat the four-task origin-vs-noise aligned summary as mechanism evidence.** Ordinary noise training strongly moves ATR, SMPR, `amp_P`, wrongNN, top1 flip, and top5 overlap for matched Gaussian across all four tasks.
+5. **Treat blur/resize as task-dependent.** TwoRoom/Reacher and PushT show positive aligned movement, while Cube is a boundary.
+
+### 5.2 Stage B: Pushforward Noise Geometry and Replay Audit
+
+Create or extend:
 
 ```text
 tools/acpc_flow/pushforward_noise_audit.py
 ```
+
+This should extend the existing ACPC-Flow v2 outputs rather than duplicate them. It should add covariance geometry and synthetic structured replay on top of the already-computed levels, amplification, candidate rank, and `t` calibration.
 
 Outputs:
 
@@ -366,11 +446,11 @@ assets/paper2_data/latent_pushforward_audit_summary_<date>.md
 For each task, checkpoint, perturbation family, severity, and representation level, compute:
 
 ```text
-# shift scale
+# shift scale, already partly in ACPC-Flow v2
 delta_norm_mean/median/q90/q95
 ratio_to_clean_knn_q50/q90/q95
 
-# covariance geometry
+# covariance geometry, new
 mean_shift_norm
 cov_trace
 cov_effective_rank
@@ -380,7 +460,7 @@ diagonal_energy_ratio
 offdiag_energy_ratio
 family_subspace_overlap
 
-# candidate Q coverage
+# candidate Q coverage, new/expanded
 coverage_isotropic_q95
 coverage_diag_q95
 coverage_lowrank_r{1,2,4,8,16}_q95
@@ -389,7 +469,7 @@ mahalanobis_q50/q90/q95
 required_isotropic_std
 required_lowrank_rank_for_coverage
 
-# safety
+# safety, partly in ACPC-Flow v2
 wrong_nn_rate
 closer_to_wrong_than_pair_rate
 crossing_rate_isotropic
@@ -398,19 +478,26 @@ crossing_rate_lowrank
 safe_radius_q95
 coverage_safe_conflict
 
-# amplification
+# amplification, already in ACPC-Flow v2
 amp_P
 amp_B
 amp_R
 amp_total
 
-# planner-facing relevance
+# planner-facing relevance, partly in ACPC-Flow v2
 ACPC_gap_q90/q95
 candidate_rank_spearman
 candidate_top1_flip_rate
 candidate_topk_overlap
 candidate_margin_clean_q10/q50
 rank_flip_bound_mean/q90
+
+# replay fidelity, new
+delta_direction_cosine_vs_pixel
+norm_ratio_vs_pixel
+ACPC_gap_match_error
+rank_spearman_match_error
+topk_overlap_match_error
 
 # decision
 decision
@@ -425,13 +512,14 @@ isotropic_no_go
 diagonal_candidate
 lowrank_diag_candidate
 family_mixture_candidate
-projector_plateau_candidate
+projector_migration_candidate
 predictor_projector_candidate
 pixel_paired_upper_bound_only
 needs_semantic_guard
+training_time_only
 ```
 
-### 5.2 Stage B: Candidate perturbation families
+### 5.3 Stage C: Candidate perturbation families
 
 #### Family 1: isotropic scalar noise
 
@@ -439,7 +527,7 @@ needs_semantic_guard
 eps ~ N(0, sigma^2 I)
 ```
 
-Role: baseline and negative control.
+Role: baseline and negative control. The completed ACPC-Flow audits already make this unlikely for post-projector `emb` fixed repair.
 
 #### Family 2: diagonal anisotropic noise
 
@@ -492,7 +580,7 @@ target = r_l(o)
 
 Role: upper bound. It is not a clean-only latent perturbation method and must not be framed as corruption-agnostic unless the corruption process is available during training and not during evaluation.
 
-### 5.3 Stage C: offline perturbation replay
+### 5.4 Stage D: offline perturbation replay
 
 Before training, replay synthetic structured perturbations at the chosen representation level:
 
@@ -514,11 +602,11 @@ wrong-neighborhood rate
 
 A training MVE is allowed only if structured latent replay matches pixel-induced predictive/rank effects better than isotropic and random low-rank controls.
 
-### 5.4 Stage D: training objectives
+### 5.5 Stage E: training objectives
 
 #### Objective 1: encoder-feature perturbation through projector
 
-Use when `encoder_feat` is safe and `amp_P` suggests the projector amplifies pixel shifts.
+Use when `encoder_feat` is safe and `amp_P` suggests the projector is trainably shapeable.
 
 ```text
 h = H(o)
@@ -558,7 +646,7 @@ L = alpha_z L_z + alpha_pred L_pred + alpha_R L_R
 
 Start with one active component for attribution. Do not train `P` and `R` jointly until single-sided tests win.
 
-### 5.5 Guard logging and optional guard losses
+### 5.6 Guard logging and optional guard losses
 
 Always log:
 
@@ -595,6 +683,25 @@ The best std is task- and seed-dependent, so this supports plateau language rath
 
 Recovered endpoints show large reductions in eight-step predictor rollout drift and high clean/noisy CKA. This supports the mechanism-localization view: robust checkpoints reduce action-conditioned predictive drift.
 
+#### ACPC-Flow core/v2 fixed-repair audit
+
+The core64 and v2 audits reject frozen local synthetic repair:
+
+- post-projector `emb` Gaussian 0.03 already has zero coverage at synthetic std=0.04/q95 and a pixel shift far larger than synthetic radius;
+- v2 no-go holds across `encoder_feat`, `emb`, `predictor_hidden`, and `pred_emb` for Gaussian 0.03/0.05/0.08, blur, and resize;
+- `P` is the dominant fixed-checkpoint amplifier in the origin TwoRoom audit;
+- candidate rankings are affected by corruption;
+- non-oracle `t_start` is not separable.
+
+#### ACPC-Flow four-task origin-vs-noise aligned summary
+
+The same v2 metrics show that ordinary input-noise training reshapes the P/R path and candidate-rank behavior:
+
+- matched Gaussian 0.08 improves eval, lowers ATR, raises SMPR, lowers `amp_P`, lowers wrong-neighbor rates, reduces top-1 flips, and raises top-5 overlap across all four tasks;
+- blur/resize movement is task-dependent: TwoRoom/Reacher align strongly, PushT is positive especially on resize, and Cube is the boundary.
+
+This evidence motivates training-time distribution migration rather than frozen adapter repair.
+
 #### Unseen stressor boundary
 
 Strongest-only blur/resize transfer is positive on TwoRoom/Reacher, weak/mixed on PushT, and neutral/slightly negative on Cube. This supports a bounded cross-stressor story but not a universal transfer claim.
@@ -603,9 +710,9 @@ Strongest-only blur/resize transfer is positive on TwoRoom/Reacher, weak/mixed o
 
 GLC, SNAP-ACPC, paired no-aux, and robust CEM are all negative or weak. These controls justify moving upstream to perturbation geometry rather than adding another naive consistency objective or planner rerank.
 
-### 6.2 Experiment 1: pushforward audit, no training
+### 6.2 Experiment 1: pushforward covariance/replay audit, no training
 
-**Goal.** Determine whether measured pixel-induced shifts are isotropic, diagonal, low-rank, mean-shifted, or family-specific, and identify safe representation levels.
+**Goal.** Determine whether measured pixel-induced shifts are isotropic, diagonal, low-rank, mean-shifted, or family-specific, and identify safe representation levels. This should extend ACPC-Flow v2 rather than rerun a disconnected audit.
 
 **Tasks.** First pass:
 
@@ -655,9 +762,9 @@ random low-rank subspace
 pixel-paired source upper bound
 ```
 
-**Success condition.** At least one representation level and one structured noise family shows substantially better coverage/safety trade-off than isotropic noise.
+**Success condition.** At least one representation level and one structured noise family shows substantially better coverage/safety/replay trade-off than isotropic noise and random low-rank controls.
 
-**Failure condition.** All noise families either fail coverage or cross task-distinct neighborhoods.
+**Failure condition.** All noise families either fail coverage/replay or cross task-distinct neighborhoods.
 
 ### 6.3 Experiment 2: offline perturbation replay
 
@@ -769,7 +876,16 @@ Current Paper1 artifacts already support the following:
 
 These results motivate the method but are not yet evidence for structured latent perturbation.
 
-### 7.2 Current result: direct method conversions are insufficient
+### 7.2 Current result: ACPC-Flow fixed repair is closed, training-time migration remains open
+
+The completed ACPC-Flow audits support a two-part result:
+
+1. **Closed:** fixed-checkpoint synthetic local repair is no-go. This includes post-projector `emb + epsilon -> clean emb`, analogous repair at `encoder_feat`, `predictor_hidden`, and `pred_emb`, and non-oracle `t_start` time-conditioned FM under the current calibration.
+2. **Open:** training-time P/R distribution migration is plausible. Ordinary input-noise training changes `amp_P`, wrong-neighbor rates, ATR, SMPR, and candidate-rank metrics in a way that aligns with matched Gaussian behavior across all four tasks.
+
+Therefore the next method should not train a frozen adapter. It should test whether structured latent perturbation can reproduce part of ordinary input-noise training's P/R path migration from scratch.
+
+### 7.3 Current result: direct method conversions are insufficient
 
 Existing negative controls imply:
 
@@ -780,7 +896,16 @@ Existing negative controls imply:
 
 This motivates an upstream geometry-aware method.
 
-### 7.3 Planned Table 1: pushforward covariance geometry
+### 7.4 Current Table: ACPC-Flow matched Gaussian 0.08 origin-vs-noise movement
+
+| Task | eval px0.08 | ATR q90 | SMPR | amp_P q90 | emb wrongNN | pred wrongNN | top1 flip | top5 overlap | Reading |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| TwoRoom | 68.8 -> 97.1 | 1.509 -> 0.111 | 0.339 -> 0.989 | 5.192 -> 1.358 | 0.828 -> 0.003 | 0.906 -> 0.042 | 0.664 -> 0.016 | 0.534 -> 0.977 | aligned |
+| Reacher | 18.2 -> 81.6 | 2.628 -> 0.082 | 0.733 -> 0.997 | 2.926 -> 1.031 | 0.930 -> 0.003 | 0.927 -> 0.000 | 0.797 -> 0.008 | 0.516 -> 0.980 | aligned |
+| PushT | 7.2 -> 85.8 | 3.580 -> 0.247 | 0.439 -> 1.000 | 1.545 -> 1.140 | 0.732 -> 0.000 | 0.711 -> 0.003 | 0.867 -> 0.023 | 0.364 -> 0.970 | aligned |
+| Cube | 43.1 -> 62.6 | 2.320 -> 0.100 | 0.453 -> 1.000 | 2.012 -> 1.207 | 0.932 -> 0.000 | 0.932 -> 0.000 | 0.859 -> 0.000 | 0.413 -> 0.988 | aligned, weaker eval gain |
+
+### 7.5 Planned Table 1: pushforward covariance geometry
 
 | Task | Checkpoint | Stressor | Level | eff. rank | top5 energy | mean shift | offdiag ratio | amp next | Reading |
 |---|---|---|---|---:|---:|---:|---:|---:|---|
@@ -788,22 +913,22 @@ This motivates an upstream geometry-aware method.
 | TwoRoom | origin | gauss0.08 | emb | TBD | TBD | TBD | TBD | TBD | TBD |
 | Reacher | origin | blur | encoder_feat | TBD | TBD | TBD | TBD | TBD | TBD |
 
-### 7.4 Planned Table 2: coverage vs crossing
+### 7.6 Planned Table 2: coverage vs crossing and replay fidelity
 
-| Task | Stressor | Level | Noise family | coverage q95 | crossing | rank flip | decision |
-|---|---|---|---|---:|---:|---:|---|
-| TwoRoom | gauss0.05 | encoder_feat | isotropic | TBD | TBD | TBD | TBD |
-| TwoRoom | gauss0.05 | encoder_feat | lowrank+diag | TBD | TBD | TBD | TBD |
-| Reacher | resize | emb | lowrank+diag | TBD | TBD | TBD | TBD |
+| Task | Stressor | Level | Noise family | coverage q95 | crossing | replay ACPC err | replay rank err | decision |
+|---|---|---|---|---:|---:|---:|---:|---|
+| TwoRoom | gauss0.05 | encoder_feat | isotropic | TBD | TBD | TBD | TBD | TBD |
+| TwoRoom | gauss0.05 | encoder_feat | lowrank+diag | TBD | TBD | TBD | TBD | TBD |
+| Reacher | resize | emb | lowrank+diag | TBD | TBD | TBD | TBD | TBD |
 
-### 7.5 Planned Table 3: offline replay fidelity
+### 7.7 Planned Table 3: offline replay fidelity
 
 | Task | Stressor | Level | Synthetic family | delta cosine | norm ratio err | ACPC-gap err | rank-Spearman err | wrong NN |
 |---|---|---|---|---:|---:|---:|---:|---:|
 | TBD | TBD | TBD | isotropic | TBD | TBD | TBD | TBD | TBD |
 | TBD | TBD | TBD | lowrank+diag | TBD | TBD | TBD | TBD | TBD |
 
-### 7.6 Planned Table 4: training MVE
+### 7.8 Planned Table 4: training MVE
 
 | Task | Model | Clean | px0.03 | px0.05 | px0.08 | ATR | SMPR | rank flip | T8 drift | Decision |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
@@ -822,7 +947,7 @@ If the route succeeds, it transforms Paper1 from a diagnostic study into a diagn
 
 > measure the pixel-to-latent pushforward geometry, choose a structured perturbation family that covers real nuisance directions without crossing predictive basins, and train a predictive plateau at the diagnosed layer.
 
-This is substantially more specific than generic feature augmentation.
+This is substantially more specific than generic feature augmentation and directly uses the completed ACPC-Flow result: frozen local repair fails, but ordinary training reshapes the P/R path.
 
 ### 8.2 Why this may fail
 
@@ -833,6 +958,7 @@ The route can fail for principled reasons:
 3. PushT/contact states may require semantic guards not available from current proxies.
 4. Ordinary pixel noise training may work through data-path or optimization effects that latent perturbations do not reproduce.
 5. Structured covariance estimated from test perturbations may become oracle-like and fail held-out perturbations.
+6. ACPC-Flow v2 may have already shown that the relevant fixed-checkpoint geometry is too far gone; the method may need to operate during representation formation rather than as a local perturbation around a trained origin manifold.
 
 Each failure is still informative if the audit is cleanly reported.
 
@@ -844,47 +970,51 @@ Do not claim:
 - that ACPC diagnostics alone predict closed-loop success;
 - that diagonal/low-rank latent noise is generally sufficient;
 - that matching pixel-pushforward shifts always improves control;
-- that oracle family-specific covariance is corruption-agnostic.
+- that oracle family-specific covariance is corruption-agnostic;
+- that ACPC-Flow `no_go` labels mean ordinary input-noise training did not improve robustness.
 
-Safe claims after successful audit-only stage:
+Safe claims after successful audit/replay stage:
 
 - pixel perturbations induce measurable anisotropic pushforward geometry;
-- isotropic latent noise is a poor coverage/safety match in tested settings;
-- structured low-rank/diagonal families may provide a better candidate for training.
+- isotropic latent noise is a poor coverage/safety/replay match in tested settings;
+- structured low-rank/diagonal families may provide a better candidate for training;
+- completed ACPC-Flow v2 fixed-repair no-go motivates training-time distribution migration rather than frozen adapters.
 
 Safe claims after successful training MVE:
 
 - pushforward-calibrated structured latent perturbation improves matched-stressor robustness on tested tasks/seeds;
-- gains are interpreted together with clean guard, SMPR, and candidate-rank metrics.
+- gains are interpreted together with clean guard, SMPR, and candidate-rank metrics;
+- if transfer to blur/resize occurs, it is bounded and task/stressor-specific unless broader evidence is collected.
 
 ### 8.4 Relationship to Paper1
 
-Paper1 should remain a diagnostic paper. This report can become Paper2 or a later method section if the new experiments pass. If the final target is a single larger paper, Paper1's ACPC theory and diagnostic evidence can become Sections 2-4, while this report supplies the method/theory/experiment extension.
+Paper1 should remain a diagnostic paper. This report can become Paper2 or a later method section if the new experiments pass. If the final target is a single larger paper, Paper1's ACPC theory and diagnostic evidence can become Sections 2-4, while this report supplies the method/theory/experiment extension. The ACPC-Flow v2 tables should serve as the transition section: they close frozen repair and motivate training-time pushforward-calibrated migration.
 
 ---
 
 ## 9. Implementation Plan
 
-### PR-A: audit implementation only
+### PR-A: audit/replay implementation only
 
-- [ ] Add `tools/acpc_flow/pushforward_noise_audit.py`.
+- [ ] Add `tools/acpc_flow/pushforward_noise_audit.py`, or extend the existing v2 audit code if cleaner.
 - [ ] Create `assets/paper2_data/` if needed.
+- [ ] Ingest existing ACPC-Flow v2 artifacts where possible so the new audit does not recompute already-stable metrics unnecessarily.
 - [ ] Reuse existing encoder/corruption/repr-analysis utilities.
 - [ ] Expose or hook `predictor_hidden` before `pred_proj`.
 - [ ] Compute delta covariance and anisotropy metrics.
 - [ ] Compute isotropic/diagonal/low-rank+diag coverage.
 - [ ] Compute clean-kNN and semantic-proxy non-crossing metrics.
-- [ ] Compute `amp_P`, `amp_B`, `amp_R`, `amp_total`.
-- [ ] Compute candidate-rank metrics where cost code is available.
+- [ ] Reuse or recompute `amp_P`, `amp_B`, `amp_R`, `amp_total`.
+- [ ] Reuse or recompute candidate-rank metrics.
+- [ ] Add structured replay fidelity metrics: direction cosine, norm ratio, ACPC gap error, rank-Spearman error, top-k overlap error.
 - [ ] Emit JSON/CSV/MD summary.
 - [ ] Do not train.
 
-### PR-B: offline replay
+### PR-B: report update from audit/replay artifacts
 
-- [ ] Implement structured latent replay.
-- [ ] Compare isotropic, diagonal, low-rank+diag, random low-rank, and pixel-paired branches.
-- [ ] Report geometry, ACPC, candidate-rank, and crossing fidelity.
-- [ ] Decide whether any family is eligible for training.
+- [ ] Fill planned Tables 1-3 with actual pushforward covariance and replay results.
+- [ ] Decide whether any latent perturbation family qualifies for training.
+- [ ] If all structured families fail, record a no-go and stop.
 
 ### PR-C: training MVE only after PR-A/B pass
 
@@ -925,4 +1055,4 @@ Paper1 should remain a diagnostic paper. This report can become Paper2 or a late
 
 [14] Jingyang He, Guangrun Li, Jieyu Zhang, Chengkai Hou, Zhengping Che, and Shanghang Zhang. **Demo-JEPA: Joint-Embedding Predictive Architecture for One-shot Cross-Embodiment Imitation.** arXiv:2605.20811, 2026. https://arxiv.org/abs/2605.20811
 
-[15] Paper1 internal artifacts in this repository: `paper1/PLAN.md`, `paper1/LOCKBOX_RESULTS_20260703.md`, `paper1/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md`, `assets/paper1_data/three_seed_diagnostic_validation.md`, `assets/paper1_data/selector_*_audit_20260704.md`, and `assets/paper1_data/residual_diagnostic_audit_20260704.md`.
+[15] Paper1 internal artifacts in this repository: `paper1/PLAN.md`, `paper1/LOCKBOX_RESULTS_20260703.md`, `paper1/ACPC_FLOW_CODEX.md`, `paper1/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md`, `assets/paper1_data/acpc_flow_coverage_tworoom_baseline_seed3073_core64.json`, `assets/paper1_data/acpc_flow_coverage_v2_tworoom_baseline_seed3073_core128_fullstress.json`, `assets/paper1_data/acpc_flow_v2_four_task_origin_vs_noise008_aligned_summary.md`, `assets/paper1_data/three_seed_diagnostic_validation.md`, `assets/paper1_data/selector_*_audit_20260704.md`, and `assets/paper1_data/residual_diagnostic_audit_20260704.md`.

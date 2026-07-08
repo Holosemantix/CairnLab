@@ -28,7 +28,12 @@
     "paper1/figures/fig_heldout_diagnostic_validation.png",
     "paper1/figures/fig_fixed_pool_tail_audit.png",
     "paper1/figures/fig_top1_agreement_full_sweep.png",
-    "paper1/figures/fig_threshold_sensitivity.png"
+    "paper1/figures/fig_threshold_sensitivity.png",
+    "paper1/results/sample_level_certificate_endpoint_audit.csv",
+    "paper1/results/sample_level_certificate_endpoint_audit.json",
+    "paper1/results/sample_level_certificate_endpoint_samples.csv",
+    "paper1/results/sample_level_certificate_endpoint_summary.csv",
+    "paper1/tables/table_sample_level_certificate_endpoint.tex"
   ],
   "jacobian_audit_source": "omitted: finite-difference/JVP checkpoint audit not run in this training-free remediation",
   "notes": [
@@ -36,7 +41,7 @@
     "q80/q95 ATR, q10 margin, q95/q99 drift, and pool cert-pass rates are not inferred from retained summaries.",
     "Held-out gates are calibrated on calibration rows only; held-out labels are used only for evaluation."
   ],
-  "raw_fixed_pool_source": "missing: retained artifacts contain q50/q90 summaries and fixed-pool flip rates, not sample-level candidate-cost traces",
+  "raw_fixed_pool_source": "endpoint recomputation implemented: paper1/results/sample_level_certificate_endpoint_audit.json; full-sweep retained artifacts still contain q50/q90 summaries only",
   "rho_grid": [
     0.0,
     0.01,
@@ -60,5 +65,12 @@
     3072,
     3073,
     3074
-  ]
+  ],
+  "sample_level_certificate_audit": {
+    "scope": "base and std0.08 endpoints for four tasks and training seeds 3072/3073/3074",
+    "n_sequences_per_seed": 100,
+    "candidate_count": 65,
+    "result_csv": "paper1/results/sample_level_certificate_endpoint_summary.csv",
+    "interpretation": "cert-pass and top1-flip separation strengthens fixed-pool mechanism audit; strict q10/q95 gaps remain negative, so this is not a calibrated certificate"
+  }
 }

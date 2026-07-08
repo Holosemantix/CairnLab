@@ -1,0 +1,17 @@
+\begin{table}[H]
+\centering
+\caption{Sample-level fixed-pool endpoint audit. Cert-pass is the fraction of sampled states where the maximum paired candidate-cost drift over the fixed 65-candidate pool is below half the clean top-1/top-2 margin. Values are mean $\pm$ population std across training seeds 3072/3073/3074 with 100 sampled states per seed. Strict q10/q95 gaps remain negative, so these rows support a fixed-pool mechanism audit rather than a calibrated probability certificate.}
+\label{tab:sample-level-certificate-endpoint}
+\small
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lccc}
+\toprule
+Task & cert-pass base $\to$ std0.08 & top-1 flip base $\to$ std0.08 & q10/q95 gap base $\to$ std0.08 \\
+\midrule
+TwoRoom & $0.05 \pm 0.00$ $\to$ $0.73 \pm 0.03$ & $0.80 \pm 0.02$ $\to$ $0.03 \pm 0.00$ & $-1084.6 \pm 44.0$ $\to$ $-179.0 \pm 44.2$ \\
+PushT & $0.01 \pm 0.01$ $\to$ $0.74 \pm 0.04$ & $0.92 \pm 0.03$ $\to$ $0.03 \pm 0.02$ & $-917.4 \pm 44.3$ $\to$ $-126.2 \pm 13.5$ \\
+Reacher & $0.00 \pm 0.00$ $\to$ $0.61 \pm 0.01$ & $0.88 \pm 0.03$ $\to$ $0.01 \pm 0.00$ & $-935.2 \pm 32.1$ $\to$ $-24.7 \pm 2.3$ \\
+Cube & $0.00 \pm 0.00$ $\to$ $0.83 \pm 0.01$ & $0.92 \pm 0.03$ $\to$ $0.00 \pm 0.00$ & $-1005.3 \pm 13.9$ $\to$ $-31.3 \pm 7.7$ \\
+\bottomrule
+\end{tabular}
+\end{table}

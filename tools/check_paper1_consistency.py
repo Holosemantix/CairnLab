@@ -100,14 +100,14 @@ REQUIRED_ARTIFACTS = [
     ROOT / "paper1" / "results" / "radius_margin_certificate_summary.csv",
     ROOT / "paper1" / "results" / "radius_margin_gate_ablation.csv",
     ROOT / "paper1" / "results" / "prospective_diagnostic" / "diagnostics_all_ckpts.csv",
-    ROOT / "paper1" / "results" / "prospective_diagnostic" / "calibration_thresholds_seed3072.json",
-    ROOT / "paper1" / "results" / "prospective_diagnostic" / "predictions_heldout.csv",
-    ROOT / "paper1" / "results" / "prospective_diagnostic" / "validation_summary.csv",
-    ROOT / "paper1" / "results" / "prospective_diagnostic" / "validation_summary_by_task.csv",
-    ROOT / "paper1" / "results" / "prospective_diagnostic" / "validation_interval_blocks.csv",
-    ROOT / "paper1" / "results" / "prospective_diagnostic" / "README.md",
+    ROOT / "paper1" / "results" / "diagnostic_region" / "diagnostic_region_rows.csv",
+    ROOT / "paper1" / "results" / "diagnostic_region" / "diagnostic_region_summary.csv",
+    ROOT / "paper1" / "results" / "diagnostic_region" / "direction_consistency_by_block.csv",
+    ROOT / "paper1" / "results" / "diagnostic_region" / "direction_consistency_summary.csv",
+    ROOT / "paper1" / "results" / "diagnostic_region" / "robust_fragile_separation.csv",
+    ROOT / "paper1" / "results" / "diagnostic_region" / "README.md",
     ROOT / "tools" / "paper1_radius_margin_certificate.py",
-    ROOT / "tools" / "paper1_prospective_atr_smpr_validation.py",
+    ROOT / "tools" / "paper1_diagnostic_region_validation.py",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -146,11 +146,13 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Matched-perturbation diagnostic interval",
     "Diagnostic validation of the radius--margin certificate",
     "fixed-pool proxy and not a planner-margin certificate",
-    "separate no-retraining diagnostic audit",
-    "per-task ATR+SMPR precision 1.00",
-    "mean interval IoU 0.92",
-    "ATR drives interval localization and SMPR functions as the anti-collapse guard",
-    "separate ATR/SMPR threshold audit",
+    "no-retraining diagnostic-region audit",
+    "normalized closed-loop recovery",
+    "universal \\stdmax{} value",
+    "threshold-classifier score",
+    "shared low-ATR/high-SMPR region",
+    "Across all eight held-out task--seed blocks",
+    "robust-vs-fragile separation and direction consistency",
     "The radius--margin certificate is fixed-pool and matched-perturbation only",
     "adaptive CEM resampling, repeated replanning, or environment-feedback trajectory guarantees",
     "The Gaussian quantile expression is a local linearization",
@@ -1400,6 +1402,7 @@ def check_prospective_validation_summary_json() -> None:
 
 
 
+
 def check_prospective_atr_smpr_validation() -> None:
     smpr_path = ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_full_sweep_20260708.json"
     smpr = json.loads(smpr_path.read_text(encoding="utf-8"))
@@ -1413,53 +1416,77 @@ def check_prospective_atr_smpr_validation() -> None:
     if len(smpr.get("summary_rows", [])) != 36:
         fail("full-sweep SMPR summary must cover 4 tasks x 9 std keys")
 
-    out_dir = ROOT / "paper1" / "results" / "prospective_diagnostic"
-    predictions = list(csv.DictReader((out_dir / "predictions_heldout.csv").open(encoding="utf-8")))
-    if len(predictions) != 432:
-        fail(f"prospective ATR/SMPR predictions must contain 432 rows, got {len(predictions)}")
-    forbidden = {"score", "return", "success", "eval_score", "closed_loop_score", "true_robust"}
-    leaked = forbidden & set(predictions[0])
-    if leaked:
-        fail(f"held-out prediction file leaks score/label columns: {sorted(leaked)}")
+    main_text = (ROOT / "paper1" / "main.tex").read_text(encoding="utf-8")
+    forbidden_main = (
+        "per-task ATR+SMPR precision",
+        "mean interval IoU",
+        "F1 0.96",
+        "separate ATR/SMPR threshold audit",
+    )
+    for snippet in forbidden_main:
+        if snippet in main_text:
+            fail(f"paper-facing prospective validation must not contain old threshold-classifier wording: {snippet}")
 
-    summary = list(csv.DictReader((out_dir / "validation_summary.csv").open(encoding="utf-8")))
-    row = next((r for r in summary if r.get("protocol") == "per_task" and r.get("rule") == "atr_smpr"), None)
-    if row is None:
-        fail("prospective validation summary missing per-task ATR+SMPR row")
-    expected_values = {
-        "num_ckpts": 72,
-        "true_positive": 47,
-        "false_positive": 0,
-        "false_negative": 4,
-        "true_negative": 21,
+    out_dir = ROOT / "paper1" / "results" / "diagnostic_region"
+    region = list(csv.DictReader((out_dir / "diagnostic_region_summary.csv").open(encoding="utf-8")))
+    direction = list(csv.DictReader((out_dir / "direction_consistency_summary.csv").open(encoding="utf-8")))
+    separation = list(csv.DictReader((out_dir / "robust_fragile_separation.csv").open(encoding="utf-8")))
+
+    def row_for(table: list[dict[str, str]], **criteria: str) -> dict[str, str]:
+        row = next((r for r in table if all(r.get(k) == v for k, v in criteria.items())), None)
+        if row is None:
+            fail(f"diagnostic-region table missing row: {criteria}")
+        return row
+
+    expected_counts = {
+        ("heldout", "fragile"): 8,
+        ("heldout", "transition"): 13,
+        ("heldout", "robust"): 51,
+        ("all", "fragile"): 13,
+        ("all", "transition"): 19,
+        ("all", "robust"): 76,
     }
-    for key, want in expected_values.items():
-        if int(row[key]) != want:
-            fail(f"prospective ATR/SMPR {key} mismatch: got {row[key]}, want {want}")
-    float_checks = {
-        "precision": 1.0,
-        "recall": 0.9215686274509803,
-        "f1": 0.9591836734693878,
-        "mean_interval_iou": 0.9218749999999999,
+    for (split, regime), want in expected_counts.items():
+        got = int(row_for(region, split=split, regime=regime)["n"])
+        if got != want:
+            fail(f"diagnostic-region {split}/{regime} count mismatch: got {got}, want {want}")
+
+    heldout_fragile = row_for(region, split="heldout", regime="fragile")
+    heldout_robust = row_for(region, split="heldout", regime="robust")
+    checks = {
+        "heldout fragile median normalized ATR": (float(heldout_fragile["atr_rel_q50"]), 1.0),
+        "heldout fragile median SMPR": (float(heldout_fragile["smpr_q50"]), 0.4349999874830246),
+        "heldout robust median normalized ATR": (float(heldout_robust["atr_rel_q50"]), 0.08666369301340819),
+        "heldout robust median SMPR": (float(heldout_robust["smpr_q50"]), 0.9999999403953552),
     }
-    for key, want in float_checks.items():
-        if abs(float(row[key]) - want) > 1e-9:
-            fail(f"prospective ATR/SMPR {key} mismatch: got {row[key]}, want {want}")
+    for label, (got, want) in checks.items():
+        if abs(got - want) > 1e-9:
+            fail(f"{label} mismatch: got {got}, want {want}")
 
-    by_task = list(csv.DictReader((out_dir / "validation_summary_by_task.csv").open(encoding="utf-8")))
-    task_rows = [r for r in by_task if r.get("protocol") == "per_task" and r.get("rule") == "atr_smpr"]
-    if {r.get("task") for r in task_rows} != EXPECTED_TASKS:
-        fail("prospective validation task summary missing task rows")
-    for rel in (
-        "figures/tworoom_heldout_per_task_atr_smpr.png",
-        "figures/pusht_heldout_per_task_atr_smpr.png",
-        "figures/reacher_heldout_per_task_atr_smpr.png",
-        "figures/cube_heldout_per_task_atr_smpr.png",
-    ):
-        if (out_dir / rel).stat().st_size < 50_000:
-            fail(f"prospective diagnostic plot looks too small: {rel}")
+    heldout_direction = row_for(direction, split="heldout")
+    all_direction = row_for(direction, split="all")
+    if (
+        int(heldout_direction["eligible_blocks"]),
+        int(heldout_direction["atr_direction_ok"]),
+        int(heldout_direction["smpr_direction_ok"]),
+        int(heldout_direction["joint_direction_ok"]),
+    ) != (8, 8, 8, 8):
+        fail(f"held-out diagnostic direction consistency mismatch: {heldout_direction}")
+    if (
+        int(all_direction["eligible_blocks"]),
+        int(all_direction["atr_direction_ok"]),
+        int(all_direction["smpr_direction_ok"]),
+        int(all_direction["joint_direction_ok"]),
+    ) != (12, 12, 12, 12):
+        fail(f"all-seed diagnostic direction consistency mismatch: {all_direction}")
 
-
+    heldout_sep = row_for(separation, split="heldout")
+    if int(heldout_sep["robust_atr_q75_below_fragile_q25"]) != 1:
+        fail("held-out robust ATR IQR must stay below fragile ATR IQR")
+    if int(heldout_sep["robust_smpr_q25_above_fragile_q75"]) != 1:
+        fail("held-out robust SMPR IQR must stay above fragile SMPR IQR")
+    if float(heldout_sep["atr_rel_median_gap"]) <= 0.9 or float(heldout_sep["smpr_median_gap"]) <= 0.5:
+        fail(f"held-out robust-vs-fragile separation is weaker than expected: {heldout_sep}")
 
 def check_selector_baseline_audit_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json"
@@ -2295,7 +2322,7 @@ def check_radius_margin_certificate_outputs() -> None:
         fail(f"radius-margin gate expected four ATR+SMPR rows, got {len(joint_rows)}")
     for row in joint_rows:
         if row["predicted_robust_stdmax_range"] != "not computed":
-            fail("radius-margin table must not mix the separate ATR/SMPR threshold audit into the cost-proxy gate row")
+            fail("radius-margin table must not mix the separate ATR/SMPR diagnostic-region audit into the cost-proxy gate row")
         if "reported separately" not in row["notes"] or "cost-proxy table" not in row["notes"]:
             fail(f"radius-margin joint-gate note missing scope explanation: {row['notes']}")
         if "artifact" in row["notes"]:

@@ -1,0 +1,4 @@
+split,eligible_blocks,atr_direction_ok,smpr_direction_ok,joint_direction_ok
+calibration,4,4,4,4
+heldout,8,8,8,8
+all,12,12,12,12

@@ -1,0 +1,15 @@
+\begin{table}[H]
+\centering
+\caption{Held-out diagnostic-region validation. Gates are selected on calibration seeds or tasks and evaluated on held-out sweeps. Start error is in $\sigma_{\max}^{\mathrm{train}}$ units; positive means the diagnostic starts later than the behavioral recovery band.}
+\label{tab:heldout-diagnostic-validation}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrr}
+\toprule
+Split & blocks & mean $|$start err$|$ & max $|$start err$|$ & precision & recall \\
+\midrule
+seed held-out & 12 & $0.007$ & $0.020$ & $0.90$ & $0.91$ \\
+task held-out & 12 & $0.008$ & $0.020$ & $0.90$ & $0.88$ \\
+\bottomrule
+\end{tabular}
+\end{table}

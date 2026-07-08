@@ -1,0 +1,25 @@
+\begin{table}[H]
+\centering
+\caption{Retained-summary fixed-pool top-1 audit. Top1Agree is derived from the recorded fixed-pool flip rate; cert-pass rates are not reported because sample-level maximum cost-drift traces are not retained.}
+\label{tab:fixed-pool-tail-audit}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrr}
+\toprule
+Task & row & $\sigma_{\max}^{\mathrm{train}}$ & Top1Agree & proxy gap & proxy pass rate \\
+\midrule
+TwoRoom & base & $0.00$ & $0.207$ & $-266.52$ & $0.00$ \\
+TwoRoom & proxy onset & $0.02$ & $0.763$ & $34.93$ & $1.00$ \\
+TwoRoom & endpoint & $0.08$ & $0.960$ & $53.46$ & $1.00$ \\
+PushT & base & $0.00$ & $0.110$ & $-198.44$ & $0.00$ \\
+PushT & proxy onset & $0.02$ & $0.823$ & $38.95$ & $0.67$ \\
+PushT & endpoint & $0.08$ & $0.973$ & $117.74$ & $1.00$ \\
+Reacher & base & $0.00$ & $0.097$ & $-417.32$ & $0.00$ \\
+Reacher & proxy onset & $0.04$ & $0.980$ & $4.79$ & $1.00$ \\
+Reacher & endpoint & $0.08$ & $0.983$ & $11.59$ & $1.00$ \\
+Cube & base & $0.00$ & $0.087$ & $-314.65$ & $0.00$ \\
+Cube & proxy onset & $0.03$ & $0.923$ & $3.99$ & $0.67$ \\
+Cube & endpoint & $0.08$ & $0.997$ & $66.85$ & $1.00$ \\
+\bottomrule
+\end{tabular}
+\end{table}

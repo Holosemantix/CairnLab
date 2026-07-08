@@ -54,7 +54,7 @@ if ! grep -q "fig_acpc_basin_tsne.png" main.tex; then
   fail "main.tex should reference the canonical qualitative ACPC t-SNE figure."
 fi
 
-for figure in fig_full_sweep_diagnostics.png fig_radius_margin_interval_overlay.png fig_radius_margin_overlap.png; do
+for figure in fig_full_sweep_diagnostics.png fig_radius_margin_overlap.png; do
   if ! grep -q "$figure" main.tex; then
     fail "main.tex should reference $figure for the radius-margin diagnostic validation."
   fi
@@ -74,7 +74,6 @@ cp main.tex arxiv_metadata.tex arxiv_release_notes.tex references.bib main.bbl /
 cp ../assets/paper1_figs/fig2_sweep.png /tmp/paper1_arxiv_src/figures/
 cp ../assets/paper1_figs/fig_acpc_basin_tsne.png /tmp/paper1_arxiv_src/figures/
 cp ../assets/paper1_figs/fig_full_sweep_diagnostics.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_radius_margin_interval_overlay.png /tmp/paper1_arxiv_src/figures/
 cp ../assets/paper1_figs/fig_radius_margin_overlap.png /tmp/paper1_arxiv_src/figures/
 cp tables/table_heldout_diagnostic_validation.tex /tmp/paper1_arxiv_src/tables/
 cp tables/table_fixed_pool_tail_audit.tex /tmp/paper1_arxiv_src/tables/

@@ -10,6 +10,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 from .utils_paper1_io import ROOT, TASKS, fnum, read_csv, safe_mean
 
@@ -50,8 +51,11 @@ def _rate_by_rho(task_rows, key):
 
 def plot_dynamics(rows, out_fig: Path) -> None:
     out_fig.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(4, 1, figsize=(9.0, 9.2), sharex=True)
+    fig, axes = plt.subplots(2, 2, figsize=(9.2, 6.8), sharex=True)
+    axes = axes.ravel()
     by_task = _by_task(rows)
+    legend_handles = None
+    legend_labels = None
     for ax, task in zip(axes, TASKS):
         trs = by_task[task]
         x = _task_rhos(trs)
@@ -70,7 +74,8 @@ def plot_dynamics(rows, out_fig: Path) -> None:
             if prox >= 0.5:
                 ax.axvspan(rho - 0.0021, rho + 0.0021, color="#c9daf8", alpha=0.45, lw=0)
         ax.plot(x, score, color="#1f4e79", marker="o", lw=1.8, label="obs score")
-        ax.set_ylabel(f"{task}\nscore")
+        ax.set_title(task, fontsize=10)
+        ax.set_ylabel("score")
         ax.set_ylim(0, 105)
         ax.grid(True, alpha=0.25)
         ax2 = ax.twinx()
@@ -78,12 +83,30 @@ def plot_dynamics(rows, out_fig: Path) -> None:
         ax2.plot(x, smpr_fail, color="#674ea7", marker="^", lw=1.3, ls="--", label="1-SMPR")
         ax2.plot(x, top1_fail, color="#38761d", marker="d", lw=1.0, ls=":", label="1-Top1Agree")
         ax2.set_ylim(0, 1.10)
-        ax2.set_ylabel("failure")
-        if task == TASKS[0]:
-            ax.legend(loc="lower right", fontsize=8)
-            ax2.legend(loc="upper right", fontsize=8)
-    axes[-1].set_xlabel(r"training noise $\sigma_{\max}^{\mathrm{train}}$")
-    fig.tight_layout()
+        if ax in (axes[1], axes[3]):
+            ax2.set_ylabel("diagnostic failure")
+        if legend_handles is None:
+            h1, _ = ax.get_legend_handles_labels()
+            h2, _ = ax2.get_legend_handles_labels()
+            legend_handles = [
+                Patch(facecolor="#d9ead3", edgecolor="none", alpha=0.65, label="recovery band"),
+                Patch(facecolor="#c9daf8", edgecolor="none", alpha=0.45, label="proxy gap > 0"),
+                *h1,
+                *h2,
+            ]
+            legend_labels = [h.get_label() for h in legend_handles]
+    for ax in axes:
+        ax.set_xlabel(r"training noise $\sigma_{\max}^{\mathrm{train}}$")
+    if legend_handles is not None:
+        fig.legend(
+            legend_handles,
+            legend_labels,
+            loc="center right",
+            bbox_to_anchor=(0.99, 0.5),
+            fontsize=8,
+            frameon=True,
+        )
+    fig.tight_layout(rect=[0, 0, 0.83, 1])
     fig.savefig(out_fig, dpi=220)
     plt.close(fig)
 

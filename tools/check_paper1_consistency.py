@@ -7,6 +7,7 @@ Usage:
 
 from __future__ import annotations
 
+import csv
 import json
 import math
 import re
@@ -93,6 +94,11 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "three_seed_gaussian_sweep_summary_20260706.json",
     ROOT / "assets" / "paper1_data" / "three_seed_gaussian_sweep_summary_20260706.md",
     ROOT / "assets" / "paper1_figs" / "fig_acpc_basin_tsne.png",
+    ROOT / "assets" / "paper1_figs" / "fig_radius_margin_interval_overlay.png",
+    ROOT / "assets" / "paper1_figs" / "fig_radius_margin_overlap.png",
+    ROOT / "paper1" / "results" / "radius_margin_certificate_summary.csv",
+    ROOT / "paper1" / "results" / "radius_margin_gate_ablation.csv",
+    ROOT / "tools" / "paper1_radius_margin_certificate.py",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -100,14 +106,14 @@ REQUIRED_ARTIFACTS = [
 REQUIRED_MAIN_TEXT_SNIPPETS = [
     "ACPC Tail Risk (ATR)",
     "Selective Margin Pass Rate (SMPR)",
-    "The reported diagnostic uses two metrics matched to this logic",
-    "This is a fixed empirical reporting choice, not a theoretical constant",
+    "The reported diagnostic uses two metrics matched to this radius--margin logic",
+    "fixed empirical reporting choice, not a theoretical constant",
     "The same guard can be posed over state--action pairs",
     "Encoder geometry remains an indispensable first-stage risk signal",
     "raw encoder distance alone is not a complete robustness criterion",
     "Noise training can improve robustness through both factors",
     "encoder basin repair plus further predictive contraction",
-    "Thus low ATR without high SMPR is not interpreted as robustness",
+    "Low ATR without high SMPR is not interpreted as robustness",
     "Three-training-seed LeWM Gaussian sweep",
     "Because \Cref{fig:sweep} already aggregates the full sweep across three training seeds",
     "ATR/SMPR selective-ACPC diagnostics",
@@ -125,6 +131,17 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Additional Gaussian Evaluation Tables",
     "These tables report the full observation-only Gaussian evaluation columns available",
     "Future methods can turn ATR/SMPR into objectives",
+    "ACPC radius--margin diagnostic certificate",
+    "Predictive tubes and task margins",
+    "ACPC radius--margin certificate",
+    "Matched-perturbation diagnostic interval",
+    "Diagnostic validation of the radius--margin certificate",
+    "fixed-pool proxy and not a planner-margin certificate",
+    "Full-sweep SMPR is unavailable",
+    "The radius--margin certificate is fixed-pool and matched-perturbation only",
+    "adaptive CEM resampling, repeated replanning, or environment-feedback trajectory guarantees",
+    "The Gaussian quantile expression is a local linearization",
+    "radius--margin diagnostic theory for fixed-checkpoint Gaussian robustness",
 ]
 
 
@@ -2112,6 +2129,104 @@ def check_published_correlations() -> None:
             fail(f"published Table 5 mismatch for {key}: got {got}, want {want}")
 
 
+def check_radius_margin_certificate_outputs() -> None:
+    summary_path = ROOT / "paper1" / "results" / "radius_margin_certificate_summary.csv"
+    gate_path = ROOT / "paper1" / "results" / "radius_margin_gate_ablation.csv"
+    summary_rows = list(csv.DictReader(summary_path.open(newline="", encoding="utf-8")))
+    gate_rows = list(csv.DictReader(gate_path.open(newline="", encoding="utf-8")))
+
+    if len(summary_rows) != 36:
+        fail(f"radius-margin summary expected 36 rows, got {len(summary_rows)}")
+    if {row["task"] for row in summary_rows} != EXPECTED_TASKS:
+        fail("radius-margin summary task set mismatch")
+    expected_stdmax_csv = {f"{float(std):.2f}" for std in EXPECTED_CONFIGS}
+    if {row["train_stdmax"] for row in summary_rows} != expected_stdmax_csv:
+        fail("radius-margin summary stdmax grid mismatch")
+
+    required_columns = {
+        "task",
+        "train_stdmax",
+        "eval_sigma",
+        "n_training_seeds",
+        "score_clean_mean",
+        "score_obs_sigma_0p08_mean",
+        "behavioral_plateau_label",
+        "atr_q90_mean",
+        "clean_margin_q50_mean",
+        "cost_drift_q90_mean",
+        "certificate_gap_q50_q90_mean",
+        "certificate_pass_proxy",
+        "notes",
+    }
+    missing = required_columns - set(summary_rows[0])
+    if missing:
+        fail(f"radius-margin summary missing columns: {sorted(missing)}")
+
+    for row in summary_rows:
+        if row["n_training_seeds"] != "3":
+            fail(f"radius-margin summary expected three training seeds: {row}")
+        if row["eval_sigma"] != "0.08":
+            fail(f"radius-margin summary expected eval_sigma 0.08: {row}")
+        for key in (
+            "score_clean_mean",
+            "score_obs_sigma_0p08_mean",
+            "atr_q90_mean",
+            "clean_margin_q50_mean",
+            "cost_drift_q90_mean",
+            "certificate_gap_q50_q90_mean",
+        ):
+            value = float(row[key])
+            if not math.isfinite(value):
+                fail(f"radius-margin summary has non-finite {key}: {row}")
+        if "Phase-0" in row["notes"] or "artifact" in row["notes"]:
+            fail(f"radius-margin summary note uses internal wording: {row['notes']}")
+
+    expected_proxy_ranges = {
+        "TwoRoom": ("0.02-0.08", "0.01-0.08", "none", "0.01"),
+        "PushT": ("0.02-0.08", "0.03-0.08", "0.02", "none"),
+        "Reacher": ("0.04-0.08", "0.02-0.08", "none", "0.02;0.03"),
+        "Cube": ("0.03-0.08", "0.03-0.08", "none", "none"),
+    }
+    proxy_rows = {
+        row["task"]: row
+        for row in gate_rows
+        if row["criterion"] == "fixed-pool cost-margin proxy gap > 0"
+    }
+    if set(proxy_rows) != EXPECTED_TASKS:
+        fail("radius-margin gate missing fixed-pool proxy rows")
+    for task, (pred, plateau, fp, fn) in expected_proxy_ranges.items():
+        row = proxy_rows[task]
+        got = (
+            row["predicted_robust_stdmax_range"],
+            row["behavioral_plateau_range"],
+            row["false_positive_stdmax"],
+            row["false_negative_stdmax"],
+        )
+        if got != (pred, plateau, fp, fn):
+            fail(f"radius-margin gate mismatch for {task}: got {got}")
+        if "Phase-0" in row["notes"] or "artifact" in row["notes"]:
+            fail(f"radius-margin gate note uses internal wording: {row['notes']}")
+
+    joint_rows = [row for row in gate_rows if row["criterion"] == "ATR+SMPR joint gate"]
+    if len(joint_rows) != 4:
+        fail(f"radius-margin gate expected four ATR+SMPR rows, got {len(joint_rows)}")
+    for row in joint_rows:
+        if row["predicted_robust_stdmax_range"] != "not computed":
+            fail("full-sweep ATR+SMPR gate must remain unreported when SMPR is endpoint-only")
+        if "Full-sweep SMPR is unavailable" not in row["notes"]:
+            fail(f"radius-margin joint-gate note missing scope explanation: {row['notes']}")
+        if "artifact" in row["notes"]:
+            fail(f"radius-margin joint-gate note uses internal wording: {row['notes']}")
+
+    for rel in (
+        "assets/paper1_figs/fig_radius_margin_interval_overlay.png",
+        "assets/paper1_figs/fig_radius_margin_overlap.png",
+    ):
+        path = ROOT / rel
+        if path.stat().st_size < 10_000:
+            fail(f"radius-margin figure looks too small: {rel}")
+
+
 def main() -> int:
     checks = [
         ("artifacts", check_artifacts),
@@ -2127,6 +2242,7 @@ def main() -> int:
         ("acpc basin json", check_acpc_basin_json),
         ("pldm acpc basin json", check_pldm_acpc_basin_json),
         ("compressed metrics summary json", check_compressed_metrics_summary_json),
+        ("radius-margin certificate outputs", check_radius_margin_certificate_outputs),
         ("unseen ATR/SMPR summary json", check_unseen_atr_smpr_summary_json),
         ("target-view closed-loop json", check_target_view_closed_loop_summary_json),
         ("training-seed Gaussian lockbox json", check_training_seed_gaussian_lockbox_json),

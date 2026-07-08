@@ -13,6 +13,7 @@
 \newtheorem{theorem}{Theorem}
 \newtheorem{proposition}{Proposition}
 \newtheorem{corollary}{Corollary}
+\newtheorem{definition}{Definition}
 
 %% --- Tables, figures, captions ----------------------------------------------
 \usepackage{booktabs}
@@ -127,7 +128,7 @@ We instantiate this diagnostic with a fixed Gaussian intervention. Across PushT,
 
 The evidence shows broad matched-Gaussian recovery plateaus rather than a stable universal point optimum. Input-side noise training recovers the observation-noise endpoint on TwoRoom, PushT, and Reacher and gives a weaker but positive Cube signal across training seeds. At recovered endpoints, ACPC Tail Risk (ATR) is substantially lower and Selective Margin Pass Rate (SMPR) is near one across tasks. Bounded blur/resize checks delimit perturbation scope.
 
-This paper makes three contributions. First, it formulates visual robustness for JEPA world-model control as selective action-conditioned predictive consistency rather than encoder invariance. Second, it instantiates this diagnostic with ATR for same-state predictive tail risk and SMPR for task-grounded anti-collapse margins. Third, it provides a fixed-checkpoint Gaussian robustness study across four tasks and three LeWM training seeds, with bounded unseen-stressor checks that delimit the perturbation scope.
+This paper makes three contributions. First, it formulates visual robustness for JEPA world-model control as selective action-conditioned predictive consistency rather than encoder invariance. Second, it derives an ACPC radius--margin diagnostic certificate: high-probability same-state predictive radius, planner candidate margins, and task-grounded discriminability margins jointly bound fixed-pool candidate instability and collapse risk. ATR and SMPR are empirical estimates of the two sides of this certificate. Third, it provides a fixed-checkpoint Gaussian robustness study across four tasks and three LeWM training seeds, with bounded unseen-stressor checks that delimit the perturbation scope.
 
 %% ===========================================================================
 \section{Related Work}\label{sec:related}
@@ -194,11 +195,39 @@ where $\Psi$ is a discriminability projection, possibly action-conditioned (late
 
 The same guard can be posed over state--action pairs: if two pairs have external task-relevant futures that differ by more than a margin, their projected rollouts should remain separated. This includes the same clean state evaluated under two dynamically distinct actions. The reported SMPR instantiates the guard with task-grounded near-boundary state pairs rather than adding a separate action-faithfulness metric.
 
+\subsection{Predictive tubes and task margins}\label{sec:acpc-radius-margin}
+
+The selective condition can be written as a radius--margin event. For a fixed action sequence, define the projected rollout map
+\begin{equation}
+  G_{\mathbf a}(z)=\Pi(F_\theta^{1:H}(z,\mathbf a))
+\end{equation}
+and the same-state predictive radius under perturbation level $\sigma$ as
+\begin{equation}
+  R_\sigma(h,\mathbf a)
+  = d_H\!\left(G_{\mathbf a}(E_\theta(h)),G_{\mathbf a}(E_\theta(\tilde h_\sigma))\right),
+  \qquad
+  r_{1-\alpha}(\sigma)=Q_{1-\alpha}\big(R_\sigma(h,\mathbf a)\big).
+  \label{eq:predictive-radius}
+\end{equation}
+The radius side asks whether a visual perturbation remains inside the same-state predictive tube after the action intervention. The margin side asks whether planner and task-grounded distinctions remain outside that tube. For a fixed candidate pool $\mathcal A$, the clean planner margin is
+\begin{equation}
+  \Delta_{\mathcal A}(h,g)
+  = C_h(\mathbf a^{(2)},g)-C_h(\mathbf a^{(1)},g),
+  \label{eq:planner-margin}
+\end{equation}
+where lower cost is preferred and $\mathbf a^{(1)},\mathbf a^{(2)}$ are the clean top-1 and top-2 candidates. For task-grounded different-state pairs, we write the discriminability margin as
+\begin{equation}
+  M_{\mathrm{diff}}(i,j,\mathbf a)
+  = d\!\left(\Psi(z_i),\Psi(z_j)\right),
+  \label{eq:diff-margin}
+\end{equation}
+and track the failure event $M_{\mathrm{diff}}\le R_\sigma+\delta_m$ for a reporting margin $\delta_m\ge0$. Robustness requires both sides: small radius without margin is collapse, while large margin without small radius is visually unstable planning.
+
 \subsection{Operational consistency diagnostics}\label{sec:acpc-diag}
 
-The reported diagnostic uses two metrics matched to this logic. ACPC Tail Risk (ATR) summarizes the upper tail of normalized same-state clean/noisy ACPC-H rollout disagreement under a fixed recorded action sequence; lower is better. We use the 90th percentile in all experiments. This is a fixed empirical reporting choice, not a theoretical constant. Selective Margin Pass Rate (SMPR) is the pass rate of task-grounded label-crossing pairs whose clean different-state rollout distance exceeds the same-state noisy radius at margin zero; higher is better.
+The reported diagnostic uses two metrics matched to this radius--margin logic. ACPC Tail Risk (ATR) estimates the upper quantile of the same-state predictive radius in \Cref{eq:predictive-radius}: it summarizes normalized clean/noisy ACPC-H rollout disagreement under a fixed recorded action sequence; lower is better. We use the 90th percentile in all experiments as a fixed empirical reporting choice, not a theoretical constant. Selective Margin Pass Rate (SMPR) estimates the margin-preservation side: it is the pass rate of task-grounded label-crossing pairs whose clean different-state rollout distance exceeds the same-state noisy radius at margin zero; higher is better.
 
-ATR tracks the high-tail term $\Pr[D > \epsilon]$ in the sampled-pool tail argument. SMPR estimates the discriminability guard by checking whether task-grounded near-boundary pairs remain separated beyond the same-state noisy radius. Thus low ATR without high SMPR is not interpreted as robustness, because collapse can also make clean and corrupted views agree. Encoder geometry and planner-side audits remain useful development checks, but they are not separate reported diagnostics here.
+The diagnostic gate is therefore not ATR alone. ATR tracks the high-tail term $\Pr[D > \epsilon]$ in the sampled-pool tail argument, while SMPR estimates whether task-grounded near-boundary pairs remain outside the perturbation tube. Low ATR without high SMPR is not interpreted as robustness, because a collapsed encoder--predictor can also make clean and corrupted views agree. Encoder geometry and planner-side audits remain useful development checks, but the diagnostic used in this paper is the joint radius--margin event.
 
 \subsection{ACPC as a fixed-candidate stability condition}\label{sec:acpc-planner-stability}
 
@@ -225,9 +254,54 @@ If the planner cost $J$ is locally $L_J$-Lipschitz on a fixed clean/perturbed pr
 \]
 For a shared candidate set, if every candidate cost moves by at most $\eta$ and the clean top-1/top-2 margin $\Delta$ is larger than $2\eta$, the top candidate is unchanged. Equivalently, the ACPC-cost condition gives fixed-candidate stability when $\Delta>2L_J\epsilon$. These are fixed-candidate statements only; adaptive sampling, repeated replanning, and environment feedback can still change the closed-loop trajectory. Formal statements and proofs are in Appendix~\ref{sec:appendix-acpc-proofs}.
 
+\begin{theorem}[ACPC radius--margin certificate]\label{thm:radius-margin-certificate}
+Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}\sim q^K$ be a once-sampled candidate pool with deterministic tie-breaking. For a clean history $h$ and matched perturbed history $\tilde h$, define
+\[
+D_j=d_H\!\left(G_{\mathbf a^j}(E_\theta(h)),G_{\mathbf a^j}(E_\theta(\tilde h))\right).
+\]
+Assume the planner cost $J$ is locally $L_J$-Lipschitz on the evaluated projected-rollout neighborhood and that for a single sampled candidate
+\[
+\Pr_{\mathbf a\sim q}[D(\mathbf a)>\epsilon]\le \alpha.
+\]
+Let $\Delta_{\mathcal A}=C_h(\mathbf a^{(2)},g)-C_h(\mathbf a^{(1)},g)$ be the clean top-1/top-2 candidate margin. Then
+\[
+\Pr_{\mathcal A}\!\left[
+\arg\min_j C_h(\mathbf a^j,g)
+\ne
+\arg\min_j C_{\tilde h}(\mathbf a^j,g)
+\right]
+\le
+K\alpha + \Pr_{\mathcal A}[\Delta_{\mathcal A}\le 2L_J\epsilon].
+\]
+If the task-grounded discriminability failure event satisfies
+\[
+\Pr[M_{\mathrm{diff}}\le R_\sigma+\delta_m]\le \gamma,
+\]
+then the selective-ACPC diagnostic failure risk is controlled by
+\[
+\Pr[\mathrm{selective\ failure}]
+\le
+K\alpha + \Pr_{\mathcal A}[\Delta_{\mathcal A}\le 2L_J\epsilon] + \gamma.
+\]
+\end{theorem}
+
+This is a diagnostic certificate for a fixed candidate pool and a matched perturbation distribution. It says that a checkpoint is in the safe radius--margin regime only when the high-probability same-state predictive radius is below the relevant planner margin and task-grounded separations remain outside the perturbation tube.
+
+\begin{definition}[Matched-perturbation diagnostic interval]\label{def:robust-interval}
+For a checkpoint family indexed by training perturbation level $\rho$ and evaluated at observation noise $\sigma$, define the empirical radius--margin pass event
+\[
+\widehat{\mathcal G}_{\rho,\sigma}
+=
+\left\{\widehat Q_{1-\alpha}(R_\sigma) \le \widehat r_{\mathrm{margin}}\right\}
+\cap
+\left\{\widehat{\mathrm{SMPR}}_{\rho,\sigma}\ge 1-\widehat\gamma\right\}.
+\]
+The matched-perturbation diagnostic interval is the set of checkpoint indices $\rho$ for which $\widehat{\mathcal G}_{\rho,\sigma}$ holds. If planner-margin traces are unavailable, $\widehat r_{\mathrm{margin}}$ must be reported as a task-grounded rollout-space proxy, not as a planner-margin certificate. If diagnostics are available only at the no-noise and recovered endpoints, the evidence is endpoint mechanism evidence rather than interval identification.
+\end{definition}
+
 \subsection{Sampled-pool tail motivation and Gaussian sensitivity}\label{sec:acpc-sampled-gaussian}
 
-The fixed-candidate statements motivate the deterministic link from paired rollout agreement to candidate decisions. A once-sampled candidate pool adds a tail requirement: if a single candidate has $\Pr[D>\epsilon]\le\delta$, then a pool of size $K$ can still contain a bad clean/noisy rollout pair with probability up to $K\delta$. A flip can also occur when the clean top-1/top-2 margin is at most $2L_J\epsilon$. This is the reason ATR uses an upper-tail summary rather than a mean disagreement score, and it is also why ATR is not a closed-loop control guarantee. Appendix~\ref{sec:appendix-acpc-proofs} gives the sampled-pool proof.
+The fixed-candidate statements motivate the deterministic link from paired rollout agreement to candidate decisions. A once-sampled candidate pool adds a tail requirement: if a single candidate has $\Pr[D>\epsilon]\le\delta$, then a pool of size $K$ can still contain a bad clean/noisy rollout pair with probability up to $K\delta$. A flip can also occur when the clean top-1/top-2 margin is at most $2L_J\epsilon$. This is the reason ATR uses an upper-tail summary rather than a mean disagreement score, and it is also why ATR is not a closed-loop control guarantee. Appendix~\ref{sec:appendix-acpc-proofs} gives the proof.
 
 The Gaussian stressor also has a local sensitivity interpretation. Let $G_{\mathbf a}(z)=\Pi(F_\theta^{1:H}(z,\mathbf a))$ and let $\tilde o=o+\xi$ with $\xi\sim\mathcal N(0,\sigma^2 I)$.
 
@@ -247,6 +321,27 @@ where the remainder contributes higher-order terms, and
 \sigma^2\left\|J_{G_{\mathbf a}}(E_\theta(o))J_E(o)\right\|_F^2 + O(\sigma^3).
 \]
 \end{proposition}
+
+The same linearization gives the local tail interpretation used by ATR. Let
+\[
+A_{h,\mathbf a}=J_{G_{\mathbf a}}(E_\theta(o))J_E(o).
+\]
+Then $R_\sigma^2(h,\mathbf a)\approx \|A_{h,\mathbf a}\xi\|_2^2$ with $\xi\sim\mathcal N(0,\sigma^2 I)$. If $A_{h,\mathbf a}A_{h,\mathbf a}^\top$ has eigenvalues $\lambda_i$, then
+\[
+R_\sigma^2/\sigma^2 \approx \sum_i \lambda_i \chi_i^2,
+\qquad
+Q_{1-\alpha}(R_\sigma)
+\approx
+\sigma\sqrt{Q_{1-\alpha}\!\left(\sum_i \lambda_i\chi_i^2\right)}.
+\]
+Combining this local radius quantile with the fixed-pool margin condition gives the diagnostic noise scale
+\[
+\sigma^*(h,\mathbf a,\mathcal A)
+=
+\frac{\Delta_{\mathcal A}}
+{2L_J\sqrt{Q_{1-\alpha}(\sum_i\lambda_i\chi_i^2)}}.
+\]
+This is a local diagnostic approximation, not a global robustness theorem. It clarifies why matched Gaussian training can lower ATR: it may reduce encoder-side neighborhood crossing, rollout-side amplification, or both.
 
 Thus Gaussian ACPC measures action-conditioned encoder--predictor sensitivity, not encoder invariance alone. Noise training can improve robustness through both factors: it can reduce same-state encoder neighborhood crossing, and it can reduce the rollout sensitivity applied to any remaining encoder shift. Small encoder shifts can still be amplified by $J_{G_{\mathbf a}}$, while large nuisance shifts can become harmless after rollout if the product $J_{G_{\mathbf a}}J_E$ is small in those directions. The selective target is therefore asymmetric: the product should be small along nuisance perturbation directions, while projected rollouts for action-relevant state differences remain separated. The task-grounded near-boundary proxy margin pass event used later is
 \[
@@ -355,6 +450,32 @@ The two diagnostics move in the intended selective direction on all four tasks: 
 
 SMPR uses programmatic task-state proxy labels, not oracle semantic annotations: TwoRoom uses doorway/room-side labels, PushT uses T-block pose cells, Reacher uses target/end-effector relation bins, and Cube uses cube-pose/goal-relation cells. Each anchor selects the closest label-crossing neighbor inside the closest 35\% state-distance neighborhood and passes if that clean different-state rollout distance exceeds the same-state noisy radius. The no-noise baselines are weak under this stricter audit, while the high-noise endpoint reaches near-one pass rate; stronger hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation.
 
+\subsection{Diagnostic validation of the radius--margin certificate}\label{sec:exp-radius-margin}
+
+The radius--margin theory predicts that a checkpoint should be diagnostically robust when the high-tail same-state predictive radius is contained within the relevant planner or task-discriminability margin. We therefore add a training-free full-sweep validation using existing three-training-seed artifacts. The behavioral plateau is defined only from closed-loop observation-noise scores: a checkpoint is marked as plateau if its observation-only $\sigma=0.08$ success is at least 80\% of the way from the no-noise baseline to the maximum grid value for that task, while clean success stays within 5 points of the no-noise clean score. The diagnostic proxy is computed independently from fixed-pool diagnostic summaries as
+\[
+\widehat\Gamma_{\rho,0.08}
+=\widehat Q_{0.50}(\Delta_{\mathcal A})
+-2\widehat Q_{0.90}(|C_h-C_{\tilde h}|).
+\]
+A positive proxy gap is the available empirical counterpart of the fixed-pool margin condition. Because the recorded summaries contain median clean candidate margin and q90 paired cost drift rather than the q10/q95 theorem quantities, we call it a fixed-pool proxy and not a planner-margin certificate.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_radius_margin_interval_overlay.png}
+\caption{Diagnostic validation of the radius--margin proxy against the Gaussian recovery plateau. Green bands mark behavioral plateau points defined only from closed-loop observation-noise scores; blue bands mark positive fixed-pool proxy gaps computed from fixed-pool diagnostic summaries. ATR is overlaid as the same-state radius-tail side. The shaded diagnostic interval is derived from diagnostic statistics only; the behavioral plateau is shown after the fact for alignment. This is a diagnostic validation, not a new checkpoint-selection algorithm.}
+\label{fig:radius-margin-overlay}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_radius_margin_overlap.png}
+\caption{Fixed-pool radius--margin overlap proxy across the full Gaussian training sweep. Curves compare the clean candidate-margin median with twice the q90 paired cost drift; positive separation supports the radius--margin condition in the available fixed-pool diagnostic summaries. This is a proxy rather than a planner-margin certificate because candidate-cost traces are summarized by available q50/q90 fields, not by the q10/q95 theorem quantities, and the sampled pool is fixed rather than adaptive CEM.}
+\label{fig:radius-margin-overlap}
+\end{figure}
+
+The proxy aligns with the broad recovery interval but does not exactly reproduce it. TwoRoom and PushT cross the proxy gap near the start of their high-score intervals, Cube aligns over the same broad range, and Reacher shows early behavioral recovery before the cost-margin proxy becomes positive. This is the expected level of evidence for a diagnostic certificate: it explains the radius--margin mechanism behind the existing plateau without replacing closed-loop evaluation. Full-sweep SMPR is unavailable in the recorded diagnostic summaries, so we do not report an ATR-only/SMPR-only/joint-gate ablation over the entire grid. Instead, endpoint SMPR in \Cref{tab:atr-smpr-selective-acpc} supplies the task-discriminability side for the no-noise versus recovered endpoint contrast.
+
 \subsection{Bounded unseen-stressor check}\label{sec:exp-unseen-scope}
 
 The main evidence remains the matched Gaussian-noise endpoint. After freezing the Gaussian grid, we ran strongest-severity unseen-stressor score checks to test whether the fixed \stdmax{} $=0.08$ endpoint transfers outside the training perturbation family. \Cref{tab:unseen-scope-main} reports the non-Gaussian behavior together with stressor-specific ATR/SMPR diagnostics recomputed under the same blur or resize perturbation. TwoRoom and Reacher improve under strongest blur, whereas PushT and Cube do not show a clear resize gain at the scale of training-seed and evaluation variance. We treat this as bounded behavior outside the matched Gaussian setting.
@@ -383,10 +504,10 @@ The raw unseen diagnostics co-move with behavior at this severe-stressor scale. 
 \section{Discussion and limitations}\label{sec:disc}
 
 \paragraph{What the evidence supports.}
-This is a controlled diagnostic study, not a method paper. Closed-loop evaluation establishes the behavior; ATR checks whether same-state noisy views have small action-conditioned predictive tails; SMPR checks whether task-grounded near-boundary distinctions survive that contraction. The primary statistic is the full three-training-seed Gaussian replication, with evaluation-seed variance kept as the within-seed measurement scale. These standard deviations are descriptive over three training seeds, not asymptotic significance claims.
+This is a controlled diagnostic study, not a method paper. Closed-loop evaluation establishes the behavior; ATR checks whether same-state noisy views have small action-conditioned predictive tails; SMPR checks whether task-grounded near-boundary distinctions survive that contraction. The radius--margin overlay adds an independent fixed-pool cost-margin proxy over the Gaussian grid; mismatches are reported as diagnostic limits rather than hidden by the endpoint result. The primary statistic is the full three-training-seed Gaussian replication, with evaluation-seed variance kept as the within-seed measurement scale. These standard deviations are descriptive over three training seeds, not asymptotic significance claims.
 
 \paragraph{Scope.}
-Gaussian pixel noise remains the training/evaluation axis. The blur/resize rows are bounded behavior outside the matched Gaussian setting, not a transfer theorem. ATR/SMPR are not a checkpoint-ranker for \stdmax{} and do not replace closed-loop evaluation inside a broad plateau. We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods; the contribution is a no-retraining diagnostic for JEPA latent world-model checkpoints under a controlled Gaussian stressor.
+Gaussian pixel noise remains the training/evaluation axis. The blur/resize rows are bounded behavior outside the matched Gaussian setting, not a transfer theorem. The radius--margin certificate is fixed-pool and matched-perturbation only: it does not cover adaptive CEM resampling, repeated replanning, or environment-feedback trajectory guarantees. The Gaussian quantile expression is a local linearization, and the empirical diagnostic interval is an audit view over available summaries rather than a closed-loop guarantee. ATR/SMPR are not a checkpoint-ranker for \stdmax{} and do not replace closed-loop evaluation inside a broad plateau. We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods; the contribution is a no-retraining diagnostic for JEPA latent world-model checkpoints under a controlled Gaussian stressor.
 
 \paragraph{What remains.}
 The results argue against a too-strong reading of latent prediction: future-latent prediction alone does not guarantee closed-loop visual robustness. Stronger discriminability evidence would require hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels, especially for PushT and Cube. Future methods can turn ATR/SMPR into objectives, but this paper keeps that as a separate method-paper path after diagnostic validity is established.
@@ -396,7 +517,7 @@ The results argue against a too-strong reading of latent prediction: future-late
 
 This paper frames Gaussian-noise robustness in JEPA latent world-model control as a selective diagnostic problem. Closed-loop behavior establishes the phenomenon; ATR measures same-state predictive-stability tails; SMPR checks task-grounded anti-collapse margins. On fixed LeWM checkpoints, input-side noise training recovers broad matched-Gaussian robustness plateaus across three training seeds, and ATR/SMPR move in the expected direction at recovered endpoints.
 
-The theory is deliberately diagnostic: sampled-pool ACPC exposes why tail risk matters and why clean margins prevent closed-loop guarantees, while local Gaussian linearization connects the measured tail to action-conditioned encoder--predictor sensitivity. The broader implication is not solved generalization; it is a concrete audit target for future methods: stable action-conditioned predictive dynamics under nuisance variation, while preserving distinctions needed for planning.
+The theory is deliberately diagnostic: sampled-pool ACPC exposes why tail risk matters and why clean margins prevent closed-loop guarantees, while local Gaussian linearization connects the measured tail to action-conditioned encoder--predictor sensitivity. The resulting view is a radius--margin diagnostic theory for fixed-checkpoint Gaussian robustness: ATR estimates the perturbation-tube radius tail, SMPR estimates margin preservation, and their conjunction defines the empirical diagnostic interval studied here. The broader implication is not solved generalization; it is a concrete audit target for future methods: stable action-conditioned predictive dynamics under nuisance variation, while preserving distinctions needed for planning.
 
 %% ===========================================================================
 \bibliographystyle{plain}
@@ -448,29 +569,21 @@ C_h(\mathbf a^j,g)-C_h(\mathbf a^{(1)},g)-2\eta
 Thus every non-top candidate remains more costly than the clean top-1 candidate on the perturbed branch.
 \end{proof}
 
-\begin{theorem}[Sampled-pool ACPC tail bound]\label{thm:sampled-pool-acpc}
-Let $\mathcal A=\{\mathbf a^1,\ldots,\mathbf a^K\}\sim q^K$ be a once-sampled candidate pool, and use deterministic tie-breaking for $\arg\min$. For each sampled candidate define
-\[
-D_j = d_H\!\left(\Pi(F_\theta^{1:H}(E_\theta(h),\mathbf a^j)),
-                  \Pi(F_\theta^{1:H}(E_\theta(\tilde h),\mathbf a^j))\right).
-\]
-Assume $J$ is locally $L_J$-Lipschitz on the evaluated projected-rollout neighborhood and that a single draw from $q$ satisfies
-\[
-\Pr_{\mathbf a\sim q}[D(\mathbf a)>\epsilon]\le \delta .
-\]
-Let $\Delta_{\mathcal A}=C_h(\mathbf a^{(2)},g)-C_h(\mathbf a^{(1)},g)$ be the clean branch top-1/top-2 margin inside the sampled pool. Then
-\[
-\Pr_{\mathcal A}\!\left[
-\arg\min_j C_h(\mathbf a^j,g) \ne
-\arg\min_j C_{\tilde h}(\mathbf a^j,g)
-\right]
-\le
-K\delta + \Pr_{\mathcal A}[\Delta_{\mathcal A}\le 2L_J\epsilon].
-\]
-\end{theorem}
-
+\paragraph{Proof of \Cref{thm:radius-margin-certificate}.}
 \begin{proof}
-For a sampled pool of size $K$, the probability that at least one candidate has clean/noisy rollout discrepancy above $\epsilon$ is at most $K\delta$ by the union bound. On the complement of that event, every candidate cost moves by at most $L_J\epsilon$. A flip can then occur only if the clean top margin is at most $2L_J\epsilon$, which contributes the margin-tail term. This proves the stated sampled-pool instability bound.
+Let $\mathcal B=\{\max_{1\le j\le K} D_j\le\epsilon\}$. Since each candidate is drawn from $q$ and a single draw has tail probability at most $\alpha$, the union bound gives
+\[
+\Pr_{\mathcal A}(\mathcal B^c)
+\le
+\sum_{j=1}^K \Pr[D_j>\epsilon]
+\le K\alpha .
+\]
+On $\mathcal B$, local Lipschitzness of the planner cost gives $|C_h(\mathbf a^j,g)-C_{\tilde h}(\mathbf a^j,g)|\le L_J\epsilon$ for every candidate. By the top-1 stability proposition, the perturbed branch can choose a different top candidate on $\mathcal B$ only when $\Delta_{\mathcal A}\le 2L_J\epsilon$. Therefore the top-1 flip event is contained in
+\[
+\mathcal B^c \cup \{\Delta_{\mathcal A}\le 2L_J\epsilon\},
+\]
+which yields the fixed-pool instability bound without any independence assumption beyond the single-candidate tail statement.
+For the selective diagnostic statement, let $\mathcal D=\{M_{\mathrm{diff}}\le R_\sigma+\delta_m\}$. Selective failure is contained in the union of the fixed-pool planning-instability event and $\mathcal D$. Applying the union bound again and using $\Pr(\mathcal D)\le\gamma$ gives the final bound.
 \end{proof}
 
 \paragraph{Local Gaussian sensitivity.}

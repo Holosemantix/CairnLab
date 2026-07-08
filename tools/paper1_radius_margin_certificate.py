@@ -4,7 +4,8 @@ This script is intentionally training-free. It reads existing three-seed
 Gaussian closed-loop and fixed-pool diagnostic summaries and reports a fixed-pool
 radius/cost-margin proxy. It does not claim a full planner-margin certificate:
 the available summaries contain q90 paired cost drift and median clean candidate
-margin, not the q95/q10 theorem quantities.
+margin, not the lower-margin and upper-drift tails needed for a calibrated
+q10/q95 certificate.
 """
 
 from __future__ import annotations
@@ -31,6 +32,9 @@ DEFAULT_OUT_CSV = ROOT / "paper1" / "results" / "radius_margin_certificate_summa
 DEFAULT_GATE_CSV = ROOT / "paper1" / "results" / "radius_margin_gate_ablation.csv"
 DEFAULT_OVERLAY_FIG = ROOT / "paper1" / "figures" / "fig_radius_margin_interval_overlay.png"
 DEFAULT_OVERLAP_FIG = ROOT / "paper1" / "figures" / "fig_radius_margin_overlap.png"
+DEFAULT_FULL_SWEEP_DIAGNOSTICS = (
+    ROOT / "paper1" / "results" / "prospective_diagnostic" / "diagnostics_all_ckpts.csv"
+)
 
 TASKS = ["TwoRoom", "PushT", "Reacher", "Cube"]
 STD_KEYS = ["0.0", "0.01", "0.02", "0.03", "0.04", "0.05", "0.06", "0.07", "0.08"]
@@ -67,6 +71,28 @@ def _compressed_smpr_by_key(path: Path) -> dict[tuple[str, str], float]:
     for row in data.get("rows", []):
         out[(row["task"], row["std_key"])].append(float(row["SMPR"]))
     return {k: _safe_mean(v) for k, v in out.items()}
+
+
+def _full_sweep_diagnostics_by_key(path: Path) -> dict[tuple[str, str], dict[str, float]]:
+    if not path.exists():
+        return {}
+    grouped: dict[tuple[str, str], dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    with path.open(newline="") as f:
+        for row in csv.DictReader(f):
+            key = (row["task"], _fmt_std(row["stdmax"]))
+            for src, dst in (("atr_q90", "atr_q90"), ("smpr", "smpr")):
+                value = row.get(src, "")
+                if value == "":
+                    continue
+                grouped[key][dst].append(float(value))
+    return {
+        key: {metric: _safe_mean(values) for metric, values in metrics.items()}
+        for key, metrics in grouped.items()
+    }
+
+
+def _finite(values: list[float]) -> list[float]:
+    return [value for value in values if math.isfinite(value)]
 
 
 def build_rows(phase0_path: Path, compressed_path: Path) -> list[dict[str, Any]]:
@@ -234,7 +260,11 @@ def _task_rows(rows: list[dict[str, Any]], task: str) -> list[dict[str, Any]]:
     return sorted([r for r in rows if r["task"] == task], key=lambda r: float(r["train_stdmax"]))
 
 
-def plot_overlay(rows: list[dict[str, Any]], out_fig: Path) -> None:
+def plot_overlay(
+    rows: list[dict[str, Any]],
+    out_fig: Path,
+    full_sweep_diagnostics: dict[tuple[str, str], dict[str, float]],
+) -> None:
     out_fig.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(2, 2, figsize=(10, 6.4), sharex=True)
     axes = axes.ravel()
@@ -242,7 +272,21 @@ def plot_overlay(rows: list[dict[str, Any]], out_fig: Path) -> None:
         trs = _task_rows(rows, task)
         x = [float(r["train_stdmax"]) for r in trs]
         score = [float(r["score_obs_sigma_0p08_mean"]) for r in trs]
-        atr = [float(r["atr_q90_mean"]) for r in trs]
+        atr_values = [
+            full_sweep_diagnostics.get((task, r["train_stdmax"]), {}).get("atr_q90", float(r["atr_q90_mean"]))
+            for r in trs
+        ]
+        base_atr = atr_values[0] if atr_values and atr_values[0] > 0 else float("nan")
+        atr_rel = [value / base_atr if math.isfinite(base_atr) else float("nan") for value in atr_values]
+        smpr_failure = []
+        for r in trs:
+            diag = full_sweep_diagnostics.get((task, r["train_stdmax"]), {})
+            if "smpr" in diag:
+                smpr_failure.append(1.0 - float(diag["smpr"]))
+            elif r["smpr_margin0_mean"] != "":
+                smpr_failure.append(1.0 - float(r["smpr_margin0_mean"]))
+            else:
+                smpr_failure.append(float("nan"))
         for r in trs:
             xx = float(r["train_stdmax"])
             if r["behavioral_plateau_label"]:
@@ -251,16 +295,20 @@ def plot_overlay(rows: list[dict[str, Any]], out_fig: Path) -> None:
                 ax.axvspan(xx - 0.0020, xx + 0.0020, color="#c9daf8", alpha=0.45, lw=0)
         ax.plot(x, score, color="#1f4e79", marker="o", lw=1.8, label="obs score")
         ax.set_title(task, fontsize=10)
-        ax.set_ylabel("obs sigma 0.08 score")
+        ax.set_xlabel(r"training noise $\sigma_{\max}^{\mathrm{train}}$")
+        ax.set_ylabel(r"obs $\sigma=0.08$ score")
         ax.set_ylim(0, 105)
         ax.grid(True, alpha=0.25)
         ax2 = ax.twinx()
-        ax2.plot(x, atr, color="#a61c00", marker="s", lw=1.4, label="ATR q90")
-        ax2.set_ylabel("ATR q90")
-        ax2.set_ylim(bottom=0)
-    fig.supxlabel("training noise stdmax")
-    fig.suptitle("Radius-margin proxy interval vs Gaussian recovery plateau", fontsize=12)
-    fig.tight_layout(rect=(0, 0.02, 1, 0.96))
+        ax2.plot(x, atr_rel, color="#a61c00", marker="s", lw=1.4, label="ATR rel")
+        ax2.plot(x, smpr_failure, color="#674ea7", marker="^", lw=1.4, ls="--", label="1-SMPR")
+        ax2.set_ylabel("diagnostic failure")
+        diag_vals = _finite(atr_rel + smpr_failure)
+        ax2.set_ylim(0, max(1.05, max(diag_vals) * 1.10 if diag_vals else 1.05))
+        if task == TASKS[0]:
+            ax.legend(loc="lower right", fontsize=8)
+            ax2.legend(loc="upper right", fontsize=8)
+    fig.tight_layout()
     fig.savefig(out_fig, dpi=220)
     plt.close(fig)
 
@@ -280,12 +328,11 @@ def plot_overlap(rows: list[dict[str, Any]], out_fig: Path) -> None:
         ax.plot(x, drift, color="#cc0000", marker="s", lw=1.6, label="2 x cost drift q90")
         ax.fill_between(x, margin, drift, where=[g > 0 for g in gap], color="#d9ead3", alpha=0.55, interpolate=True)
         ax.set_title(task, fontsize=10)
+        ax.set_xlabel(r"training noise $\sigma_{\max}^{\mathrm{train}}$")
         ax.set_ylabel("fixed-pool cost units")
         ax.grid(True, alpha=0.25)
     axes[0].legend(loc="upper right", fontsize=8)
-    fig.supxlabel("training noise stdmax")
-    fig.suptitle("Fixed-pool cost-margin proxy overlap", fontsize=12)
-    fig.tight_layout(rect=(0, 0.02, 1, 0.96))
+    fig.tight_layout()
     fig.savefig(out_fig, dpi=220)
     plt.close(fig)
 
@@ -298,12 +345,14 @@ def main() -> None:
     parser.add_argument("--gate-csv", type=Path, default=DEFAULT_GATE_CSV)
     parser.add_argument("--overlay-fig", type=Path, default=DEFAULT_OVERLAY_FIG)
     parser.add_argument("--overlap-fig", type=Path, default=DEFAULT_OVERLAP_FIG)
+    parser.add_argument("--full-sweep-diagnostics", type=Path, default=DEFAULT_FULL_SWEEP_DIAGNOSTICS)
     args = parser.parse_args()
 
     rows = build_rows(args.phase0, args.compressed)
+    full_sweep_diagnostics = _full_sweep_diagnostics_by_key(args.full_sweep_diagnostics)
     write_csv(rows, args.out_csv)
     write_gate_csv(rows, args.gate_csv)
-    plot_overlay(rows, args.overlay_fig)
+    plot_overlay(rows, args.overlay_fig, full_sweep_diagnostics)
     plot_overlap(rows, args.overlap_fig)
     print(f"wrote {args.out_csv}")
     print(f"wrote {args.gate_csv}")

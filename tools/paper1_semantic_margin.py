@@ -457,10 +457,11 @@ def _run_row(task: str, std_key: str, entry: Mapping[str, Any], args: argparse.N
         return {**base, "status": "error", "error": repr(exc)}
 
 
-def _summaries(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+def _summaries(rows: Sequence[dict[str, Any]], std_keys: Sequence[str] | None = None) -> list[dict[str, Any]]:
     out = []
+    keys = list(std_keys) if std_keys is not None else sorted({str(r["std_key"]) for r in rows})
     for task in TASKS:
-        for std_key in STD_KEYS:
+        for std_key in keys:
             task_rows = [r for r in rows if r["task"] == task and r["std_key"] == std_key and r["status"] == "ok"]
             if not task_rows:
                 continue
@@ -536,7 +537,7 @@ def main() -> None:
         "metadata": {
             "schema_version": "paper1-semantic-margin-passrate-0.1",
             "created_utc": datetime.now(timezone.utc).isoformat(),
-            "scope": "fixed endpoint semantic guard over LeWM training seeds 3072/3073/3074; no retraining",
+            "scope": "fixed semantic guard over requested LeWM training seeds and training-noise std keys; no retraining",
             "semantic_state_keys": SEMANTIC_STATE_KEYS,
             "semantic_factors": SEMANTIC_FACTORS,
             "std_keys": list(args.std_keys),
@@ -547,7 +548,7 @@ def main() -> None:
             "margin_delta": float(args.margin_delta),
         },
         "rows": rows,
-        "summary_rows": _summaries(rows),
+        "summary_rows": _summaries(rows, args.std_keys),
         "coverage": coverage,
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)

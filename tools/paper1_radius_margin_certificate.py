@@ -226,7 +226,7 @@ def write_gate_csv(rows: list[dict[str, Any]], out_csv: Path) -> None:
                 "behavioral_plateau_range": _range_label(behavior),
                 "false_positive_stdmax": "not computed",
                 "false_negative_stdmax": "not computed",
-                "notes": "Full-sweep SMPR is unavailable in the recorded diagnostic summaries; endpoint SMPR appears only for stdmax 0.00 and 0.08, so the paper does not claim full-sweep ATR/SMPR gate ablation.",
+                "notes": "Full-sweep ATR/SMPR validation is reported separately from this radius-margin cost-proxy table; this row remains uncomputed here to avoid mixing the task-discriminability gate with the fixed-pool cost-margin proxy.",
             })
 
 

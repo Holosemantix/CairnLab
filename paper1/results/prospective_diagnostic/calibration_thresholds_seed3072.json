@@ -1,0 +1,225 @@
+{
+  "metadata": {
+    "schema_version": "paper1-prospective-atr-smpr-thresholds-v1",
+    "diagnostics_csv": "paper1/results/prospective_diagnostic/diagnostics_all_ckpts.csv",
+    "score_manifest_dir": "assets/paper1_data/training_seed_eval_manifests",
+    "calibration_seed": 3072,
+    "heldout_training_seeds": [
+      3073,
+      3074
+    ],
+    "rho": 0.8,
+    "robust_label": "normalized recovery against pixels_std0.08 full-sweep best; no held-out score used for prediction",
+    "eval_metric": "pixels_std0.08",
+    "clean_guard_pp": null
+  },
+  "thresholds": {
+    "per_task": {
+      "TwoRoom": {
+        "atr_only": {
+          "theta_atr": 1.0454658513469122,
+          "theta_smpr": null,
+          "calibration_tp": 8,
+          "calibration_fp": 0,
+          "calibration_fn": 0,
+          "calibration_tn": 1,
+          "calibration_precision": 1.0,
+          "calibration_recall": 1.0,
+          "calibration_f1": 1.0,
+          "calibration_balanced_accuracy": 1.0,
+          "calibration_predicted_positive": 8
+        },
+        "smpr_only": {
+          "theta_atr": null,
+          "theta_smpr": 0.7540982961654663,
+          "calibration_tp": 8,
+          "calibration_fp": 0,
+          "calibration_fn": 0,
+          "calibration_tn": 1,
+          "calibration_precision": 1.0,
+          "calibration_recall": 1.0,
+          "calibration_f1": 1.0,
+          "calibration_balanced_accuracy": 1.0,
+          "calibration_predicted_positive": 8
+        },
+        "atr_smpr": {
+          "theta_atr": 1.0454658513469122,
+          "theta_smpr": 0.31147539615631104,
+          "calibration_tp": 8,
+          "calibration_fp": 0,
+          "calibration_fn": 0,
+          "calibration_tn": 1,
+          "calibration_precision": 1.0,
+          "calibration_recall": 1.0,
+          "calibration_f1": 1.0,
+          "calibration_balanced_accuracy": 1.0,
+          "calibration_predicted_positive": 8
+        }
+      },
+      "PushT": {
+        "atr_only": {
+          "theta_atr": 1.078168166445085,
+          "theta_smpr": null,
+          "calibration_tp": 7,
+          "calibration_fp": 0,
+          "calibration_fn": 0,
+          "calibration_tn": 2,
+          "calibration_precision": 1.0,
+          "calibration_recall": 1.0,
+          "calibration_f1": 1.0,
+          "calibration_balanced_accuracy": 1.0,
+          "calibration_predicted_positive": 7
+        },
+        "smpr_only": {
+          "theta_atr": null,
+          "theta_smpr": 0.9693877100944519,
+          "calibration_tp": 7,
+          "calibration_fp": 0,
+          "calibration_fn": 0,
+          "calibration_tn": 2,
+          "calibration_precision": 1.0,
+          "calibration_recall": 1.0,
+          "calibration_f1": 1.0,
+          "calibration_balanced_accuracy": 1.0,
+          "calibration_predicted_positive": 7
+        },
+        "atr_smpr": {
+          "theta_atr": 1.078168166445085,
+          "theta_smpr": 0.4285714328289032,
+          "calibration_tp": 7,
+          "calibration_fp": 0,
+          "calibration_fn": 0,
+          "calibration_tn": 2,
+          "calibration_precision": 1.0,
+          "calibration_recall": 1.0,
+          "calibration_f1": 1.0,
+          "calibration_balanced_accuracy": 1.0,
+          "calibration_predicted_positive": 7
+        }
+      },
+      "Reacher": {
+        "atr_only": {
+          "theta_atr": 0.19834278867908908,
+          "theta_smpr": null,
+          "calibration_tp": 6,
+          "calibration_fp": 1,
+          "calibration_fn": 0,
+          "calibration_tn": 2,
+          "calibration_precision": 0.8571428571428571,
+          "calibration_recall": 1.0,
+          "calibration_f1": 0.923076923076923,
+          "calibration_balanced_accuracy": 0.8333333333333333,
+          "calibration_predicted_positive": 7
+        },
+        "smpr_only": {
+          "theta_atr": null,
+          "theta_smpr": 1.0,
+          "calibration_tp": 6,
+          "calibration_fp": 1,
+          "calibration_fn": 0,
+          "calibration_tn": 2,
+          "calibration_precision": 0.8571428571428571,
+          "calibration_recall": 1.0,
+          "calibration_f1": 0.923076923076923,
+          "calibration_balanced_accuracy": 0.8333333333333333,
+          "calibration_predicted_positive": 7
+        },
+        "atr_smpr": {
+          "theta_atr": 0.19834278867908908,
+          "theta_smpr": 0.7699999809265137,
+          "calibration_tp": 6,
+          "calibration_fp": 1,
+          "calibration_fn": 0,
+          "calibration_tn": 2,
+          "calibration_precision": 0.8571428571428571,
+          "calibration_recall": 1.0,
+          "calibration_f1": 0.923076923076923,
+          "calibration_balanced_accuracy": 0.8333333333333333,
+          "calibration_predicted_positive": 7
+        }
+      },
+      "Cube": {
+        "atr_only": {
+          "theta_atr": 0.7240019399862586,
+          "theta_smpr": null,
+          "calibration_tp": 4,
+          "calibration_fp": 3,
+          "calibration_fn": 0,
+          "calibration_tn": 2,
+          "calibration_precision": 0.5714285714285714,
+          "calibration_recall": 1.0,
+          "calibration_f1": 0.7272727272727273,
+          "calibration_balanced_accuracy": 0.7,
+          "calibration_predicted_positive": 7
+        },
+        "smpr_only": {
+          "theta_atr": null,
+          "theta_smpr": 0.9899999499320984,
+          "calibration_tp": 4,
+          "calibration_fp": 3,
+          "calibration_fn": 0,
+          "calibration_tn": 2,
+          "calibration_precision": 0.5714285714285714,
+          "calibration_recall": 1.0,
+          "calibration_f1": 0.7272727272727273,
+          "calibration_balanced_accuracy": 0.7,
+          "calibration_predicted_positive": 7
+        },
+        "atr_smpr": {
+          "theta_atr": 0.7240019399862586,
+          "theta_smpr": 0.4899999797344208,
+          "calibration_tp": 4,
+          "calibration_fp": 3,
+          "calibration_fn": 0,
+          "calibration_tn": 2,
+          "calibration_precision": 0.5714285714285714,
+          "calibration_recall": 1.0,
+          "calibration_f1": 0.7272727272727273,
+          "calibration_balanced_accuracy": 0.7,
+          "calibration_predicted_positive": 7
+        }
+      }
+    },
+    "global_normalized": {
+      "atr_only": {
+        "theta_atr": 0.6903054430293876,
+        "theta_smpr": null,
+        "calibration_tp": 25,
+        "calibration_fp": 5,
+        "calibration_fn": 0,
+        "calibration_tn": 6,
+        "calibration_precision": 0.8333333333333334,
+        "calibration_recall": 1.0,
+        "calibration_f1": 0.9090909090909091,
+        "calibration_balanced_accuracy": 0.7727272727272727,
+        "calibration_predicted_positive": 30
+      },
+      "smpr_only": {
+        "theta_atr": null,
+        "theta_smpr": 0.9180327653884888,
+        "calibration_tp": 24,
+        "calibration_fp": 5,
+        "calibration_fn": 1,
+        "calibration_tn": 6,
+        "calibration_precision": 0.8275862068965517,
+        "calibration_recall": 0.96,
+        "calibration_f1": 0.888888888888889,
+        "calibration_balanced_accuracy": 0.7527272727272727,
+        "calibration_predicted_positive": 29
+      },
+      "atr_smpr": {
+        "theta_atr": 0.6903054430293876,
+        "theta_smpr": 0.31147539615631104,
+        "calibration_tp": 25,
+        "calibration_fp": 5,
+        "calibration_fn": 0,
+        "calibration_tn": 6,
+        "calibration_precision": 0.8333333333333334,
+        "calibration_recall": 1.0,
+        "calibration_f1": 0.9090909090909091,
+        "calibration_balanced_accuracy": 0.7727272727272727,
+        "calibration_predicted_positive": 30
+      }
+    }
+  }
+}

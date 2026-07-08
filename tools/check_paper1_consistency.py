@@ -80,6 +80,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "semantic_margin_passrate_lewm_three_seed.md",
     ROOT / "assets" / "paper1_data" / "semantic_local_margin_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_three_seed.json",
+    ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_full_sweep_20260708.json",
     ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_three_seed.md",
     ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_unseen_blur_lewm_three_seed.json",
     ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_unseen_resize_lewm_three_seed.json",
@@ -98,7 +99,15 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_figs" / "fig_radius_margin_overlap.png",
     ROOT / "paper1" / "results" / "radius_margin_certificate_summary.csv",
     ROOT / "paper1" / "results" / "radius_margin_gate_ablation.csv",
+    ROOT / "paper1" / "results" / "prospective_diagnostic" / "diagnostics_all_ckpts.csv",
+    ROOT / "paper1" / "results" / "prospective_diagnostic" / "calibration_thresholds_seed3072.json",
+    ROOT / "paper1" / "results" / "prospective_diagnostic" / "predictions_heldout.csv",
+    ROOT / "paper1" / "results" / "prospective_diagnostic" / "validation_summary.csv",
+    ROOT / "paper1" / "results" / "prospective_diagnostic" / "validation_summary_by_task.csv",
+    ROOT / "paper1" / "results" / "prospective_diagnostic" / "validation_interval_blocks.csv",
+    ROOT / "paper1" / "results" / "prospective_diagnostic" / "README.md",
     ROOT / "tools" / "paper1_radius_margin_certificate.py",
+    ROOT / "tools" / "paper1_prospective_atr_smpr_validation.py",
     ROOT / "DATA_MANIFEST.md",
 ]
 
@@ -137,15 +146,20 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Matched-perturbation diagnostic interval",
     "Diagnostic validation of the radius--margin certificate",
     "fixed-pool proxy and not a planner-margin certificate",
-    "Full-sweep SMPR is unavailable",
+    "separate no-retraining diagnostic audit",
+    "per-task ATR+SMPR precision 1.00",
+    "mean interval IoU 0.92",
+    "ATR drives interval localization and SMPR functions as the anti-collapse guard",
+    "separate ATR/SMPR threshold audit",
     "The radius--margin certificate is fixed-pool and matched-perturbation only",
     "adaptive CEM resampling, repeated replanning, or environment-feedback trajectory guarantees",
     "The Gaussian quantile expression is a local linearization",
     "radius--margin diagnostic theory for fixed-checkpoint Gaussian robustness",
     "Radius--margin parameter interpretation",
     "candidate count is $K=65$",
-    "q90 were incorrectly read as",
+    "A q90 summary descriptively leaves 10\\%",
     "not as a calibrated probability guarantee",
+    "65\\times0.1=6.5",
     "tab:appendix-radius-margin-params",
 ]
 
@@ -1386,6 +1400,67 @@ def check_prospective_validation_summary_json() -> None:
 
 
 
+def check_prospective_atr_smpr_validation() -> None:
+    smpr_path = ROOT / "assets" / "paper1_data" / "semantic_task_grounded_margin_lewm_full_sweep_20260708.json"
+    smpr = json.loads(smpr_path.read_text(encoding="utf-8"))
+    rows = [row for row in smpr.get("rows", []) if row.get("status") == "ok"]
+    if len(rows) != 108:
+        fail(f"full-sweep SMPR must contain 108 ok rows, got {len(rows)}")
+    coverage = {(row["task"], int(row["training_seed"]), str(row["std_key"])) for row in rows}
+    expected = {(task, seed, std) for task in EXPECTED_TASKS for seed in (3072, 3073, 3074) for std in EXPECTED_CONFIGS}
+    if coverage != expected:
+        fail("full-sweep SMPR coverage mismatch")
+    if len(smpr.get("summary_rows", [])) != 36:
+        fail("full-sweep SMPR summary must cover 4 tasks x 9 std keys")
+
+    out_dir = ROOT / "paper1" / "results" / "prospective_diagnostic"
+    predictions = list(csv.DictReader((out_dir / "predictions_heldout.csv").open(encoding="utf-8")))
+    if len(predictions) != 432:
+        fail(f"prospective ATR/SMPR predictions must contain 432 rows, got {len(predictions)}")
+    forbidden = {"score", "return", "success", "eval_score", "closed_loop_score", "true_robust"}
+    leaked = forbidden & set(predictions[0])
+    if leaked:
+        fail(f"held-out prediction file leaks score/label columns: {sorted(leaked)}")
+
+    summary = list(csv.DictReader((out_dir / "validation_summary.csv").open(encoding="utf-8")))
+    row = next((r for r in summary if r.get("protocol") == "per_task" and r.get("rule") == "atr_smpr"), None)
+    if row is None:
+        fail("prospective validation summary missing per-task ATR+SMPR row")
+    expected_values = {
+        "num_ckpts": 72,
+        "true_positive": 47,
+        "false_positive": 0,
+        "false_negative": 4,
+        "true_negative": 21,
+    }
+    for key, want in expected_values.items():
+        if int(row[key]) != want:
+            fail(f"prospective ATR/SMPR {key} mismatch: got {row[key]}, want {want}")
+    float_checks = {
+        "precision": 1.0,
+        "recall": 0.9215686274509803,
+        "f1": 0.9591836734693878,
+        "mean_interval_iou": 0.9218749999999999,
+    }
+    for key, want in float_checks.items():
+        if abs(float(row[key]) - want) > 1e-9:
+            fail(f"prospective ATR/SMPR {key} mismatch: got {row[key]}, want {want}")
+
+    by_task = list(csv.DictReader((out_dir / "validation_summary_by_task.csv").open(encoding="utf-8")))
+    task_rows = [r for r in by_task if r.get("protocol") == "per_task" and r.get("rule") == "atr_smpr"]
+    if {r.get("task") for r in task_rows} != EXPECTED_TASKS:
+        fail("prospective validation task summary missing task rows")
+    for rel in (
+        "figures/tworoom_heldout_per_task_atr_smpr.png",
+        "figures/pusht_heldout_per_task_atr_smpr.png",
+        "figures/reacher_heldout_per_task_atr_smpr.png",
+        "figures/cube_heldout_per_task_atr_smpr.png",
+    ):
+        if (out_dir / rel).stat().st_size < 50_000:
+            fail(f"prospective diagnostic plot looks too small: {rel}")
+
+
+
 def check_selector_baseline_audit_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -2220,8 +2295,8 @@ def check_radius_margin_certificate_outputs() -> None:
         fail(f"radius-margin gate expected four ATR+SMPR rows, got {len(joint_rows)}")
     for row in joint_rows:
         if row["predicted_robust_stdmax_range"] != "not computed":
-            fail("full-sweep ATR+SMPR gate must remain unreported when SMPR is endpoint-only")
-        if "Full-sweep SMPR is unavailable" not in row["notes"]:
+            fail("radius-margin table must not mix the separate ATR/SMPR threshold audit into the cost-proxy gate row")
+        if "reported separately" not in row["notes"] or "cost-proxy table" not in row["notes"]:
             fail(f"radius-margin joint-gate note missing scope explanation: {row['notes']}")
         if "artifact" in row["notes"]:
             fail(f"radius-margin joint-gate note uses internal wording: {row['notes']}")
@@ -2266,6 +2341,7 @@ def main() -> int:
         ("task-grounded semantic margin json", check_semantic_task_grounded_margin_json),
         ("CEM trace audit json", check_cem_trace_audit_json),
         ("prospective validation summary json", check_prospective_validation_summary_json),
+        ("prospective ATR/SMPR validation", check_prospective_atr_smpr_validation),
         ("external baselines json", check_external_baselines_json),
         ("pldm correlations json", check_pldm_correlations_json),
         ("partial-corr bootstrap json", check_partial_corr_bootstrap_json),

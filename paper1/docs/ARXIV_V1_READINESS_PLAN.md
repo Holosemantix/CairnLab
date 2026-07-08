@@ -557,9 +557,9 @@ cd paper1 && bash build.sh --clean | tee /tmp/paper1_build_before.log
 修改：
 
 - `paper1/build.sh`；
-- `paper1/README.md`；
+- `paper1/docs/README.md`；
 - `DATA_MANIFEST.md` only if artifact/hash changes；
-- `paper1/reference_audit.md` only if bibliography changes。
+- `paper1/docs/reference_audit.md` only if bibliography changes。
 
 ### Step 5：去 AI 感 pass
 

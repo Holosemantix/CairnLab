@@ -2,7 +2,7 @@
 """Patch Paper 1 wording around sweep plateaus and highest observed grid points.
 
 Run from the repository root:
-    python paper1/apply_plateau_uncertainty_patch.py
+    python paper1/docs/apply_plateau_uncertainty_patch.py
 
 The patch avoids treating single-run/single-grid maximum means as statistically
 unique optima. It also patches the Figure 2 renderer label/title so regenerated

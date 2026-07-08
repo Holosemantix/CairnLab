@@ -16,7 +16,7 @@ The current canonical grid has three evaluation seeds per checkpoint and one tra
 A patch script has been added:
 
 ```bash
-python paper1/apply_plateau_uncertainty_patch.py
+python paper1/docs/apply_plateau_uncertainty_patch.py
 ```
 
 It updates `paper1/main.tex` and `tools/paper1_figs.py` wording and figure labels to remove the strongest optimum-like language. After running it, regenerate Figure 2:
@@ -103,7 +103,7 @@ Avoid repeated reminders in every paragraph; one caption/paragraph note per tabl
 **Required commands.**
 
 ```bash
-python paper1/apply_plateau_uncertainty_patch.py
+python paper1/docs/apply_plateau_uncertainty_patch.py
 python -m tools.paper1_figs --out-dir assets/paper1_figs
 python -m tools.check_paper1_consistency
 cd paper1 && bash build.sh --clean

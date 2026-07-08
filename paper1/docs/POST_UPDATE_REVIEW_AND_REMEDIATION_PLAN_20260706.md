@@ -473,7 +473,7 @@ assets/paper1_data/three_seed_gaussian_sweep_summary_20260706.md
 ## 5. Ready-to-paste Codex prompt
 
 ```text
-You are editing qun-team/wm_exp on branch ag/dev. Use paper1/POST_UPDATE_REVIEW_AND_REMEDIATION_PLAN_20260706.md as the source of truth for this cleanup pass.
+You are editing qun-team/wm_exp on branch ag/dev. Use paper1/docs/POST_UPDATE_REVIEW_AND_REMEDIATION_PLAN_20260706.md as the source of truth for this cleanup pass.
 
 Do not change the paper's scientific claim: it is an arXiv v1 diagnostic / empirical analysis paper, not a method paper.
 

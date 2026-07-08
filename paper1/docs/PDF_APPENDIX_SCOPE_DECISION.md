@@ -340,7 +340,7 @@ This belongs in `DATA_MANIFEST.md`, not the paper.
 Keep these materials outside the Paper1 PDF:
 
 ```text
-paper1/LEGACY_DIAGNOSTIC_AUDITS.md
+paper1/docs/LEGACY_DIAGNOSTIC_AUDITS.md
 DATA_MANIFEST.md
 assets/paper1_data/acpc_phase0_clean_goal_seed9101.json
 assets/paper1_data/acpc_phase0_lewm_three_seed.json
@@ -379,7 +379,7 @@ The sampled-pool theorem can stay only if it is used to motivate why tail risk m
 - [ ] Remove release-package / legacy-audit / `DATA_MANIFEST.md` references from the Paper1 PDF.
 - [ ] Remove file paths, JSON artifact names, hashes, and rendering commands from the PDF appendix unless required for a method definition.
 - [ ] Keep a single code URL only if desired for arXiv metadata.
-- [ ] Keep `paper1/LEGACY_DIAGNOSTIC_AUDITS.md` as the destination for old metric definitions and roles.
+- [ ] Keep `paper1/docs/LEGACY_DIAGNOSTIC_AUDITS.md` as the destination for old metric definitions and roles.
 - [ ] Keep artifact references in `DATA_MANIFEST.md`; do not delete JSON files.
 - [ ] Ensure the abstract/contributions do not promise planner/cost/ranking validation as a main result.
 - [ ] Ensure the conclusion says future methods may use planner/cost terms, but Paper1's compressed diagnostic is ATR + SMPR.

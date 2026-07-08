@@ -4,7 +4,7 @@
 
 目标：以 7 位严格审稿人视角重新审视 paper1 的投稿风险，并给 Codex 一份可执行的整改清单。本文档优先列真正会被审稿人挑战、会影响 arXiv/投稿就绪、会削弱故事分量的问题；避免为了找问题而把正确边界改坏。
 
-本轮依据：`paper1/main.tex`、`paper1/references.bib`、`paper1/README.md`、`paper1/check_arxiv_ready.sh`、`DATA_MANIFEST.md`、现有 audit/patch 文档，以及公开论文元数据抽查。由于当前 GitHub connector 不能直接读取二进制 PDF/PNG，PDF 版式和图像细节没有被我直接截图验证；因此所有“图/版式”项都写成 Codex 必须本地渲染确认的 blocking preflight，而不是盲目声称已视觉检查通过。
+本轮依据：`paper1/main.tex`、`paper1/references.bib`、`paper1/docs/README.md`、`paper1/check_arxiv_ready.sh`、`DATA_MANIFEST.md`、现有 audit/patch 文档，以及公开论文元数据抽查。由于当前 GitHub connector 不能直接读取二进制 PDF/PNG，PDF 版式和图像细节没有被我直接截图验证；因此所有“图/版式”项都写成 Codex 必须本地渲染确认的 blocking preflight，而不是盲目声称已视觉检查通过。
 
 ---
 
@@ -145,7 +145,7 @@ fi
 **验收**：
 
 ```bash
-rg -n "Anguo-star/le-wm|Holosemantix/le-wm|complete code and data" paper1/main.tex paper1/README.md DATA_MANIFEST.md
+rg -n "Anguo-star/le-wm|Holosemantix/le-wm|complete code and data" paper1/main.tex paper1/docs/README.md DATA_MANIFEST.md
 ```
 
 确认最终 URL 可匿名访问，且 README / acknowledgement / data manifest 不互相矛盾。
@@ -428,7 +428,7 @@ rg -n "Overfull|Underfull|Float too large|LaTeX Warning|undefined|Citation .* un
 author = {Kostrikov, Ilya and Yarats, Denis and Fergus, Rob},
 ```
 
-然后更新 `paper1/reference_audit.md` 增加 2026-06-26 targeted fix 说明。
+然后更新 `paper1/docs/reference_audit.md` 增加 2026-06-26 targeted fix 说明。
 
 **验收**：
 
@@ -591,7 +591,7 @@ Appendix 保留：full sweeps、full ACPC grid、fig rendering details、artifac
 
 ```bash
 # 0. Search for known blockers
-rg -n "Author names to be supplied|Anguo-star/le-wm|significant|reliably predicts|robust predictor|robustness oracle|full CEM|closed-loop guarantee|optimal sigma|method-facing|paper-facing|Scope of this arXiv version" paper1/main.tex paper1/README.md || true
+rg -n "Author names to be supplied|Anguo-star/le-wm|significant|reliably predicts|robust predictor|robustness oracle|full CEM|closed-loop guarantee|optimal sigma|method-facing|paper-facing|Scope of this arXiv version" paper1/main.tex paper1/docs/README.md || true
 
 # 1. Check drop wording manually
 rg -n "drop|Drop|drops|loses|falls|degradation" paper1/main.tex

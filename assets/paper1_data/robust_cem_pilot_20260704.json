@@ -13,7 +13,7 @@
     ],
     "recommended_next_step": "Do not promote robust CEM as an effective method from this pilot. If continuing, test full-budget Stage A only after adding a cheaper offline candidate-ranking analysis or identifying a setting where robust scores actually change top-k decisions without reducing clean performance."
   },
-  "purpose": "Low-concurrency pilot for paper1/ROBUST_CEM_CODEX.md robust CEM validation.",
+  "purpose": "Low-concurrency pilot for paper1/docs/ROBUST_CEM_CODEX.md robust CEM validation.",
   "rows": [
     {
       "checkpoint": "baseline_seed3073",

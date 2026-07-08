@@ -1,6 +1,6 @@
 # Robust CEM Pilot 2026-07-04
 
-Low-concurrency pilot for `paper1/ROBUST_CEM_CODEX.md`. All closed-loop evals used `world.num_envs=1`, `timeout 20m`, reduced CEM budgets, and `record_history=false` for robust runs.
+Low-concurrency pilot for `paper1/docs/ROBUST_CEM_CODEX.md`. All closed-loop evals used `world.num_envs=1`, `timeout 20m`, reduced CEM budgets, and `record_history=false` for robust runs.
 
 Unit tests: `PYTHONPATH=. pytest -q tests/test_robust_cem.py` -> 9 passed.
 

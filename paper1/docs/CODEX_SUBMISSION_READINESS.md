@@ -206,7 +206,7 @@ rg -n "crucially|deliberately|scope boundary|robustness oracle|method-invariant|
 1. `paper1/build.sh` 不要吞 BibTeX 错误。把 `bibtex main || true` 改成可审计逻辑：
    - 若 `references.bib` 存在且 `.aux` 需要 bibtex，则 bibtex 失败应 fail；
    - 或 build 后强制 grep undefined citations/references 并 fail。
-2. `paper1/README.md` 中 `references.bib # 41 entries` 与 `reference_audit.md` 的 `42 citation keys` 口径要统一。改成 `references.bib # bibliography entries; audited in reference_audit.md`，不要写死数量。
+2. `paper1/docs/README.md` 中 `references.bib # 41 entries` 与 `reference_audit.md` 的 `42 citation keys` 口径要统一。改成 `references.bib # bibliography entries; audited in reference_audit.md`，不要写死数量。
 3. `\author{}` 为空要处理：
    - 匿名投稿：切换到目标会议模板/匿名宏；
    - arXiv：填真实作者或明确 placeholder 不进 release。
@@ -333,8 +333,8 @@ cd paper1 && bash build.sh --clean | tee /tmp/paper1_build_before.log
    - appendix migration for long definitions/tables。
 4. Fix release files:
    - `paper1/build.sh`；
-   - `paper1/README.md`；
-   - `paper1/reference_audit.md` if key count/date changed；
+   - `paper1/docs/README.md`；
+   - `paper1/docs/reference_audit.md` if key count/date changed；
    - `DATA_MANIFEST.md` only if artifacts changed。
 5. Run grep for AI-ish/repetitive phrasing and manually reduce。
 6. Rebuild and check logs。

@@ -2,7 +2,7 @@
 
 Date: 2026-06-26  
 Branch audited: `Holosemantix/le-wm@ag/dev`  
-Key files inspected: `paper1/main.tex`, `paper1/references.bib`, `paper1/reference_audit.md`, `paper1/check_arxiv_ready.sh`, public release state in `Anguo-star/le-wm`.
+Key files inspected: `paper1/main.tex`, `paper1/references.bib`, `paper1/docs/reference_audit.md`, `paper1/check_arxiv_ready.sh`, public release state in `Anguo-star/le-wm`.
 
 ## 0. 总体判断
 

@@ -13,7 +13,7 @@ Scope: 本文件只给 Codex 执行整改的计划与建议文本；不要在执
 - 2026-07-04 follow-up：补跑 seed 3072 的 selected unseen Phase-0 paired diagnostics（TwoRoom/Reacher blur, PushT/Cube resize），重建 `unseen_phase0_acpc_subset.json` 为 12 case rows / 24 diagnostic rows；matched diagnostic slice 现在同样覆盖 training seeds 3072/3073/3074。
 - 2026-07-04 second-round follow-up：补跑完整 blur/resize strongest-endpoint matched diagnostics，新增 `unseen_phase0_acpc_fullstress.json`（24 task-family-seed rows / 48 diagnostic rows，missing=0）。fullstress composite signed-rank 与 stress-success delta 的 Spearman/Pearson 均为 0.94，与 drop improvement 为 0.82/0.84；主文/appendix 已写成 bounded two-family scope audit，不升级为 universal transfer claim。
 - 未做重新训练；新增数值 artifact 是由现有 checkpoints、三训练 seed diagnostics/eval manifest 和固定 ckpt diagnostic runner 派生，released numeric JSON 行未手改。
-- 最终核查通过：`python tools/check_paper1_consistency.py`、`git diff --check`、`bash paper1/build.sh --clean`、`bash paper1/check_blind_ready.sh`。最终 `main.log` / `main_blind.log` 未发现未定义引用、citation warning、overfull/underfull warning；`check_arxiv_ready.sh` 仍因 `\arxivauthors` placeholder 阻塞，属于非匿名作者信息待填项。
+- 最终核查通过：`python tools/check_paper1_consistency.py`、`git diff --check`、`bash paper1/build.sh --clean`、`bash paper1/docs/check_blind_ready.sh`。最终 `main.log` / `main_blind.log` 未发现未定义引用、citation warning、overfull/underfull warning；`check_arxiv_ready.sh` 仍因 `\arxivauthors` placeholder 阻塞，属于非匿名作者信息待填项。
 - 本轮独立审稿判断：作为 controlled diagnostic / empirical-analysis paper，当前版本约为 Accept / high Weak Accept（约 7.5/10，confidence 4/5）；尚未达到通用 world-model robustness method paper 的 strong-accept 基线。剩余主要阻塞项是训练型 ACPC objective 或 strong robustness baselines，以及更细 oracle semantic near-boundary labels；这些超出 no-retraining / fixed-ckpt 整改范围。
 
 ---
@@ -323,7 +323,7 @@ python tools/check_paper1_consistency.py
 如果 blind / arXiv readiness scripts 当前依赖 author metadata，可按现有流程判断是否运行：
 
 ```bash
-bash paper1/check_blind_ready.sh
+bash paper1/docs/check_blind_ready.sh
 bash paper1/check_arxiv_ready.sh
 ```
 

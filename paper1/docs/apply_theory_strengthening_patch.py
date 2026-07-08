@@ -2,7 +2,7 @@
 """Apply the Paper 1 theory-strengthening editorial patch.
 
 Run from the repository root:
-    python paper1/apply_theory_strengthening_patch.py
+    python paper1/docs/apply_theory_strengthening_patch.py
 
 The script only edits paper1/main.tex and uses exact-string replacements. It is
 idempotent for an already-patched manuscript and fails loudly on other drift.

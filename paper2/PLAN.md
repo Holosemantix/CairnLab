@@ -22,7 +22,7 @@ Source documents:
 
 | Source | Role |
 |---|---|
-| [`paper1/PLAN.md`](../paper1/PLAN.md) | Paper1 framing, ACPC definition, Paper2 route map |
+| [`paper1/docs/PLAN.md`](../paper1/docs/PLAN.md) | Paper1 framing, ACPC definition, Paper2 route map |
 | [`experiments.md`](../experiments.md) | Experiment log, including the Reacher GLC, SNAP-ACPC, and paired no-aux results |
 | [`plan_adaptive_resolution.md`](../plan_adaptive_resolution.md) | Archived AAAC / APDC evidence and ablations; not the next default route |
 | [`planner_side_robustification_experiment_plan.md`](../planner_side_robustification_experiment_plan.md) | Planner-side robust CEM plan |

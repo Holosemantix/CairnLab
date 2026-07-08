@@ -407,7 +407,7 @@ Diagnosing Visual Robustness in JEPA World Models via Action-Conditioned Predict
 可由 Codex 按实际项目结构调整名称。
 
 ```text
-paper1/TOP_CONF_REMEDIATION_PLAN.md             # 本整改计划
+paper1/docs/TOP_CONF_REMEDIATION_PLAN.md             # 本整改计划
 paper1/prospective_validation_protocol.md       # 冻结诊断协议说明，可选
 scripts/paper1_metric_correlation.py            # full-grid metric correlation
 scripts/paper1_semantic_discriminability.py      # semantic guard computation

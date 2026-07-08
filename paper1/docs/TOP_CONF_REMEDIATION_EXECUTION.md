@@ -1,6 +1,6 @@
 # Top-Conference Remediation Execution Matrix
 
-Source plan: `paper1/TOP_CONF_REMEDIATION_PLAN.md`.
+Source plan: `paper1/docs/TOP_CONF_REMEDIATION_PLAN.md`.
 
 This file separates remediation work completed from existing checkpoints/artifacts from work that still needs new diagnostic runs or task-semantic construction. It is intentionally conservative: completed Gaussian training-seed statistics are promoted to main evidence, while task-semantic margins are only specified until their state-margin runs exist.
 
@@ -15,7 +15,7 @@ This file separates remediation work completed from existing checkpoints/artifac
 | P1.1 representative-row clarity | Main text now reports both a fixed high-noise endpoint/plateau framing and the frozen-rule selected row against the closed-loop best row. | `paper1/main.tex`, `assets/paper1_data/no_retrain_diagnostic_audit.*`, `assets/paper1_data/training_seed_gaussian_lockbox.*` | Reduces cherry-picking risk; exact point-best rows are treated as plateau context. |
 | P1.4/P2.3 metric-load and tone cleanup | Main text now organizes diagnostics around three questions: seed-level behavior, rollout/cost consistency, and selective discriminability. Caveats are consolidated in Discussion instead of repeated throughout the contribution story. | `paper1/main.tex` | Clearer main contribution with honest boundaries. |
 | P2.1/P2.2 title/abstract/contribution framing | Abstract and C3 now foreground the three-training-seed Gaussian result, three-seed unseen score check, validation ledger, matched held-out diagnostic slice, and semantic state-margin protocol. | `paper1/main.tex` | Stronger positive contribution while preserving scope. |
-| Figure wording cleanup | Paper-facing Figure 1/3/5 generated labels now use `ACPC rollout readout R_F`, and unused legacy figures are removed from arXiv copy lists. | `tools/paper1_selective_contraction.py`, regenerated PNGs, `paper1/README.md`, `paper1/check_arxiv_ready.sh` | Removes stale H=8/predictor wording from paper-facing assets. |
+| Figure wording cleanup | Paper-facing Figure 1/3/5 generated labels now use `ACPC rollout readout R_F`, and unused legacy figures are removed from arXiv copy lists. | `tools/paper1_selective_contraction.py`, regenerated PNGs, `paper1/docs/README.md`, `paper1/check_arxiv_ready.sh` | Removes stale H=8/predictor wording from paper-facing assets. |
 | Artifact mapping | Added the no-retraining audit, training-seed Gaussian lockbox, audited unseen score artifacts, and validation remediation artifacts/scripts to the reproducibility map and consistency checks. | `paper1/main.tex`, `DATA_MANIFEST.md`, `tools/check_paper1_consistency.py` | Reproducible from existing JSON/Markdown; no model loading. |
 
 ## B. Directly doable next from existing artifacts/checkpoints

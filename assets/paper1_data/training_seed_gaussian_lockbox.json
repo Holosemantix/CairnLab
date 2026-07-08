@@ -4,7 +4,7 @@
     "scope": "LeWM Gaussian sweep, observation-only Gaussian endpoint pixels_std0.08, training seeds 3072/3073/3074; each point is the three-evaluation-seed mean from seeds 42/43/44 with 100 episodes per eval seed",
     "source_artifacts": [
       "assets/paper1_data/canonical_evals_20260517.json",
-      "paper1/LOCKBOX_RESULTS_20260703.md"
+      "paper1/docs/LOCKBOX_RESULTS_20260703.md"
     ],
     "note": "Seed 3072 is computed from the canonical JSON; seeds 3073/3074 are parsed from the completed lockbox note."
   },
@@ -29,7 +29,7 @@
       "std_0p08_obs_0p08": 97.33,
       "std_0p08_gain_over_baseline": 25.67,
       "std_0p08_regret_to_best": 0.0,
-      "source": "paper1/LOCKBOX_RESULTS_20260703.md"
+      "source": "paper1/docs/LOCKBOX_RESULTS_20260703.md"
     },
     {
       "task": "TwoRoom",
@@ -40,7 +40,7 @@
       "std_0p08_obs_0p08": 96.33,
       "std_0p08_gain_over_baseline": 27.33,
       "std_0p08_regret_to_best": 1.6700000000000017,
-      "source": "paper1/LOCKBOX_RESULTS_20260703.md"
+      "source": "paper1/docs/LOCKBOX_RESULTS_20260703.md"
     },
     {
       "task": "PushT",
@@ -62,7 +62,7 @@
       "std_0p08_obs_0p08": 81.0,
       "std_0p08_gain_over_baseline": 79.0,
       "std_0p08_regret_to_best": 5.670000000000002,
-      "source": "paper1/LOCKBOX_RESULTS_20260703.md"
+      "source": "paper1/docs/LOCKBOX_RESULTS_20260703.md"
     },
     {
       "task": "PushT",
@@ -73,7 +73,7 @@
       "std_0p08_obs_0p08": 87.33,
       "std_0p08_gain_over_baseline": 72.0,
       "std_0p08_regret_to_best": 0.0,
-      "source": "paper1/LOCKBOX_RESULTS_20260703.md"
+      "source": "paper1/docs/LOCKBOX_RESULTS_20260703.md"
     },
     {
       "task": "Reacher",
@@ -95,7 +95,7 @@
       "std_0p08_obs_0p08": 82.33,
       "std_0p08_gain_over_baseline": 64.67,
       "std_0p08_regret_to_best": 1.0,
-      "source": "paper1/LOCKBOX_RESULTS_20260703.md"
+      "source": "paper1/docs/LOCKBOX_RESULTS_20260703.md"
     },
     {
       "task": "Reacher",
@@ -106,7 +106,7 @@
       "std_0p08_obs_0p08": 80.33,
       "std_0p08_gain_over_baseline": 61.67,
       "std_0p08_regret_to_best": 3.0,
-      "source": "paper1/LOCKBOX_RESULTS_20260703.md"
+      "source": "paper1/docs/LOCKBOX_RESULTS_20260703.md"
     },
     {
       "task": "Cube",
@@ -128,7 +128,7 @@
       "std_0p08_obs_0p08": 64.67,
       "std_0p08_gain_over_baseline": 25.67,
       "std_0p08_regret_to_best": 1.0,
-      "source": "paper1/LOCKBOX_RESULTS_20260703.md"
+      "source": "paper1/docs/LOCKBOX_RESULTS_20260703.md"
     },
     {
       "task": "Cube",
@@ -139,7 +139,7 @@
       "std_0p08_obs_0p08": 61.0,
       "std_0p08_gain_over_baseline": 17.67,
       "std_0p08_regret_to_best": 4.329999999999998,
-      "source": "paper1/LOCKBOX_RESULTS_20260703.md"
+      "source": "paper1/docs/LOCKBOX_RESULTS_20260703.md"
     }
   ],
   "task_summary_rows": [

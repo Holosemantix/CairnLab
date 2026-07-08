@@ -99,6 +99,8 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_figs" / "fig_radius_margin_overlap.png",
     ROOT / "paper1" / "results" / "radius_margin_certificate_summary.csv",
     ROOT / "paper1" / "results" / "radius_margin_gate_ablation.csv",
+    ROOT / "paper1" / "results" / "radius_margin_boundary_alignment.csv",
+    ROOT / "paper1" / "results" / "fixed_pool_top1_agreement.csv",
     ROOT / "paper1" / "results" / "prospective_diagnostic" / "diagnostics_all_ckpts.csv",
     ROOT / "paper1" / "results" / "diagnostic_region" / "diagnostic_region_rows.csv",
     ROOT / "paper1" / "results" / "diagnostic_region" / "diagnostic_region_summary.csv",
@@ -107,6 +109,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "paper1" / "results" / "diagnostic_region" / "robust_fragile_separation.csv",
     ROOT / "paper1" / "results" / "diagnostic_region" / "README.md",
     ROOT / "tools" / "paper1_radius_margin_certificate.py",
+    ROOT / "tools" / "paper1_boundary_mechanism_audit.py",
     ROOT / "tools" / "paper1_diagnostic_region_validation.py",
     ROOT / "DATA_MANIFEST.md",
 ]
@@ -144,10 +147,16 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Predictive tubes and task margins",
     "ACPC radius--margin certificate",
     "Matched-perturbation diagnostic region",
+    "Local Gaussian ACPC radius quantile",
+    "encoder-side repair, rollout-side contraction, or alignment repair",
     "Diagnostic validation of the radius--margin certificate",
     "fixed-pool proxy and not a planner-margin certificate",
     "theorem only at the proxy level supported by the recorded summaries",
     "single-candidate tail and failure probabilities are not calibrated",
+    "aggregate grid-point F1 or interval IoU is not used as the primary validation criterion",
+    "Boundary-aware interpretation of the fixed-pool radius--margin proxy",
+    "Fixed-pool top-1 agreement audit derived from the recorded fixed-pool flip rate",
+    "do not manufacture a q90/q95/q99 sensitivity table from unavailable raw tails",
     "$\\beta_{\\mathrm{plan}}$ and $\\beta_{\\mathrm{disc}}$ name empirical failure components rather than calibrated probabilities",
     "no-retraining diagnostic-region audit",
     "normalized closed-loop recovery",
@@ -2242,8 +2251,12 @@ def check_published_correlations() -> None:
 def check_radius_margin_certificate_outputs() -> None:
     summary_path = ROOT / "paper1" / "results" / "radius_margin_certificate_summary.csv"
     gate_path = ROOT / "paper1" / "results" / "radius_margin_gate_ablation.csv"
+    boundary_path = ROOT / "paper1" / "results" / "radius_margin_boundary_alignment.csv"
+    top1_path = ROOT / "paper1" / "results" / "fixed_pool_top1_agreement.csv"
     summary_rows = list(csv.DictReader(summary_path.open(newline="", encoding="utf-8")))
     gate_rows = list(csv.DictReader(gate_path.open(newline="", encoding="utf-8")))
+    boundary_rows = list(csv.DictReader(boundary_path.open(newline="", encoding="utf-8")))
+    top1_rows = list(csv.DictReader(top1_path.open(newline="", encoding="utf-8")))
 
     if len(summary_rows) != 36:
         fail(f"radius-margin summary expected 36 rows, got {len(summary_rows)}")
@@ -2330,6 +2343,44 @@ def check_radius_margin_certificate_outputs() -> None:
             fail(f"radius-margin joint-gate note missing scope explanation: {row['notes']}")
         if "artifact" in row["notes"]:
             fail(f"radius-margin joint-gate note uses internal wording: {row['notes']}")
+
+    expected_boundary = {
+        "TwoRoom": ("0.01-0.08", "0.02-0.08", "+0.01", "+0.00", "yes"),
+        "PushT": ("0.03-0.08", "0.02-0.08", "-0.01", "+0.00", "yes"),
+        "Reacher": ("0.02-0.08", "0.04-0.08", "+0.02", "+0.00", "partial"),
+        "Cube": ("0.03-0.08", "0.03-0.08", "+0.00", "+0.00", "yes"),
+    }
+    if len(boundary_rows) != 4:
+        fail(f"boundary alignment expected four rows, got {len(boundary_rows)}")
+    for row in boundary_rows:
+        task = row["task"]
+        got = (
+            row["recovery_band"],
+            row["diagnostic_proxy_interval"],
+            row["start_boundary_error_stdmax"],
+            row["end_boundary_error_stdmax"],
+            row["within_one_grid_tolerance"],
+        )
+        if got != expected_boundary.get(task):
+            fail(f"boundary alignment mismatch for {task}: got {got}")
+
+    if len(top1_rows) != 12:
+        fail(f"fixed-pool top1 audit expected 12 rows, got {len(top1_rows)}")
+    top1_map = {(row["task"], row["row_role"]): row for row in top1_rows}
+    expected_top1 = {
+        ("TwoRoom", "base"): ("0.00", "0.207", "no"),
+        ("TwoRoom", "std0.08_endpoint"): ("0.08", "0.960", "yes"),
+        ("PushT", "recovery_onset"): ("0.03", "0.937", "yes"),
+        ("Reacher", "recovery_onset"): ("0.02", "0.810", "yes"),
+        ("Cube", "std0.08_endpoint"): ("0.08", "0.997", "yes"),
+    }
+    for key, expected in expected_top1.items():
+        row = top1_map.get(key)
+        if row is None:
+            fail(f"fixed-pool top1 audit missing row {key}")
+        got = (row["stdmax"], row["empirical_top1_agree"], row["recovery_band_member"])
+        if got != expected:
+            fail(f"fixed-pool top1 audit mismatch for {key}: got {got}, want {expected}")
 
     for rel in (
         "assets/paper1_figs/fig_radius_margin_interval_overlay.png",

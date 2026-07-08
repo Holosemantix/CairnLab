@@ -7,7 +7,7 @@
 > 1. `ATR`：ACPC Tail Risk，即 same-state clean/noisy action-conditioned rollout disagreement 的 tail risk；
 > 2. `SMPR`：Selective Margin Pass Rate，即 task-grounded different-state / near-boundary separation 是否大于 same-state noisy radius。
 >
-> 旧的 `PCC/CRA/MAF`、CEM trace、rank/transition/ID-probe 等不再作为主文核心指标；它们应退出 paper-facing 主叙事，迁入 `paper1/LEGACY_DIAGNOSTIC_AUDITS.md` 和 `DATA_MANIFEST.md` provenance。**不要物理删除 artifacts；可以从主文删除旧指标表，只保留一句 shadow-audit 指针。**
+> 旧的 `PCC/CRA/MAF`、CEM trace、rank/transition/ID-probe 等不再作为主文核心指标；它们应退出 paper-facing 主叙事，迁入 `paper1/docs/LEGACY_DIAGNOSTIC_AUDITS.md` 和 `DATA_MANIFEST.md` provenance。**不要物理删除 artifacts；可以从主文删除旧指标表，只保留一句 shadow-audit 指针。**
 
 ---
 
@@ -236,7 +236,7 @@ Layer 2 — Minimal paper appendix, optional:
   No long metric zoo.
 
 Layer 3 — Legacy/shadow document:
-  paper1/LEGACY_DIAGNOSTIC_AUDITS.md records all旧指标、为什么降级、何时仍有用、对应 artifacts。
+  paper1/docs/LEGACY_DIAGNOSTIC_AUDITS.md records all旧指标、为什么降级、何时仍有用、对应 artifacts。
 ```
 
 ### 3.3 旧指标迁移表
@@ -362,7 +362,7 @@ Planner-facing and representation-proxy audits are archived in LEGACY_DIAGNOSTIC
 新增：
 
 ```text
-paper1/LEGACY_DIAGNOSTIC_AUDITS.md
+paper1/docs/LEGACY_DIAGNOSTIC_AUDITS.md
 ```
 
 该文档应包含：
@@ -517,7 +517,7 @@ L_selective_ACPC = CVaR_alpha(D_same) + lambda * max(0, m + D_same - D_diff)
 - [ ] 主文删除或移动 ACPC-H/PCC/CRA/MAF 大表。
 - [ ] 主文删除或移动 rank/transition/ID probe 大表。
 - [ ] 主文删除或移动 CEM trace 大表，仅留 bounded audit 一句。
-- [ ] 新增 `paper1/LEGACY_DIAGNOSTIC_AUDITS.md`。
+- [ ] 新增 `paper1/docs/LEGACY_DIAGNOSTIC_AUDITS.md`。
 - [ ] 更新 `DATA_MANIFEST.md`，加入 compressed metrics artifact，并保留 legacy audit artifact 路径。
 - [ ] 运行 `tools/check_paper1_consistency.py` 或现有一致性检查脚本。
 

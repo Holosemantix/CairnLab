@@ -6,7 +6,7 @@ The short conclusion is:
 
 > Do not train post-projector clean-only latent-noise ACPC-Flow at scale. The core64 and v2 audits reject frozen synthetic local-noise repair (`emb + epsilon -> clean emb`, or analogous repair at `encoder_feat`, `predictor_hidden`, `pred_emb`). That closes post-hoc transport on a trained baseline, but it does **not** close training-time projector distribution migration. The four-task origin-vs-noise v2 audit shows that ordinary input-noise training reshapes the `P/R` path and candidate rankings relative to origin, and those movements align with ATR/SMPR/eval for matched Gaussian and with task-dependent held-out blur/resize evidence. Treat `no_go` labels as strict method gates for frozen synthetic repair, not as paper-facing conclusions about whether noise training improved robustness.
 
-> Do not route this document's next step to robust CEM, noisy-only in-forward control, or pixel/paired-source ablations. Robust CEM has a separate no-go record (`paper1/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md`), and the Paper2 direct-regularization/data-path controls are recorded elsewhere (`paper1/ROBUSTNESS_TRIAGE_NEXT_STEP_PLAN_20260628.md`, `experiments.md`).
+> Do not route this document's next step to robust CEM, noisy-only in-forward control, or pixel/paired-source ablations. Robust CEM has a separate no-go record (`paper1/docs/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md`), and the Paper2 direct-regularization/data-path controls are recorded elsewhere (`paper1/docs/ROBUSTNESS_TRIAGE_NEXT_STEP_PLAN_20260628.md`, `experiments.md`).
 
 ---
 
@@ -795,9 +795,9 @@ pixel/paired-source ablation as an unqualified next step
 ```
 
 Robust CEM has a separate no-go record in
-`paper1/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md`. The older Paper2
+`paper1/docs/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md`. The older Paper2
 regularization/data-path controls are recorded in `experiments.md`,
-`paper2/PLAN.md`, and `paper1/ROBUSTNESS_TRIAGE_NEXT_STEP_PLAN_20260628.md`;
+`paper2/PLAN.md`, and `paper1/docs/ROBUSTNESS_TRIAGE_NEXT_STEP_PLAN_20260628.md`;
 they should not be mixed into the ACPC-Flow next-step plan.
 
 ---

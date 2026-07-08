@@ -43,7 +43,7 @@ Recommended framing: keep this as an appendix/bounded negative result unless fut
 Primary machine-readable artifact: `assets/paper1_data/robust_cem_eval100x3_iteration_summary_20260705.json`.
 ## Final inner-loop sanity check: no-go (2026-07-05)
 
-This check followed `paper1/ROBUST_CEM_CODEX.md` after it was narrowed to one final full inner-loop sanity pass. The solver path used robust scoring before `topk` inside each CEM iteration (`solver=robust_cem`, `robust_rescore=all`, `num_views=4`, `view_std=0.04`, `include_identity=true`).
+This check followed `paper1/docs/ROBUST_CEM_CODEX.md` after it was narrowed to one final full inner-loop sanity pass. The solver path used robust scoring before `topk` inside each CEM iteration (`solver=robust_cem`, `robust_rescore=all`, `num_views=4`, `view_std=0.04`, `include_identity=true`).
 
 | Task | Planner | Seed | Success | Reading |
 |---|---|---:|---:|---|

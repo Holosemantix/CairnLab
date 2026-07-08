@@ -57,7 +57,7 @@ The current source is configured as an arXiv-style non-anonymous draft. Before s
 
 Current public companion repository: `https://github.com/Anguo-star/lewm-acpc-diagnostics`.
 
-For a double-blind conference variant, use `main_blind.tex` and run `bash paper1/check_blind_ready.sh` from the repository root. The blind path compiles the same paper with anonymous authors, hides the public code URL and acknowledgements, and creates `/tmp/paper1_blind_src.tar.gz` without `arxiv_metadata.tex` or `arxiv_release_notes.tex`.
+For a double-blind conference variant, use `main_blind.tex` and run `bash paper1/docs/check_blind_ready.sh` from the repository root. The blind path compiles the same paper with anonymous authors, hides the public code URL and acknowledgements, and creates `/tmp/paper1_blind_src.tar.gz` without `arxiv_metadata.tex` or `arxiv_release_notes.tex`.
 
 arXiv source upload should contain only files required to compile the paper. Do not upload `PLAN.md`, `CODEX_SUBMISSION_READINESS.md`, `ARXIV_V1_READINESS_PLAN.md`, checker logs, old PDFs, raw experiment JSON, or other internal planning files.
 

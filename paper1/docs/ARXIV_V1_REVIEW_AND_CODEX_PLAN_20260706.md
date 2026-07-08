@@ -2,7 +2,7 @@
 
 Date: 2026-07-06  
 Branch: `ag/dev`  
-Scope: `paper1/main.tex`, `paper1/README.md`, `tools/README_paper1.md`, compressed ATR/SMPR artifacts, legacy diagnostic policy docs.
+Scope: `paper1/main.tex`, `paper1/docs/README.md`, `tools/README_paper1.md`, compressed ATR/SMPR artifacts, legacy diagnostic policy docs.
 
 This document is written as a pre-arXiv and pre-Codex review memo. It should not be included in any arXiv source tarball.
 
@@ -515,7 +515,7 @@ Do not commit `/tmp/paper1_selective_contraction_cache`.
 
 ## 3.4 Patch D: README / arXiv source-list cleanup
 
-Update `paper1/README.md`:
+Update `paper1/docs/README.md`:
 
 - remove `fig_atr_smpr_plane.png` from the arXiv source copy list if it is no longer referenced;
 - replace `fig_feature_neighborhood_atr_smpr.png` with `fig_acpc_basin_tsne.png`;
@@ -559,7 +559,7 @@ Expected outcome:
 ## 4. Ready-to-paste Codex prompt
 
 ```text
-You are editing qun-team/wm_exp on branch ag/dev. Please implement the manuscript convergence plan in paper1/ARXIV_V1_REVIEW_AND_CODEX_PLAN_20260706.md.
+You are editing qun-team/wm_exp on branch ag/dev. Please implement the manuscript convergence plan in paper1/docs/ARXIV_V1_REVIEW_AND_CODEX_PLAN_20260706.md.
 
 Main goals:
 1. Keep Paper1 as an arXiv v1 diagnostic / empirical analysis paper, not a method paper.
@@ -570,7 +570,7 @@ Main goals:
 6. Keep but compact the three-training-seed Gaussian endpoint table.
 7. Keep only one of the current Figures 2/3: remove the ATR/SMPR plane and replace the current feature-neighborhood figure with a proper ACPC-basin t-SNE cluster figure based on tools/paper1_selective_contraction.py.
 8. The replacement figure should reuse existing cached feature arrays if available, show encoder and post-predictor features for baseline/std0.08, and visibly annotate only ATR and SMPR from assets/paper1_data/compressed_metrics_summary_20260706.json. Do not show R_E/R_F/rNN/disjoint as paper-facing metrics.
-9. Update paper1/README.md and tools/README_paper1.md so the build/arXiv figure list matches the new figure set.
+9. Update paper1/docs/README.md and tools/README_paper1.md so the build/arXiv figure list matches the new figure set.
 10. Run consistency, LaTeX build, and grep checks. Do not invent missing numeric values; if σ=0.03 is absent from artifacts, stop and report the missing source rather than interpolating.
 
 Acceptance criteria:

@@ -7,7 +7,7 @@ This file supersedes the earlier broad Robust CEM implementation brief. The 2026
 Primary artifact:
 
 ```text
-paper1/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md
+paper1/docs/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md
 assets/paper1_data/robust_cem_eval100x3_iteration_summary_20260705.json
 ```
 

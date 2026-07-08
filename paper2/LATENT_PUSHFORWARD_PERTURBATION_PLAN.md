@@ -45,7 +45,7 @@ These failures suggest that the next method should not simply add another consis
 
 ### 1.3 What ACPC-Flow has already established
 
-The updated `paper1/ACPC_FLOW_CODEX.md` should be treated as a completed empirical constraint on this report, not as an unrelated plan.
+The updated `paper1/docs/ACPC_FLOW_CODEX.md` should be treated as a completed empirical constraint on this report, not as an unrelated plan.
 
 **Core64 audit.** On TwoRoom `baseline_seed3073`, post-projector `emb` synthetic local noise did not cover measured pixel-induced shifts:
 
@@ -1055,4 +1055,4 @@ Paper1 should remain a diagnostic paper. This report can become Paper2 or a late
 
 [14] Jingyang He, Guangrun Li, Jieyu Zhang, Chengkai Hou, Zhengping Che, and Shanghang Zhang. **Demo-JEPA: Joint-Embedding Predictive Architecture for One-shot Cross-Embodiment Imitation.** arXiv:2605.20811, 2026. https://arxiv.org/abs/2605.20811
 
-[15] Paper1 internal artifacts in this repository: `paper1/PLAN.md`, `paper1/LOCKBOX_RESULTS_20260703.md`, `paper1/ACPC_FLOW_CODEX.md`, `paper1/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md`, `assets/paper1_data/acpc_flow_coverage_tworoom_baseline_seed3073_core64.json`, `assets/paper1_data/acpc_flow_coverage_v2_tworoom_baseline_seed3073_core128_fullstress.json`, `assets/paper1_data/acpc_flow_v2_four_task_origin_vs_noise008_aligned_summary.md`, `assets/paper1_data/three_seed_diagnostic_validation.md`, `assets/paper1_data/selector_*_audit_20260704.md`, and `assets/paper1_data/residual_diagnostic_audit_20260704.md`.
+[15] Paper1 internal artifacts in this repository: `paper1/docs/PLAN.md`, `paper1/docs/LOCKBOX_RESULTS_20260703.md`, `paper1/docs/ACPC_FLOW_CODEX.md`, `paper1/docs/ROBUST_CEM_EVAL100X3_ITERATION_LOG_20260705.md`, `assets/paper1_data/acpc_flow_coverage_tworoom_baseline_seed3073_core64.json`, `assets/paper1_data/acpc_flow_coverage_v2_tworoom_baseline_seed3073_core128_fullstress.json`, `assets/paper1_data/acpc_flow_v2_four_task_origin_vs_noise008_aligned_summary.md`, `assets/paper1_data/three_seed_diagnostic_validation.md`, `assets/paper1_data/selector_*_audit_20260704.md`, and `assets/paper1_data/residual_diagnostic_audit_20260704.md`.

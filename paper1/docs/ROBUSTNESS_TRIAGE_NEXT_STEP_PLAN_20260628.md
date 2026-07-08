@@ -256,7 +256,7 @@ finishes on any machine.
 |---|---|---|---|
 | R1 | Independent LeWM training seeds 3073/3074 | Complete; 4 tasks x 9 std grid available for both seeds | Main-conference reviewers will not accept evaluation seeds as a substitute for training-run variability. |
 | R2 | Frozen seed-3072 robustness-triage selector | Development analysis done; selector frozen in this document | Converts ACPC/CRA/MAF from post-hoc explanation into a testable plateau-triage protocol. |
-| R3 | Gaussian lockbox application to 3073/3074 | Complete; see `paper1/LOCKBOX_RESULTS_20260703.md` | Confirms the no-noise cliff, noise-training recovery, and broad plateau reading under independent training seeds. |
+| R3 | Gaussian lockbox application to 3073/3074 | Complete; see `paper1/docs/LOCKBOX_RESULTS_20260703.md` | Confirms the no-noise cliff, noise-training recovery, and broad plateau reading under independent training seeds. |
 | R4 | Seed-3072 unseen-perturbation pilot | Four-task strongest-only formal pass complete; TwoRoom/Reacher positive, PushT weak/mixed, Cube neutral | Tests whether the protocol is Gaussian-specific or reusable with a different paired-corruption operator. |
 | R5 | Unseen-perturbation lockbox on new seeds | Complete for strongest-only blur/resize; bounded positive transfer on TwoRoom/Reacher, weak/mixed PushT, neutral Cube | Checks whether the Gaussian-trained endpoint transfers to non-Gaussian visual stressors without upgrading the claim to universal robustness. |
 | R6 | Representative unseen Phase-0 ACPC subset | Complete; `assets/paper1_data/unseen_phase0_acpc_subset.json`, `missing=0` | Tests whether selected unseen score movements also have paired ACPC/PCC/CRA/MAF movement; supports TwoRoom/Reacher, bounds Cube, leaves PushT mixed. |
@@ -358,7 +358,7 @@ the TwoRoom/Reacher pattern.
 ## 10.1 Seed-3073/3074 Lockbox Result
 
 Final status (2026-07-03): the independent training-seed lockbox is complete.
-The detailed result note is `paper1/LOCKBOX_RESULTS_20260703.md`.
+The detailed result note is `paper1/docs/LOCKBOX_RESULTS_20260703.md`.
 
 Gaussian lockbox summary, averaged across seeds 3073 and 3074:
 
@@ -488,7 +488,7 @@ already serving training, eval, and diagnostics across several projects.
 
 - Seeds 3073/3074 Gaussian eval grid is complete.
 - Strongest-only unseen perturbation artifacts for seeds 3073/3074 are complete.
-- Lockbox result note has been written: `paper1/LOCKBOX_RESULTS_20260703.md`.
+- Lockbox result note has been written: `paper1/docs/LOCKBOX_RESULTS_20260703.md`.
 - Before touching `main.tex`, run a claim audit deciding whether the lockbox
   belongs in the main text, appendix, or rebuttal package.
 - Representative unseen diagnostics subset is complete:

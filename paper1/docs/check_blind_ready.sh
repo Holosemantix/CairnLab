@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Build and audit the double-blind Paper 1 variant.
-# Run from repository root: bash paper1/check_blind_ready.sh
+# Run from repository root: bash paper1/docs/check_blind_ready.sh
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PAPER="$ROOT/paper1"
 cd "$PAPER"
 
@@ -17,12 +17,12 @@ rm -f main_blind.aux main_blind.bbl main_blind.blg main_blind.log \
       main_blind.fls main_blind.synctex.gz main_blind.pdf
 
 if command -v latexmk >/dev/null 2>&1; then
-  latexmk -pdf -interaction=nonstopmode -halt-on-error main_blind.tex
+  latexmk -pdf -jobname=main_blind -interaction=nonstopmode -halt-on-error docs/main_blind.tex
 else
-  pdflatex -interaction=nonstopmode -halt-on-error main_blind.tex
+  pdflatex -jobname=main_blind -interaction=nonstopmode -halt-on-error docs/main_blind.tex
   bibtex main_blind
-  pdflatex -interaction=nonstopmode -halt-on-error main_blind.tex
-  pdflatex -interaction=nonstopmode -halt-on-error main_blind.tex
+  pdflatex -jobname=main_blind -interaction=nonstopmode -halt-on-error docs/main_blind.tex
+  pdflatex -jobname=main_blind -interaction=nonstopmode -halt-on-error docs/main_blind.tex
 fi
 
 if command -v rg >/dev/null 2>&1; then
@@ -52,10 +52,11 @@ fi
 
 rm -rf /tmp/paper1_blind_src
 mkdir -p /tmp/paper1_blind_src/figures
-cp main_blind.tex main.tex references.bib main_blind.bbl /tmp/paper1_blind_src/
+cp docs/main_blind.tex main.tex references.bib main_blind.bbl /tmp/paper1_blind_src/
 cp ../assets/paper1_figs/fig2_sweep.png /tmp/paper1_blind_src/figures/
-cp ../assets/paper1_figs/fig_atr_smpr_plane.png /tmp/paper1_blind_src/figures/
-cp ../assets/paper1_figs/fig_feature_neighborhood_atr_smpr.png /tmp/paper1_blind_src/figures/
+cp ../assets/paper1_figs/fig_acpc_basin_tsne.png /tmp/paper1_blind_src/figures/
+cp ../assets/paper1_figs/fig_radius_margin_interval_overlay.png /tmp/paper1_blind_src/figures/
+cp ../assets/paper1_figs/fig_radius_margin_overlap.png /tmp/paper1_blind_src/figures/
 
 if grep -R -n -E -i "Anguo-star|github\.com|Author names to be supplied|Acknowledgements|public repository|LeWM authors" /tmp/paper1_blind_src/*.tex; then
   fail "blind source bundle contains self-identifying arXiv/source wording"

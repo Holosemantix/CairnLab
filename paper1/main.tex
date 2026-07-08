@@ -452,13 +452,13 @@ SMPR uses programmatic task-state proxy labels, not oracle semantic annotations:
 
 \subsection{Diagnostic validation of the radius--margin certificate}\label{sec:exp-radius-margin}
 
-The radius--margin theory predicts that a checkpoint should be diagnostically robust when the high-tail same-state predictive radius is contained within the relevant planner or task-discriminability margin. We therefore add a training-free full-sweep validation using existing three-training-seed artifacts. The behavioral plateau is defined only from closed-loop observation-noise scores: a checkpoint is marked as plateau if its observation-only $\sigma=0.08$ success is at least 80\% of the way from the no-noise baseline to the maximum grid value for that task, while clean success stays within 5 points of the no-noise clean score. The diagnostic proxy is computed independently from fixed-pool diagnostic summaries as
+The radius--margin theory predicts that a checkpoint should be diagnostically robust when the high-tail same-state predictive radius is contained within the relevant planner or task-discriminability margin. We therefore add a training-free full-sweep validation using existing three-training-seed evaluation and diagnostic summaries. The behavioral plateau is defined only from closed-loop observation-noise scores: a checkpoint is marked as plateau if its observation-only $\sigma=0.08$ success is at least 80\% of the way from the no-noise baseline to the maximum grid value for that task, while clean success stays within 5 points of the no-noise clean score. The diagnostic proxy is computed independently from fixed-pool diagnostic summaries as
 \[
 \widehat\Gamma_{\rho,0.08}
 =\widehat Q_{0.50}(\Delta_{\mathcal A})
 -2\widehat Q_{0.90}(|C_h-C_{\tilde h}|).
 \]
-A positive proxy gap is the available empirical counterpart of the fixed-pool margin condition. Because the recorded summaries contain median clean candidate margin and q90 paired cost drift rather than the q10/q95 theorem quantities, we call it a fixed-pool proxy and not a planner-margin certificate.
+A positive proxy gap is the available empirical counterpart of the fixed-pool margin condition. Because the recorded summaries contain median clean candidate margin and q90 paired cost drift rather than the q10/q95 theorem quantities, we call it a fixed-pool proxy and not a planner-margin certificate. Appendix~\ref{sec:appendix-radius-margin-params} reports the fixed-pool candidate count and the plateau/proxy ranges used to interpret this diagnostic.
 
 \begin{figure}[H]
 \centering
@@ -598,6 +598,30 @@ These details define the fixed evaluation and diagnostic protocol used by the ma
 LeWM is evaluated on PushT, TwoRoom, Reacher, and Cube using the canonical three evaluation seeds 42/43/44 and 100 trajectories per seed. The main Gaussian robustness endpoint perturbs observation pixels with Gaussian noise at standard deviation 0.08 while keeping the goal image clean. Noise-trained checkpoints use full-sequence input-side Gaussian augmentation with $\stdmax{}\in\{0.01,\ldots,0.08\}$.
 
 ATR is computed at each task--training-seed--checkpoint row as the 90th percentile same-state ACPC-H distance normalized by the clean transition scale. SMPR uses task-grounded near-boundary proxy labels at margin zero. The paper reports population mean/std across training seeds 3072/3073/3074.
+
+\subsection{Radius--margin parameter interpretation}\label{sec:appendix-radius-margin-params}
+
+\Cref{thm:radius-margin-certificate} separates the quantities needed for a numerical fixed-pool certificate from the lower-sample diagnostic summaries reported in the experiments. In the fixed-pool diagnostic summaries used for \Cref{fig:radius-margin-overlay,fig:radius-margin-overlap}, the candidate count is $K=65$ for every task--checkpoint row. The theorem's single-candidate tail probability $\alpha$ is not the q90 reporting level used by ATR. If q90 were incorrectly read as $\alpha=0.1$, the union-bound term would be $K\alpha=6.5$ for $K=65$, which is vacuous. A non-vacuous numerical candidate-flip bound would require a much smaller single-candidate tail probability or a different concentration argument. We therefore use q90 ATR and the q50/q90 cost-margin overlap as diagnostic evidence for the radius--margin mechanism, not as a calibrated probability guarantee.
+
+\begin{table}[H]
+\centering
+\caption{Fixed-pool radius--margin interpretation used in the diagnostic validation. The behavioral plateau is defined from closed-loop observation-only $\sigma=0.08$ scores; the proxy-positive range uses $\widehat Q_{0.50}(\Delta_{\mathcal A})-2\widehat Q_{0.90}(|C_h-C_{\tilde h}|)>0$ on the recorded fixed-pool summaries. These ranges explain the overlay in \Cref{fig:radius-margin-overlay}; they are not used to claim a calibrated flip-probability certificate.}
+\label{tab:appendix-radius-margin-params}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lccc p{0.31\linewidth}}
+\toprule
+Task & $K$ & behavioral plateau & proxy-positive range & interpretation \\
+\midrule
+TwoRoom & 65 & $0.01$--$0.08$ & $0.02$--$0.08$ & proxy misses the first plateau checkpoint \\
+PushT & 65 & $0.03$--$0.08$ & $0.02$--$0.08$ & proxy includes one earlier checkpoint \\
+Reacher & 65 & $0.02$--$0.08$ & $0.04$--$0.08$ & proxy is conservative at low noise-training levels \\
+Cube & 65 & $0.03$--$0.08$ & $0.03$--$0.08$ & proxy and plateau ranges align \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+In this interpretation, $\beta_{\mathrm{plan}}$ is the empirical chance that the clean top-1/top-2 fixed-pool margin is too small relative to the cost drift, and $\beta_{\mathrm{disc}}$ is the chance that task-grounded different-state separations fall inside the perturbation tube. The experiments estimate these sides with available fixed-pool margin summaries and endpoint SMPR, respectively. Full-sweep SMPR is unavailable, so the table reports only the cost-margin proxy interval and the closed-loop behavioral plateau interval.
 
 \section{Additional Gaussian Evaluation Tables}\label{sec:appendix-gaussian-evals}
 

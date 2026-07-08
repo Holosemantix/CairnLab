@@ -142,6 +142,11 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "adaptive CEM resampling, repeated replanning, or environment-feedback trajectory guarantees",
     "The Gaussian quantile expression is a local linearization",
     "radius--margin diagnostic theory for fixed-checkpoint Gaussian robustness",
+    "Radius--margin parameter interpretation",
+    "candidate count is $K=65$",
+    "q90 were incorrectly read as",
+    "not as a calibrated probability guarantee",
+    "tab:appendix-radius-margin-params",
 ]
 
 
@@ -2156,6 +2161,7 @@ def check_radius_margin_certificate_outputs() -> None:
         "cost_drift_q90_mean",
         "certificate_gap_q50_q90_mean",
         "certificate_pass_proxy",
+        "candidate_count_mean",
         "notes",
     }
     missing = required_columns - set(summary_rows[0])
@@ -2167,6 +2173,8 @@ def check_radius_margin_certificate_outputs() -> None:
             fail(f"radius-margin summary expected three training seeds: {row}")
         if row["eval_sigma"] != "0.08":
             fail(f"radius-margin summary expected eval_sigma 0.08: {row}")
+        if float(row["candidate_count_mean"]) != 65.0:
+            fail(f"radius-margin summary expected candidate_count_mean 65.0: {row}")
         for key in (
             "score_clean_mean",
             "score_obs_sigma_0p08_mean",

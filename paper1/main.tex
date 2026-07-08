@@ -458,7 +458,7 @@ The radius--margin theory predicts that a checkpoint should be diagnostically ro
 =\widehat Q_{0.50}(\Delta_{\mathcal A})
 -2\widehat Q_{0.90}(|C_h-C_{\tilde h}|).
 \]
-A positive proxy gap is the available empirical counterpart of the fixed-pool margin condition. Because the recorded summaries contain median clean candidate margin and q90 paired cost drift rather than the q10/q95 theorem quantities, we call it a fixed-pool proxy and not a planner-margin certificate. Appendix~\ref{sec:appendix-radius-margin-params} reports the fixed-pool candidate count and the plateau/proxy ranges used to interpret this diagnostic.
+A positive proxy gap is the available empirical counterpart of the fixed-pool margin condition. Because the recorded summaries contain median clean candidate margin and q90 paired cost drift rather than the q10/q95 theorem quantities, we call it a fixed-pool proxy and not a planner-margin certificate. Thus this audit instantiates the theorem only at the proxy level supported by the recorded summaries: $K$ is observed from the fixed candidate pool, while the single-candidate tail and failure probabilities are not calibrated. ATR-q90, the cost-margin proxy, and SMPR are empirical counterparts of the radius, planning-margin, and discriminability terms. Appendix~\ref{sec:appendix-radius-margin-params} reports the fixed-pool candidate count and the plateau/proxy ranges used to interpret this diagnostic.
 
 \begin{figure}[H]
 \centering
@@ -621,7 +621,7 @@ Cube & 65 & $0.03$--$0.08$ & $0.03$--$0.08$ & proxy and plateau ranges align \\
 \end{tabular}
 \end{table}
 
-In this interpretation, $\beta_{\mathrm{plan}}$ is the empirical chance that the clean top-1/top-2 fixed-pool margin is too small relative to the cost drift, and $\beta_{\mathrm{disc}}$ is the chance that task-grounded different-state separations fall inside the perturbation tube. The experiments estimate the planning side with available fixed-pool margin summaries and estimate the discriminability side with SMPR. The table intentionally reports only the cost-margin proxy interval and the closed-loop behavioral plateau interval, because it explains the fixed-pool radius--margin overlay rather than converting the separate ATR/SMPR diagnostic-region audit into a threshold-classifier claim.
+In this interpretation, $\beta_{\mathrm{plan}}$ and $\beta_{\mathrm{disc}}$ name empirical failure components rather than calibrated probabilities. The planning component is represented by the available fixed-pool cost-margin proxy, and the discriminability component is represented by SMPR, equivalently its failure rate $1-\mathrm{SMPR}$. The table intentionally reports only the cost-margin proxy interval and the closed-loop behavioral plateau interval, because it explains the fixed-pool radius--margin overlay rather than converting the separate ATR/SMPR diagnostic-region audit into a threshold-classifier claim.
 
 \section{Additional Gaussian Evaluation Tables}\label{sec:appendix-gaussian-evals}
 

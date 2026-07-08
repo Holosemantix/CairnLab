@@ -143,7 +143,7 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "ACPC radius--margin diagnostic certificate",
     "Predictive tubes and task margins",
     "ACPC radius--margin certificate",
-    "Matched-perturbation diagnostic interval",
+    "Matched-perturbation diagnostic region",
     "Diagnostic validation of the radius--margin certificate",
     "fixed-pool proxy and not a planner-margin certificate",
     "theorem only at the proxy level supported by the recorded summaries",
@@ -155,7 +155,7 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "threshold-classifier score",
     "shared low-ATR/high-SMPR region",
     "Across all eight held-out task--seed blocks",
-    "robust-vs-fragile separation and direction consistency",
+    "recovered-vs-fragile separation and direction consistency",
     "The radius--margin certificate is fixed-pool and matched-perturbation only",
     "adaptive CEM resampling, repeated replanning, or environment-feedback trajectory guarantees",
     "The Gaussian quantile expression is a local linearization",
@@ -1489,7 +1489,7 @@ def check_prospective_atr_smpr_validation() -> None:
     if int(heldout_sep["robust_smpr_q25_above_fragile_q75"]) != 1:
         fail("held-out robust SMPR IQR must stay above fragile SMPR IQR")
     if float(heldout_sep["atr_rel_median_gap"]) <= 0.9 or float(heldout_sep["smpr_median_gap"]) <= 0.5:
-        fail(f"held-out robust-vs-fragile separation is weaker than expected: {heldout_sep}")
+        fail(f"held-out recovered-vs-fragile separation is weaker than expected: {heldout_sep}")
 
 def check_selector_baseline_audit_json() -> None:
     path = ROOT / "assets" / "paper1_data" / "selector_baseline_audit_20260704.json"

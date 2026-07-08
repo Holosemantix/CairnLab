@@ -5,9 +5,9 @@ This script is intentionally not a threshold-classifier audit. It uses existing
 full-sweep diagnostics and closed-loop evaluation manifests to summarize three
 paper-facing properties:
 
-1. shared low-ATR/high-SMPR region for robust checkpoints,
+1. shared low-ATR/high-SMPR region for recovered checkpoints,
 2. direction consistency within task--training-seed sweeps,
-3. robust-vs-fragile diagnostic separation.
+3. recovered-vs-fragile diagnostic separation.
 """
 from __future__ import annotations
 
@@ -280,9 +280,9 @@ This directory is a paper-facing validation artifact for the ATR/SMPR sweep. It
 does not rank threshold classifiers by F1, precision, recall, or interval IoU.
 Instead, it checks whether full-sweep checkpoints form:
 
-- a shared low-ATR/high-SMPR diagnostic region for robust checkpoints,
+- a shared low-ATR/high-SMPR diagnostic region for recovered checkpoints,
 - consistent directions within task--training-seed sweeps,
-- separation between robust and fragile checkpoints.
+- separation between recovered and fragile checkpoints.
 
 Regime labels are derived from normalized closed-loop recovery under
 `{metadata['eval_metric']}`. Fragile means recovery <= {metadata['fragile_rho']};

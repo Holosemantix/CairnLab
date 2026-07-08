@@ -102,7 +102,7 @@
 \maketitle
 
 \begin{abstract}
-Latent predictive world models avoid pixel reconstruction, but pixel-free prediction is not a robustness definition for closed-loop control. We study this gap with action-conditioned predictive consistency (ACPC), a no-retraining diagnostic for JEPA-style control checkpoints. The diagnostic combines ACPC Tail Risk (ATR), which measures high-quantile clean/noisy rollout disagreement for the same state under the same action sequence, with Selective Margin Pass Rate (SMPR), which checks that task-grounded near-boundary distinctions remain separated. Across three independent LeWM training seeds and four control tasks, no-noise checkpoints are fragile under observation-only Gaussian noise, while input-side noise training yields broad matched-Gaussian robustness plateaus. At recovered endpoints, ATR is substantially lower and SMPR is near one across tasks. These results support ATR and SMPR as bounded ACPC diagnostics for matched-Gaussian robustness plateaus in fixed JEPA world-model checkpoints.
+Latent predictive world models avoid pixel reconstruction, but pixel-free prediction is not a robustness definition for closed-loop control. We study this gap with action-conditioned predictive consistency (ACPC), a no-retraining diagnostic for JEPA-style control checkpoints. The diagnostic combines ACPC Tail Risk (ATR), which measures high-quantile clean/noisy rollout disagreement for the same state under the same action sequence, with Selective Margin Pass Rate (SMPR), which checks that task-grounded near-boundary distinctions remain separated. Across three independent LeWM training seeds and four control tasks, no-noise checkpoints are fragile under observation-only Gaussian noise, while input-side noise training yields broad matched-Gaussian recovery bands under the specified stressor. At recovered endpoints, ATR is substantially lower and SMPR is near one across tasks. These results support ATR and SMPR as bounded ACPC diagnostics for matched-Gaussian recovery bands in fixed JEPA world-model checkpoints.
 
 \smallskip
 \noindent\textbf{Keywords:} visual world models; JEPA; action-conditioned predictive consistency; visual robustness; predictive-dynamics diagnostics.
@@ -126,7 +126,7 @@ The selective tension matters because consistency alone can be misleading. A col
 
 We instantiate this diagnostic with a fixed Gaussian intervention. Across PushT, TwoRoom, Reacher, and Cube, we evaluate no-noise LeWM~\cite{maes2026lewm} checkpoints and full-sequence input-side Gaussian-noise checkpoints over \stdmax{} $\in \{0.01,\dots,0.08\}$. The primary endpoint is observation-only Gaussian evaluation noise with the goal image kept clean. Across three independent LeWM training seeds, the no-noise baseline remains strong on clean observations but loses $74.56 \pm 5.55$ points on PushT and $41.00 \pm 1.44$ points on Reacher at evaluation noise $\sigma=0.08$. Test-time visual fragility is not new~\cite{kostrikov2020drq,yarats2022drqv2,hansen2021soda,vigmo}; our focus is what it reveals about fixed JEPA world-model checkpoints.
 
-The evidence shows broad matched-Gaussian recovery plateaus rather than a stable universal point optimum. Input-side noise training recovers the observation-noise endpoint on TwoRoom, PushT, and Reacher and gives a weaker but positive Cube signal across training seeds. At recovered endpoints, ACPC Tail Risk (ATR) is substantially lower and Selective Margin Pass Rate (SMPR) is near one across tasks. Bounded blur/resize checks delimit perturbation scope.
+The evidence shows broad matched-Gaussian recovery bands rather than a stable universal point optimum. Input-side noise training recovers the observation-noise endpoint on TwoRoom, PushT, and Reacher and gives a weaker but positive Cube signal across training seeds. At recovered endpoints, ACPC Tail Risk (ATR) is substantially lower and Selective Margin Pass Rate (SMPR) is near one across tasks. Bounded blur/resize checks delimit perturbation scope.
 
 This paper makes three contributions. First, it formulates visual robustness for JEPA world-model control as selective action-conditioned predictive consistency rather than encoder invariance. Second, it derives an ACPC radius--margin diagnostic certificate: high-probability same-state predictive radius, planner candidate margins, and task-grounded discriminability margins jointly bound fixed-pool candidate instability and collapse risk. ATR and SMPR are empirical estimates of the two sides of this certificate. Third, it provides a fixed-checkpoint Gaussian robustness study across four tasks and three LeWM training seeds, with bounded unseen-stressor checks that delimit the perturbation scope.
 
@@ -287,7 +287,7 @@ K\alpha + \Pr_{\mathcal A}[\Delta_{\mathcal A}\le 2L_J\epsilon] + \gamma.
 
 This is a diagnostic certificate for a fixed candidate pool and a matched perturbation distribution. It says that a checkpoint is in the safe radius--margin regime only when the high-probability same-state predictive radius is below the relevant planner margin and task-grounded separations remain outside the perturbation tube.
 
-\begin{definition}[Matched-perturbation diagnostic interval]\label{def:robust-interval}
+\begin{definition}[Matched-perturbation diagnostic region]\label{def:robust-interval}
 For a checkpoint family indexed by training perturbation level $\rho$ and evaluated at observation noise $\sigma$, define the empirical radius--margin pass event
 \[
 \widehat{\mathcal G}_{\rho,\sigma}
@@ -296,7 +296,7 @@ For a checkpoint family indexed by training perturbation level $\rho$ and evalua
 \cap
 \left\{\widehat{\mathrm{SMPR}}_{\rho,\sigma}\ge 1-\widehat\gamma\right\}.
 \]
-The matched-perturbation diagnostic interval is the set of checkpoint indices $\rho$ for which $\widehat{\mathcal G}_{\rho,\sigma}$ holds. If planner-margin traces are unavailable, $\widehat r_{\mathrm{margin}}$ must be reported as a task-grounded rollout-space proxy, not as a planner-margin certificate. If diagnostics are available only at the no-noise and recovered endpoints, the evidence is endpoint mechanism evidence rather than interval identification.
+The matched-perturbation diagnostic region is the set of checkpoint indices $\rho$ for which $\widehat{\mathcal G}_{\rho,\sigma}$ holds. If planner-margin traces are unavailable, $\widehat r_{\mathrm{margin}}$ must be reported as a task-grounded rollout-space proxy, not as a planner-margin certificate. If diagnostics are available only at the no-noise and recovered endpoints, the evidence is endpoint mechanism evidence rather than interval identification.
 \end{definition}
 
 \subsection{Sampled-pool tail motivation and Gaussian sensitivity}\label{sec:acpc-sampled-gaussian}
@@ -403,12 +403,12 @@ LeWM-base is strong on unperturbed images, but observation noise alone produces 
 
 \subsection{Noise augmentation supplies recovered checkpoints for diagnosis}\label{sec:exp-sweep}
 
-\Cref{fig:sweep} shows the full LeWM Gaussian sweep aggregated across training seeds 3072/3073/3074. Each plotted point first averages evaluation seeds 42/43/44 within a training seed and then reports mean and population std across the three training seeds. The main qualitative pattern is a broad, task-dependent recovery plateau rather than a stable universal checkpoint ranking.
+\Cref{fig:sweep} shows the full LeWM Gaussian sweep aggregated across training seeds 3072/3073/3074. Each plotted point first averages evaluation seeds 42/43/44 within a training seed and then reports mean and population std across the three training seeds. The main qualitative pattern is a broad, task-dependent recovery band rather than a stable universal checkpoint ranking.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig2_sweep.png}
-\caption{Three-training-seed LeWM Gaussian sweep across four tasks. Each point averages evaluation seeds 42/43/44 within each training seed and then reports mean across training seeds 3072/3073/3074; error bars show population std across training seeds. Blue circles: unperturbed evaluation; red squares: observation-only Gaussian noise $\sigma=0.08$ with an unperturbed goal. The curves document broad task-dependent recovery plateaus rather than checkpoint rankings.}
+\caption{Three-training-seed LeWM Gaussian sweep across four tasks. Each point averages evaluation seeds 42/43/44 within each training seed and then reports mean across training seeds 3072/3073/3074; error bars show population std across training seeds. Blue circles: unperturbed evaluation; red squares: observation-only Gaussian noise $\sigma=0.08$ with an unperturbed goal. The curves document broad task-dependent recovery bands rather than checkpoint rankings.}
 \label{fig:sweep}
 \end{figure}
 
@@ -452,18 +452,18 @@ SMPR uses programmatic task-state proxy labels, not oracle semantic annotations:
 
 \subsection{Diagnostic validation of the radius--margin certificate}\label{sec:exp-radius-margin}
 
-The radius--margin theory predicts that a checkpoint should be diagnostically robust when the high-tail same-state predictive radius is contained within the relevant planner or task-discriminability margin. We therefore add a training-free full-sweep validation using existing three-training-seed evaluation and diagnostic summaries. The behavioral plateau is defined only from closed-loop observation-noise scores: a checkpoint is marked as plateau if its observation-only $\sigma=0.08$ success is at least 80\% of the way from the no-noise baseline to the maximum grid value for that task, while clean success stays within 5 points of the no-noise clean score. The diagnostic proxy is computed independently from fixed-pool diagnostic summaries as
+The radius--margin theory predicts that a checkpoint should remain diagnostically stable under the matched stressor when the high-tail same-state predictive radius is contained within the relevant planner or task-discriminability margin. We therefore add a training-free full-sweep validation using existing three-training-seed evaluation and diagnostic summaries. The behavioral recovery band is defined only from closed-loop observation-noise scores: a checkpoint is marked as inside the recovery band if its observation-only $\sigma=0.08$ success is at least 80\% of the way from the no-noise baseline to the maximum grid value for that task, while clean success stays within 5 points of the no-noise clean score. The diagnostic proxy is computed independently from fixed-pool diagnostic summaries as
 \[
 \widehat\Gamma_{\rho,0.08}
 =\widehat Q_{0.50}(\Delta_{\mathcal A})
 -2\widehat Q_{0.90}(|C_h-C_{\tilde h}|).
 \]
-A positive proxy gap is the available empirical counterpart of the fixed-pool margin condition. Because the recorded summaries contain median clean candidate margin and q90 paired cost drift rather than the q10/q95 theorem quantities, we call it a fixed-pool proxy and not a planner-margin certificate. Thus this audit instantiates the theorem only at the proxy level supported by the recorded summaries: $K$ is observed from the fixed candidate pool, while the single-candidate tail and failure probabilities are not calibrated. ATR-q90, the cost-margin proxy, and SMPR are empirical counterparts of the radius, planning-margin, and discriminability terms. Appendix~\ref{sec:appendix-radius-margin-params} reports the fixed-pool candidate count and the plateau/proxy ranges used to interpret this diagnostic.
+A positive proxy gap is the available empirical counterpart of the fixed-pool margin condition. Because the recorded summaries contain median clean candidate margin and q90 paired cost drift rather than the q10/q95 theorem quantities, we call it a fixed-pool proxy and not a planner-margin certificate. Thus this audit instantiates the theorem only at the proxy level supported by the recorded summaries: $K$ is observed from the fixed candidate pool, while the single-candidate tail and failure probabilities are not calibrated. ATR-q90, the cost-margin proxy, and SMPR are empirical counterparts of the radius, planning-margin, and discriminability terms. Appendix~\ref{sec:appendix-radius-margin-params} reports the fixed-pool candidate count and the recovery/proxy ranges used to interpret this diagnostic.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_radius_margin_interval_overlay.png}
-\caption{Diagnostic validation of the radius--margin proxy against the Gaussian recovery plateau. Green bands mark behavioral plateau points defined only from closed-loop observation-noise scores; blue bands mark positive fixed-pool proxy gaps computed from fixed-pool diagnostic summaries. ATR is overlaid as the same-state radius-tail side. The shaded diagnostic interval is derived from diagnostic statistics only; the behavioral plateau is shown after the fact for alignment. This is a diagnostic validation, not a new checkpoint-selection algorithm.}
+\caption{Diagnostic validation of the radius--margin proxy against the Gaussian recovery band. Green bands mark behavioral recovery-band points defined only from closed-loop observation-noise scores; blue bands mark positive fixed-pool proxy gaps computed from fixed-pool diagnostic summaries. ATR is overlaid as the same-state radius-tail side. The shaded diagnostic region is derived from diagnostic statistics only; the behavioral recovery band is shown after the fact for alignment. This is a diagnostic validation, not a new checkpoint-selection algorithm.}
 \label{fig:radius-margin-overlay}
 \end{figure}
 
@@ -474,7 +474,7 @@ A positive proxy gap is the available empirical counterpart of the fixed-pool ma
 \label{fig:radius-margin-overlap}
 \end{figure}
 
-The proxy aligns with the broad recovery interval but does not exactly reproduce it. TwoRoom and PushT cross the proxy gap near the start of their high-score intervals, Cube aligns over the same broad range, and Reacher shows early behavioral recovery before the cost-margin proxy becomes positive. This is the expected level of evidence for a diagnostic certificate: it explains the radius--margin mechanism behind the existing plateau without replacing closed-loop evaluation. To keep the fixed-pool cost-margin proxy separate from a checkpoint-selection claim, we do not turn this overlay into a radius--margin ATR/SMPR gate table. As a separate no-retraining diagnostic-region audit, we group each task--training-seed sweep by normalized closed-loop recovery instead of by a universal \stdmax{} value or a threshold-classifier score. On held-out seeds 3073/3074, fragile checkpoints remain at high normalized ATR (median 1.00) and lower SMPR (median 0.43), transition checkpoints lie between the endpoints, and robust checkpoints occupy a shared low-ATR/high-SMPR region (median normalized ATR 0.087, median SMPR 1.00). Across all eight held-out task--seed blocks, the robust median has lower normalized ATR and higher SMPR than the fragile median. This supports ATR/SMPR as a task-conditioned diagnostic region for robust-vs-fragile separation and direction consistency; closed-loop evaluation remains the behavioral authority.
+The proxy aligns with the broad recovery band but does not exactly reproduce it. TwoRoom and PushT cross the proxy gap near the start of their high-score intervals, Cube aligns over the same broad range, and Reacher shows early behavioral recovery before the cost-margin proxy becomes positive. This is the expected level of evidence for a diagnostic certificate: it explains the radius--margin mechanism behind the observed recovery band without replacing closed-loop evaluation. To keep the fixed-pool cost-margin proxy separate from a checkpoint-selection claim, we do not turn this overlay into a radius--margin ATR/SMPR gate table. As a separate no-retraining diagnostic-region audit, we group each task--training-seed sweep by normalized closed-loop recovery instead of by a universal \stdmax{} value or a threshold-classifier score. On held-out seeds 3073/3074, fragile checkpoints remain at high normalized ATR (median 1.00) and lower SMPR (median 0.43), transition checkpoints lie between the endpoints, and recovered checkpoints occupy a shared low-ATR/high-SMPR region (median normalized ATR 0.087, median SMPR 1.00). Across all eight held-out task--seed blocks, the recovered median has lower normalized ATR and higher SMPR than the fragile median. This supports ATR/SMPR as a task-conditioned diagnostic region for recovered-vs-fragile separation and direction consistency; closed-loop evaluation remains the behavioral authority.
 
 \subsection{Bounded unseen-stressor check}\label{sec:exp-unseen-scope}
 
@@ -507,7 +507,7 @@ The raw unseen diagnostics co-move with behavior at this severe-stressor scale. 
 This is a controlled diagnostic study, not a method paper. Closed-loop evaluation establishes the behavior; ATR checks whether same-state noisy views have small action-conditioned predictive tails; SMPR checks whether task-grounded near-boundary distinctions survive that contraction. The radius--margin overlay adds an independent fixed-pool cost-margin proxy over the Gaussian grid; mismatches are reported as diagnostic limits rather than hidden by the endpoint result. The primary statistic is the full three-training-seed Gaussian replication, with evaluation-seed variance kept as the within-seed measurement scale. These standard deviations are descriptive over three training seeds, not asymptotic significance claims.
 
 \paragraph{Scope.}
-Gaussian pixel noise remains the training/evaluation axis. The blur/resize rows are bounded behavior outside the matched Gaussian setting, not a transfer theorem. The radius--margin certificate is fixed-pool and matched-perturbation only: it does not cover adaptive CEM resampling, repeated replanning, or environment-feedback trajectory guarantees. The Gaussian quantile expression is a local linearization, and the empirical diagnostic interval is an audit view over available summaries rather than a closed-loop guarantee. ATR/SMPR are not a checkpoint-ranker for \stdmax{} and do not replace closed-loop evaluation inside a broad plateau. We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods; the contribution is a no-retraining diagnostic for JEPA latent world-model checkpoints under a controlled Gaussian stressor.
+Gaussian pixel noise remains the training/evaluation axis. The blur/resize rows are bounded behavior outside the matched Gaussian setting, not a transfer theorem. The radius--margin certificate is fixed-pool and matched-perturbation only: it does not cover adaptive CEM resampling, repeated replanning, or environment-feedback trajectory guarantees. The Gaussian quantile expression is a local linearization, and the empirical fixed-stressor diagnostic region is an audit view over available summaries rather than a closed-loop guarantee. ATR/SMPR are not a checkpoint-ranker for \stdmax{} and do not replace closed-loop evaluation inside a broad recovery band. We do not claim superiority over DrQ-style augmentation, TD-MPC2, DreamerV3, or robust MPC methods; the contribution is a no-retraining diagnostic for JEPA latent world-model checkpoints under a controlled Gaussian stressor.
 
 \paragraph{What remains.}
 The results argue against a too-strong reading of latent prediction: future-latent prediction alone does not guarantee closed-loop visual robustness. Stronger discriminability evidence would require hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels, especially for PushT and Cube. Future methods can turn ATR/SMPR into objectives, but this paper keeps that as a separate method-paper path after diagnostic validity is established.
@@ -515,9 +515,9 @@ The results argue against a too-strong reading of latent prediction: future-late
 %% ===========================================================================
 \section{Conclusion}\label{sec:conc}
 
-This paper frames Gaussian-noise robustness in JEPA latent world-model control as a selective diagnostic problem. Closed-loop behavior establishes the phenomenon; ATR measures same-state predictive-stability tails; SMPR checks task-grounded anti-collapse margins. On fixed LeWM checkpoints, input-side noise training recovers broad matched-Gaussian robustness plateaus across three training seeds, and ATR/SMPR move in the expected direction at recovered endpoints.
+This paper frames Gaussian-noise robustness in JEPA latent world-model control as a selective diagnostic problem. Closed-loop behavior establishes the phenomenon; ATR measures same-state predictive-stability tails; SMPR checks task-grounded anti-collapse margins. On fixed LeWM checkpoints, input-side noise training recovers broad matched-Gaussian recovery bands across three training seeds, and ATR/SMPR move in the expected direction at recovered endpoints.
 
-The theory is deliberately diagnostic: sampled-pool ACPC exposes why tail risk matters and why clean margins prevent closed-loop guarantees, while local Gaussian linearization connects the measured tail to action-conditioned encoder--predictor sensitivity. The resulting view is a radius--margin diagnostic theory for fixed-checkpoint Gaussian robustness: ATR estimates the perturbation-tube radius tail, SMPR estimates margin preservation, and their conjunction defines the empirical diagnostic interval studied here. The broader implication is not solved generalization; it is a concrete audit target for future methods: stable action-conditioned predictive dynamics under nuisance variation, while preserving distinctions needed for planning.
+The theory is deliberately diagnostic: sampled-pool ACPC exposes why tail risk matters and why clean margins prevent closed-loop guarantees, while local Gaussian linearization connects the measured tail to action-conditioned encoder--predictor sensitivity. The resulting view is a radius--margin diagnostic theory for fixed-checkpoint Gaussian robustness: ATR estimates the perturbation-tube radius tail, SMPR estimates margin preservation, and their conjunction defines the empirical fixed-stressor diagnostic region studied here. The broader implication is not solved generalization; it is a concrete audit target for future methods: stable action-conditioned predictive dynamics under nuisance variation, while preserving distinctions needed for planning.
 
 %% ===========================================================================
 \bibliographystyle{plain}
@@ -605,23 +605,23 @@ ATR is computed at each task--training-seed--checkpoint row as the 90th percenti
 
 \begin{table}[H]
 \centering
-\caption{Fixed-pool radius--margin interpretation used in the diagnostic validation. The behavioral plateau is defined from closed-loop observation-only $\sigma=0.08$ scores; the proxy-positive range uses $\widehat Q_{0.50}(\Delta_{\mathcal A})-2\widehat Q_{0.90}(|C_h-C_{\tilde h}|)>0$ on the recorded fixed-pool summaries. These ranges explain the overlay in \Cref{fig:radius-margin-overlay}; they are not used to claim a calibrated flip-probability certificate.}
+\caption{Fixed-pool radius--margin interpretation used in the diagnostic validation. The behavioral recovery band is defined from closed-loop observation-only $\sigma=0.08$ scores; the proxy-positive range uses $\widehat Q_{0.50}(\Delta_{\mathcal A})-2\widehat Q_{0.90}(|C_h-C_{\tilde h}|)>0$ on the recorded fixed-pool summaries. These ranges explain the overlay in \Cref{fig:radius-margin-overlay}; they are not used to claim a calibrated flip-probability certificate.}
 \label{tab:appendix-radius-margin-params}
 \small
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lccc p{0.31\linewidth}}
 \toprule
-Task & $K$ & behavioral plateau & proxy-positive range & interpretation \\
+Task & $K$ & recovery band & proxy-positive range & interpretation \\
 \midrule
-TwoRoom & 65 & $0.01$--$0.08$ & $0.02$--$0.08$ & proxy misses the first plateau checkpoint \\
+TwoRoom & 65 & $0.01$--$0.08$ & $0.02$--$0.08$ & proxy misses the first recovery-band checkpoint \\
 PushT & 65 & $0.03$--$0.08$ & $0.02$--$0.08$ & proxy includes one earlier checkpoint \\
 Reacher & 65 & $0.02$--$0.08$ & $0.04$--$0.08$ & proxy is conservative at low noise-training levels \\
-Cube & 65 & $0.03$--$0.08$ & $0.03$--$0.08$ & proxy and plateau ranges align \\
+Cube & 65 & $0.03$--$0.08$ & $0.03$--$0.08$ & proxy and recovery-band ranges align \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-In this interpretation, $\beta_{\mathrm{plan}}$ and $\beta_{\mathrm{disc}}$ name empirical failure components rather than calibrated probabilities. The planning component is represented by the available fixed-pool cost-margin proxy, and the discriminability component is represented by SMPR, equivalently its failure rate $1-\mathrm{SMPR}$. The table intentionally reports only the cost-margin proxy interval and the closed-loop behavioral plateau interval, because it explains the fixed-pool radius--margin overlay rather than converting the separate ATR/SMPR diagnostic-region audit into a threshold-classifier claim.
+In this interpretation, $\beta_{\mathrm{plan}}$ and $\beta_{\mathrm{disc}}$ name empirical failure components rather than calibrated probabilities. The planning component is represented by the available fixed-pool cost-margin proxy, and the discriminability component is represented by SMPR, equivalently its failure rate $1-\mathrm{SMPR}$. The table intentionally reports only the cost-margin proxy interval and the closed-loop recovery band, because it explains the fixed-pool radius--margin overlay rather than converting the separate ATR/SMPR diagnostic-region audit into a threshold-classifier claim.
 
 \section{Additional Gaussian Evaluation Tables}\label{sec:appendix-gaussian-evals}
 

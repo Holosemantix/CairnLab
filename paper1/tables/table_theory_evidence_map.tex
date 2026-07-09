@@ -10,11 +10,11 @@
 Theoretical quantity & Empirical audit & Main observation & Scope \\
 \midrule
 $R_\sigma$ radius tail & ATR q90 and normalized ATR & Recovered rows occupy low-ATR regions; endpoint ATR falls on all tasks. & q90 is a fixed diagnostic tail summary, not the theorem's calibrated $\alpha$. \\
-$J_{G_{\mathbf a}}J_E$ local sensitivity & Finite-difference slopes and exact-autograd JVP/Hutchinson traces & Endpoint/base finite-difference ratios are $0.002$--$0.008$; composed-trace ratios are $0.003/0.010/0.006/0.026$. & Local Frobenius-trace evidence only; no full Jacobian matrix, SVD, or global guarantee. \\
+$J_{G_{\mathbf a}}J_E$ local sensitivity & Finite-difference slopes and exact-autograd JVP/Hutchinson traces & Both audits show endpoint/base reductions relative to each task's own base: finite-difference ratios are $0.002$--$0.008$ and composed-trace ratios are $0.003/0.010/0.006/0.026$. & The estimators need not match numerically and are not cross-task calibrated; no full Jacobian matrix, SVD, or global guarantee. \\
 $\Delta_{\mathcal A}>2\eta$ sufficient condition & Fixed-pool cert-pass event & Median cert-pass rises from $0.06$ on fragile rows to $0.61$ on recovered rows, with Wilson intervals reported in \Cref{tab:sample-level-event-rate-ci}. & Fixed 65-candidate pool; strict q10/q95 gaps remain negative. \\
 Candidate instability & Fixed-pool top-1 flip & Median top-1 flip falls from $0.54$ on fragile rows to $0.04$ on recovered rows, with Wilson intervals reported in \Cref{tab:sample-level-event-rate-ci}. & Fixed-pool disagreement, not adaptive CEM or closed-loop trajectory stability. \\
 Collapse / task discriminability & SMPR and joint guard-side validation & Median SMPR rises from $0.86$ on fragile rows to $1.00$ on recovered rows. & Programmatic proxy labels; stronger oracle semantic labels remain outside this study. \\
-Diagnostic predictivity & Held-out seed/task recovery-onset validation & Mean absolute onset errors are $0.007$ for held-out seeds and $0.008$ for held-out tasks; maximum error is $0.020$. & Small task/seed count under the matched Gaussian stressor; not a universal checkpoint ranker. \\
+Held-out diagnostic separation & Held-out seed/task recovery-onset validation & Mean absolute onset errors are $0.007$ for held-out seeds and $0.008$ for held-out tasks; maximum error is $0.020$. & Small task/seed count under the matched Gaussian stressor; not a universal checkpoint ranker. \\
 \bottomrule
 \end{tabularx}
 \end{table}

@@ -1,0 +1,18 @@
+\begin{table}[H]
+\centering
+\caption{Full-sweep sample-level fixed-pool event-rate audit. Rows split all task--seed--\stdmax{} checkpoints by the closed-loop recovery-band label. Cert-pass is the fraction of sampled states satisfying the fixed-pool sufficient event; top-1 flip is the observed clean/noisy fixed-pool best-candidate disagreement. These event rates strengthen the mechanism audit but are not calibrated probability bounds.}
+\label{tab:sample-level-certificate-full-sweep}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lccc}
+\toprule
+Task & cert-pass fragile $\to$ recovered & top-1 flip fragile $\to$ recovered & q10/q95 gap fragile $\to$ recovered \\
+\midrule
+TwoRoom & 0.05 $\to$ 0.67 & 0.79 $\to$ 0.07 & -1053.7 $\to$ -269.0 \\
+PushT & 0.16 $\to$ 0.67 & 0.38 $\to$ 0.06 & -797.6 $\to$ -193.5 \\
+Reacher & 0.06 $\to$ 0.54 & 0.54 $\to$ 0.02 & -873.0 $\to$ -29.3 \\
+Cube & 0.08 $\to$ 0.78 & 0.53 $\to$ 0.01 & -713.4 $\to$ -55.3 \\
+ALL & 0.06 $\to$ 0.61 & 0.54 $\to$ 0.04 & -847.7 $\to$ -136.6 \\
+\bottomrule
+\end{tabular}
+\end{table}

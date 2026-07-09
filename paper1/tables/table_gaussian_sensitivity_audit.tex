@@ -1,0 +1,17 @@
+\begin{table}[H]
+\centering
+\caption{Finite-difference Gaussian sensitivity audit. The slope is the mean small-noise rollout radius squared divided by $\sigma^2$, summarized over the reported small-noise probes and training seeds. Lower endpoint/base ratios indicate reduced local composed encoder--predictor sensitivity. This is a local finite-difference proxy, not a global robustness guarantee.}
+\label{tab:gaussian-sensitivity-audit}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lccc}
+\toprule
+Task & slope base $\to$ endpoint & endpoint/base & ATR base $\to$ endpoint \\
+\midrule
+TwoRoom & 4.16e+05 $\to$ 1.50e+03 & 0.004 & 1.51 $\to$ 0.11 \\
+PushT & 1.87e+05 $\to$ 1.48e+03 & 0.008 & 3.58 $\to$ 0.25 \\
+Reacher & 9.22e+04 $\to$ 1.64e+02 & 0.002 & 2.63 $\to$ 0.08 \\
+Cube & 5.23e+04 $\to$ 4.40e+02 & 0.008 & 2.32 $\to$ 0.10 \\
+\bottomrule
+\end{tabular}
+\end{table}

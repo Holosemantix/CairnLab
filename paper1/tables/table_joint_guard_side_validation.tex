@@ -1,0 +1,18 @@
+\begin{table}[H]
+\centering
+\caption{Joint ATR plus guard-side validation across the Gaussian sweep. Rows are split by the closed-loop recovery-band label. ATR is the radius term; SMPR and fixed-pool top-1 flip are guard-side checks against task or action-candidate collapse and are not interpreted as standalone robustness metrics.}
+\label{tab:joint-guard-side-validation}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lccc}
+\toprule
+Task & ATR fragile $\to$ recovered & SMPR fragile $\to$ recovered & top-1 flip fragile $\to$ recovered \\
+\midrule
+TwoRoom & 1.00 $\to$ 0.12 & 0.36 $\to$ 0.98 & 0.79 $\to$ 0.07 \\
+PushT & 0.72 $\to$ 0.10 & 0.85 $\to$ 1.00 & 0.38 $\to$ 0.06 \\
+Reacher & 0.97 $\to$ 0.04 & 0.90 $\to$ 0.99 & 0.54 $\to$ 0.02 \\
+Cube & 0.71 $\to$ 0.07 & 0.93 $\to$ 1.00 & 0.53 $\to$ 0.01 \\
+ALL & 0.84 $\to$ 0.09 & 0.86 $\to$ 1.00 & 0.54 $\to$ 0.04 \\
+\bottomrule
+\end{tabular}
+\end{table}

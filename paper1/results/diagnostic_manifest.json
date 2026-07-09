@@ -14,7 +14,18 @@
     44
   ],
   "fixed_pool_summary_source": "assets/paper1_data/acpc_phase0_lewm_three_seed.json",
-  "generated_at": "2026-07-08T08:18:49.201176+00:00",
+  "gaussian_sensitivity_audit": {
+    "interpretation": "finite-difference local sensitivity proxy; not a global robustness guarantee",
+    "n_sequences_per_checkpoint": 100,
+    "result_csv": "paper1/results/gaussian_sensitivity_summary.csv",
+    "scope": "base, recovery-onset, and endpoint checkpoints for four tasks and training seeds 3072/3073/3074",
+    "small_sigmas": [
+      0.005,
+      0.01,
+      0.02
+    ]
+  },
+  "generated_at": "2026-07-09T02:41:57.677491+00:00",
   "generated_outputs": [
     "paper1/results/full_sweep_diagnostics.csv",
     "paper1/results/full_sweep_diagnostics_summary.csv",
@@ -29,19 +40,36 @@
     "paper1/figures/fig_fixed_pool_tail_audit.png",
     "paper1/figures/fig_top1_agreement_full_sweep.png",
     "paper1/figures/fig_threshold_sensitivity.png",
+    "paper1/results/sample_level_certificate_full_sweep_audit.csv",
+    "paper1/results/sample_level_certificate_full_sweep_audit.json",
+    "paper1/results/sample_level_certificate_full_sweep_samples.csv",
+    "paper1/results/sample_level_certificate_full_sweep_summary.csv",
+    "paper1/results/sample_level_certificate_recovery_alignment.csv",
+    "paper1/tables/table_sample_level_certificate_full_sweep.tex",
     "paper1/results/sample_level_certificate_endpoint_audit.csv",
     "paper1/results/sample_level_certificate_endpoint_audit.json",
     "paper1/results/sample_level_certificate_endpoint_samples.csv",
     "paper1/results/sample_level_certificate_endpoint_summary.csv",
-    "paper1/tables/table_sample_level_certificate_endpoint.tex"
+    "paper1/tables/table_sample_level_certificate_endpoint.tex",
+    "paper1/results/gaussian_sensitivity_audit.csv",
+    "paper1/results/gaussian_sensitivity_audit.json",
+    "paper1/results/gaussian_sensitivity_summary.csv",
+    "paper1/tables/table_gaussian_sensitivity_audit.tex",
+    "paper1/results/joint_guard_side_validation.csv",
+    "paper1/tables/table_joint_guard_side_validation.tex"
   ],
-  "jacobian_audit_source": "omitted: finite-difference/JVP checkpoint audit not run in this training-free remediation",
+  "jacobian_audit_source": "finite-difference checkpoint audit: paper1/results/gaussian_sensitivity_audit.json; exact JVP/Hutchinson decomposition not run",
+  "joint_guard_side_validation": {
+    "interpretation": "ATR is the radius term; SMPR and fixed-pool top1 flip are guard-side checks, not standalone robustness metrics",
+    "result_csv": "paper1/results/joint_guard_side_validation.csv"
+  },
   "notes": [
     "No retraining or closed-loop re-evaluation is performed by this remediation.",
-    "q80/q95 ATR, q10 margin, q95/q99 drift, and pool cert-pass rates are not inferred from retained summaries.",
-    "Held-out gates are calibrated on calibration rows only; held-out labels are used only for evaluation."
+    "Full-sweep sample-level fixed-pool event rates are recomputed from checkpoints; strict q10/q95 gaps remain negative and are not calibrated probability bounds.",
+    "Held-out gates are calibrated on calibration rows only; held-out labels are used only for evaluation.",
+    "SMPR and fixed-pool top1 flip are guard-side checks interpreted jointly with ATR, not standalone robustness metrics."
   ],
-  "raw_fixed_pool_source": "endpoint recomputation implemented: paper1/results/sample_level_certificate_endpoint_audit.json; full-sweep retained artifacts still contain q50/q90 summaries only",
+  "raw_fixed_pool_source": "full-sweep recomputation implemented: paper1/results/sample_level_certificate_full_sweep_audit.json; retained summaries are still used for the q50/q90 proxy overlay",
   "rho_grid": [
     0.0,
     0.01,
@@ -53,8 +81,15 @@
     0.07,
     0.08
   ],
+  "sample_level_certificate_audit": {
+    "candidate_count": 65,
+    "interpretation": "cert-pass and top1-flip separation strengthens fixed-pool mechanism audit; strict q10/q95 gaps remain negative, so this is not a calibrated certificate",
+    "n_sequences_per_seed_checkpoint": 100,
+    "result_csv": "paper1/results/sample_level_certificate_full_sweep_summary.csv",
+    "scope": "full Gaussian sweep for four tasks and training seeds 3072/3073/3074"
+  },
   "smpr_label_source": "assets/paper1_data/semantic_task_grounded_margin_lewm_full_sweep_20260708.json",
-  "stronger_smpr_guard_source": "omitted: stronger simulator labels/action-distinct guard require additional state/action trace computation",
+  "stronger_smpr_guard_source": "joint guard-side validation: paper1/results/joint_guard_side_validation.csv; SMPR and fixed-pool top1 flip are interpreted only with ATR",
   "tasks": [
     "TwoRoom",
     "PushT",
@@ -65,12 +100,5 @@
     3072,
     3073,
     3074
-  ],
-  "sample_level_certificate_audit": {
-    "scope": "base and std0.08 endpoints for four tasks and training seeds 3072/3073/3074",
-    "n_sequences_per_seed": 100,
-    "candidate_count": 65,
-    "result_csv": "paper1/results/sample_level_certificate_endpoint_summary.csv",
-    "interpretation": "cert-pass and top1-flip separation strengthens fixed-pool mechanism audit; strict q10/q95 gaps remain negative, so this is not a calibrated certificate"
-  }
+  ]
 }

@@ -17,11 +17,17 @@ python -m paper1.scripts.plot_full_sweep_diagnostics
 python -m paper1.scripts.fixed_pool_tail_audit
 python -m paper1.scripts.heldout_diagnostic_validation
 python -m paper1.scripts.threshold_quantile_sensitivity
+python -m tools.paper1_sample_level_certificate --out-json paper1/results/sample_level_certificate_full_sweep_audit.json --out-csv paper1/results/sample_level_certificate_full_sweep_audit.csv --sample-csv paper1/results/sample_level_certificate_full_sweep_samples.csv
+python -m paper1.scripts.full_sweep_sample_level_certificate_summary
+python -m tools.paper1_gaussian_sensitivity_audit
+python -m paper1.scripts.joint_guard_side_validation
 ```
 
 Important scope constraints:
 
 - Full-sweep diagnostics join existing Gaussian evaluation, ATR, SMPR, and retained fixed-pool summaries.
-- q80/q95 ATR, q10 clean margins, q95/q99 drift tails, and pool-level cert-pass rates are not inferred from summaries.
+- Full-sweep sample-level fixed-pool event rates are recomputed from checkpoints; strict q10/q95 gaps remain negative and are not treated as calibrated probability bounds.
 - Held-out validation freezes diagnostic gates on calibration rows before evaluating held-out rows.
-- Gaussian finite-difference/JVP sensitivity and stronger action-distinct guard audits are not run here; they require additional checkpoint-level computation.
+- Gaussian sensitivity is audited with finite differences, not exact JVP/Hutchinson decomposition.
+- SMPR and fixed-pool top-1 flip are guard-side checks interpreted only jointly with ATR, not standalone robustness metrics.
+- ATR q80/q95 and positive-margin SMPR variants are not inferred from retained ATR/SMPR summaries.

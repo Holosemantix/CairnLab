@@ -127,9 +127,21 @@ REQUIRED_ARTIFACTS = [
     ROOT / "paper1" / "results" / "sample_level_certificate_endpoint_audit.csv",
     ROOT / "paper1" / "results" / "sample_level_certificate_endpoint_samples.csv",
     ROOT / "paper1" / "results" / "sample_level_certificate_endpoint_summary.csv",
+    ROOT / "paper1" / "results" / "sample_level_certificate_full_sweep_audit.json",
+    ROOT / "paper1" / "results" / "sample_level_certificate_full_sweep_audit.csv",
+    ROOT / "paper1" / "results" / "sample_level_certificate_full_sweep_samples.csv",
+    ROOT / "paper1" / "results" / "sample_level_certificate_full_sweep_summary.csv",
+    ROOT / "paper1" / "results" / "sample_level_certificate_recovery_alignment.csv",
+    ROOT / "paper1" / "results" / "gaussian_sensitivity_audit.json",
+    ROOT / "paper1" / "results" / "gaussian_sensitivity_audit.csv",
+    ROOT / "paper1" / "results" / "gaussian_sensitivity_summary.csv",
+    ROOT / "paper1" / "results" / "joint_guard_side_validation.csv",
     ROOT / "paper1" / "tables" / "table_heldout_diagnostic_validation.tex",
     ROOT / "paper1" / "tables" / "table_fixed_pool_tail_audit.tex",
+    ROOT / "paper1" / "tables" / "table_sample_level_certificate_full_sweep.tex",
     ROOT / "paper1" / "tables" / "table_sample_level_certificate_endpoint.tex",
+    ROOT / "paper1" / "tables" / "table_joint_guard_side_validation.tex",
+    ROOT / "paper1" / "tables" / "table_gaussian_sensitivity_audit.tex",
     ROOT / "paper1" / "tables" / "table_threshold_quantile_sensitivity.tex",
     ROOT / "paper1" / "scripts" / "build_diagnostic_manifest.py",
     ROOT / "paper1" / "scripts" / "build_full_sweep_diagnostics.py",
@@ -139,7 +151,10 @@ REQUIRED_ARTIFACTS = [
     ROOT / "paper1" / "scripts" / "threshold_quantile_sensitivity.py",
     ROOT / "paper1" / "scripts" / "utils_paper1_io.py",
     ROOT / "paper1" / "scripts" / "sample_level_certificate_summary.py",
+    ROOT / "paper1" / "scripts" / "full_sweep_sample_level_certificate_summary.py",
+    ROOT / "paper1" / "scripts" / "joint_guard_side_validation.py",
     ROOT / "tools" / "paper1_sample_level_certificate.py",
+    ROOT / "tools" / "paper1_gaussian_sensitivity_audit.py",
     ROOT / "paper1" / "scripts" / "run_all_paper1_diagnostics.sh",
     ROOT / "paper1" / "scripts" / "README.md",
     ROOT / "paper1" / "docs" / "codex_paper1_experiment_remediation_plan.md",
@@ -200,15 +215,18 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Boundary-aware interpretation of the fixed-pool radius--margin proxy",
     "Fixed-pool top-1 agreement audit derived from the recorded fixed-pool flip rate",
     "Remediation audit tables",
-    "endpoint-only recomputation from checkpoints",
+    "recompute the fixed 65-candidate pool from checkpoints for all 108 rows",
     "strict q10/q95 gaps remain negative",
-    "cert-pass rises from $0.00$--$0.05$",
-    "unavailable full-sweep tail variants are recorded in the audit outputs rather than inferred",
-    "do not manufacture certificate-strength tail claims from unavailable raw tails",
+    "median cert-pass rises from $0.06$",
+    "Finite-difference Gaussian sensitivity audit",
+    "endpoint/base reduction in this local slope",
+    "SMPR and fixed-pool top-1 flip are guard-side checks and are not standalone robustness metrics",
+    "unavailable ATR/SMPR tail variants are recorded in the audit outputs rather than inferred",
+    "do not manufacture certificate-strength tail claims from the recomputation",
     "$\\beta_{\\mathrm{plan}}$ and $\\beta_{\\mathrm{disc}}$ name empirical failure components rather than calibrated probabilities",
     "The radius--margin certificate is fixed-pool and matched-perturbation only",
     "adaptive CEM resampling, repeated replanning, or environment-feedback trajectory guarantees",
-    "The Gaussian quantile expression is a local linearization",
+    "The Gaussian sensitivity audit is local and finite-difference based",
     "radius--margin diagnostic theory for fixed-checkpoint Gaussian robustness",
     "Radius--margin parameter interpretation",
     "candidate count is $K=65$",
@@ -2422,6 +2440,51 @@ def check_radius_margin_certificate_outputs() -> None:
         got = (row["stdmax"], row["empirical_top1_agree"], row["recovery_band_member"])
         if got != expected:
             fail(f"fixed-pool top1 audit mismatch for {key}: got {got}, want {expected}")
+
+    sample_rows = list(csv.DictReader((ROOT / "paper1" / "results" / "sample_level_certificate_full_sweep_audit.csv").open(newline="", encoding="utf-8")))
+    if len(sample_rows) != 108:
+        fail(f"full-sweep sample-level certificate audit expected 108 rows, got {len(sample_rows)}")
+    if any(row.get("status") != "ok" for row in sample_rows):
+        fail("full-sweep sample-level certificate audit must have all rows ok")
+    sample_alignment = list(csv.DictReader((ROOT / "paper1" / "results" / "sample_level_certificate_recovery_alignment.csv").open(newline="", encoding="utf-8")))
+    align = {(row["task"], row["split"]): row for row in sample_alignment}
+    all_fragile = align[("ALL", "fragile")]
+    all_recovered = align[("ALL", "recovered")]
+    got_alignment = (
+        round(float(all_fragile["cert_pass_rate_median"]), 2),
+        round(float(all_recovered["cert_pass_rate_median"]), 2),
+        round(float(all_fragile["top1_flip_rate_median"]), 2),
+        round(float(all_recovered["top1_flip_rate_median"]), 2),
+    )
+    if got_alignment != (0.06, 0.61, 0.54, 0.04):
+        fail(f"full-sweep sample-level alignment changed: got {got_alignment}")
+
+    sensitivity_rows = list(csv.DictReader((ROOT / "paper1" / "results" / "gaussian_sensitivity_summary.csv").open(newline="", encoding="utf-8")))
+    if len(sensitivity_rows) != 12:
+        fail(f"Gaussian sensitivity summary expected 12 rows, got {len(sensitivity_rows)}")
+    sens = {(row["task"], row["checkpoint_type"]): row for row in sensitivity_rows}
+    expected_sens = {"TwoRoom": 0.004, "PushT": 0.008, "Reacher": 0.002, "Cube": 0.008}
+    for task, expected in expected_sens.items():
+        got = round(float(sens[(task, "endpoint")]["sensitivity_slope_vs_base"]), 3)
+        if got != expected:
+            fail(f"Gaussian sensitivity endpoint/base changed for {task}: got {got}, want {expected}")
+
+    guard_rows = list(csv.DictReader((ROOT / "paper1" / "results" / "joint_guard_side_validation.csv").open(newline="", encoding="utf-8")))
+    if len(guard_rows) != 10:
+        fail(f"joint guard-side validation expected 10 rows, got {len(guard_rows)}")
+    guard = {(row["task"], row["split"]): row for row in guard_rows}
+    all_guard_fragile = guard[("ALL", "fragile")]
+    all_guard_recovered = guard[("ALL", "recovered")]
+    got_guard = (
+        round(float(all_guard_fragile["atr_normalized_q90_median"]), 2),
+        round(float(all_guard_recovered["atr_normalized_q90_median"]), 2),
+        round(float(all_guard_fragile["smpr_delta0_median"]), 2),
+        round(float(all_guard_recovered["smpr_delta0_median"]), 2),
+        round(float(all_guard_fragile["fixed_pool_top1_flip_median"]), 2),
+        round(float(all_guard_recovered["fixed_pool_top1_flip_median"]), 2),
+    )
+    if got_guard != (0.84, 0.09, 0.86, 1.00, 0.54, 0.04):
+        fail(f"joint guard-side validation changed: got {got_guard}")
 
     for rel in (
         "assets/paper1_figs/fig_radius_margin_interval_overlay.png",

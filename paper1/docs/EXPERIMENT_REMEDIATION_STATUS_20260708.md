@@ -18,3 +18,17 @@ Not implemented in this training-free pass:
 - Stronger hand-labeled or simulator-derived SMPR semantics; the implemented M5 audit is a joint guard-side validation, not a new oracle-label metric.
 
 The paper text should only claim the implemented retained-summary, finite-difference, and exact-JVP/Hutchinson local-trace evidence.
+
+## Review-sync status (2026-07-09)
+
+- Conclusion wording is synchronized with the current evidence stack: full-sweep low-ATR/high-SMPR regions, held-out seed/task diagnostic separation, full-sweep fixed-pool event-rate recomputation, and complementary finite-difference plus exact-JVP/Hutchinson sensitivity evidence.
+- The radius--margin overlay caption is synchronized: the retained-summary overlay remains q50/q90, while the separate full-sweep sample-level recomputation reports q10/q95 gaps and event rates. The q10/q95 gaps remain negative, so the audit supports the mechanism rather than a calibrated certificate.
+- Event-rate uncertainty is included through Wilson intervals for cert-pass, top-1 flip, and top-1 flip conditional on cert-pass.
+- M4 decomposition is implemented as an exact-autograd JVP/Hutchinson local-trace audit over base/onset/endpoint checkpoints for all four tasks and training seeds 3072/3073/3074, using 100 sampled sequences and 8 Rademacher probes per checkpoint.
+- SMPR semantics remains the real limitation. The current paper uses programmatic task-state proxy labels and a joint fixed-pool top-1 flip guard; it does not claim hand-labeled or simulator-derived oracle semantic labels, and it does not claim a standalone action-distinct semantic guard.
+
+## Feasibility note for stronger SMPR/action guards
+
+The lowest-risk extension is a task-independent action-distinct fixed-pool guard, not a new oracle-semantic SMPR. The existing fixed 65-candidate pool machinery already recomputes clean/noisy candidate costs and top-1 flips, so a follow-up audit could select action/cost-distinct candidate pairs within each sampled state and test whether projected rollouts or costs preserve those separations under perturbation. This would directly align with the radius--margin theory, but it would still be a fixed-pool planning guard rather than an oracle semantic label.
+
+Simulator-derived semantic labels are possible only if each task's logged state exposes stable task semantics. TwoRoom and Reacher are relatively straightforward from position/target geometry. PushT and Cube are heavier because contact, topology, object-goal relation, and action-value semantics require task-specific thresholds or simulator contact signals; without those signals, they remain programmatic proxy labels. Hand-labeled semantic guards are therefore outside the current training-free pass.

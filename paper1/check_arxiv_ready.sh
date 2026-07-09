@@ -78,9 +78,11 @@ cp ../assets/paper1_figs/fig_radius_margin_overlap.png /tmp/paper1_arxiv_src/fig
 cp tables/table_heldout_diagnostic_validation.tex /tmp/paper1_arxiv_src/tables/
 cp tables/table_fixed_pool_tail_audit.tex /tmp/paper1_arxiv_src/tables/
 cp tables/table_sample_level_certificate_full_sweep.tex /tmp/paper1_arxiv_src/tables/
+cp tables/table_sample_level_event_rate_ci.tex /tmp/paper1_arxiv_src/tables/
 cp tables/table_sample_level_certificate_endpoint.tex /tmp/paper1_arxiv_src/tables/
 cp tables/table_joint_guard_side_validation.tex /tmp/paper1_arxiv_src/tables/
 cp tables/table_gaussian_sensitivity_audit.tex /tmp/paper1_arxiv_src/tables/
+cp tables/table_jvp_hutchinson_sensitivity_audit.tex /tmp/paper1_arxiv_src/tables/
 cp tables/table_threshold_quantile_sensitivity.tex /tmp/paper1_arxiv_src/tables/
 
 tar -czf /tmp/paper1_arxiv_v1_src.tar.gz -C /tmp/paper1_arxiv_src .

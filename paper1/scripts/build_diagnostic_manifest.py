@@ -28,7 +28,7 @@ def main() -> int:
         "smpr_label_source": "assets/paper1_data/semantic_task_grounded_margin_lewm_full_sweep_20260708.json",
         "fixed_pool_summary_source": "assets/paper1_data/acpc_phase0_lewm_three_seed.json",
         "raw_fixed_pool_source": "full-sweep recomputation implemented: paper1/results/sample_level_certificate_full_sweep_audit.json; retained summaries are still used for the q50/q90 proxy overlay",
-        "jacobian_audit_source": "finite-difference checkpoint audit: paper1/results/gaussian_sensitivity_audit.json; exact JVP/Hutchinson decomposition not run",
+        "jacobian_audit_source": "finite-difference checkpoint audit: paper1/results/gaussian_sensitivity_audit.json; exact-autograd JVP/Hutchinson decomposition: paper1/results/jvp_hutchinson_sensitivity_audit.json",
         "stronger_smpr_guard_source": "joint guard-side validation: paper1/results/joint_guard_side_validation.csv; SMPR and fixed-pool top1 flip are interpreted only with ATR",
         "generated_outputs": [
             "paper1/results/full_sweep_diagnostics.csv",
@@ -49,7 +49,9 @@ def main() -> int:
             "paper1/results/sample_level_certificate_full_sweep_samples.csv",
             "paper1/results/sample_level_certificate_full_sweep_summary.csv",
             "paper1/results/sample_level_certificate_recovery_alignment.csv",
+            "paper1/results/sample_level_event_rate_wilson_ci.csv",
             "paper1/tables/table_sample_level_certificate_full_sweep.tex",
+            "paper1/tables/table_sample_level_event_rate_ci.tex",
             "paper1/results/sample_level_certificate_endpoint_audit.csv",
             "paper1/results/sample_level_certificate_endpoint_audit.json",
             "paper1/results/sample_level_certificate_endpoint_samples.csv",
@@ -59,6 +61,10 @@ def main() -> int:
             "paper1/results/gaussian_sensitivity_audit.json",
             "paper1/results/gaussian_sensitivity_summary.csv",
             "paper1/tables/table_gaussian_sensitivity_audit.tex",
+            "paper1/results/jvp_hutchinson_sensitivity_audit.csv",
+            "paper1/results/jvp_hutchinson_sensitivity_audit.json",
+            "paper1/results/jvp_hutchinson_sensitivity_summary.csv",
+            "paper1/tables/table_jvp_hutchinson_sensitivity_audit.tex",
             "paper1/results/joint_guard_side_validation.csv",
             "paper1/tables/table_joint_guard_side_validation.tex",
         ],
@@ -76,6 +82,13 @@ def main() -> int:
             "result_csv": "paper1/results/gaussian_sensitivity_summary.csv",
             "interpretation": "finite-difference local sensitivity proxy; not a global robustness guarantee",
         },
+        "jvp_hutchinson_sensitivity_audit": {
+            "scope": "base, recovery-onset, and endpoint checkpoints for four tasks and training seeds 3072/3073/3074",
+            "n_sequences_per_checkpoint": 16,
+            "hutchinson_probes_per_checkpoint": 8,
+            "result_csv": "paper1/results/jvp_hutchinson_sensitivity_summary.csv",
+            "interpretation": "exact-autograd JVP/Hutchinson local Frobenius-trace decomposition; not a full Jacobian matrix or closed-loop guarantee",
+        },
         "joint_guard_side_validation": {
             "result_csv": "paper1/results/joint_guard_side_validation.csv",
             "interpretation": "ATR is the radius term; SMPR and fixed-pool top1 flip are guard-side checks, not standalone robustness metrics",
@@ -84,8 +97,10 @@ def main() -> int:
         "notes": [
             "No retraining or closed-loop re-evaluation is performed by this remediation.",
             "Full-sweep sample-level fixed-pool event rates are recomputed from checkpoints; strict q10/q95 gaps remain negative and are not calibrated probability bounds.",
+            "Wilson intervals quantify sample event-rate estimation uncertainty, not theorem-calibrated probabilities.",
             "Held-out gates are calibrated on calibration rows only; held-out labels are used only for evaluation.",
             "SMPR and fixed-pool top1 flip are guard-side checks interpreted jointly with ATR, not standalone robustness metrics.",
+            "Exact-autograd JVP/Hutchinson traces decompose local encoder, rollout, and composed sensitivity but do not materialize a full Jacobian or prove closed-loop robustness.",
         ],
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,17 @@
+\begin{table}[H]
+\centering
+\caption{Exact-JVP/Hutchinson local sensitivity decomposition. Values are endpoint/base ratios of Hutchinson trace estimates, using 16 sampled sequences and 8 Rademacher probes per checkpoint, then taking medians over training seeds. Columns report encoder trace per history-pixel dimension, rollout trace per latent-history dimension, composed encoder--rollout trace per history-pixel dimension, and the alignment coefficient $\mathrm{tr}(J_E^\top J_G^\top J_G J_E)/(\mathrm{tr}(J_E^\top J_E)\mathrm{tr}(J_G^\top J_G)/d_z)$. The audit uses exact autograd JVPs with math/eager attention; it estimates local Frobenius traces, not a full Jacobian matrix or a closed-loop guarantee.}
+\label{tab:jvp-hutchinson-sensitivity-audit}
+\small
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lcccc}
+\toprule
+Task & encoder & rollout & composed & alignment \\
+\midrule
+TwoRoom & 0.004 & 1.256 & 0.003 & 0.644 \\
+PushT & 0.017 & 0.995 & 0.010 & 0.633 \\
+Reacher & 0.003 & 0.887 & 0.006 & 1.739 \\
+Cube & 0.023 & 1.079 & 0.028 & 1.042 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -51,12 +51,10 @@ if grep -E -i "Anguo-star|github\.com|Author names to be supplied|Code and data 
 fi
 
 rm -rf /tmp/paper1_blind_src
-mkdir -p /tmp/paper1_blind_src/figures
+mkdir -p /tmp/paper1_blind_src/figures /tmp/paper1_blind_src/tables
 cp docs/main_blind.tex main.tex references.bib main_blind.bbl /tmp/paper1_blind_src/
-cp ../assets/paper1_figs/fig2_sweep.png /tmp/paper1_blind_src/figures/
-cp ../assets/paper1_figs/fig_acpc_basin_tsne.png /tmp/paper1_blind_src/figures/
-cp ../assets/paper1_figs/fig_radius_margin_interval_overlay.png /tmp/paper1_blind_src/figures/
-cp ../assets/paper1_figs/fig_radius_margin_overlap.png /tmp/paper1_blind_src/figures/
+cp tables/*.tex /tmp/paper1_blind_src/tables/
+python scripts/collect_tex_figures.py --tex docs/main_blind.tex --base-dir . --out-dir /tmp/paper1_blind_src/figures
 
 if grep -R -n -E -i "Anguo-star|github\.com|Author names to be supplied|Acknowledgements|public repository|LeWM authors" /tmp/paper1_blind_src/*.tex; then
   fail "blind source bundle contains self-identifying arXiv/source wording"

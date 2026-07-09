@@ -70,15 +70,9 @@ rm -rf /tmp/paper1_arxiv_src
 mkdir -p /tmp/paper1_arxiv_src/figures /tmp/paper1_arxiv_src/tables
 cp main.tex arxiv_metadata.tex arxiv_release_notes.tex references.bib main.bbl /tmp/paper1_arxiv_src/
 
-# Keep this list aligned with figure inclusions in main.tex.
-cp ../assets/paper1_figs/fig1_concept.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig2_sweep.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_endpoint_atr_smpr.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_acpc_basin_tsne.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_full_sweep_diagnostics.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_fixed_pool_event_rates.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_gaussian_sensitivity_mechanism.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_radius_margin_overlap.png /tmp/paper1_arxiv_src/figures/
+# Copy exactly the figures referenced by main.tex. The helper expands simple
+# \input{...} files and resolves the configured \graphicspath entries.
+python scripts/collect_tex_figures.py --tex main.tex --base-dir . --out-dir /tmp/paper1_arxiv_src/figures
 cp tables/table_heldout_diagnostic_validation.tex /tmp/paper1_arxiv_src/tables/
 cp tables/table_endpoint_atr_smpr.tex /tmp/paper1_arxiv_src/tables/
 cp tables/table_theory_evidence_map.tex /tmp/paper1_arxiv_src/tables/

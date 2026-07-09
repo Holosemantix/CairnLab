@@ -61,18 +61,19 @@ For a double-blind conference variant, use `main_blind.tex` and run `bash paper1
 
 arXiv source upload should contain only files required to compile the paper. Do not upload `PLAN.md`, `CODEX_SUBMISSION_READINESS.md`, `ARXIV_V1_READINESS_PLAN.md`, checker logs, old PDFs, raw experiment JSON, or other internal planning files.
 
-To prepare a source tarball with only the figures referenced by `main.tex`:
+To prepare and audit a source tarball, prefer the checked helper:
+
+```bash
+cd ..
+bash paper1/check_arxiv_ready.sh
+tar -tzf /tmp/paper1_arxiv_v1_src.tar.gz | sort
+```
+
+For figure-only source packaging, `paper1/scripts/collect_tex_figures.py` parses `\includegraphics{...}` targets from the TeX entry point and copies the referenced figures from the configured `\graphicspath` locations:
 
 ```bash
 cd paper1
-bash build.sh --clean
-rm -rf /tmp/paper1_arxiv_src
-mkdir -p /tmp/paper1_arxiv_src/figures
-cp main.tex arxiv_metadata.tex arxiv_release_notes.tex references.bib main.bbl /tmp/paper1_arxiv_src/
-cp ../assets/paper1_figs/fig2_sweep.png /tmp/paper1_arxiv_src/figures/
-cp ../assets/paper1_figs/fig_acpc_basin_tsne.png /tmp/paper1_arxiv_src/figures/
-tar -czf /tmp/paper1_arxiv_v1_src.tar.gz -C /tmp/paper1_arxiv_src .
-tar -tzf /tmp/paper1_arxiv_v1_src.tar.gz | sort
+python scripts/collect_tex_figures.py --tex main.tex --base-dir . --out-dir /tmp/paper1_arxiv_src/figures
 ```
 
 The source package intentionally excludes `main.pdf`, unused figures, and local build products; the TeX source path includes `main.bbl`, whose basename matches `main.tex`.

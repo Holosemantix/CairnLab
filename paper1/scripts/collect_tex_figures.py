@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""Copy figures referenced by a Paper1 TeX entry point.
+
+The script parses \includegraphics targets after recursively expanding simple
+\input{...} files. It is intentionally narrow: it is a source-packaging helper,
+not a general LaTeX parser.
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import shutil
+from pathlib import Path
+
+GRAPHIC_EXTS = (".pdf", ".png", ".jpg", ".jpeg")
+INCLUDE_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
+INPUT_RE = re.compile(r"\\input\{([^}]+)\}")
+GRAPHICSPATH_RE = re.compile(r"\\graphicspath\{(.+?)\}")
+GRAPHICSPATH_ENTRY_RE = re.compile(r"\{([^{}]+)\}")
+
+
+def strip_comments(text: str) -> str:
+    lines: list[str] = []
+    for line in text.splitlines():
+        out = []
+        escaped = False
+        for ch in line:
+            if ch == "%" and not escaped:
+                break
+            out.append(ch)
+            escaped = (ch == "\\" and not escaped)
+            if ch != "\\":
+                escaped = False
+        lines.append("".join(out))
+    return "\n".join(lines)
+
+
+def resolve_input(name: str, current: Path, base_dir: Path) -> Path | None:
+    candidates = []
+    raw = Path(name)
+    names = [raw]
+    if raw.suffix == "":
+        names.append(raw.with_suffix(".tex"))
+    for item in names:
+        candidates.append((current.parent / item).resolve())
+        candidates.append((base_dir / item).resolve())
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def collect_tex(tex_path: Path, base_dir: Path, seen: set[Path]) -> tuple[str, list[str]]:
+    tex_path = tex_path.resolve()
+    if tex_path in seen:
+        return "", []
+    seen.add(tex_path)
+    text = strip_comments(tex_path.read_text(encoding="utf-8"))
+    graphic_paths: list[str] = []
+    for match in GRAPHICSPATH_RE.finditer(text):
+        graphic_paths.extend(GRAPHICSPATH_ENTRY_RE.findall(match.group(1)))
+    pieces = [text]
+    for name in INPUT_RE.findall(text):
+        child = resolve_input(name, tex_path, base_dir)
+        if child is not None:
+            child_text, child_paths = collect_tex(child, base_dir, seen)
+            pieces.append(child_text)
+            graphic_paths.extend(child_paths)
+    return "\n".join(pieces), graphic_paths
+
+
+def candidate_paths(target: str, base_dir: Path, graphic_paths: list[str]) -> list[Path]:
+    raw = Path(target)
+    names = [raw]
+    if raw.suffix == "":
+        names = [raw.with_suffix(ext) for ext in GRAPHIC_EXTS]
+
+    roots: list[Path] = [base_dir]
+    roots.extend((base_dir / p) for p in graphic_paths)
+    roots.extend([
+        base_dir / "figures",
+        base_dir.parent / "assets" / "paper1_figs",
+        base_dir / "assets" / "paper1_figs",
+    ])
+
+    candidates: list[Path] = []
+    for name in names:
+        if name.is_absolute():
+            candidates.append(name)
+            continue
+        for root in roots:
+            candidates.append((root / name).resolve())
+    return candidates
+
+
+def find_figure(target: str, base_dir: Path, graphic_paths: list[str]) -> Path:
+    for candidate in candidate_paths(target, base_dir, graphic_paths):
+        if candidate.exists() and candidate.is_file():
+            return candidate
+    searched = "\n  ".join(str(p) for p in candidate_paths(target, base_dir, graphic_paths))
+    raise FileNotFoundError(f"missing figure for {target!r}; searched:\n  {searched}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--tex", required=True, help="TeX entry point to parse")
+    parser.add_argument("--out-dir", required=True, help="Directory to receive copied figures")
+    parser.add_argument("--base-dir", default=None, help="Directory for TeX-relative figure lookup; defaults to the TeX parent")
+    parser.add_argument("--dry-run", action="store_true", help="List figures without copying")
+    args = parser.parse_args()
+
+    tex_path = Path(args.tex).resolve()
+    base_dir = Path(args.base_dir).resolve() if args.base_dir else tex_path.parent.resolve()
+    out_dir = Path(args.out_dir).resolve()
+
+    text, graphic_paths = collect_tex(tex_path, base_dir, set())
+    targets = []
+    for target in INCLUDE_RE.findall(text):
+        if target not in targets:
+            targets.append(target)
+
+    if not targets:
+        raise SystemExit(f"no includegraphics targets found in {tex_path}")
+
+    resolved: list[tuple[str, Path]] = []
+    used_names: dict[str, Path] = {}
+    for target in targets:
+        source = find_figure(target, base_dir, graphic_paths)
+        name = source.name
+        if name in used_names and used_names[name] != source:
+            raise SystemExit(f"duplicate output basename {name}: {used_names[name]} and {source}")
+        used_names[name] = source
+        resolved.append((target, source))
+
+    if args.dry_run:
+        for target, source in resolved:
+            print(f"{target}\t{source}")
+        return 0
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for _, source in resolved:
+        shutil.copy2(source, out_dir / source.name)
+        print(f"copied {source} -> {out_dir / source.name}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

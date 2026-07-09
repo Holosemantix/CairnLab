@@ -71,7 +71,7 @@ multi-round review might diverge from a fresh reviewer. Common root causes are:
   evaluations that are only proposed;
 - plateau/selector optimism: treating a diagnostic rule that matches simple
   fixed-endpoint or single-metric baselines as a superior selector;
-- matched-stressor optimism: treating train-Gaussian/evaluate-Gaussian recovery
+- matched-stressor optimism: treating matched train/evaluate stressor recovery
   as surprising robustness evidence without a stronger causal or external
   comparison.
 
@@ -205,9 +205,9 @@ Require:
   unless the venue explicitly expects such a statement.
 - **Reader-facing terminology**: table headers, figure labels, section names,
   and captions must name the experimental object being compared. Avoid headers
-  such as "baseline stress" or "std0.08 stress" unless the caption and column
-  name make clear which checkpoint, training condition, and evaluation stressor
-  they denote.
+  such as "baseline stress" or stress-level shorthand unless the caption and
+  column name make clear which checkpoint, training condition, and evaluation
+  stressor they denote.
 - **Top-conference structure pass**: scan the title, abstract, contribution
   paragraph, table-of-contents structure, section/subsection/paragraph headings,
   table and figure captions, appendix titles, and table labels. They must read
@@ -216,7 +216,7 @@ Require:
   "Bounded unseen-stressor check", "Retained-summary fixed-pool top-1 audit",
   or "Diagnostic cleanup" should be rewritten to scientific roles such as
   "Supplementary diagnostic analyses", "Evaluation under bounded
-  non-Gaussian stressors", "Fixed-pool candidate-stability analysis", or
+  held-out stressors", "Fixed-pool candidate-stability analysis", or
   "Full-sweep fixed-pool event-rate calibration". Treat audit, check,
   remediation, retained, recorded, legacy, provenance, manifest, artifact,
   debug, and we retain as suspect in headings and captions unless they are
@@ -245,6 +245,52 @@ The review ledger must record any deletion or demotion triggered by this gate,
 especially duplicated appendix tables, internal-sounding abstract phrases,
 internal diagnostic-engineering prose, ambiguous table headers, and
 external-family artifacts that do not meet the current core-evidence standard.
+
+## Structure-First Manuscript Remediation Gate
+
+Before adding experiments, converting tables to figures, or expanding the
+appendix, verify that the manuscript structure already exposes the argument a
+fresh reviewer should follow. Structure remediation precedes display work.
+
+Require the review ledger to answer:
+
+- Does the title, abstract, and contribution paragraph state one positive claim
+  and one boundary claim without internal review or artifact-management prose?
+- Does each section have one reader-facing job, and does the section order move
+  from problem to conceptual or theoretical object, operational metric,
+  behavioral endpoint, diagnostic validation, mechanism evidence, boundary
+  checks, and limitations when that order fits the paper type?
+- Are theory terms mapped to empirical audits or measured quantities before
+  the results ask the reader to trust those metrics?
+- Are must-read evidence layers and theory-supporting mechanism results visible
+  in the main narrative, while raw ledgers, dense threshold sweeps, artifact
+  inventories, and sensitivity grids are in appendix or repository
+  documentation?
+- Are figures used for trends, regions, event rates with uncertainty,
+  mechanisms, and before/after contrasts, while tables retain exact lookup
+  values and compact supplementary numerics?
+- Does the main figure/table order mirror the evidence chain: concept or
+  failure mode, primary behavior, core diagnostics, held-out or transfer
+  validation, mechanism evidence, boundary checks, then supplementary exact
+  values?
+- If the paper's claim needs two diagnostics or a primary metric plus a guard,
+  does the display or adjacent prose show the joint reading rather than ranking
+  rules by one component alone?
+- Do captions state scope, protocol, aggregation, sample or seed count when
+  material, uncertainty meaning, and claim boundary without explaining which
+  internal review issue the display closes?
+- Do plot legends, panel labels, and titles avoid occluding data or repeating
+  the caption? Comparable panels should use consistent axes, panel order, and
+  placement.
+- Do appendix titles read as supplementary paper sections, not remediation
+  tasks, internal audits, retained artifacts, or engineering logs?
+- Does each promoted figure/table trace to an existing artifact or reproducible
+  script, and do source-bundle rules include the referenced displays when a
+  source bundle is part of the release?
+
+If this gate fails, first restructure the manuscript and main/appendix split.
+New figures, converted tables, and extra appendix sections should wait until the
+argument order is stable.
 
 ## Writing And Structure Audit
 
@@ -325,13 +371,14 @@ Require:
 - point-best hit, top-k overlap, or regret-to-best columns are context only for
   plateau papers unless the caption names plateau proximity or membership as
   the paper-facing criterion;
-- reference baselines explain what they are and what they are not; a high-std
-  reference is a coarse intervention-order screen, not a plateau-internal
-  ranker;
+- reference baselines explain what they are and what they are not; a coarse
+  high-intensity reference is an intervention-order screen, not a
+  plateau-internal ranker;
 - the same caveat appears at most three times and is tied to a positive claim;
-- every appendix subsection has a "Reading:" sentence written as complete
-  paper prose, not an internal note; old experiments or old audits are marked
-  "not paper-facing evidence";
+- every appendix subsection opens with a reader-facing orientation sentence
+  written as complete paper prose, not an internal note; old experiments or old
+  audits are marked "not paper-facing evidence" only when such scoped
+  provenance must remain visible;
 - artifact paths are concentrated in manifests or appendix artifact notes; main
   text should normally point to those locations rather than repeat paths in
   each result paragraph;
@@ -382,11 +429,11 @@ Check these gates explicitly:
   plus different-state separability are natural. Treat Lipschitz drift, margin
   stability, union-bound, and local Taylor arguments as supporting analysis
   unless they prove a non-obvious guarantee actually used by the experiments.
-- **Matched-stressor discount**: if the main behavior is "train with Gaussian
-  noise, evaluate on Gaussian noise", discount novelty unless the paper shows a
-  causal diagnostic link, stronger external comparison, or broader held-out
-  evidence. State that matched augmentation recovery is expected and explain
-  what the diagnostics add beyond that sanity check.
+- **Matched-stressor discount**: if the main behavior is training with one
+  stressor family and evaluating on the same family, discount novelty unless
+  the paper shows a causal diagnostic link, stronger external comparison, or
+  broader held-out evidence. State that matched augmentation recovery is
+  expected and explain what the diagnostics add beyond that sanity check.
 - **Selector baseline demotion**: if an aggregate diagnostic selector is only
   comparable to fixed-endpoint, single-metric, or random/plateau baselines, do
   not sell it as a superior selector. Reframe it as plateau localization,
@@ -429,29 +476,28 @@ answer these questions explicitly:
   method paper. A no-retraining diagnostic can be valuable, but it cannot close
   an algorithmic-novelty weakness by writing alone.
 - **Matched-stressor ceiling**: if the main behavior is matched train/eval
-  augmentation, such as Gaussian training evaluated on Gaussian noise, treat the
-  behavioral recovery as an expected axis unless the paper adds causal
-  diagnostic evidence, held-out perturbation transfer, or an external baseline
-  comparison that changes the review decision.
+  augmentation, treat the behavioral recovery as an expected axis unless the
+  paper adds causal diagnostic evidence, held-out perturbation transfer, or an
+  external baseline comparison that changes the review decision.
 - **Selector-increment ceiling**: if an aggregate diagnostic selector is
   comparable to a fixed endpoint, a single metric, or a broad plateau baseline,
   count it as triage or plateau localization. Do not call it a reliable
   prospective selector, and do not let selector wording raise the score.
 - **Theory-link ceiling**: a new calibration table, margin-conditioned flip
   audit, or finite-sample bound strengthens theory--experiment alignment only
-  if it measures the theorem's actual terms. It does not become an adaptive CEM,
-  closed-loop, or environment-feedback guarantee.
+  if it measures the theorem's actual terms. It does not become an adaptive
+  planner, closed-loop, or environment-feedback guarantee.
 - **Semantic-proxy ceiling**: state-distance, effective-rank, transition, or ID
   probe guards are not oracle task semantics. If contact/topology/goal-relation
   or near-boundary labels are absent, keep that weakness open or mark it as a
   fixed-checkpoint diagnostic opportunity only when such labels can be
   constructed without retraining.
-- **External-baseline ceiling**: PLDM-style method-family replication, negative
+- **External-baseline ceiling**: external method-family replication, negative
   ablations, or artifact completeness reduce narrowness concerns but do not
   replace strong baselines such as standard augmentation objectives,
-  reconstruction-based world models, Dreamer/TD-MPC-style systems, robust MPC,
-  or an ACPC-derived training objective when the target track is a robustness
-  method paper.
+  reconstruction-based models, representative strong task systems, robust
+  control/planning baselines, or a diagnostic-derived training objective when
+  the target track is a robustness method paper.
 - **Appendix-burden ceiling**: extra ledgers, audits, and diagnostic families
   do not raise the score unless they simplify the decision path. If the main
   text now has more than three or four must-read evidence layers, verify that
@@ -556,6 +602,11 @@ Require:
   point-best hit, plateau hit, proximity gap, and top-2 proximity overlap when
   point-best columns are retained only as context;
 - figures that support the argument rather than decorate it;
+- figure/table conversion choices that match the display purpose: figures for
+  trends, regions, uncertainty, mechanism contrasts, and before/after changes;
+  tables for exact values, compact numeric lookup, and supplementary grids;
+- paired diagnostics or guard-plus-primary metrics shown together when the
+  claim depends on the pair;
 - appendix tables that do not distract from the main narrative.
 
 If a table or figure exists only because a reviewer might ask, either connect it

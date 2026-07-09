@@ -161,16 +161,56 @@ The plan must include:
 - central thesis;
 - reader promise: what the reader should know after the paper;
 - claim/evidence matrix;
-- section map with each section's single job;
-- figure/table map with the question each display answers;
-- appendix demotion plan for extra audits, ledgers, diagnostic families, and
-  reproducibility material;
+- section map with each section's single job and argument order;
+- theory-to-evidence map when theory terms support empirical claims;
+- figure/table map with the question each display answers and whether it belongs
+  in main text, appendix, or repository documentation;
+- appendix/provenance split for extra audits, ledgers, diagnostic families,
+  failed experiments, artifact inventories, and reproducibility material;
 - citation scaffold with primary sources for novelty, methods, baselines, and
   theory;
 - known blockers that require new experiments, retraining, source lookup, or
   human metadata.
 
 Reject plans that are a list of topics without an argument.
+
+### Structure-First Manuscript Plan Gate
+
+Run a structure pass before creating new figures, converting tables, or adding
+more caveats. Display work should follow the argument order, not compensate for
+a confused structure.
+
+Require:
+
+- title, abstract, contribution paragraph, section order, and appendix split
+  are fixed before figure/table conversion begins;
+- each section has one reader-facing job and advances the claim chain rather
+  than mirroring the remediation history;
+- for theory-heavy, diagnostic, benchmark, or empirical-analysis papers, the
+  main narrative introduces the theoretical or conceptual object before the
+  operational metric, then reports the behavioral endpoint, diagnostic
+  validation, mechanism evidence, boundary checks, and limitations in that
+  order unless the venue requires a different structure;
+- when a theory contains multiple necessary quantities, include a
+  theory-to-evidence map that names the quantity, empirical audit or measured
+  object, observed evidence, and limitation;
+- main text displays answer must-read questions only. Promote theory-supporting
+  evidence that is essential to the claim into the main narrative, and move
+  dense exact values, threshold grids, sensitivity sweeps, artifact inventories,
+  and raw audit ledgers to appendix or repository documentation;
+- convert tables to figures only when the display is about a trend, region,
+  uncertainty interval, event rate, mechanism contrast, or before/after
+  comparison. Keep exact lookup values and compact supplementary numerics as
+  tables;
+- order main figures and tables by the evidence chain: concept or failure mode,
+  primary behavior, core diagnostics, held-out or transfer validation, mechanism
+  evidence, boundary checks, then supplementary exact values;
+- if the claim requires two diagnostics or conditions jointly, the main display
+  or adjacent prose must show the joint reading. Do not promote a single
+  component as if it carried the full claim;
+- captions should state scope, aggregation, sample or seed count when material,
+  uncertainty meaning, and the non-claim boundary. They should not explain
+  which internal review issue a display closes.
 
 ## Phase 2: Section Drafting Standards
 
@@ -249,10 +289,12 @@ captions, appendix headings, and table labels. The manuscript must read like a t
 
 Require:
 
+- complete this structure pass before generating new plots, converting tables,
+  or adding appendix blocks;
 - section, subsection, paragraph headings, figure/table captions, and appendix
   titles must expose the scientific argument or evidence role, not the history
   of review, debugging, or artifact retention;
-- rewrite process titles into scientific titles. Examples: "Remediation audit tables" -> "Supplementary diagnostic analyses"; "Bounded unseen-stressor check" -> "Evaluation under bounded non-Gaussian stressors"; "Retained-summary fixed-pool top-1 audit" -> "Fixed-pool candidate-stability analysis"; "Full-sweep sample-level fixed-pool event-rate audit" -> "Full-sweep fixed-pool event-rate calibration";
+- rewrite process titles into scientific titles. Examples: "Remediation audit tables" -> "Supplementary diagnostic analyses"; "Bounded unseen-stressor check" -> "Evaluation under bounded held-out stressors"; "Retained-summary fixed-pool top-1 audit" -> "Fixed-pool candidate-stability analysis"; "Full-sweep sample-level fixed-pool event-rate audit" -> "Full-sweep fixed-pool event-rate calibration";
 - treat audit, check, remediation, retained, recorded, legacy, provenance,
   manifest, artifact, debug, and we retain as suspect in headings and captions.
   Keep them only when they are standard field terms or essential
@@ -266,6 +308,10 @@ Require:
   diagnostic analyses", "Additional evaluation details", or "Empirical
   risk calibration" rather than "remediation", "legacy audit",
   "scope decision", or "internal checks";
+- organize appendices by reader purpose, such as proofs, experimental protocol,
+  additional primary tables, diagnostic validation details, mechanism analyses,
+  boundary checks, and reproducibility/source-release details. Do not preserve
+  historical artifact order when it hides the reader path;
 - after edits, scan the compiled PDF's visible title, heading hierarchy,
   captions, and table of contents if present. If a reader could mistake the
   paper for an internal engineering report or reviewer-response document, the
@@ -285,8 +331,8 @@ Require:
   is plateau proximity. Prefer "plateau hit", "proximity gap", and
   "single-row proximity view" over "exact best", "regret to best", and
   "selector" unless exact ranking is the supported claim;
-- every abbreviation is expanded at first use, including PCC, CRA, MAF, and
-  ACPC-H/trans when they appear;
+- every field-specific diagnostic, method, dataset, and protocol abbreviation
+  is expanded at first use when it appears;
 - keep internal engineering terms out of the main paper. Avoid legacy,
   provenance, archived, remediation, release package, manifest, debug, audit
   ledger, and old path in the main narrative;
@@ -310,9 +356,11 @@ Require:
   and selectivity guard instead of piling them into one paragraph;
 - order each experiment paragraph as question, protocol, result, boundary;
 - do not begin by stacking metrics before the experiment question is clear;
-- when baselines are weak, report that transparently and narrow the claim. A
-  high-std or MAF-only reference should narrow the claim instead of supporting a
-  broad dominance statement;
+- introduce the theoretical or conceptual object before operational metrics
+  when the paper claims theory-aligned evidence;
+- when baselines or reference screens are weak, report that transparently and
+  narrow the claim. A coarse-intervention or single-metric reference should
+  narrow the claim instead of supporting a broad dominance statement;
 - if a metric is saturated, do not place it in the most prominent table or
   sentence position. For example, if presence hit is saturated, put
   precision/recall before presence;
@@ -348,7 +396,7 @@ Require:
 - the first table column or first metric is the most discriminative metric for
   the method claim;
 - saturated metrics do not appear first;
-- captions state the metric's intended use. Example: "Precision/recall are the primary readouts; presence is reported for block coverage";
+- captions state the metric's intended use. Example: "Precision/recall are the primary measurements; presence is reported for block coverage";
 - captions and table titles must not sound like internal issue closure. Replace
   "audit", "check", "remediation", "retained summary", and "recorded
   artifact" wording with reader-facing names for the analysis, validation,
@@ -357,7 +405,7 @@ Require:
   the paper-facing criterion is plateau proximity or range membership;
 - every table reading includes how not to read it. Example: "This is not evidence of selector dominance";
 - every reference baseline explains what it is and what it is not;
-- the high-std reference is a coarse intervention-order screen, not a plateau-internal ranker.
+- a coarse high-intensity reference is an intervention-order screen, not a plateau-internal ranker.
 - table headers must identify the compared checkpoint, method, condition, or
   evaluation stressor without relying on internal shorthand. Replace ambiguous
   headers such as "baseline stress" with reader-facing labels such as
@@ -374,12 +422,13 @@ The appendix extends evidence; it is not a main-text junk drawer.
 
 Require:
 
-- every appendix subsection has a sentence beginning with "Reading:";
+- every appendix subsection opens with a reader-facing orientation sentence
+  that states how the supplementary material should be used;
 - appendix section titles must not expose internal review or remediation state.
   They should name the supplementary evidence role, such as additional
   evaluation details, sensitivity analysis, calibration, or proof;
-- "Reading" sentences must be complete paper prose, not internal notes such as
-  "proofs follow" or "artifact support";
+- appendix orientation sentences must be complete paper prose, not internal
+  notes such as "proofs follow" or "artifact support";
 - artifact provenance can be preserved in the appendix, but provenance should
   not drive the main narrative;
 - concrete artifact paths should usually live in the manifest or appendix; the
@@ -547,12 +596,27 @@ Require:
 - captions state what is averaged, what units are used, and what conclusion the
   reader should take;
 - figures and tables support the argument rather than decorate it;
+- figure panels should use consistent axes, panel order, and legend placement
+  for comparable conditions; legends and metric annotations must not occlude
+  the data;
+- omit redundant plot-internal titles when axis labels, panel labels, and the
+  caption already identify the condition;
+- when a result is defined by paired diagnostics or a guard-plus-primary
+  measurement, show both components in the same figure, adjacent panels, or
+  immediately adjacent prose;
+- prefer figures for trends, robust regions, event rates with uncertainty,
+  mechanism ratios, and before/after contrasts; prefer tables for exact lookup
+  values, dense threshold grids, and supplementary numeric inventories;
 - table precision is justified and consistent;
 - appendix displays are demoted unless they answer a necessary reviewer or
   reproducibility question;
 - figure text does not contain stale implementation names, old terminology, or
   unexpanded acronyms;
 - line breaks do not separate symbols from definitions in a confusing way;
+- every promoted figure/table is generated from an existing artifact or
+  reproducible script, not hand-entered numbers;
+- source-bundle or release scripts include every figure/table referenced by the
+  manuscript when a source bundle is part of the target release;
 - final PDF satisfies page, font, margin, anonymization, and reference
   requirements for the target venue.
 

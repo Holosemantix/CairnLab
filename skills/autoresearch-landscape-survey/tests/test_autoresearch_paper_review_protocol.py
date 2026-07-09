@@ -47,7 +47,7 @@ def test_protocol_prevents_large_unverified_score_jump():
 
 def test_skill_entry_mentions_score_disagreement_gate():
     text = SKILL.read_text(encoding="utf-8")
-    assert 'version: "0.2.7"' in text
+    assert 'version: "0.2.8"' in text
     assert "score-disagreement ledger" in text
     assert "separate main-track and diagnostic" in text
     assert "corrected score ceiling" in text
@@ -142,3 +142,25 @@ def test_skill_entry_mentions_claim_hygiene_writing_gate():
     assert "interpretation columns must move to prose" in text
     assert "internal diagnostic-engineering prose" in text
     assert "external-family or old-metric artifacts" in text
+
+def test_protocol_has_structure_first_manuscript_gate():
+    text = PROTOCOL.read_text(encoding="utf-8")
+    assert "## Structure-First Manuscript Remediation Gate" in text
+    for phrase in (
+        "Structure remediation precedes display work",
+        "theory terms mapped to empirical audits",
+        "figures used for trends, regions, event rates with uncertainty",
+        "while tables retain exact lookup",
+        "two diagnostics or a primary metric plus a guard",
+        "appendix titles read as supplementary paper sections",
+        "main figure/table order mirror the evidence chain",
+        "trace to an existing artifact or reproducible",
+    ):
+        assert phrase in text
+
+
+def test_skill_entry_mentions_structure_first_gate():
+    text = SKILL.read_text(encoding="utf-8")
+    assert "Structure-First Manuscript" in text
+    assert "structure-before-display" in text
+    assert "figure/table conversion mistakes" in text

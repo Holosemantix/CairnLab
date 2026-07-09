@@ -27,6 +27,10 @@ Use it as the checklist for:
 - evidence compression: main text and appendix only keep material needed for
   the paper-facing claim;
 - theory-to-metric mapping and metric scope control;
+- structure-first remediation: fix the title, abstract, section order,
+  section jobs, and main/appendix split before adding or converting displays;
+- theory-to-evidence mapping: connect theoretical quantities to empirical
+  audits, observed results, and explicit limitations;
 - abstract positive claim plus boundary claim;
 - plateau/range language instead of point-best selector language;
 - terminology consistency: score, screen, view;
@@ -39,10 +43,15 @@ Use it as the checklist for:
 - experiment paragraphs ordered as question, protocol, result, boundary;
 - caveat budget and caveat-to-positive-claim binding;
 - table metric ordering, caption purpose, and "how not to read this" sentence;
+- figure/table conversion rules: use figures for trends, regions, uncertainty,
+  mechanisms, or before/after contrasts; keep dense exact values and
+  sensitivity grids in tables or appendix;
+- display provenance: every promoted figure/table must trace to an artifact or
+  reproducible script, and source bundles must include referenced displays;
 - table headers that name the checkpoint, method, condition, or evaluation
   stressor without internal shorthand;
 - no interpretation-only table columns such as "reading" or "claim status";
-- appendix `Reading:` sentences and `not paper-facing evidence` markings;
+- reader-facing appendix orientation sentences and `not paper-facing evidence` markings when scoped provenance must remain visible;
 - deletion or merge of appendix tables that duplicate main-text rows and
   conclusions;
 - external-family or old-metric artifacts kept out of the appendix unless they
@@ -60,7 +69,8 @@ Use it as the checklist for:
    - `This paper is X, not Y`;
    - allowed claim strength and disallowed over-claims;
    - positive claim and boundary claim for the abstract;
-   - table/caption/appendix constraints.
+   - structure-first section order, display plan, and table/caption/appendix
+     constraints.
 3. Draft or edit section by section. Keep final manuscript prose flowing except
    where the venue or methods section expects lists.
 4. Rebuild or inspect the compiled PDF when LaTeX/PDF artifacts are available.

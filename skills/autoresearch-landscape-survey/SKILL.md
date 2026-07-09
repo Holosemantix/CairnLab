@@ -4,7 +4,7 @@ description: Use this skill to maintain a multi-facet survey map of AutoResearch
 license: Apache-2.0
 allowed-tools: Read Write Edit Bash WebSearch WebFetch
 metadata:
-  version: "0.2.7"
+  version: "0.2.8"
   skill-author: Holosemantix research mapping workflow
 ---
 
@@ -129,8 +129,9 @@ tables, captions, fonts, page limits, and layout, and leave a writing-quality
 ledger. This module is meant to catch poor wording, irrelevant abstract
 content, repetitive paragraphs, acronym overload, formula/layout problems,
 caption ambiguity, venue mismatch, plateau over-ranking, caveat overuse,
-terminology drift, saturated-metric table ordering, and appendix material that
-is not paper-facing evidence before a reviewer score is trusted.
+terminology drift, saturated-metric table ordering, structure-before-display
+failures, figure/table conversion mistakes, and appendix material that is not
+paper-facing evidence before a reviewer score is trusted.
 
 When the task is to improve or review a research paper, run the manuscript as a
 fresh submission through `references/paper-review-remediation-protocol.md`. The
@@ -150,7 +151,9 @@ proxy semantics, external baselines, appendix burden, and fixed-checkpoint
 ceilings must be judged as current evidence, not as effort already spent. For
 every remediation round, also run the protocol's Subtractive Remediation Gate:
 identify what should be deleted, merged, demoted, or moved to appendix before adding more caveats, diagnostics, tables, or reviewer patches. For
-paper-facing prose and displays, run the protocol's Claim-Hygiene Writing Gate:
+paper-facing prose and displays, run the protocol's Structure-First Manuscript
+Remediation Gate before creating new figures or converting tables, then run the
+protocol's Claim-Hygiene Writing Gate:
 abstracts must avoid internal audit phrases, duplicated main/appendix tables
 must be merged or deleted, table headers must name the compared checkpoint or
 evaluation condition, interpretation columns must move to prose, and

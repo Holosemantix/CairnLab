@@ -29,7 +29,7 @@ PROTOCOL = (
 def test_skill_routes_paper_writing_to_quality_module() -> None:
     text = SKILL.read_text(encoding="utf-8")
 
-    assert 'version: "0.2.7"' in text
+    assert 'version: "0.2.8"' in text
     assert "paper-writing-quality-module.md" in text
     assert "writing-quality ledgers" in text.lower()
     assert "non-authoritative evidence" in text
@@ -56,7 +56,7 @@ def test_standalone_skill_routes_to_quality_checklist() -> None:
     required_reference_phrases = [
         "Project-Specific Writing Constraints",
         "The screen enriches plateau members, but does not rank inside plateau",
-        "Precision/recall are the primary readouts; presence is reported for block coverage",
+        "Precision/recall are the primary measurements; presence is reported for block coverage",
         "not paper-facing evidence",
     ]
     missing_reference = [
@@ -205,14 +205,13 @@ def test_writing_module_codifies_terminology_and_experiment_narrative() -> None:
         "score is the numeric evaluation",
         "screen returns a set",
         "view is a reporting perspective",
-        "PCC, CRA, MAF, and",
-        "ACPC-H/trans",
+        "field-specific diagnostic, method, dataset, and protocol abbreviation",
         "Avoid legacy",
         "artifact history",
         "behavioral recovery, plateau membership, planner-side sensitivity",
         "selectivity guard",
         "question, protocol, result, boundary",
-        "high-std or MAF-only reference",
+        "coarse-intervention or single-metric reference",
         "presence hit is saturated",
         "precision/recall before presence",
         "X changes from a to b; Y remains unchanged",
@@ -230,12 +229,12 @@ def test_writing_module_codifies_caveat_table_and_appendix_rules() -> None:
         "same caveat appears at most three times",
         "bound to a positive claim",
         "saturated metrics do not appear first",
-        "Precision/recall are the primary readouts; presence is reported for block coverage",
+        "Precision/recall are the primary measurements; presence is reported for block coverage",
         "This is not evidence of selector dominance",
-        "high-std reference is a coarse intervention-order screen",
+        "coarse high-intensity reference is an intervention-order screen",
         "not a plateau-internal ranker",
         "Appendix Constraints",
-        "Reading:",
+        "reader-facing orientation sentence",
         "not paper-facing evidence",
         "appendix extends evidence",
     ]
@@ -281,10 +280,10 @@ def test_review_protocol_checks_project_specific_writing_constraints() -> None:
         "most discriminative metric first",
         "not saturated metrics",
         "This is not evidence of selector dominance",
-        "high-std",
-        "not a plateau-internal",
+        "high-intensity reference",
+        "plateau-internal ranker",
         "same caveat appears at most three times",
-        "Reading:",
+        "reader-facing orientation sentence",
         "not paper-facing evidence",
         "Top-conference structure pass",
         "Remediation audit tables",
@@ -328,7 +327,7 @@ def test_writing_module_catches_internal_structure_and_caption_language() -> Non
     skill_text = STANDALONE_SKILL.read_text(encoding="utf-8")
     openai_yaml = STANDALONE_OPENAI_YAML.read_text(encoding="utf-8")
 
-    required = [
+    source_required = [
         "Top-Conference Structure And Caption Gate",
         "Top-conference structure pass",
         "table-of-contents structure",
@@ -339,17 +338,22 @@ def test_writing_module_catches_internal_structure_and_caption_language() -> Non
         "Remediation audit tables",
         "Supplementary diagnostic analyses",
         "Bounded unseen-stressor check",
-        "Evaluation under bounded non-Gaussian stressors",
+        "Evaluation under bounded held-out stressors",
         "Retained-summary fixed-pool top-1 audit",
         "Fixed-pool candidate-stability analysis",
         "Full-sweep sample-level fixed-pool event-rate audit",
         "Full-sweep fixed-pool event-rate calibration",
-        "reader-facing section/caption structure",
+        "Structure-First Manuscript Plan Gate",
+        "convert tables to figures only",
+        "theory-to-evidence map",
+        "order main figures and tables by the evidence chain",
+        "every promoted figure/table",
     ]
 
     for source in (module_text, standalone_text):
-        missing = [phrase for phrase in required[:-1] if phrase not in source]
+        missing = [phrase for phrase in source_required if phrase not in source]
         assert missing == []
 
     assert "reader-facing section/caption structure" in skill_text
-    assert "section/TOC structure" in openai_yaml
+    assert "structure-first section/TOC flow" in openai_yaml
+    assert "figure/table conversion" in openai_yaml

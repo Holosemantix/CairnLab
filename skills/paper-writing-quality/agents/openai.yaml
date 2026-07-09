@@ -1,4 +1,4 @@
 interface:
   display_name: "Paper Writing Quality"
   short_description: "Scientific manuscript claim and evidence constraints"
-  default_prompt: "Use $paper-writing-quality to draft, revise, or audit a scientific paper against claim framing, evidence compression, metric scope, terminology, experiment narrative, caveat, table, caption, appendix, and PDF-layout constraints."
+  default_prompt: "Use $paper-writing-quality to draft, revise, or audit a scientific paper against claim framing, evidence compression, metric scope, terminology, experiment narrative, caveat, section/TOC structure, table, caption, appendix, and PDF-layout constraints."

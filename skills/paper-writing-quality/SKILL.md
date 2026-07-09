@@ -1,6 +1,6 @@
 ---
 name: paper-writing-quality
-description: Use this skill when drafting, rewriting, polishing, or reviewing scientific manuscripts, LaTeX papers, abstracts, introductions, experiment sections, tables/captions, appendices, or top-conference papers. Applies when Codex must enforce paper-writing constraints for paper-facing claim framing, evidence compression, metric scope control, theory-to-metric mapping, positive and boundary claims, plateau/range language, terminology consistency, acronym expansion, experiment narrative, caveat discipline, table attack-surface review, appendix/provenance separation, citation/source grounding, and compiled-PDF layout checks.
+description: Use this skill when drafting, rewriting, polishing, or reviewing scientific manuscripts, LaTeX papers, abstracts, introductions, experiment sections, tables/captions, appendices, section headings, table-of-contents structure, or top-conference papers. Applies when Codex must enforce paper-writing constraints for paper-facing claim framing, evidence compression, metric scope control, theory-to-metric mapping, positive and boundary claims, plateau/range language, terminology consistency, acronym expansion, experiment narrative, caveat discipline, table attack-surface review, reader-facing section/caption structure, appendix/provenance separation, citation/source grounding, and compiled-PDF layout checks.
 ---
 
 # Paper Writing Quality
@@ -32,6 +32,10 @@ Use it as the checklist for:
 - terminology consistency: score, screen, view;
 - acronym expansion and removal of internal engineering terms from main text;
 - internal diagnostic-engineering prose rewritten as reader-facing science;
+- top-conference structure pass: section, subsection, paragraph headings,
+  figure/table captions, appendix titles, and table-of-contents entries must
+  read as scientific argument, not internal review, remediation, or engineering
+  records;
 - experiment paragraphs ordered as question, protocol, result, boundary;
 - caveat budget and caveat-to-positive-claim binding;
 - table metric ordering, caption purpose, and "how not to read this" sentence;

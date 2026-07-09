@@ -239,6 +239,8 @@ prose except where the venue or method section explicitly expects lists.
 Every section must satisfy:
 
 - the section title matches the section's actual job;
+- the table-of-contents structure reads like a scientific argument, not a remediation log, issue tracker, or engineering record;
+- headings name the scientific object, mechanism, result, or limitation rather than the review process that produced the text;
 - the first paragraph tells the reader why the section exists;
 - every paragraph has one role and one topic sentence;
 - every sentence either advances the argument, reports evidence, defines a
@@ -297,6 +299,37 @@ Require:
   "debug", and "we retain" as suspect outside artifact documentation unless
   the term is a standard scientific object that the reader must know.
 
+### A2. Top-Conference Structure And Caption Gate
+
+Run this Top-conference structure pass across the title, abstract,
+contribution list, table-of-contents structure,
+section/subsection/subsubsection/paragraph headings, figure captions, table
+captions, appendix headings, and table labels. The manuscript must read like a top-conference paper, not an internal review plan, remediation log, or engineering record.
+
+Require:
+
+- section, subsection, paragraph headings, figure/table captions, and appendix
+  titles must expose the scientific argument or evidence role, not the history
+  of review, debugging, or artifact retention;
+- rewrite process titles into scientific titles. Examples: "Remediation audit tables" -> "Supplementary diagnostic analyses"; "Bounded unseen-stressor check" -> "Evaluation under bounded non-Gaussian stressors"; "Retained-summary fixed-pool top-1 audit" -> "Fixed-pool candidate-stability analysis"; "Full-sweep sample-level fixed-pool event-rate audit" -> "Full-sweep fixed-pool event-rate calibration";
+- treat audit, check, remediation, retained, recorded, legacy, provenance,
+  manifest, artifact, debug, and we retain as suspect in headings and captions.
+  Keep them only when they are standard field terms or essential
+  reproducibility terms, and prefer analysis, validation, calibration,
+  evaluation, sensitivity, evidence, measured, available summary, or
+  supplementary detail when those are the actual scientific roles;
+- captions should state the measured object, protocol, aggregation, and
+  supported interpretation. They should not describe why a table was added,
+  which reviewer concern it addresses, or which old artifact survived cleanup;
+- appendix headings must still read as paper sections. Use "Supplementary
+  diagnostic analyses", "Additional evaluation details", or "Empirical
+  risk calibration" rather than "remediation", "legacy audit",
+  "scope decision", or "internal checks";
+- after edits, scan the compiled PDF's visible title, heading hierarchy,
+  captions, and table of contents if present. If a reader could mistake the
+  paper for an internal engineering report or reviewer-response document, the
+  structure gate fails.
+
 ### B. Terminology Consistency Constraints
 
 One concept gets one primary name.
@@ -311,8 +344,8 @@ Require:
   universally standard for the target venue;
 - keep internal engineering and project-management terms out of the main paper.
   Avoid legacy, provenance, archived, remediation, release package, manifest,
-  artifact hash, rendering command, debug, audit ledger, and old path in the
-  main narrative;
+  artifact hash, rendering command, debug, audit ledger, retained-summary,
+  recorded artifact, and old path in the main narrative;
 - use "readout" only when it is a standard field term or a defined measured
   object. Otherwise prefer the concrete object: projection, metric, signal,
   output, score, planner cost, representation, or diagnostic;
@@ -362,6 +395,10 @@ Require:
   the method claim;
 - saturated metrics do not appear first;
 - captions state the metric's intended use. Example: "Precision/recall are the primary readouts; presence is reported for block coverage";
+- captions and table titles must not sound like internal issue closure. Replace
+  "audit", "check", "remediation", "retained summary", and "recorded
+  artifact" wording with reader-facing names for the analysis, validation,
+  calibration, evaluation, or evidence when possible;
 - every table reading includes how not to read it. Example: "This is not evidence of selector dominance";
 - every reference baseline explains what it is and what it is not;
 - the high-std reference is a coarse intervention-order screen, not a plateau-internal ranker.
@@ -382,6 +419,9 @@ The appendix extends evidence; it is not a main-text junk drawer.
 Require:
 
 - every appendix subsection has a sentence beginning with "Reading:";
+- appendix section titles must not expose internal review or remediation state.
+  They should name the supplementary evidence role, such as additional
+  evaluation details, sensitivity analysis, calibration, or proof;
 - appendix material is either evidence expansion, proof/calibration,
   reproducibility support, or scoped audit context. Otherwise remove it;
 - artifact provenance, failed attempts, old experiments, old audits, debug logs,
@@ -582,6 +622,8 @@ The module is incomplete if it does not catch:
 - formulas are introduced without symbols or overflow in the PDF;
 - tables are too wide, overprecise, or disconnected from the main claim;
 - figure captions do not explain units, seeds, sample count, or conclusion;
+- headings, appendix titles, table names, or captions read like internal review
+  expectations, remediation logs, engineering records, or artifact bookkeeping;
 - writing uses AI-generic phrasing instead of precise scientific language;
 - discussion inflates results beyond evidence strength;
 - limitations are long but do not change reader interpretation;

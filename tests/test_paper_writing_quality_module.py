@@ -48,6 +48,7 @@ def test_standalone_skill_routes_to_quality_checklist() -> None:
         "This paper is X, not Y",
         "positive claim plus boundary claim",
         "internal diagnostic-engineering prose",
+        "top-conference structure pass",
         "writing-quality ledger",
     ]
     missing_skill = [phrase for phrase in required_skill_phrases if phrase not in skill_text]
@@ -285,6 +286,10 @@ def test_review_protocol_checks_project_specific_writing_constraints() -> None:
         "same caveat appears at most three times",
         "Reading:",
         "not paper-facing evidence",
+        "Top-conference structure pass",
+        "Remediation audit tables",
+        "Supplementary diagnostic analyses",
+        "Fixed-pool candidate-stability analysis",
     ]
 
     missing = [phrase for phrase in required if phrase not in text]
@@ -315,3 +320,36 @@ def test_writing_module_catches_claim_hygiene_table_and_appendix_failures() -> N
     for text in (module_text, standalone_text):
         missing = [phrase for phrase in required if phrase not in text]
         assert missing == []
+
+
+def test_writing_module_catches_internal_structure_and_caption_language() -> None:
+    module_text = MODULE.read_text(encoding="utf-8")
+    standalone_text = STANDALONE_REFERENCE.read_text(encoding="utf-8")
+    skill_text = STANDALONE_SKILL.read_text(encoding="utf-8")
+    openai_yaml = STANDALONE_OPENAI_YAML.read_text(encoding="utf-8")
+
+    required = [
+        "Top-Conference Structure And Caption Gate",
+        "Top-conference structure pass",
+        "table-of-contents structure",
+        "section, subsection, paragraph headings",
+        "figure/table captions",
+        "appendix titles",
+        "not an internal review plan, remediation log, or engineering record",
+        "Remediation audit tables",
+        "Supplementary diagnostic analyses",
+        "Bounded unseen-stressor check",
+        "Evaluation under bounded non-Gaussian stressors",
+        "Retained-summary fixed-pool top-1 audit",
+        "Fixed-pool candidate-stability analysis",
+        "Full-sweep sample-level fixed-pool event-rate audit",
+        "Full-sweep fixed-pool event-rate calibration",
+        "reader-facing section/caption structure",
+    ]
+
+    for source in (module_text, standalone_text):
+        missing = [phrase for phrase in required[:-1] if phrase not in source]
+        assert missing == []
+
+    assert "reader-facing section/caption structure" in skill_text
+    assert "section/TOC structure" in openai_yaml

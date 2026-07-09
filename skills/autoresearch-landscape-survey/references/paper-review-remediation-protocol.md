@@ -208,6 +208,19 @@ Require:
   such as "baseline stress" or "std0.08 stress" unless the caption and column
   name make clear which checkpoint, training condition, and evaluation stressor
   they denote.
+- **Top-conference structure pass**: scan the title, abstract, contribution
+  paragraph, table-of-contents structure, section/subsection/paragraph headings,
+  table and figure captions, appendix titles, and table labels. They must read
+  like a top-conference paper, not an internal review plan, remediation log, or
+  engineering record. Titles such as "Remediation audit tables",
+  "Bounded unseen-stressor check", "Retained-summary fixed-pool top-1 audit",
+  or "Diagnostic cleanup" should be rewritten to scientific roles such as
+  "Supplementary diagnostic analyses", "Evaluation under bounded
+  non-Gaussian stressors", "Fixed-pool candidate-stability analysis", or
+  "Full-sweep fixed-pool event-rate calibration". Treat audit, check,
+  remediation, retained, recorded, legacy, provenance, manifest, artifact,
+  debug, and we retain as suspect in headings and captions unless they are
+  standard field terms or essential reproducibility terms.
 - **No table self-interpretation columns**: columns such as "reading",
   "interpretation", "decision", "claim status", or redundant difference columns
   should be removed unless they are the measured quantity under review. Put the
@@ -248,6 +261,8 @@ Check that:
   filler, ritual caveats, or repetitive reviewer-defense language;
 - section titles match the content and expose the main line instead of artifact
   bookkeeping;
+- the visible heading hierarchy and table-of-contents entries do not look like
+  reviewer-response tasks, internal remediation steps, or engineering logs;
 - main text contains must-read evidence, while reproduction ledgers, artifact
   maps, extra diagnostics, and audit trails move to appendices;
 - terminology is stable and reader-facing names are not implementation keys;
@@ -287,6 +302,8 @@ Require:
 - paragraph-level roles, topic sentences, and no repeated reviewer-defense
   paragraphs;
 - stable reader-facing terminology rather than implementation keys;
+- title, section headings, paragraph headings, table captions, figure captions,
+  appendix headings, and table labels pass the top-conference structure gate;
 - one concept has one primary name; score means numeric evaluation, screen returns a set, and view is a reporting perspective;
 - table and section labels must match claim strength: for plateau claims, prefer
   plateau hit, proximity gap, candidate region, and single-row proximity view

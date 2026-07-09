@@ -148,6 +148,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "paper1" / "tables" / "table_joint_guard_side_validation.tex",
     ROOT / "paper1" / "tables" / "table_gaussian_sensitivity_audit.tex",
     ROOT / "paper1" / "tables" / "table_jvp_hutchinson_sensitivity_audit.tex",
+    ROOT / "paper1" / "tables" / "table_theory_evidence_map.tex",
     ROOT / "paper1" / "tables" / "table_threshold_quantile_sensitivity.tex",
     ROOT / "paper1" / "scripts" / "build_diagnostic_manifest.py",
     ROOT / "paper1" / "scripts" / "build_full_sweep_diagnostics.py",
@@ -212,7 +213,7 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "encoder-side repair, rollout-side contraction, or alignment repair",
     "Fixed-pool radius--margin calibration",
     "mechanism proxy, not a planner-margin certificate",
-    "empirical fixed-pool risk calibration",
+    "finite-sample empirical fixed-pool risk audit",
     "normalized ATR tail and SMPR failure",
     "q10/q95 as a conservative negative calibration result",
     "aggregate grid-point F1 or interval IoU is not used as the primary validation criterion",
@@ -230,7 +231,10 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "median cert-pass rises from $0.06$",
     "Local Gaussian sensitivity analysis",
     "endpoint/base reduction in this local slope",
+    "using 100 sampled sequences and 5 noise draws per small $\sigma$ and checkpoint",
     "exact-autograd JVP/Hutchinson Frobenius traces",
+    "using 100 sampled sequences and 8 Rademacher probes per checkpoint",
+    "theory-to-evidence mapping across the radius, margin, local-sensitivity, and discriminability audits",
     "the decomposition attributes this mainly to encoder-side sensitivity reduction",
     "rollout-side trace is task-dependent rather than uniformly smaller",
     "tighter post-rollout feature clouds measure the composed response",
@@ -260,7 +264,10 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "observed top-1 flips conditioned on cert-pass are zero",
     "paired event-rate calibration",
     "\\hat p_{\\mathrm{flip}\\mid\\mathrm{cert}}",
-    "Empirical fixed-pool risk calibration",
+    "Finite-sample empirical fixed-pool risk audit",
+    "Theory-to-evidence map for the matched-Gaussian diagnostic",
+    "The sufficient-event interpretation is sample-level",
+    "event rates remain informative even though the distribution-level q10/q95 gap is negative",
 ]
 
 
@@ -2535,7 +2542,7 @@ def check_radius_margin_certificate_outputs() -> None:
     if len(sensitivity_rows) != 12:
         fail(f"Gaussian sensitivity summary expected 12 rows, got {len(sensitivity_rows)}")
     sens = {(row["task"], row["checkpoint_type"]): row for row in sensitivity_rows}
-    expected_sens = {"TwoRoom": 0.004, "PushT": 0.008, "Reacher": 0.002, "Cube": 0.008}
+    expected_sens = {"TwoRoom": 0.003, "PushT": 0.008, "Reacher": 0.002, "Cube": 0.008}
     for task, expected in expected_sens.items():
         got = round(float(sens[(task, "endpoint")]["sensitivity_slope_vs_base"]), 3)
         if got != expected:
@@ -2546,14 +2553,14 @@ def check_radius_margin_certificate_outputs() -> None:
         fail(f"JVP/Hutchinson audit expected 36 rows, got {len(jvp_rows)}")
     if any(row.get("status") != "ok" for row in jvp_rows):
         fail("JVP/Hutchinson audit must have all rows ok")
-    if sorted({row.get("n_sequences") for row in jvp_rows}) != ["16"] or sorted({row.get("hutchinson_probes") for row in jvp_rows}) != ["8"]:
-        fail("JVP/Hutchinson audit must use n_sequences=16 and hutchinson_probes=8")
+    if sorted({row.get("n_sequences") for row in jvp_rows}) != ["100"] or sorted({row.get("hutchinson_probes") for row in jvp_rows}) != ["8"]:
+        fail("JVP/Hutchinson audit must use n_sequences=100 and hutchinson_probes=8")
     jvp_summary = list(csv.DictReader((ROOT / "paper1" / "results" / "jvp_hutchinson_sensitivity_summary.csv").open(newline="", encoding="utf-8")))
     if len(jvp_summary) != 12:
         fail(f"JVP/Hutchinson summary expected 12 rows, got {len(jvp_summary)}")
     jvp = {(row["task"], row["checkpoint_type"]): row for row in jvp_summary}
-    expected_jvp_composed = {"TwoRoom": 0.003, "PushT": 0.010, "Reacher": 0.006, "Cube": 0.028}
-    expected_jvp_encoder = {"TwoRoom": 0.004, "PushT": 0.017, "Reacher": 0.003, "Cube": 0.023}
+    expected_jvp_composed = {"TwoRoom": 0.003, "PushT": 0.010, "Reacher": 0.006, "Cube": 0.026}
+    expected_jvp_encoder = {"TwoRoom": 0.003, "PushT": 0.017, "Reacher": 0.003, "Cube": 0.023}
     for task, expected in expected_jvp_composed.items():
         got = round(float(jvp[(task, "endpoint")]["composed_trace_per_pixel_dim_vs_base"]), 3)
         if got != expected:

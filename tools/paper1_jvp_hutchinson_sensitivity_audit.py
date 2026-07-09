@@ -356,6 +356,8 @@ def _summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "task": task,
                 "checkpoint_type": checkpoint_type,
                 "n_training_seeds": len(rs),
+                "n_sequences": int(_median([r.get("n_sequences") for r in rs])),
+                "hutchinson_probes": int(_median([r.get("hutchinson_probes") for r in rs])),
                 "encoder_trace_per_pixel_dim_median": encoder,
                 "encoder_trace_per_pixel_dim_vs_base": _ratio(encoder, base_encoder),
                 "rollout_trace_per_latent_dim_median": rollout,
@@ -375,13 +377,22 @@ def _fmt(x: Any, digits: int = 3) -> str:
     return f"{y:.{digits}f}"
 
 
-def write_table(path: Path, summary_rows: list[dict[str, Any]]) -> None:
+def _fmt_count_set(values: Sequence[Any]) -> str:
+    counts = sorted({int(_f(value)) for value in values if math.isfinite(_f(value))})
+    if not counts:
+        return "the reported"
+    return str(counts[0]) if len(counts) == 1 else "/".join(str(v) for v in counts)
+
+
+def write_table(path: Path, summary_rows: list[dict[str, Any]], table_label: str) -> None:
     idx = {(row["task"], row["checkpoint_type"]): row for row in summary_rows}
+    n_desc = _fmt_count_set(row.get("n_sequences") for row in summary_rows)
+    probe_desc = _fmt_count_set(row.get("hutchinson_probes") for row in summary_rows)
     lines = [
         r"\begin{table}[H]",
         r"\centering",
-        r"\caption{Exact-JVP/Hutchinson local sensitivity decomposition. Values are endpoint/base ratios of Hutchinson trace estimates, using 16 sampled sequences and 8 Rademacher probes per checkpoint, then taking medians over training seeds. Columns report encoder trace per history-pixel dimension, rollout trace per latent-history dimension, composed encoder--rollout trace per history-pixel dimension, and the alignment coefficient $\mathrm{tr}(J_E^\top J_G^\top J_G J_E)/(\mathrm{tr}(J_E^\top J_E)\mathrm{tr}(J_G^\top J_G)/d_z)$. The analysis uses exact autograd JVPs with math/eager attention; it estimates local Frobenius traces, not a full Jacobian matrix or a closed-loop guarantee.}",
-        r"\label{tab:jvp-hutchinson-sensitivity-audit}",
+        rf"\caption{{Exact-JVP/Hutchinson local sensitivity decomposition. Values are endpoint/base ratios of Hutchinson trace estimates, using {n_desc} sampled sequences and {probe_desc} Rademacher probes per checkpoint, then taking medians over training seeds when multiple seeds are present. Columns report encoder trace per history-pixel dimension, rollout trace per latent-history dimension, composed encoder--rollout trace per history-pixel dimension, and the alignment coefficient $\mathrm{{tr}}(J_E^\top J_G^\top J_G J_E)/(\mathrm{{tr}}(J_E^\top J_E)\mathrm{{tr}}(J_G^\top J_G)/d_z)$. The analysis uses exact autograd JVPs with math/eager attention; it estimates local Frobenius traces, not a full Jacobian matrix or a closed-loop guarantee.}}",
+        rf"\label{{{table_label}}}",
         r"\small",
         r"\setlength{\tabcolsep}{3.5pt}",
         r"\begin{tabular}{lcccc}",
@@ -413,6 +424,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out-csv", type=Path, default=DEFAULT_CSV)
     p.add_argument("--summary-csv", type=Path, default=DEFAULT_SUMMARY)
     p.add_argument("--table", type=Path, default=DEFAULT_TABLE)
+    p.add_argument("--table-label", default="tab:jvp-hutchinson-sensitivity-audit")
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--n-sequences", type=int, default=16)
     p.add_argument("--hutchinson-probes", type=int, default=8)
@@ -465,7 +477,7 @@ def main() -> int:
     summary = _summarize(rows)
     _write_csv(args.out_csv, rows)
     _write_csv(args.summary_csv, summary)
-    write_table(args.table, summary)
+    write_table(args.table, summary, args.table_label)
     args.out_json.parent.mkdir(parents=True, exist_ok=True)
     args.out_json.write_text(
         json.dumps(

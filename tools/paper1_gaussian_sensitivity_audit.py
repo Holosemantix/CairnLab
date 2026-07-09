@@ -271,6 +271,8 @@ def build_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "training_seed": seed,
             "checkpoint_type": kind,
             "std_key": block[0]["std_key"],
+            "n_sequences": block[0]["n_sequences"],
+            "num_noise_draws": block[0]["num_noise_draws"],
             "sensitivity_slope_median": _median([r["mean_R2_over_sigma2"] for r in block]),
             "sensitivity_slope_pstdev_over_sigmas": _pstdev([r["mean_R2_over_sigma2"] for r in block]),
             "radius_q90_over_sigma_median": _median([r["radius_q90_over_sigma"] for r in block]),
@@ -296,6 +298,8 @@ def build_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "task": task,
                 "checkpoint_type": kind,
                 "n_training_seeds": len(block),
+                "n_sequences": int(_median([r["n_sequences"] for r in block])),
+                "num_noise_draws": int(_median([r["num_noise_draws"] for r in block])),
                 "std_key_median": _median([r["std_key"] for r in block]),
                 "sensitivity_slope_mean": slope,
                 "sensitivity_slope_pstdev": _pstdev([r["sensitivity_slope_median"] for r in block]),
@@ -323,10 +327,14 @@ def _num(x: float, digits: int = 2) -> str:
 
 def write_table(path: Path, summary: list[dict[str, Any]]) -> None:
     by = {(row["task"], row["checkpoint_type"]): row for row in summary}
+    n_sequences = sorted({int(_f(row.get("n_sequences"))) for row in summary if math.isfinite(_f(row.get("n_sequences")))})
+    noise_draws = sorted({int(_f(row.get("num_noise_draws"))) for row in summary if math.isfinite(_f(row.get("num_noise_draws")))})
+    seq_desc = str(n_sequences[0]) if len(n_sequences) == 1 else "/".join(str(x) for x in n_sequences)
+    draw_desc = str(noise_draws[0]) if len(noise_draws) == 1 else "/".join(str(x) for x in noise_draws)
     lines = [
         r"\begin{table}[H]",
         r"\centering",
-        r"\caption{Finite-difference Gaussian sensitivity analysis. The slope is the mean small-noise rollout radius squared divided by $\sigma^2$, summarized over the reported small-noise probes and training seeds. Lower endpoint/base ratios indicate reduced local composed encoder--predictor sensitivity. This is a local finite-difference proxy, not a global robustness guarantee.}",
+        rf"\caption{{Finite-difference Gaussian sensitivity analysis. The slope is the mean small-noise rollout radius squared divided by $\sigma^2$, using {seq_desc} sampled sequences and {draw_desc} noise draws per small $\sigma$ and checkpoint, then summarized over the reported small-noise probes and training seeds. Lower endpoint/base ratios indicate reduced local composed encoder--predictor sensitivity. This is a local finite-difference proxy, not a global robustness guarantee.}}",
         r"\label{tab:gaussian-sensitivity-audit}",
         r"\small",
         r"\setlength{\tabcolsep}{4pt}",

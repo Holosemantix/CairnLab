@@ -17,6 +17,7 @@
   "gaussian_sensitivity_audit": {
     "interpretation": "finite-difference local sensitivity proxy; not a global robustness guarantee",
     "n_sequences_per_checkpoint": 100,
+    "num_noise_draws_per_small_sigma": 5,
     "result_csv": "paper1/results/gaussian_sensitivity_summary.csv",
     "scope": "base, recovery-onset, and endpoint checkpoints for four tasks and training seeds 3072/3073/3074",
     "small_sigmas": [
@@ -25,7 +26,7 @@
       0.02
     ]
   },
-  "generated_at": "2026-07-09T04:01:08.871517+00:00",
+  "generated_at": "2026-07-09T07:34:12.432604+00:00",
   "generated_outputs": [
     "paper1/results/full_sweep_diagnostics.csv",
     "paper1/results/full_sweep_diagnostics_summary.csv",
@@ -61,6 +62,7 @@
     "paper1/results/jvp_hutchinson_sensitivity_audit.json",
     "paper1/results/jvp_hutchinson_sensitivity_summary.csv",
     "paper1/tables/table_jvp_hutchinson_sensitivity_audit.tex",
+    "paper1/tables/table_theory_evidence_map.tex",
     "paper1/results/joint_guard_side_validation.csv",
     "paper1/tables/table_joint_guard_side_validation.tex"
   ],
@@ -72,7 +74,7 @@
   "jvp_hutchinson_sensitivity_audit": {
     "hutchinson_probes_per_checkpoint": 8,
     "interpretation": "exact-autograd JVP/Hutchinson local Frobenius-trace decomposition; not a full Jacobian matrix or closed-loop guarantee",
-    "n_sequences_per_checkpoint": 16,
+    "n_sequences_per_checkpoint": 100,
     "result_csv": "paper1/results/jvp_hutchinson_sensitivity_summary.csv",
     "scope": "base, recovery-onset, and endpoint checkpoints for four tasks and training seeds 3072/3073/3074"
   },

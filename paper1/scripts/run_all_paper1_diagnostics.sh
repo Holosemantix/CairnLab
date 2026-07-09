@@ -25,12 +25,12 @@ if [[ "${RUN_CHECKPOINT_AUDITS:-0}" == "1" ]]; then
     --tasks TwoRoom PushT Reacher Cube \
     --seeds 3072 3073 3074 \
     --n-sequences 100 \
-    --num-noise-draws 1 \
+    --num-noise-draws 5 \
     --small-sigmas 0.005 0.01 0.02
   python -m tools.paper1_jvp_hutchinson_sensitivity_audit \
     --tasks TwoRoom PushT Reacher Cube \
     --seeds 3072 3073 3074 \
-    --n-sequences 16 \
+    --n-sequences 100 \
     --hutchinson-probes 8
   python -m paper1.scripts.joint_guard_side_validation
 fi

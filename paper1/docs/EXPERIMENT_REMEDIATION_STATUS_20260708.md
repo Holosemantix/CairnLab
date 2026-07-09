@@ -7,8 +7,8 @@ Implemented from `codex_paper1_experiment_remediation_plan.md`:
 - M3 retained-summary fixed-pool top-1/proxy audit over the full sweep.
 - M3 full-sweep sample-level fixed-pool event-rate audit recomputed from checkpoints for all 108 task--seed--stdmax rows.
 - M3 endpoint sample-level fixed-pool certificate audit retained as a compact base/std0.08 view.
-- M4 finite-difference Gaussian sensitivity audit over base/onset/endpoint checkpoints.
-- M4 exact-autograd JVP/Hutchinson Gaussian sensitivity decomposition over base/onset/endpoint checkpoints, using 16 sampled sequences and 8 Rademacher probes per checkpoint.
+- M4 finite-difference Gaussian sensitivity audit over base/onset/endpoint checkpoints, using 100 sampled sequences and 5 noise draws per small sigma.
+- M4 exact-autograd JVP/Hutchinson Gaussian sensitivity decomposition over base/onset/endpoint checkpoints, using 100 sampled sequences and 8 Rademacher probes per checkpoint.
 - M5 joint ATR plus guard-side validation: SMPR and fixed-pool top-1 flip are reported only with ATR, not as standalone robustness metrics.
 - M6 recovery-threshold and clean-tolerance sensitivity, with unavailable ATR/SMPR tail/quantile variants explicitly marked.
 

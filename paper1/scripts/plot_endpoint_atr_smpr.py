@@ -21,22 +21,37 @@ def _endpoint_stats(rows: list[dict[str, str]], task: str, rho: str, key: str) -
     return safe_mean(vals), safe_pstdev(vals)
 
 
+def _direction_arrow(ax: plt.Axes, direction: str, text: str) -> None:
+    if direction == "left":
+        xy, xytext = (0.18, 0.91), (0.50, 0.91)
+    else:
+        xy, xytext = (0.82, 0.91), (0.50, 0.91)
+    ax.annotate(
+        "",
+        xy=xy,
+        xytext=xytext,
+        xycoords="axes fraction",
+        arrowprops=dict(arrowstyle="->", color="#333333", lw=1.1),
+    )
+    ax.text(0.50, 0.925, text, transform=ax.transAxes, ha="center", va="bottom", fontsize=8)
+
+
 def plot(rows: list[dict[str, str]], out_fig: Path) -> None:
     out_fig.parent.mkdir(parents=True, exist_ok=True)
     y = list(range(len(TASKS)))
-    fig, axes = plt.subplots(1, 2, figsize=(8.8, 3.9), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(8.9, 3.75), sharey=True)
     specs = [
-        ("atr_q90", "ATR q90", "lower is better", "log"),
-        ("smpr_delta0", "SMPR", "higher is better", "linear"),
+        ("atr_q90", "(a) Radius tail contracts: ATR q90", "lower is better", "log", "left"),
+        ("smpr_delta0", "(b) Guard improves: SMPR", "higher is better", "linear", "right"),
     ]
     colors = {"0.00": "#6c757d", "0.08": "#1f77b4"}
-    labels = {"0.00": "LeWM-base", "0.08": r"LeWM+noise $\sigma_{\max}=0.08$"}
+    labels = {"0.00": "base", "0.08": "noise-trained"}
 
-    for ax, (key, xlabel, subtitle, scale) in zip(axes, specs):
+    for ax, (key, title, direction_text, scale, direction) in zip(axes, specs):
         for i, task in enumerate(TASKS):
             base_mean, base_std = _endpoint_stats(rows, task, "0.00", key)
             end_mean, end_std = _endpoint_stats(rows, task, "0.08", key)
-            ax.plot([base_mean, end_mean], [i, i], color="#b7b7b7", lw=1.5, zorder=1)
+            ax.plot([base_mean, end_mean], [i, i], color="#b7b7b7", lw=1.35, zorder=1)
             ax.errorbar(
                 base_mean,
                 i,
@@ -54,7 +69,7 @@ def plot(rows: list[dict[str, str]], out_fig: Path) -> None:
                 end_mean,
                 i,
                 xerr=end_std,
-                fmt="o",
+                fmt="s",
                 color=colors["0.08"],
                 ecolor=colors["0.08"],
                 elinewidth=1.0,
@@ -63,19 +78,25 @@ def plot(rows: list[dict[str, str]], out_fig: Path) -> None:
                 zorder=3,
                 label=labels["0.08"] if i == 0 else None,
             )
-        ax.set_xlabel(f"{xlabel} ({subtitle})")
-        ax.grid(True, axis="x", alpha=0.25)
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel(direction_text)
+        ax.grid(True, axis="x", alpha=0.24)
+        _direction_arrow(ax, direction, direction_text)
         if scale == "log":
             ax.set_xscale("log")
             ax.set_xlim(0.05, 5.0)
+            ax.set_xticks([0.05, 0.1, 0.3, 1.0, 3.0])
+            ax.set_xticklabels(["0.05", "0.1", "0.3", "1", "3"])
         else:
             ax.set_xlim(-0.03, 1.04)
 
     axes[0].set_yticks(y)
     axes[0].set_yticklabels(TASKS)
     axes[0].invert_yaxis()
-    axes[0].legend(loc="lower right", fontsize=8, frameon=True)
-    fig.tight_layout()
+    axes[1].tick_params(axis="y", labelleft=False)
+    handles, legend_labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, legend_labels, loc="upper center", ncol=2, fontsize=8, frameon=False, bbox_to_anchor=(0.5, 1.015))
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
     fig.savefig(out_fig, dpi=240)
     plt.close(fig)
 

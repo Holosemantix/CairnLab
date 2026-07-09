@@ -26,7 +26,7 @@
       0.02
     ]
   },
-  "generated_at": "2026-07-09T14:24:27.890808+00:00",
+  "generated_at": "2026-07-09T15:50:30.042909+00:00",
   "generated_outputs": [
     "paper1/results/full_sweep_diagnostics.csv",
     "paper1/results/full_sweep_diagnostics_summary.csv",
@@ -37,6 +37,7 @@
     "paper1/results/threshold_quantile_sensitivity.csv",
     "assets/paper1_figs/fig_full_sweep_diagnostics.png",
     "assets/paper1_figs/fig_full_sweep_diagnostic_region.png",
+    "assets/paper1_figs/fig_full_sweep_planner_guard.png",
     "assets/paper1_figs/fig_endpoint_atr_smpr.png",
     "assets/paper1_figs/fig_heldout_diagnostic_validation.png",
     "assets/paper1_figs/fig_fixed_pool_tail_audit.png",
@@ -64,7 +65,8 @@
     "paper1/results/jvp_hutchinson_sensitivity_audit.json",
     "paper1/results/jvp_hutchinson_sensitivity_summary.csv",
     "paper1/tables/table_jvp_hutchinson_sensitivity_audit.tex",
-    "assets/paper1_figs/fig_gaussian_sensitivity_mechanism.png",
+    "assets/paper1_figs/fig_gaussian_sensitivity_main.png",
+    "assets/paper1_figs/fig_jvp_trace_decomposition_heatmap.png",
     "paper1/tables/table_endpoint_atr_smpr.tex",
     "paper1/tables/table_theory_evidence_map.tex",
     "paper1/results/joint_guard_side_validation.csv",

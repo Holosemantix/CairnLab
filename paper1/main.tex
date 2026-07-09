@@ -469,25 +469,18 @@ Recovered checkpoints move in both parts of the selective ACPC diagnostic: the s
 \label{fig:endpoint-atr-smpr}
 \end{figure}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=\linewidth]{fig_acpc_basin_tsne.png}
-\caption{Qualitative PushT ACPC neighborhood t-SNE visualization for the Origin LeWM versus \stdmax{} $=0.08$ noise-trained contrast. The four panels show encoder features and 8-step rollout predicted features for repeated same-state perturbation views; colored clusters mark fixed random anchors. The t-SNE projection is qualitative. ATR and SMPR are the quantitative diagnostics and are computed in the original projected-rollout diagnostic space.}
-\label{fig:acpc-basin-tsne}
-\end{figure}
-
-The two diagnostics move in the intended selective direction on all four tasks: recovered endpoints have much smaller same-state predictive tails and much higher task-grounded margin pass rates. \Cref{fig:acpc-basin-tsne} provides qualitative visual intuition on PushT: repeated noisy views of the same state become tighter after noise training in both encoder features and 8-step rollout predicted-feature projections. We interpret the post-rollout tightening as the planner-facing consequence of a lower composed encoder--rollout response to actual noise-induced perturbations, not as evidence that the rollout-side Jacobian uniformly contracts. The quantitative claim remains on ATR, SMPR, and closed-loop behavior rather than distances in the t-SNE plane. Cube remains the useful boundary case: ATR and SMPR improve strongly, but the closed-loop Gaussian recovery in \Cref{fig:sweep} is weaker than PushT or Reacher, so closed-loop evaluation remains the behavioral authority.
+The two diagnostics move in the intended selective direction on all four tasks: recovered endpoints have much smaller same-state predictive tails and much higher task-grounded margin pass rates. A qualitative PushT neighborhood view is provided in Appendix~\ref{sec:appendix-qualitative-neighborhood} as intuition: repeated noisy views of the same state become tighter after noise training in both encoder features and 8-step rollout predicted-feature projections. We interpret the post-rollout tightening as the planner-facing consequence of a lower composed encoder--rollout response to actual noise-induced perturbations, not as evidence that the rollout-side Jacobian uniformly contracts. The quantitative claim remains on ATR, SMPR, and closed-loop behavior rather than distances in the t-SNE plane. Cube remains the useful boundary case: ATR and SMPR improve strongly, but the closed-loop Gaussian recovery in \Cref{fig:sweep} is weaker than PushT or Reacher, so closed-loop evaluation remains the behavioral authority.
 
 SMPR uses programmatic task-state proxy labels, not oracle semantic annotations: TwoRoom uses doorway/room-side labels, PushT uses T-block pose cells, Reacher uses target/end-effector relation bins, and Cube uses cube-pose/goal-relation cells. Each anchor selects the closest label-crossing neighbor inside the closest 35\% state-distance neighborhood and passes if that clean different-state rollout distance exceeds the same-state noisy radius. The no-noise baselines are weak under this stricter criterion, while the high-noise endpoint reaches near-one pass rate. The joint fixed-pool top-1 flip guard mitigates this proxy-label limitation by evaluating whether candidate rankings stabilize, but it does not replace stronger oracle-level contact, topology, action-value, or cost-to-go semantics, especially for PushT and Cube.
 
 \subsubsection{Full-sweep and held-out validation}\label{sec:exp-full-sweep-diagnostics}
 
-Endpoint diagnostics are supplemented by a training-free full-sweep analysis over all $4\times3\times9=108$ task--training-seed--checkpoint rows. \Cref{fig:full-sweep-diagnostics} overlays the closed-loop observation-noise score with normalized ATR tail, SMPR failure ($1-\mathrm{SMPR}$), and fixed-pool top-1 disagreement as a guard-side planning-consistency curve. The recovered portions of the Gaussian sweep consistently occupy lower normalized ATR and higher SMPR than fragile rows. This keeps the ACPC evidence focused on recovered-vs-fragile diagnostic separation; the fixed-pool candidate event rates are separated in \Cref{sec:exp-radius-margin}, where they test the planner-side radius--margin link.
+Endpoint diagnostics are supplemented by a training-free full-sweep analysis over all $4\times3\times9=108$ task--training-seed--checkpoint rows. \Cref{fig:full-sweep-diagnostics} overlays the closed-loop observation-noise score with normalized ATR tail and SMPR failure ($1-\mathrm{SMPR}$). The recovered portions of the Gaussian sweep consistently occupy lower normalized ATR and lower SMPR failure than fragile rows. This keeps the ACPC evidence focused on recovered-vs-fragile radius/guard separation; fixed-pool top-1 disagreement and proxy-gap traces are kept in Appendix~\ref{sec:appendix-fixed-pool-details}, where they support the planner-side radius--margin audit.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_full_sweep_diagnostics.png}
-\caption{Full-sweep diagnostic separation across the Gaussian training grid. Each task panel averages training seeds 3072/3073/3074 at the same \stdmax{} value. Green bands mark behavioral recovery-band points; blue bands mark positive summary-level fixed-pool proxy gaps. The right-axis curves show normalized ATR tail and SMPR failure ($1-\mathrm{SMPR}$), plus fixed-pool top-1 disagreement; lower is better for all three diagnostic-failure curves.}
+\caption{Recovered rows align with lower radius and guard failures across the Gaussian training grid. Each task panel averages training seeds 3072/3073/3074 at the same \stdmax{} value. Green bands mark behavioral recovery-band points; the black curve is the observation-noise score, and the right-axis curves are normalized ATR tail and SMPR failure ($1-\mathrm{SMPR}$), both lower-is-better diagnostics. Planner-side top-1 disagreement is separated into Appendix~\ref{sec:appendix-fixed-pool-details}.}
 \label{fig:full-sweep-diagnostics}
 \end{figure}
 
@@ -499,19 +492,19 @@ Threshold sensitivity is reported in Appendix~\ref{sec:appendix-supplementary-di
 
 \subsection{Planner-side radius--margin audit}\label{sec:exp-radius-margin}
 
-The radius--margin theory predicts that a checkpoint should remain diagnostically stable under the matched stressor when the high-tail same-state predictive radius is contained within the relevant planner or task-discriminability margin. We therefore add a training-free full-sweep validation using existing three-training-seed evaluation and diagnostic summaries. The behavioral recovery band is defined only from closed-loop observation-noise scores: a checkpoint is marked as inside the recovery band if its observation-only $\sigma=0.08$ success is at least 80\% of the way from the no-noise baseline to the maximum grid value for that task, while clean success stays within 5 points of the no-noise clean score. The diagnostic proxy is computed independently from fixed-pool diagnostic summaries as
+The radius--margin theory predicts that a checkpoint should remain diagnostically stable under the matched stressor when the high-tail same-state predictive radius is contained within the relevant planner or task-discriminability margin. We therefore add a training-free full-sweep validation using existing three-training-seed evaluation and diagnostic summaries. The behavioral recovery band is defined only from closed-loop observation-noise scores: a checkpoint is marked as inside the recovery band if its observation-only $\sigma=0.08$ success is at least 80\% of the way from the no-noise baseline to the maximum grid value for that task, while clean success stays within 5 points of the no-noise clean score. Planner-side top-1 flip and proxy-gap traces are shown in Appendix~\ref{sec:appendix-fixed-pool-details}; the main figure in this subsection reports the sample-level event rates. The diagnostic proxy is computed independently from fixed-pool diagnostic summaries as
 \[
 \widehat\Gamma_{\rho,0.08}
 =\widehat Q_{0.50}(\Delta_{\mathcal A})
 -2\widehat Q_{0.90}(|C_h-C_{\tilde h}|).
 \]
-A positive proxy gap is the available summary-level counterpart of the fixed-pool margin condition. The summary-level overlay is kept as a mechanism proxy, not a calibrated planner-margin bound: it uses median clean candidate margin and q90 paired cost drift. The separate sample-level recomputation evaluates the sufficient event directly over the fixed 65-candidate pool for all 108 rows and also reports strict q10/q95 gaps. Those q10/q95 gaps remain negative even on recovered rows, indicating that q10/q95 is too conservative for the current fixed-pool cost scale and should not be used as the paper's claimed threshold. The reported fixed-pool evidence is event-rate based: across all tasks, median cert-pass rises from $0.06$ on fragile rows to $0.61$ on recovered rows, median top-1 flip falls from $0.54$ to $0.04$, and \Cref{fig:fixed-pool-event-rates} reports Wilson intervals for $\hat p_{\mathrm{cert}}$, $\hat p_{\mathrm{flip}}$, and $\hat p_{\mathrm{flip}\mid\mathrm{cert}}$. In the sampled anchors, observed top-1 flips conditioned on cert-pass are zero in both fragile and recovered splits, so the sufficient event is empirically conservative rather than overfit. Thus this analysis instantiates the radius--margin mechanism as a finite-sample empirical fixed-pool risk audit, not as a calibrated probability bound or checkpoint-ranking rule. Because the Gaussian sweep uses equal $\stdmax{}$ increments while the tasks have unequal visual and dynamical sensitivity, aggregate grid-point F1 or interval IoU is not used as the primary validation criterion. Appendix~\ref{sec:appendix-radius-margin-params} reports boundary-aware recovery/proxy alignment, and Appendix~\ref{sec:appendix-fixed-pool-risk-calibration} reports the finite-sample risk-audit details.
+A positive proxy gap is the available summary-level counterpart of the fixed-pool margin condition. The summary-level overlay is kept as a mechanism proxy, not a calibrated planner-margin bound: it uses median clean candidate margin and q90 paired cost drift. The separate sample-level recomputation evaluates the sufficient event directly over the fixed 65-candidate pool for all 108 rows and also reports strict q10/q95 gaps. Those q10/q95 gaps remain negative even on recovered rows, indicating that q10/q95 is too conservative for the current fixed-pool cost scale and should not be used as the paper's claimed threshold. The reported fixed-pool evidence is event-rate based: across all tasks, median cert-pass rises from $0.06$ on fragile rows to $0.61$ on recovered rows, median top-1 flip falls from $0.54$ to $0.04$, and \Cref{fig:fixed-pool-event-rates} reports Wilson intervals for $\hat p_{\mathrm{cert}}$ and $\hat p_{\mathrm{flip}}$; Appendix~\ref{sec:appendix-fixed-pool-risk-calibration} reports $\hat p_{\mathrm{flip}\mid\mathrm{cert}}$. In the sampled anchors, observed top-1 flips conditioned on cert-pass are zero in both fragile and recovered splits, so the sufficient event is empirically conservative rather than overfit. Thus this analysis instantiates the radius--margin mechanism as a finite-sample empirical fixed-pool risk audit, not as a calibrated probability bound or checkpoint-ranking rule. Because the Gaussian sweep uses equal $\stdmax{}$ increments while the tasks have unequal visual and dynamical sensitivity, aggregate grid-point F1 or interval IoU is not used as the primary validation criterion. Appendix~\ref{sec:appendix-radius-margin-params} reports boundary-aware recovery/proxy alignment, and Appendix~\ref{sec:appendix-fixed-pool-risk-calibration} reports the finite-sample risk-audit details.
 
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_fixed_pool_event_rates.png}
-\caption{Fixed-pool radius--margin event-rate audit. Cert-pass denotes sampled histories where the maximum paired cost drift over the shared 65-candidate pool is below one half of the clean top-1/top-2 margin. Top-1 flip is the observed clean/noisy fixed-pool top-candidate disagreement. Intervals are Wilson 95\% intervals over sampled anchors and quantify event-rate uncertainty, not calibrated theorem probabilities. Exact rates are in Appendix~\ref{sec:appendix-fixed-pool-risk-calibration}.}
+\caption{Recovered rows certify more fixed-pool histories and flip fewer top candidates. Cert-pass denotes sampled histories where the maximum paired cost drift over the shared 65-candidate pool is below one half of the clean top-1/top-2 margin; top-1 flip is the observed clean/noisy fixed-pool top-candidate disagreement. Intervals are Wilson 95\% intervals over sampled anchors and quantify event-rate uncertainty, not calibrated theorem probabilities. Exact rates, including conditional flip given cert-pass, are in Appendix~\ref{sec:appendix-fixed-pool-risk-calibration}.}
 \label{fig:fixed-pool-event-rates}
 \end{figure}
 
@@ -525,12 +518,12 @@ The ATR contraction is accompanied by a large drop in local composed encoder--ro
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth]{fig_gaussian_sensitivity_mechanism.png}
-\caption{Local Gaussian sensitivity mechanism. Finite-difference slopes estimate small-noise rollout-radius response along sampled Gaussian perturbations; exact-autograd JVP/Hutchinson traces estimate local Frobenius averages of the composed encoder--rollout map. Values are endpoint/base ratios within each task. Ratios below one support reduced local composed sensitivity at the noise-trained endpoint. The decomposition panel reports encoder, rollout, composed, and alignment ratios; these are local mechanism diagnostics rather than global robustness guarantees.}
+\includegraphics[width=0.96\linewidth]{fig_gaussian_sensitivity_main.png}
+\caption{Both local sensitivity estimators drop below their no-noise baselines at the noise-trained endpoint. Finite-difference slopes estimate small-noise rollout-radius response along sampled Gaussian perturbations; exact-autograd JVP/Hutchinson traces estimate local Frobenius averages of the composed encoder--rollout map. Values are endpoint/base ratios within each task; ratios below one support reduced local composed sensitivity, not a global robustness guarantee.}
 \label{fig:gaussian-sensitivity-mechanism}
 \end{figure}
 
-\Cref{fig:gaussian-sensitivity-mechanism} shows an endpoint/base reduction in this local slope: finite-difference endpoint/base ratios fall to $0.002$--$0.008$, and exact-JVP/Hutchinson composed-trace ratios fall to $0.003$, $0.010$, $0.006$, and $0.026$ for TwoRoom, PushT, Reacher, and Cube. The two estimators are not expected to match numerically: finite differences measure responses along sampled Gaussian perturbations, whereas JVP/Hutchinson estimates a local Frobenius-trace average over random input directions. We therefore use them as complementary same-direction evidence that the noise-trained endpoint reduces each task's composed encoder--rollout sensitivity relative to its own no-noise baseline, not as a cross-task scale or a shared threshold. In this sweep, the decomposition attributes the composed-trace reduction mainly to encoder-side sensitivity reduction; the rollout-side trace is task-dependent rather than uniformly smaller, so we do not claim a standalone predictor-Jacobian repair. This distinction also clarifies the qualitative ACPC-basin plot: tighter post-rollout feature clouds measure the composed response to the actual perturbation directions, not $J_G$ alone. Exact numeric tables are in Appendix~\ref{sec:appendix-local-sensitivity}.
+\Cref{fig:gaussian-sensitivity-mechanism} shows an endpoint/base reduction in this local slope: finite-difference endpoint/base ratios fall to $0.002$--$0.008$, and exact-JVP/Hutchinson composed-trace ratios fall to $0.003$, $0.010$, $0.006$, and $0.026$ for TwoRoom, PushT, Reacher, and Cube. The two estimators are not expected to match numerically: finite differences measure responses along sampled Gaussian perturbations, whereas JVP/Hutchinson estimates a local Frobenius-trace average over random input directions. We therefore use them as complementary same-direction evidence that the noise-trained endpoint reduces each task's composed encoder--rollout sensitivity relative to its own no-noise baseline, not as a cross-task scale or a shared threshold. In this sweep, the decomposition attributes the composed-trace reduction mainly to encoder-side sensitivity reduction; the rollout-side trace is task-dependent rather than uniformly smaller, so we do not claim a standalone predictor-Jacobian repair. Appendix~\ref{sec:appendix-local-sensitivity} shows the JVP/Hutchinson decomposition heatmap. This distinction also clarifies the qualitative ACPC-basin plot: tighter post-rollout feature clouds measure the composed response to the actual perturbation directions, not $J_G$ alone. Exact numeric tables are in Appendix~\ref{sec:appendix-local-sensitivity}.
 
 \subsection{Boundary check outside the matched Gaussian stressor}\label{sec:exp-unseen-scope}
 
@@ -726,6 +719,15 @@ These details support the selective-ACPC diagnostic interpretation used in the m
 
 \input{tables/table_threshold_quantile_sensitivity}
 
+\subsection{Qualitative ACPC neighborhood view}\label{sec:appendix-qualitative-neighborhood}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_acpc_basin_tsne.png}
+\caption{Qualitative PushT ACPC neighborhood t-SNE visualization for the Origin LeWM versus \stdmax{} $=0.08$ noise-trained contrast. The four panels show encoder features and 8-step rollout predicted features for repeated same-state perturbation views; colored clusters mark fixed random anchors. The t-SNE projection is qualitative and is not used for quantitative claims; ATR and SMPR are computed in the original projected-rollout diagnostic space.}
+\label{fig:acpc-basin-tsne}
+\end{figure}
+
 \section{Fixed-pool Planner Audit Details}\label{sec:appendix-fixed-pool-details}
 
 \subsection{Radius--margin parameter interpretation}\label{sec:appendix-radius-margin-params}
@@ -770,7 +772,14 @@ Cube & $0.03$--$0.08$ & $0.03$--$0.08$ & $0.00$ & yes & proxy and recovery band 
 \end{tabular}
 \end{table}
 
-The measured fixed-pool flip rate is the clean/noisy top-1 disagreement rate under the same candidate set, so one minus this flip rate gives an empirical top-1 agreement analysis that is closer to the theorem's intermediate statement than closed-loop score. It still does not cover adaptive CEM resampling or repeated replanning.
+The measured fixed-pool flip rate is the clean/noisy top-1 disagreement rate under the same candidate set, so one minus this flip rate gives an empirical top-1 agreement analysis that is closer to the theorem's intermediate statement than closed-loop score. It still does not cover adaptive CEM resampling or repeated replanning. \Cref{fig:full-sweep-planner-guard} shows the full-sweep planner-side traces that were intentionally separated from the main full-sweep ACPC figure.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_full_sweep_planner_guard.png}
+\caption{Planner-side fixed-pool traces are reported separately from the main ACPC full-sweep figure. Green bands mark behavioral recovery-band points; top-1 flip is observed clean/noisy fixed-pool top-candidate disagreement, and proxy gap $>0$ marks rows where the retained q50/q90 summary-level radius--margin proxy is positive. These traces support the planner-side mechanism audit but are not a checkpoint-selection rule.}
+\label{fig:full-sweep-planner-guard}
+\end{figure}
 
 \begin{table}[H]
 \centering
@@ -828,7 +837,14 @@ In this interpretation, $\beta_{\mathrm{plan}}$ and $\beta_{\mathrm{disc}}$ name
 
 \section{Local Sensitivity Details}\label{sec:appendix-local-sensitivity}
 
-These tables give the numeric values behind \Cref{fig:gaussian-sensitivity-mechanism}. The finite-difference audit and exact-JVP/Hutchinson audit use different local estimators, so their scales need not match; the paper interprets their within-task endpoint/base directions rather than a shared cross-task threshold.
+These tables give the numeric values behind \Cref{fig:gaussian-sensitivity-mechanism}. The finite-difference audit and exact-JVP/Hutchinson audit use different local estimators, so their scales need not match; the paper interprets their within-task endpoint/base directions rather than a shared cross-task threshold. \Cref{fig:jvp-trace-decomposition-heatmap} separates the JVP/Hutchinson trace ratios from the alignment coefficient so the main-text figure remains focused on composed local sensitivity.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_jvp_trace_decomposition_heatmap.png}
+\caption{JVP/Hutchinson decomposition behind the local sensitivity audit. Trace ratios show encoder, rollout, and composed endpoint/base sensitivity estimates; the alignment coefficient is displayed separately because it is not the same scale as the trace quantities. These local diagnostics explain where composed sensitivity changes, but they do not provide a global or closed-loop guarantee.}
+\label{fig:jvp-trace-decomposition-heatmap}
+\end{figure}
 
 \input{tables/table_gaussian_sensitivity_audit}
 

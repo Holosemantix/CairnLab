@@ -36,6 +36,12 @@ python -m paper1.scripts.joint_guard_side_validation
 python -m paper1.scripts.plot_gaussian_sensitivity_mechanism
 ```
 
+Plot output notes:
+
+- `plot_full_sweep_diagnostics` writes the main behavior+ACPC figure, the diagnostic-region scatter, and the appendix planner-guard figure.
+- `plot_gaussian_sensitivity_mechanism` writes `fig_gaussian_sensitivity_main.png` for the main text and `fig_jvp_trace_decomposition_heatmap.png` for the appendix.
+- `plot_fixed_pool_event_rates` writes the two-panel main event-rate figure; conditional flip-given-cert-pass rates remain in the appendix table.
+
 Important scope constraints:
 
 - Full-sweep diagnostics join existing Gaussian evaluation, ATR, SMPR, and retained fixed-pool summaries.

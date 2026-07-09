@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Wilson confidence intervals for Paper1 sample-level event rates."""
+"""Empirical fixed-pool risk calibration intervals for Paper1."""
 from __future__ import annotations
 
 import argparse
@@ -54,17 +54,24 @@ def build_rows(samples: list[dict[str, str]], full_sweep: list[dict[str, str]]) 
     groups: dict[tuple[str, str, str], list[bool]] = defaultdict(list)
     for row in samples:
         split = "recovered" if recovery.get(_key(row), False) else "fragile"
+        cert_pass = _bool(row.get("cert_pass"))
+        top1_flip = _bool(row.get("top1_flip"))
         for task in (row["task"], "ALL"):
-            groups[(task, split, "cert-pass")].append(_bool(row.get("cert_pass")))
-            groups[(task, split, "top-1 flip")].append(_bool(row.get("top1_flip")))
+            groups[(task, split, "cert-pass")].append(cert_pass)
+            groups[(task, split, "top-1 flip")].append(top1_flip)
+            if cert_pass:
+                groups[(task, split, "top-1 flip | cert-pass")].append(top1_flip)
     out = []
     for task in [*TASKS, "ALL"]:
         for split in ("fragile", "recovered"):
-            for metric in ("cert-pass", "top-1 flip"):
+            for metric in ("cert-pass", "top-1 flip", "top-1 flip | cert-pass"):
                 vals = groups[(task, split, metric)]
                 successes = sum(1 for v in vals if v)
                 n = len(vals)
                 rate, low, high = _wilson(successes, n)
+                note = "Wilson interval over sampled fixed-pool anchors; not a calibrated theorem probability bound"
+                if metric == "top-1 flip | cert-pass":
+                    note = "Wilson interval over cert-pass anchors only; empirical conditional flip risk, not a theorem probability bound"
                 out.append({
                     "task": task,
                     "split": split,
@@ -75,10 +82,9 @@ def build_rows(samples: list[dict[str, str]], full_sweep: list[dict[str, str]]) 
                     "wilson_low": low,
                     "wilson_high": high,
                     "confidence_level": 0.95,
-                    "notes": "Wilson interval over sampled fixed-pool audit anchors; not a calibrated theorem probability bound",
+                    "notes": note,
                 })
     return out
-
 
 def _fmt_interval(row: dict[str, Any]) -> str:
     rate = fnum(row.get("rate"))
@@ -94,13 +100,13 @@ def write_table(path: Path, rows: list[dict[str, Any]]) -> None:
     lines = [
         r"\begin{table}[H]",
         r"\centering",
-        r"\caption{Wilson intervals for full-sweep sample-level fixed-pool event rates. Each cell reports rate [95\% Wilson interval] over sampled audit anchors after splitting checkpoints by the closed-loop recovery-band label. These intervals quantify event-rate estimation uncertainty and are not calibrated theorem probability bounds.}",
+        r"\caption{Empirical fixed-pool risk calibration. Each cell reports fragile $\to$ recovered rate [95\% Wilson interval] over sampled fixed-pool anchors. The conditional column restricts the denominator to cert-pass anchors, directly evaluating whether the sufficient event is associated with low fixed-pool candidate-flip risk. These intervals quantify event-rate estimation uncertainty and are not calibrated theorem probability bounds.}",
         r"\label{tab:sample-level-event-rate-ci}",
         r"\footnotesize",
-        r"\setlength{\tabcolsep}{3.5pt}",
-        r"\begin{tabular}{lcc}",
+        r"\setlength{\tabcolsep}{2.5pt}",
+        r"\begin{tabular}{lccc}",
         r"\toprule",
-        r"Task & cert-pass fragile $\to$ recovered & top-1 flip fragile $\to$ recovered \\",
+        r"Task & cert-pass & top-1 flip & flip $\mid$ cert-pass \\",
         r"\midrule",
     ]
     for task in [*TASKS, "ALL"]:
@@ -108,14 +114,16 @@ def write_table(path: Path, rows: list[dict[str, Any]]) -> None:
         cert_r = idx.get((task, "recovered", "cert-pass"), {})
         flip_f = idx.get((task, "fragile", "top-1 flip"), {})
         flip_r = idx.get((task, "recovered", "top-1 flip"), {})
+        cond_f = idx.get((task, "fragile", "top-1 flip | cert-pass"), {})
+        cond_r = idx.get((task, "recovered", "top-1 flip | cert-pass"), {})
         lines.append(
             f"{task} & {_fmt_interval(cert_f)} $\\to$ {_fmt_interval(cert_r)} & "
-            f"{_fmt_interval(flip_f)} $\\to$ {_fmt_interval(flip_r)} \\\\"
+            f"{_fmt_interval(flip_f)} $\\to$ {_fmt_interval(flip_r)} & "
+            f"{_fmt_interval(cond_f)} $\\to$ {_fmt_interval(cond_r)} \\\\"
         )
     lines.extend([r"\bottomrule", r"\end{tabular}", r"\end{table}", ""])
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines), encoding="utf-8")
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)

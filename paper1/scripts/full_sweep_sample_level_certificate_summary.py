@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize full-sweep sample-level fixed-pool certificate audits."""
+"""Summarize full-sweep sample-level fixed-pool certificate calibration."""
 from __future__ import annotations
 
 import argparse
@@ -181,7 +181,7 @@ def write_table(path: Path, alignment_rows: list[dict[str, Any]]) -> None:
     lines = [
         r"\begin{table}[H]",
         r"\centering",
-        r"\caption{Full-sweep sample-level fixed-pool event-rate audit. Rows split all task--seed--\stdmax{} checkpoints by the closed-loop recovery-band label. Cert-pass is the fraction of sampled states satisfying the fixed-pool sufficient event; top-1 flip is the observed clean/noisy fixed-pool best-candidate disagreement. These event rates strengthen the mechanism audit but are not calibrated probability bounds.}",
+        r"\caption{Full-sweep sample-level fixed-pool event-rate calibration. Rows split all task--seed--\stdmax{} checkpoints by the closed-loop recovery-band label. Cert-pass is the fraction of sampled states satisfying the fixed-pool sufficient event; top-1 flip is the observed clean/noisy fixed-pool best-candidate disagreement. These event rates strengthen the mechanism analysis but are not calibrated probability bounds.}",
         r"\label{tab:sample-level-certificate-full-sweep}",
         r"\small",
         r"\setlength{\tabcolsep}{4pt}",

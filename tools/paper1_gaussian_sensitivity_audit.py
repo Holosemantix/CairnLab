@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Finite-difference Gaussian sensitivity audit for Paper 1.
+"""Finite-difference Gaussian sensitivity analysis for Paper 1.
 
 The audit supports the local sensitivity interpretation only. It estimates
 E[R_sigma^2] / sigma^2 for small image-noise sigma values on fixed checkpoints
@@ -326,7 +326,7 @@ def write_table(path: Path, summary: list[dict[str, Any]]) -> None:
     lines = [
         r"\begin{table}[H]",
         r"\centering",
-        r"\caption{Finite-difference Gaussian sensitivity audit. The slope is the mean small-noise rollout radius squared divided by $\sigma^2$, summarized over the reported small-noise probes and training seeds. Lower endpoint/base ratios indicate reduced local composed encoder--predictor sensitivity. This is a local finite-difference proxy, not a global robustness guarantee.}",
+        r"\caption{Finite-difference Gaussian sensitivity analysis. The slope is the mean small-noise rollout radius squared divided by $\sigma^2$, summarized over the reported small-noise probes and training seeds. Lower endpoint/base ratios indicate reduced local composed encoder--predictor sensitivity. This is a local finite-difference proxy, not a global robustness guarantee.}",
         r"\label{tab:gaussian-sensitivity-audit}",
         r"\small",
         r"\setlength{\tabcolsep}{4pt}",

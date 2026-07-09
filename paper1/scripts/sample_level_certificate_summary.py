@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize the Paper1 sample-level fixed-pool certificate audit."""
+"""Summarize the Paper1 sample-level fixed-pool certificate calibration."""
 from __future__ import annotations
 
 import argparse
@@ -106,7 +106,7 @@ def write_table(path: Path, rows: list[dict[str, object]]) -> None:
     lines = [
         r'\begin{table}[H]',
         r'\centering',
-        r'\caption{Sample-level fixed-pool endpoint audit. Cert-pass is the fraction of sampled states where the maximum paired candidate-cost drift over the fixed 65-candidate pool is below half the clean top-1/top-2 margin. Values are mean $\pm$ population std across training seeds 3072/3073/3074 with 100 sampled states per seed. Strict q10/q95 gaps remain negative, so these rows support a fixed-pool mechanism audit rather than a calibrated probability certificate.}',
+        r'\caption{Sample-level fixed-pool endpoint calibration. Cert-pass is the fraction of sampled states where the maximum paired candidate-cost drift over the fixed 65-candidate pool is below half the clean top-1/top-2 margin. Values are mean $\pm$ population std across training seeds 3072/3073/3074 with 100 sampled states per seed. Strict q10/q95 gaps remain negative, so these rows support a fixed-pool mechanism analysis rather than a calibrated probability certificate.}',
         r'\label{tab:sample-level-certificate-endpoint}',
         r'\small',
         r'\setlength{\tabcolsep}{3.5pt}',

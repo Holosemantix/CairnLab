@@ -182,8 +182,8 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "The same guard can be posed over state--action pairs",
     "Encoder geometry remains an indispensable first-stage risk signal",
     "raw encoder distance alone is not a complete robustness criterion",
-    "Noise training can improve robustness through both factors",
-    "encoder basin repair plus further predictive contraction",
+    "It need not reduce the rollout-side Jacobian uniformly",
+    "lower composed encoder--rollout response to actual noise-induced perturbations",
     "Low ATR without high SMPR is not interpreted as robustness",
     "Three-training-seed LeWM Gaussian sweep",
     "Because \Cref{fig:sweep} already aggregates the full sweep across three training seeds",
@@ -196,8 +196,10 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "We treat this as bounded behavior outside the matched Gaussian setting",
     "These rows therefore support only a bounded severe-stressor association rather than a general perturbation-transfer claim",
     "programmatic task-state proxy labels",
+    "The joint fixed-pool top-1 flip guard mitigates this proxy-label limitation",
+    "does not replace stronger oracle-level contact, topology, action-value, or cost-to-go semantics",
     "closest 35\% state-distance neighborhood",
-    "hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation",
+    "Hand-labeled or simulator-derived contact, topology, action-value, or cost-to-go labels remain future validation",
     "These proofs support the diagnostic use of ATR and SMPR",
     "Additional Gaussian Evaluation Tables",
     "These tables report the full observation-only Gaussian evaluation columns available",
@@ -208,38 +210,42 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Matched-perturbation diagnostic region",
     "Local Gaussian ACPC radius quantile",
     "encoder-side repair, rollout-side contraction, or alignment repair",
-    "Diagnostic validation of the radius--margin certificate",
+    "Fixed-pool radius--margin calibration",
     "mechanism proxy, not a planner-margin certificate",
-    "theorem only at the proxy level supported by the recorded summaries",
+    "empirical fixed-pool risk calibration",
     "normalized ATR tail and SMPR failure",
-    "single-candidate tail and failure probabilities are not calibrated",
+    "q10/q95 as a conservative negative calibration result",
     "aggregate grid-point F1 or interval IoU is not used as the primary validation criterion",
-    "Full-sweep diagnostic dynamics and held-out validation",
-    "full-sweep audit over all $4\\times3\\times9=108$",
+    "Full-sweep diagnostic separation and held-out validation",
+    "full-sweep analysis over all $4\\times3\\times9=108$",
     "mean absolute recovery-onset error $0.007$",
     "leave-one-task-out validation",
     "Threshold sensitivity is reported",
     "not as universal checkpoint rankers",
     "Boundary-aware interpretation of the fixed-pool radius--margin proxy",
-    "Fixed-pool top-1 agreement audit derived from the recorded fixed-pool flip rate",
-    "Remediation audit tables",
+    "Fixed-pool top-1 agreement analysis derived from the measured fixed-pool flip rate",
+    "Supplementary diagnostic analyses",
     "recompute the fixed 65-candidate pool from checkpoints for all 108 rows",
     "strict q10/q95 gaps remain negative",
     "median cert-pass rises from $0.06$",
-    "Gaussian sensitivity audits",
+    "Local Gaussian sensitivity analysis",
     "endpoint/base reduction in this local slope",
     "exact-autograd JVP/Hutchinson Frobenius traces",
-    "The decomposition attributes this mainly to encoder-side sensitivity reduction",
+    "the decomposition attributes this mainly to encoder-side sensitivity reduction",
+    "rollout-side trace is task-dependent rather than uniformly smaller",
+    "tighter post-rollout feature clouds measure the composed response",
     "not claim a standalone predictor-Jacobian repair",
-    "Wilson intervals for the sample-level event rates",
+    "top-1 flip conditional on cert-pass",
     "not calibrated theorem probabilities",
-    "SMPR and fixed-pool top-1 flip are guard-side checks and are not standalone robustness metrics",
-    "unavailable ATR/SMPR tail variants are recorded in the audit outputs rather than inferred",
-    "do not manufacture certificate-strength tail claims from the recomputation",
+    "SMPR and fixed-pool top-1 flip are guard-side criteria and are not standalone robustness metrics",
+    "unavailable ATR/SMPR tail variants are reported as unavailable rather than inferred",
+    "q10/q95 rule is too conservative for the current fixed-pool cost scale",
     "$\\beta_{\\mathrm{plan}}$ and $\\beta_{\\mathrm{disc}}$ name empirical failure components rather than calibrated probabilities",
     "The radius--margin certificate is fixed-pool and matched-perturbation only",
     "adaptive CEM resampling, repeated replanning, or environment-feedback trajectory guarantees",
-    "The Gaussian sensitivity audits are local: finite-difference slopes and exact-JVP/Hutchinson trace estimates do not provide a global robustness or closed-loop guarantee",
+    "The Gaussian sensitivity analyses are local: finite-difference slopes and exact-JVP/Hutchinson trace estimates do not provide a global robustness or closed-loop guarantee",
+    "SMPR is only a guard-side component of the joint diagnostic and uses programmatic proxy labels",
+    "fixed-pool top-1 flip guard evaluates planning consistency but does not replace stronger semantic labels",
     "radius--margin diagnostic theory for fixed-checkpoint Gaussian robustness",
     "Radius--margin parameter interpretation",
     "candidate count is $K=65$",
@@ -247,6 +253,14 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "not as a calibrated probability guarantee",
     "65\\times0.1=6.5",
     "tab:appendix-radius-margin-params",
+    "Across the full Gaussian training sweep, recovered rows occupy low-ATR/high-SMPR regions",
+    "full-sweep fixed-pool event-rate recomputation links the radius--margin mechanism to candidate stability",
+    "The separate sample-level recomputation in \Cref{tab:sample-level-certificate-full-sweep} provides q10/q95 gaps and event rates",
+    "q10/q95 gaps remain negative, so the analysis supports the mechanism rather than a calibrated planner-margin certificate",
+    "observed top-1 flips conditioned on cert-pass are zero",
+    "paired event-rate calibration",
+    "\\hat p_{\\mathrm{flip}\\mid\\mathrm{cert}}",
+    "Empirical fixed-pool risk calibration",
 ]
 
 
@@ -401,6 +415,34 @@ def check_forbidden_text() -> None:
             if snippet in text:
                 hits.append(f"{path.relative_to(ROOT)} contains forbidden snippet: {snippet!r}")
     main_tex = (ROOT / "paper1" / "main.tex").read_text(encoding="utf-8")
+    paper_facing_files = [ROOT / "paper1" / "main.tex"] + sorted((ROOT / "paper1" / "tables").glob("table_*.tex"))
+    top_conference_forbidden = [
+        "Remediation audit tables",
+        "Bounded unseen-stressor check",
+        "Bounded unseen-stressor score check",
+        "Gaussian sensitivity audits",
+        "Finite-difference Gaussian sensitivity audit",
+        "Fixed-pool top-1 agreement audit",
+        "Retained-summary fixed-pool top-1 audit",
+        "Full-sweep sample-level fixed-pool event-rate audit",
+        "The audit uses exact autograd JVPs",
+        "held-out seed/task audits",
+        "joint ATR-plus-guard audits",
+        "unseen-stressor score checks",
+        "training-free full-sweep audit",
+        "retained full-sweep ATR/SMPR artifact",
+        "retained-summary overlay",
+        "recorded fixed-pool summaries",
+        "recorded fixed-pool flip rate",
+        "sampled fixed-pool audit anchors",
+    ]
+    for path in paper_facing_files:
+        if not path.exists():
+            continue
+        paper_text = path.read_text(encoding="utf-8")
+        for snippet in top_conference_forbidden:
+            if snippet in paper_text:
+                hits.append(f"{path.relative_to(ROOT)} contains paper-facing internal-review wording: {snippet!r}")
     main_forbidden = [
         "residual association with reduced drop",
         "selector-baseline audit",
@@ -2473,16 +2515,20 @@ def check_radius_margin_certificate_outputs() -> None:
         fail(f"full-sweep sample-level alignment changed: got {got_alignment}")
 
     ci_rows = list(csv.DictReader((ROOT / "paper1" / "results" / "sample_level_event_rate_wilson_ci.csv").open(newline="", encoding="utf-8")))
-    if len(ci_rows) != 20:
-        fail(f"sample-level Wilson CI expected 20 rows, got {len(ci_rows)}")
+    if len(ci_rows) != 30:
+        fail(f"sample-level Wilson CI expected 30 rows, got {len(ci_rows)}")
     ci = {(row["task"], row["split"], row["metric"]): row for row in ci_rows}
     got_ci = (
         round(float(ci[("ALL", "fragile", "cert-pass")]["rate"]), 2),
         round(float(ci[("ALL", "recovered", "cert-pass")]["rate"]), 2),
         round(float(ci[("ALL", "fragile", "top-1 flip")]["rate"]), 2),
         round(float(ci[("ALL", "recovered", "top-1 flip")]["rate"]), 2),
+        round(float(ci[("ALL", "fragile", "top-1 flip | cert-pass")]["rate"]), 2),
+        round(float(ci[("ALL", "recovered", "top-1 flip | cert-pass")]["rate"]), 2),
+        int(ci[("ALL", "fragile", "top-1 flip | cert-pass")]["n"]),
+        int(ci[("ALL", "recovered", "top-1 flip | cert-pass")]["n"]),
     )
-    if got_ci != (0.20, 0.61, 0.53, 0.06):
+    if got_ci != (0.20, 0.61, 0.53, 0.06, 0.00, 0.00, 678, 4479):
         fail(f"sample-level Wilson CI rates changed: got {got_ci}")
 
     sensitivity_rows = list(csv.DictReader((ROOT / "paper1" / "results" / "gaussian_sensitivity_summary.csv").open(newline="", encoding="utf-8")))

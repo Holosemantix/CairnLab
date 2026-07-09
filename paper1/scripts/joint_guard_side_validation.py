@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Summarize Paper1 joint ATR plus guard-side validation.
 
-SMPR and fixed-pool action-candidate stability are guard-side checks. They are
+SMPR and fixed-pool action-candidate stability are guard-side criteria. They are
 not interpreted as standalone robustness metrics; this summary keeps them next
 to the ATR radius term.
 """
@@ -103,7 +103,7 @@ def build_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "cert_pass_rate_median": _median([r.get("sample_cert_pass_rate") for r in block]),
                 "cert_pass_rate_mean": _mean([r.get("sample_cert_pass_rate") for r in block]),
                 "obs_sigma_008_score_median": _median([r.get("obs_sigma_008_score") for r in block]),
-                "notes": "SMPR and fixed-pool top1 flip are guard-side checks interpreted only jointly with ATR",
+                "notes": "SMPR and fixed-pool top1 flip are guard-side criteria interpreted only jointly with ATR",
             })
     return out
 
@@ -123,7 +123,7 @@ def write_table(path: Path, rows: list[dict[str, Any]]) -> None:
     lines = [
         r"\begin{table}[H]",
         r"\centering",
-        r"\caption{Joint ATR plus guard-side validation across the Gaussian sweep. Rows are split by the closed-loop recovery-band label. ATR is the radius term; SMPR and fixed-pool top-1 flip are guard-side checks against task or action-candidate collapse and are not interpreted as standalone robustness metrics.}",
+        r"\caption{Joint ATR plus guard-side validation across the Gaussian sweep. Rows are split by the closed-loop recovery-band label. ATR is the radius term; SMPR and fixed-pool top-1 flip are guard-side criteria against task or action-candidate collapse and are not interpreted as standalone robustness metrics.}",
         r"\label{tab:joint-guard-side-validation}",
         r"\small",
         r"\setlength{\tabcolsep}{4pt}",

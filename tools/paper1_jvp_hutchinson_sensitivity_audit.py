@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Exact-JVP/Hutchinson Gaussian sensitivity decomposition for Paper 1.
 
-This audit estimates Frobenius-trace sensitivities with exact autograd JVPs
+This analysis estimates Frobenius-trace sensitivities with exact autograd JVPs
 through the differentiable encoder and predictor maps. Hutchinson directions are
 sampled over the matched history-pixel input and over the encoded history state.
-The output is an audit artifact: it decomposes local map sensitivity, but it does
+The output decomposes local map sensitivity, but it does
 not recover the full Jacobian matrix, an SVD, or a closed-loop guarantee.
 """
 from __future__ import annotations
@@ -380,7 +380,7 @@ def write_table(path: Path, summary_rows: list[dict[str, Any]]) -> None:
     lines = [
         r"\begin{table}[H]",
         r"\centering",
-        r"\caption{Exact-JVP/Hutchinson local sensitivity decomposition. Values are endpoint/base ratios of Hutchinson trace estimates, using 16 sampled sequences and 8 Rademacher probes per checkpoint, then taking medians over training seeds. Columns report encoder trace per history-pixel dimension, rollout trace per latent-history dimension, composed encoder--rollout trace per history-pixel dimension, and the alignment coefficient $\mathrm{tr}(J_E^\top J_G^\top J_G J_E)/(\mathrm{tr}(J_E^\top J_E)\mathrm{tr}(J_G^\top J_G)/d_z)$. The audit uses exact autograd JVPs with math/eager attention; it estimates local Frobenius traces, not a full Jacobian matrix or a closed-loop guarantee.}",
+        r"\caption{Exact-JVP/Hutchinson local sensitivity decomposition. Values are endpoint/base ratios of Hutchinson trace estimates, using 16 sampled sequences and 8 Rademacher probes per checkpoint, then taking medians over training seeds. Columns report encoder trace per history-pixel dimension, rollout trace per latent-history dimension, composed encoder--rollout trace per history-pixel dimension, and the alignment coefficient $\mathrm{tr}(J_E^\top J_G^\top J_G J_E)/(\mathrm{tr}(J_E^\top J_E)\mathrm{tr}(J_G^\top J_G)/d_z)$. The analysis uses exact autograd JVPs with math/eager attention; it estimates local Frobenius traces, not a full Jacobian matrix or a closed-loop guarantee.}",
         r"\label{tab:jvp-hutchinson-sensitivity-audit}",
         r"\small",
         r"\setlength{\tabcolsep}{3.5pt}",
@@ -477,7 +477,7 @@ def main() -> int:
                 "summary": summary,
                 "notes": [
                     "Exact autograd JVPs are used after switching ViT attention to math/eager kernels because efficient SDPA lacks forward-AD support in this PyTorch build.",
-                    "Hutchinson directions estimate local Frobenius traces; the audit does not materialize the full Jacobian matrix.",
+                    "Hutchinson directions estimate local Frobenius traces; the analysis does not materialize the full Jacobian matrix.",
                     "The alignment coefficient is a local trace-ratio diagnostic, not an oracle attribution of semantic repair.",
                 ],
             },

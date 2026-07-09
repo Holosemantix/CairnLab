@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Build retained-summary fixed-pool tail/top-1 audit for Paper1.
+"""Build summary-level fixed-pool tail/top-1 agreement analysis for Paper1.
 
-The retained Paper1 artifact stores q50/q90 margin/drift summaries and the
+The available Paper1 summary stores q50/q90 margin/drift summaries and the
 fixed-pool flip rate, but not sample-level candidate-cost traces. Therefore this
 script reports observed fixed-pool top-1 agreement and proxy gaps over the full
 sweep, while marking pool-level sufficient-event rates as unavailable.
@@ -50,7 +50,7 @@ def build_audit_rows(rows):
             "training_seed": row["training_seed"],
             "rho": row["rho"],
             "anchor_id": "summary_only",
-            "pool_id": "retained_fixed_pool_summary",
+            "pool_id": "summary_level_fixed_pool_summary",
             "K": row["candidate_count"],
             "clean_margin": row["clean_margin_q50"],
             "max_cost_drift": "",
@@ -63,8 +63,8 @@ def build_audit_rows(rows):
             "cost_drift_q95": "",
             "cost_drift_q99": "",
             "proxy_gap_q50q90": row["proxy_gap_q50q90"],
-            "data_level": "aggregate_retained_summary",
-            "notes": "sample-level max-cost-drift traces are not retained; cert_pass_pool unavailable",
+            "data_level": "aggregate_summary_level",
+            "notes": "sample-level max-cost-drift traces are unavailable; cert_pass_pool unavailable",
         })
     return out
 
@@ -92,7 +92,7 @@ def build_summary(rows):
                 "margin_q90": "",
                 "proxy_gap_q50q90_mean": safe_mean(r["proxy_gap_q50q90"] for r in block),
                 "proxy_gap_positive_rate": safe_mean(1.0 if fnum(r["proxy_gap_q50q90"]) > 0 else 0.0 for r in block),
-                "notes": "Top1Agree is observed from retained flip-rate summaries; cert-pass requires raw fixed-pool traces.",
+                "notes": "Top1Agree is observed from measured flip-rate summaries; cert-pass requires sample-level fixed-pool traces.",
             })
     return out
 
@@ -109,7 +109,7 @@ def write_table(summary, out: Path) -> None:
     lines = [
         r"\begin{table}[H]",
         r"\centering",
-        r"\caption{Retained-summary fixed-pool top-1 audit. Top1Agree is derived from the recorded fixed-pool flip rate; cert-pass rates are not reported because sample-level maximum cost-drift traces are not retained.}",
+        r"\caption{Summary-level fixed-pool top-1 agreement analysis. Top1Agree is derived from the measured fixed-pool flip rate; cert-pass rates require sample-level maximum cost-drift traces.}",
         r"\label{tab:fixed-pool-tail-audit}",
         r"\small",
         r"\setlength{\tabcolsep}{4pt}",
@@ -172,9 +172,9 @@ def plot(summary, out_fig: Path, top1_fig: Path) -> None:
 def write_missing(path: Path) -> None:
     path.write_text(
         "# Missing raw fixed-pool tail data\n\n"
-        "The retained Paper1 artifacts contain aggregate q50/q90 candidate-margin and paired-drift summaries plus fixed-pool flip rates. "
+        "The available Paper1 summaries contain aggregate q50/q90 candidate-margin and paired-drift summaries plus fixed-pool flip rates. "
         "They do not contain sample-level candidate-cost traces, per-anchor maximum cost drift, q10 clean-margin tails, q95/q99 max-drift tails, or pool-level sufficient-event pass flags. "
-        "Accordingly, the fixed-pool audit reports observed Top1Agree and q50/q90 proxy gaps, and leaves cert_pass_pool/cert_pass_rate fields empty rather than inferring them from summaries.\n"
+        "Accordingly, the fixed-pool analysis reports observed Top1Agree and q50/q90 proxy gaps, and leaves cert_pass_pool/cert_pass_rate fields empty rather than inferring them from summaries.\n"
     )
 
 

@@ -5,6 +5,7 @@ set -euo pipefail
 python -m paper1.scripts.build_diagnostic_manifest
 python -m paper1.scripts.build_full_sweep_diagnostics
 python -m paper1.scripts.plot_full_sweep_diagnostics
+python -m paper1.scripts.plot_endpoint_atr_smpr
 python -m paper1.scripts.fixed_pool_tail_audit
 python -m paper1.scripts.heldout_diagnostic_validation
 python -m paper1.scripts.threshold_quantile_sensitivity
@@ -34,3 +35,6 @@ if [[ "${RUN_CHECKPOINT_AUDITS:-0}" == "1" ]]; then
     --hutchinson-probes 8
   python -m paper1.scripts.joint_guard_side_validation
 fi
+
+python -m paper1.scripts.plot_fixed_pool_event_rates
+python -m paper1.scripts.plot_gaussian_sensitivity_mechanism

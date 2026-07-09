@@ -15,8 +15,8 @@ from matplotlib.patches import Patch
 from .utils_paper1_io import ROOT, TASKS, fnum, read_csv, safe_mean
 
 DEFAULT_DIAGNOSTICS = ROOT / "paper1" / "results" / "full_sweep_diagnostics.csv"
-DEFAULT_FIG = ROOT / "paper1" / "figures" / "fig_full_sweep_diagnostics.png"
-DEFAULT_REGION_FIG = ROOT / "paper1" / "figures" / "fig_full_sweep_diagnostic_region.png"
+DEFAULT_FIG = ROOT / "assets" / "paper1_figs" / "fig_full_sweep_diagnostics.png"
+DEFAULT_REGION_FIG = ROOT / "assets" / "paper1_figs" / "fig_full_sweep_diagnostic_region.png"
 
 
 def _by_task(rows):

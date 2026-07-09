@@ -22,22 +22,25 @@ Individual steps:
 python -m paper1.scripts.build_diagnostic_manifest
 python -m paper1.scripts.build_full_sweep_diagnostics
 python -m paper1.scripts.plot_full_sweep_diagnostics
+python -m paper1.scripts.plot_endpoint_atr_smpr
 python -m paper1.scripts.fixed_pool_tail_audit
 python -m paper1.scripts.heldout_diagnostic_validation
 python -m paper1.scripts.threshold_quantile_sensitivity
 python -m tools.paper1_sample_level_certificate --out-json paper1/results/sample_level_certificate_full_sweep_audit.json --out-csv paper1/results/sample_level_certificate_full_sweep_audit.csv --sample-csv paper1/results/sample_level_certificate_full_sweep_samples.csv
 python -m paper1.scripts.full_sweep_sample_level_certificate_summary
 python -m paper1.scripts.sample_level_event_rate_ci
+python -m paper1.scripts.plot_fixed_pool_event_rates
 python -m tools.paper1_gaussian_sensitivity_audit --num-noise-draws 5
 python -m tools.paper1_jvp_hutchinson_sensitivity_audit --n-sequences 100 --hutchinson-probes 8
 python -m paper1.scripts.joint_guard_side_validation
+python -m paper1.scripts.plot_gaussian_sensitivity_mechanism
 ```
 
 Important scope constraints:
 
 - Full-sweep diagnostics join existing Gaussian evaluation, ATR, SMPR, and retained fixed-pool summaries.
 - Full-sweep sample-level fixed-pool event rates are recomputed from checkpoints; strict q10/q95 gaps remain negative and are not treated as calibrated probability bounds.
-- Wilson intervals quantify sample event-rate estimation uncertainty; they are not calibrated theorem probability bounds.
+- Wilson intervals quantify sample event-rate estimation uncertainty; they are not calibrated theorem probability bounds. The event-rate figure is regenerated from `paper1/results/sample_level_event_rate_wilson_ci.csv`.
 - Held-out validation freezes diagnostic gates on calibration rows before evaluating held-out rows.
 - Gaussian sensitivity is audited with finite differences using 100 sampled sequences and 5 noise draws per small sigma, plus an exact-autograd JVP/Hutchinson trace decomposition using 100 sampled sequences and 8 Rademacher probes per checkpoint; both are local checkpoint audits, not closed-loop guarantees.
 - SMPR and fixed-pool top-1 flip are guard-side checks interpreted only jointly with ATR, not standalone robustness metrics.

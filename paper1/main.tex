@@ -153,6 +153,13 @@ Our use of ACPC is therefore narrower than an identifiability theorem, a learned
 
 This section derives the diagnostic objects used in the experiments. ACPC separates two requirements that encoder invariance alone conflates: same-state visual perturbations should agree after action-conditioned rollout, while task-grounded different-state pairs should remain separable. The section first states the radius--margin objects and fixed-pool planning link, then maps them to ATR and SMPR as operational diagnostics.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\linewidth]{fig1_concept.png}
+\caption{ACPC diagnostic schematic. Clean and perturbed same-state histories are rolled forward under the same action sequence; the radius term measures clean/noisy predictive disagreement, while the guard term requires task- or action-relevant different states to remain separated. The diagnostic is selective: low same-state disagreement is interpreted only together with preserved discriminability.}
+\label{fig:acpc-concept}
+\end{figure}
+
 \subsection{Same-state predictive consistency and selective margin}\label{sec:acpc-def}
 
 Let $o_t$ be an unperturbed observation and $\tilde o_t = \tau(o_t)$ a visually perturbed view of the \emph{same} underlying state ($\tau$ is additive Gaussian pixel noise here, but the definitions are perturbation-agnostic). Let $h_t$ and $\tilde h_t$ be the corresponding observation--action histories, $E_\theta$ the encoder, and $F_\theta$ the action-conditioned latent predictor. Fix an action sequence $\mathbf a^H_t = a_{t:t+H-1}$ that is \emph{identical} on both branches. For compact notation below, $\mathbf a_{0:k-1}$ denotes the length-$k$ prefix of this sequence after re-indexing time at $t$, and we write
@@ -452,25 +459,15 @@ A three-seed blur/resize evaluation later in this section serves as an auxiliary
 
 \subsection{Selective ACPC diagnostics track recovered checkpoints}\label{sec:exp-acpc-diagnostics}
 
-For the main diagnostic, ATR is the 90th percentile of same-state clean/noisy ACPC-H rollout distance normalized by the clean transition scale. SMPR is the task-grounded near-boundary selective-margin pass rate at margin zero. Both are computed without retraining on the fixed no-noise and \stdmax{} $=0.08$ checkpoints for training seeds 3072/3073/3074. \Cref{tab:atr-smpr-selective-acpc} reports population mean/std across training seeds.
+For the main diagnostic, ATR is the 90th percentile of same-state clean/noisy ACPC-H rollout distance normalized by the clean transition scale. SMPR is the task-grounded near-boundary selective-margin pass rate at margin zero. Both are computed without retraining on the fixed no-noise and \stdmax{} $=0.08$ checkpoints for training seeds 3072/3073/3074. \Cref{fig:endpoint-atr-smpr} shows the paired endpoint movement, with exact population mean/std values reported in Appendix~\ref{sec:appendix-supplementary-diagnostics}.
 
-\begin{table}[H]
+
+\begin{figure}[H]
 \centering
-\caption{Selective ACPC endpoint diagnostics over training seeds 3072/3073/3074. ATR is the q90 normalized same-state clean/noisy action-conditioned rollout disagreement; lower is better. SMPR is the task-grounded near-boundary selective-margin pass rate; higher is better.}
-\label{tab:atr-smpr-selective-acpc}
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lrrrr}
-\toprule
-Task & ATR base & ATR std0.08 & SMPR base & SMPR std0.08 \\
-\midrule
-TwoRoom & $1.509 \pm 0.010$ & $0.111 \pm 0.016$ & $0.34 \pm 0.05$ & $0.99 \pm 0.01$ \\
-PushT & $3.580 \pm 0.260$ & $0.247 \pm 0.017$ & $0.44 \pm 0.17$ & $1.00 \pm 0.00$ \\
-Reacher & $2.628 \pm 0.048$ & $0.082 \pm 0.005$ & $0.73 \pm 0.03$ & $1.00 \pm 0.00$ \\
-Cube & $2.320 \pm 0.045$ & $0.100 \pm 0.007$ & $0.45 \pm 0.03$ & $1.00 \pm 0.00$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+\includegraphics[width=0.96\linewidth]{fig_endpoint_atr_smpr.png}
+\caption{Endpoint selective-ACPC diagnostics over training seeds 3072/3073/3074. ATR is the q90 same-state clean/noisy action-conditioned rollout disagreement; lower is better. SMPR is the task-grounded near-boundary selective-margin pass rate; higher is better. Points report means across training seeds and horizontal bars report population standard deviations. Exact values are in Appendix~\ref{sec:appendix-supplementary-diagnostics}.}
+\label{fig:endpoint-atr-smpr}
+\end{figure}
 
 \begin{figure}[H]
 \centering
@@ -508,21 +505,32 @@ The radius--margin theory predicts that a checkpoint should remain diagnosticall
 =\widehat Q_{0.50}(\Delta_{\mathcal A})
 -2\widehat Q_{0.90}(|C_h-C_{\tilde h}|).
 \]
-A positive proxy gap is the available summary-level counterpart of the fixed-pool margin condition. The summary-level overlay is kept as a mechanism proxy, not a planner-margin certificate: it uses median clean candidate margin and q90 paired cost drift. The separate sample-level recomputation evaluates the sufficient event directly over the fixed 65-candidate pool for all 108 rows and also reports strict q10/q95 gaps. Those q10/q95 gaps remain negative even on recovered rows, indicating that q10/q95 is too conservative for the current fixed-pool cost scale and should not be used as the paper's claimed threshold. The reported fixed-pool evidence is event-rate based: across all tasks, median cert-pass rises from $0.06$ on fragile rows to $0.61$ on recovered rows, median top-1 flip falls from $0.54$ to $0.04$, and \Cref{tab:sample-level-event-rate-ci} reports Wilson intervals for $\hat p_{\mathrm{cert}}$, $\hat p_{\mathrm{flip}}$, and $\hat p_{\mathrm{flip}\mid\mathrm{cert}}$. In the sampled anchors, observed top-1 flips conditioned on cert-pass are zero in both fragile and recovered splits, so the sufficient event is empirically conservative rather than overfit. Thus this analysis instantiates the radius--margin mechanism as a finite-sample empirical fixed-pool risk audit, not as a calibrated probability certificate or checkpoint-ranking rule. Because the Gaussian sweep uses equal $\stdmax{}$ increments while the tasks have unequal visual and dynamical sensitivity, aggregate grid-point F1 or interval IoU is not used as the primary validation criterion. Appendix~\ref{sec:appendix-radius-margin-params} reports boundary-aware recovery/proxy alignment, and Appendix~\ref{sec:appendix-fixed-pool-risk-calibration} reports the finite-sample risk-audit details.
+A positive proxy gap is the available summary-level counterpart of the fixed-pool margin condition. The summary-level overlay is kept as a mechanism proxy, not a planner-margin certificate: it uses median clean candidate margin and q90 paired cost drift. The separate sample-level recomputation evaluates the sufficient event directly over the fixed 65-candidate pool for all 108 rows and also reports strict q10/q95 gaps. Those q10/q95 gaps remain negative even on recovered rows, indicating that q10/q95 is too conservative for the current fixed-pool cost scale and should not be used as the paper's claimed threshold. The reported fixed-pool evidence is event-rate based: across all tasks, median cert-pass rises from $0.06$ on fragile rows to $0.61$ on recovered rows, median top-1 flip falls from $0.54$ to $0.04$, and \Cref{fig:fixed-pool-event-rates} reports Wilson intervals for $\hat p_{\mathrm{cert}}$, $\hat p_{\mathrm{flip}}$, and $\hat p_{\mathrm{flip}\mid\mathrm{cert}}$. In the sampled anchors, observed top-1 flips conditioned on cert-pass are zero in both fragile and recovered splits, so the sufficient event is empirically conservative rather than overfit. Thus this analysis instantiates the radius--margin mechanism as a finite-sample empirical fixed-pool risk audit, not as a calibrated probability certificate or checkpoint-ranking rule. Because the Gaussian sweep uses equal $\stdmax{}$ increments while the tasks have unequal visual and dynamical sensitivity, aggregate grid-point F1 or interval IoU is not used as the primary validation criterion. Appendix~\ref{sec:appendix-radius-margin-params} reports boundary-aware recovery/proxy alignment, and Appendix~\ref{sec:appendix-fixed-pool-risk-calibration} reports the finite-sample risk-audit details.
 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth]{fig_radius_margin_overlap.png}
-\caption{Fixed-pool radius--margin overlap proxy across the full Gaussian training sweep. Curves use the available summary-level fixed-pool summaries: q50 clean candidate margin and twice the q90 paired cost drift. The separate sample-level recomputation in \Cref{tab:sample-level-certificate-full-sweep} provides q10/q95 gaps and event rates; q10/q95 gaps remain negative, so the analysis supports the mechanism rather than a calibrated planner-margin certificate. The sampled pool is fixed rather than adaptive CEM.}
-\label{fig:radius-margin-overlap}
+\includegraphics[width=\linewidth]{fig_fixed_pool_event_rates.png}
+\caption{Fixed-pool radius--margin event-rate audit. Cert-pass denotes sampled histories where the maximum paired cost drift over the shared 65-candidate pool is below one half of the clean top-1/top-2 margin. Top-1 flip is the observed clean/noisy fixed-pool top-candidate disagreement. Intervals are Wilson 95\% intervals over sampled anchors and quantify event-rate uncertainty, not calibrated theorem probabilities. Exact rates are in Appendix~\ref{sec:appendix-fixed-pool-risk-calibration}.}
+\label{fig:fixed-pool-event-rates}
 \end{figure}
 
-The summary-level fixed-pool overlap proxy aligns with the broad recovery band but does not exactly reproduce it. TwoRoom and PushT cross the proxy gap within one grid step of the recovery-band onset, Cube aligns on the discrete grid, and Reacher is conservative by two grid steps. This is the expected level of evidence for a fixed-pool diagnostic analysis: it explains the radius--margin mechanism behind the observed recovery band without replacing closed-loop evaluation. The Reacher mismatch is informative rather than hidden: fixed-pool top-1 agreement already rises at the behavioral recovery onset, while the summary-level cost-margin proxy becomes positive later. To keep the fixed-pool cost-margin proxy separate from a checkpoint-selection claim, we do not turn this proxy into a radius--margin ATR/SMPR gate table. The full-sweep ATR/SMPR held-out validation in \Cref{sec:exp-full-sweep-diagnostics} handles recovered-vs-fragile diagnostic separation; this subsection isolates the summary-level fixed-pool cost-margin mechanism and its limits. Appendix~\ref{sec:appendix-supplementary-diagnostics} consolidates the theory-to-evidence mapping across the radius, margin, local-sensitivity, and discriminability analyses.
+
+
+The summary-level fixed-pool overlap proxy aligns with the broad recovery band but does not exactly reproduce it. TwoRoom and PushT cross the proxy gap within one grid step of the recovery-band onset, Cube aligns on the discrete grid, and Reacher is conservative by two grid steps. This is the expected level of evidence for a fixed-pool diagnostic analysis: it explains the radius--margin mechanism behind the observed recovery band without replacing closed-loop evaluation. The Reacher mismatch is informative rather than hidden: fixed-pool top-1 agreement already rises at the behavioral recovery onset, while the summary-level cost-margin proxy becomes positive later. To keep the fixed-pool cost-margin proxy separate from a checkpoint-selection claim, we do not turn this proxy into a radius--margin ATR/SMPR gate table. The full-sweep ATR/SMPR held-out validation in \Cref{sec:exp-full-sweep-diagnostics} handles recovered-vs-fragile diagnostic separation; this subsection isolates the summary-level fixed-pool cost-margin mechanism and its limits. Appendix~\ref{sec:appendix-supplementary-diagnostics} consolidates the theory-to-evidence mapping across the radius, margin, local-sensitivity, and discriminability analyses, while Appendix~\ref{sec:appendix-fixed-pool-details} keeps the summary-level radius--margin overlay.
 
 \subsection{Local Gaussian sensitivity explains ATR contraction}\label{sec:exp-gaussian-sensitivity}
 
-To evaluate the local Gaussian sensitivity interpretation without claiming a global guarantee, we run two checkpoint-local analyses on the base, recovery-onset, and endpoint checkpoints. First, a finite-difference analysis perturbs the same observation histories with small Gaussian noise levels and estimates $\mathbb E[R_\sigma^2]/\sigma^2$ from the action-conditioned rollout radius, using 100 sampled sequences and 5 noise draws per small $\sigma$ and checkpoint. \Cref{tab:gaussian-sensitivity-audit} reports a consistent endpoint/base reduction in this local slope, from $0.002$ to $0.008$ of the no-noise-checkpoint value across tasks, alongside the ATR contraction. Second, \Cref{tab:jvp-hutchinson-sensitivity-audit} estimates exact-autograd JVP/Hutchinson Frobenius traces for the encoder map, the rollout map, and their composition using 100 sampled sequences and 8 Rademacher probes per checkpoint. The composed trace falls sharply at the endpoint on all tasks (endpoint/base ratios $0.003$, $0.010$, $0.006$, and $0.026$ for TwoRoom, PushT, Reacher, and Cube). The two estimators are not expected to match numerically: finite differences measure responses along sampled Gaussian perturbations, whereas JVP/Hutchinson estimates a local Frobenius-trace average over random input directions. We therefore use them as complementary same-direction evidence that the noise-trained endpoint reduces each task's composed encoder--rollout sensitivity relative to its own no-noise baseline, not as a cross-task scale or a shared threshold. In this sweep, the decomposition attributes the composed-trace reduction mainly to encoder-side sensitivity reduction; the rollout-side trace is task-dependent rather than uniformly smaller, so we do not claim a standalone predictor-Jacobian repair. This distinction also clarifies the qualitative ACPC-basin plot: tighter post-rollout feature clouds measure the composed response to the actual perturbation directions, not $J_G$ alone. These analyses support the composed encoder--predictor sensitivity explanation while remaining local mechanism evidence rather than closed-loop robustness proofs.
+To evaluate the local Gaussian sensitivity interpretation without claiming a global guarantee, we run two checkpoint-local analyses on the base, recovery-onset, and endpoint checkpoints. First, a finite-difference analysis perturbs the same observation histories with small Gaussian noise levels and estimates $\mathbb E[R_\sigma^2]/\sigma^2$ from the action-conditioned rollout radius, using 100 sampled sequences and 5 noise draws per small $\sigma$ and checkpoint. Second, an exact-autograd JVP/Hutchinson analysis estimates exact-autograd JVP/Hutchinson Frobenius traces for the encoder map, the rollout map, and their composition using 100 sampled sequences and 8 Rademacher probes per checkpoint.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_gaussian_sensitivity_mechanism.png}
+\caption{Local Gaussian sensitivity mechanism. Finite-difference slopes estimate small-noise rollout-radius response along sampled Gaussian perturbations; exact-autograd JVP/Hutchinson traces estimate local Frobenius averages of the composed encoder--rollout map. Values are endpoint/base ratios within each task. Ratios below one support reduced local composed sensitivity at the noise-trained endpoint. The decomposition panel reports encoder, rollout, composed, and alignment ratios; these are local mechanism diagnostics rather than global robustness guarantees.}
+\label{fig:gaussian-sensitivity-mechanism}
+\end{figure}
+
+\Cref{fig:gaussian-sensitivity-mechanism} shows an endpoint/base reduction in this local slope: finite-difference endpoint/base ratios fall to $0.002$--$0.008$, and exact-JVP/Hutchinson composed-trace ratios fall to $0.003$, $0.010$, $0.006$, and $0.026$ for TwoRoom, PushT, Reacher, and Cube. The two estimators are not expected to match numerically: finite differences measure responses along sampled Gaussian perturbations, whereas JVP/Hutchinson estimates a local Frobenius-trace average over random input directions. We therefore use them as complementary same-direction evidence that the noise-trained endpoint reduces each task's composed encoder--rollout sensitivity relative to its own no-noise baseline, not as a cross-task scale or a shared threshold. In this sweep, the decomposition attributes the composed-trace reduction mainly to encoder-side sensitivity reduction; the rollout-side trace is task-dependent rather than uniformly smaller, so we do not claim a standalone predictor-Jacobian repair. This distinction also clarifies the qualitative ACPC-basin plot: tighter post-rollout feature clouds measure the composed response to the actual perturbation directions, not $J_G$ alone. Exact numeric tables are in Appendix~\ref{sec:appendix-local-sensitivity}.
 
 \subsection{Boundary check outside the matched Gaussian stressor}\label{sec:exp-unseen-scope}
 
@@ -705,6 +713,19 @@ Cube & $0.08$ & $61.67 \pm 3.57$ & $61.78 \pm 4.16$ & $61.89 \pm 2.45$ & $62.56 
 \end{tabular}
 \end{table}
 
+
+\section{Diagnostic Validation Details}\label{sec:appendix-supplementary-diagnostics}
+
+These details support the selective-ACPC diagnostic interpretation used in the main text. \Cref{tab:atr-smpr-selective-acpc} gives the exact endpoint values behind \Cref{fig:endpoint-atr-smpr}. \Cref{tab:heldout-diagnostic-validation} reports the compact held-out gate validation also used in the main text. \Cref{tab:theory-evidence-map} maps each theoretical object to its empirical evidence and limitation. \Cref{tab:joint-guard-side-validation} reports ATR together with SMPR and fixed-pool top-1 flip to keep the guard-side interpretation joint rather than standalone. \Cref{tab:threshold-quantile-sensitivity} evaluates whether recovered-vs-fragile ATR/SMPR direction is stable under reasonable behavioral-label thresholds; unavailable ATR/SMPR tail variants are reported as unavailable rather than inferred.
+
+\input{tables/table_endpoint_atr_smpr}
+
+\input{tables/table_theory_evidence_map}
+
+\input{tables/table_joint_guard_side_validation}
+
+\input{tables/table_threshold_quantile_sensitivity}
+
 \section{Fixed-pool Planner Audit Details}\label{sec:appendix-fixed-pool-details}
 
 \subsection{Radius--margin parameter interpretation}\label{sec:appendix-radius-margin-params}
@@ -777,6 +798,13 @@ Cube & endpoint $0.08$ & $5.05$ & $76.94$ & $66.85$ & $0.997$ \\
 \end{tabular}
 \end{table}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_radius_margin_overlap.png}
+\caption{Fixed-pool radius--margin overlap proxy across the full Gaussian training sweep. Curves use the available summary-level fixed-pool summaries: q50 clean candidate margin and twice the q90 paired cost drift. The separate sample-level recomputation in \Cref{tab:sample-level-certificate-full-sweep} provides q10/q95 gaps and event rates; q10/q95 gaps remain negative, so the analysis supports the mechanism rather than a calibrated planner-margin certificate. The sampled pool is fixed rather than adaptive CEM.}
+\label{fig:radius-margin-overlap}
+\end{figure}
+
 \subsection{Fixed-pool event-rate audit}\label{sec:appendix-fixed-pool-risk-calibration}
 
 For each sampled state $h_i$, let $E_{\mathrm{pool}}(h_i)$ be the fixed-pool sufficient event that the maximum paired candidate-cost drift over the $K=65$ fixed candidates is below one half of the clean top-1/top-2 margin. Let $F_{\mathrm{pool}}(h_i)$ be the observed clean/noisy fixed-pool top-1 disagreement. We report three empirical rates over the sampled anchors in each split:
@@ -798,18 +826,20 @@ In this interpretation, $\beta_{\mathrm{plan}}$ and $\beta_{\mathrm{disc}}$ name
 
 \input{tables/table_sample_level_certificate_endpoint}
 
-\section{Diagnostic Validation and Sensitivity Details}\label{sec:appendix-supplementary-diagnostics}
+\section{Local Sensitivity Details}\label{sec:appendix-local-sensitivity}
 
-The held-out validation in \Cref{tab:heldout-diagnostic-validation} is supported by diagnostic-region, guard-side, sensitivity, and threshold-sensitivity analyses. \Cref{tab:theory-evidence-map} maps each theoretical object to its empirical evidence and limitation. \Cref{tab:joint-guard-side-validation} reports ATR together with SMPR and fixed-pool top-1 flip to keep the guard-side interpretation joint rather than standalone. \Cref{tab:gaussian-sensitivity-audit} reports the finite-difference local Gaussian sensitivity analysis, and \Cref{tab:jvp-hutchinson-sensitivity-audit} reports the exact-JVP/Hutchinson local trace decomposition. \Cref{tab:threshold-quantile-sensitivity} evaluates whether recovered-vs-fragile ATR/SMPR direction is stable under reasonable behavioral-label thresholds; unavailable ATR/SMPR tail variants are reported as unavailable rather than inferred.
-
-\input{tables/table_theory_evidence_map}
-
-\input{tables/table_joint_guard_side_validation}
+These tables give the numeric values behind \Cref{fig:gaussian-sensitivity-mechanism}. The finite-difference audit and exact-JVP/Hutchinson audit use different local estimators, so their scales need not match; the paper interprets their within-task endpoint/base directions rather than a shared cross-task threshold.
 
 \input{tables/table_gaussian_sensitivity_audit}
 
 \input{tables/table_jvp_hutchinson_sensitivity_audit}
 
-\input{tables/table_threshold_quantile_sensitivity}
+\section{Boundary Stressors}\label{sec:appendix-boundary-stressors}
+
+The strongest blur/resize rows are kept in the main text because the mixed outcomes are central to the scope boundary. Additional perturbation artifacts remain outside the paper; the paper does not use them to claim general corruption transfer.
+
+\section{Reproducibility}\label{sec:appendix-reproducibility}
+
+The release checks are deterministic over the retained artifacts. Summary-level diagnostics and checkpoint-level audits are rebuilt by repository commands documented outside the paper; checkpoint-level audits require accessible LeWM checkpoints and datasets. The PDF and source package are checked by the repository readiness target, and the author-placeholder override is for local readiness checks only.
 
 \end{document}

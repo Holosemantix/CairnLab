@@ -1,0 +1,17 @@
+\begin{table}[H]
+\centering
+\caption{Selective ACPC endpoint diagnostics over training seeds 3072/3073/3074. ATR is the q90 normalized same-state clean/noisy action-conditioned rollout disagreement; lower is better. SMPR is the task-grounded near-boundary selective-margin pass rate; higher is better.}
+\label{tab:atr-smpr-selective-acpc}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrr}
+\toprule
+Task & ATR base & ATR std0.08 & SMPR base & SMPR std0.08 \\
+\midrule
+TwoRoom & $1.509 \pm 0.010$ & $0.111 \pm 0.016$ & $0.34 \pm 0.05$ & $0.99 \pm 0.01$ \\
+PushT & $3.580 \pm 0.260$ & $0.247 \pm 0.017$ & $0.44 \pm 0.17$ & $1.00 \pm 0.00$ \\
+Reacher & $2.628 \pm 0.048$ & $0.082 \pm 0.005$ & $0.73 \pm 0.03$ & $1.00 \pm 0.00$ \\
+Cube & $2.320 \pm 0.045$ & $0.100 \pm 0.007$ & $0.45 \pm 0.03$ & $1.00 \pm 0.00$ \\
+\bottomrule
+\end{tabular}
+\end{table}

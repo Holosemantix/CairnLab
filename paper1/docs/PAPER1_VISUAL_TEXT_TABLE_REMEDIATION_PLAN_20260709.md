@@ -33,12 +33,11 @@ Use this rubric before editing any figure.
 
 For every main-text figure, write the question it answers before plotting:
 
-- `fig1_concept`: What is ACPC and why does it need both radius and guard?
 - `fig2_sweep`: Does Gaussian observation noise break checkpoints, and does Gaussian training recover them?
 - `fig_endpoint_atr_smpr`: Do recovered endpoints move in the radius and guard directions?
 - `fig_full_sweep_diagnostics`: Do diagnostics separate recovered and fragile rows across the whole sweep?
 - `fig_fixed_pool_event_rates`: Does the fixed-pool sufficient event align with lower candidate instability?
-- `fig_gaussian_sensitivity_mechanism`: Does ATR contraction coincide with lower local composed encoder--rollout sensitivity?
+- `fig_gaussian_sensitivity_main`: Does ATR contraction coincide with lower local composed encoder--rollout sensitivity?
 
 If a figure answers more than one question, split it or move part to appendix.
 
@@ -183,23 +182,21 @@ Recommended change:
 
 ### 2.4 Too many main figures may dilute the story
 
-The current main text includes:
+The current main text should keep only evidence-bearing figures:
 
-1. concept schematic;
-2. Gaussian sweep;
-3. endpoint ATR/SMPR;
-4. qualitative PushT t-SNE;
-5. full-sweep diagnostics;
-6. fixed-pool event rates;
-7. Gaussian sensitivity mechanism;
-8. non-Gaussian boundary table.
+1. Gaussian sweep;
+2. endpoint ATR/SMPR;
+3. full-sweep diagnostics;
+4. fixed-pool event rates;
+5. Gaussian sensitivity main plot;
+6. non-Gaussian boundary table.
 
-This is defensible for an arXiv technical report, but likely heavy for a top-conference main paper.
+The concept schematic is retired from the main paper because it makes the paper look like a method/architecture paper rather than a diagnostic evidence paper. The qualitative PushT t-SNE remains appendix-only unless redesigned as a small qualitative inset.
 
 Recommendation:
 
-- Keep concept, sweep, endpoint/full-sweep ACPC, fixed-pool event-rate, and Gaussian sensitivity in main.
-- Move the qualitative t-SNE to appendix unless it is redesigned as a small inset or combined with the concept figure.
+- Let the Gaussian sweep be the first main figure; it establishes the behavior before diagnostics.
+- Keep endpoint/full-sweep ACPC, fixed-pool event-rate, and Gaussian sensitivity in main.
 - Keep the non-Gaussian table because mixed results are clearer as exact rows.
 
 ### 2.5 Source packaging is stale
@@ -215,14 +212,15 @@ Required fix:
 Minimum figure copy list should include all figures referenced in current `main.tex`, including at least:
 
 ```text
-fig1_concept.png
 fig2_sweep.png
 fig_endpoint_atr_smpr.png
-fig_acpc_basin_tsne.png
 fig_full_sweep_diagnostics.png
 fig_fixed_pool_event_rates.png
-fig_gaussian_sensitivity_mechanism.png
+fig_gaussian_sensitivity_main.png
+fig_acpc_basin_tsne.png
+fig_full_sweep_planner_guard.png
 fig_radius_margin_overlap.png
+fig_jvp_trace_decomposition_heatmap.png
 ```
 
 If t-SNE or radius-margin overlap move to appendix/source-only status, still include them when the TeX source references them.
@@ -231,15 +229,15 @@ If t-SNE or radius-margin overlap move to appendix/source-only status, still inc
 
 ## 3. Figure-by-figure review and redesign plan
 
-### 3.1 `fig1_concept.png`: ACPC schematic
+### 3.1 Concept schematic status
 
-Current role: introduce ACPC radius + guard.
+Decision: retire `fig1_concept.png` from the main paper. The first main figure should establish the behavioral phenomenon with the Gaussian sweep, not introduce a schematic that makes the paper look like a method/architecture paper. The ACPC radius, guard, and fixed-pool planning link should be carried by the definitions and theorem text, then supported by endpoint/full-sweep diagnostics.
 
-Likely issue: a concept figure often fails when it tries to show architecture, perturbation, rollout, theorem, and metrics all at once.
+If a concept schematic is reintroduced later, it must be a compact supplement or a redesigned inset, not the first main figure.
 
-Redesign target:
+Retired schematic design target, only if needed later:
 
-- Full-width, two-column schematic.
+- Full-width or compact two-column schematic.
 - Left half: same-state clean/noisy histories under shared actions, producing a predictive radius `R_sigma` / ATR.
 - Right half: task/action-distinct pairs, producing margin `M_diff` / SMPR.
 - Bottom strip: fixed-pool planning link, `cost drift < margin/2 -> top-1 stable`.
@@ -500,14 +498,13 @@ Minor improvements:
 
 Target main figure/table order:
 
-1. **Figure 1: ACPC diagnostic schematic**
-2. **Table or Figure 2: Gaussian noise cliff**
-3. **Figure 3: Gaussian sweep recovery bands**
-4. **Figure 4: Endpoint ATR/SMPR selective diagnostics**
-5. **Figure 5: Full-sweep behavior + ACPC validation**
-6. **Small held-out validation table or text block**
-7. **Figure 6: Fixed-pool event-rate audit**
-8. **Figure 7: Local Gaussian sensitivity main plot**
+1. **Figure 1: Gaussian sweep recovery bands**
+2. **Figure 2: Endpoint ATR/SMPR selective diagnostics**
+3. **Figure 3: Full-sweep behavior + ACPC validation**
+4. **Small held-out validation table or text block**
+5. **Figure 4: Fixed-pool event-rate audit**
+6. **Figure 5: Local Gaussian sensitivity main plot**
+7. **Table 2: Boundary stressor evaluation**
 9. **Table 2: Boundary stressor evaluation**
 
 If page budget is tight:

@@ -54,7 +54,7 @@ if ! grep -q "fig_acpc_basin_tsne.png" main.tex; then
   fail "main.tex should reference the canonical qualitative ACPC t-SNE figure."
 fi
 
-for figure in fig1_concept.png fig2_sweep.png fig_endpoint_atr_smpr.png fig_full_sweep_diagnostics.png fig_fixed_pool_event_rates.png fig_gaussian_sensitivity_main.png fig_acpc_basin_tsne.png fig_full_sweep_planner_guard.png fig_radius_margin_overlap.png fig_jvp_trace_decomposition_heatmap.png; do
+for figure in fig2_sweep.png fig_endpoint_atr_smpr.png fig_full_sweep_diagnostics.png fig_fixed_pool_event_rates.png fig_gaussian_sensitivity_main.png fig_acpc_basin_tsne.png fig_full_sweep_planner_guard.png fig_radius_margin_overlap.png fig_jvp_trace_decomposition_heatmap.png; do
   if ! grep -q "$figure" main.tex; then
     fail "main.tex should reference $figure for the current paper1 figure set."
   fi

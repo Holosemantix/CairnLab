@@ -153,12 +153,6 @@ Our use of ACPC is therefore narrower than an identifiability theorem, a learned
 
 This section derives the diagnostic objects used in the experiments. ACPC separates two requirements that encoder invariance alone conflates: same-state visual perturbations should agree after action-conditioned rollout, while task-grounded different-state pairs should remain separable. The section first states the radius--margin objects and fixed-pool planning link, then maps them to ATR and SMPR as operational diagnostics.
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.92\linewidth]{fig1_concept.png}
-\caption{ACPC diagnostic schematic. Clean and perturbed same-state histories are rolled forward under the same action sequence; the radius term measures clean/noisy predictive disagreement, while the guard term requires task- or action-relevant different states to remain separated. The diagnostic is selective: low same-state disagreement is interpreted only together with preserved discriminability.}
-\label{fig:acpc-concept}
-\end{figure}
 
 \subsection{Paired rollout consistency and discriminability}\label{sec:acpc-def}
 

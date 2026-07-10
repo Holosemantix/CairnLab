@@ -778,15 +778,15 @@ This minimum pass will remove the most visible top-conference polish problems.
 
 ## 10. Completion record (2026-07-10)
 
-Phases 0--5 are complete. The final pass also replaced the undersized four-across Gaussian sweep with a native-width 2x2 figure and added subsection float barriers so the local-sensitivity figure and non-Gaussian boundary table cannot drift into the following result section.
+Phases 0--5 are complete. The reviewer-follow-up pass keeps the Gaussian sweep and appendix planner guard in compact native-width four-across layouts, restores direct SMPR in the full-sweep diagnostic figure, replaces code-like recovery-onset table labels, and compacts the threshold-sensitivity summary. Subsection float barriers keep the local-sensitivity figure and non-Gaussian boundary table from drifting into the following result section.
 
 Validation evidence:
 
 - `bash paper1/scripts/run_all_paper1_diagnostics.sh` completed for the checked-in, training-free artifact path.
 - `python -m tools.check_paper1_consistency` passed, including the main/appendix figure-set, paper-facing terminology, and isolated-bundle gates.
 - `pytest -q` passed all 33 tests; the collector-specific regression shard passed all 3 tests.
-- `cd paper1 && bash build.sh --clean` produced a 28-page PDF with no undefined citation/reference, fatal, overfull, or underfull diagnostics.
-- The arXiv source bundle compiled in isolation to 28 pages; the blind bundle compiled in isolation to 29 pages because of anonymous front-matter layout. Each contains exactly the 9 figures referenced by its TeX entry point.
+- `cd paper1 && bash build.sh --clean` produced a 26-page PDF with no undefined citation/reference, fatal, overfull, or underfull diagnostics.
+- The arXiv source bundle compiled in isolation to 26 pages; the blind bundle compiled in isolation to 27 pages because of anonymous front-matter layout. Each contains exactly the 9 figures referenced by its TeX entry point.
 - Final PDF inspection covered every main figure plus the t-SNE, planner-guard, radius--margin, and JVP decomposition appendix figures at actual page size.
 
 The remaining author placeholder in `paper1/arxiv_metadata.tex` is an intentional release-time human input and must be replaced before a public arXiv upload.

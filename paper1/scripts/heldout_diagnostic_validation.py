@@ -173,13 +173,13 @@ def write_table(rows, out: Path) -> None:
     lines = [
         r"\begin{table}[htbp]",
         r"\centering",
-        r"\caption{Held-out seeds and tasks preserve the recovered-vs-fragile diagnostic separation within two training-noise grid steps. Gates are selected on calibration seeds or tasks and evaluated on held-out sweeps. Start error is in $\sigma_{\max}^{\mathrm{train}}$ units; positive means the diagnostic starts later than the behavioral recovery band.}",
+        r"\caption{Held-out seeds and tasks preserve the recovered-vs-fragile diagnostic separation within two training-noise grid steps. Gates are selected on calibration seeds or tasks and evaluated on held-out sweeps. Recovery-onset error is in $\sigma_{\max}^{\mathrm{train}}$ units; positive values mean the diagnostic onset is later than the behavioral recovery onset.}",
         r"\label{tab:heldout-diagnostic-validation}",
         r"\small",
         r"\setlength{\tabcolsep}{4pt}",
         r"\begin{tabular}{lrrrrr}",
         r"\toprule",
-        r"Split & blocks & mean $|$start err$|$ & max $|$start err$|$ & precision & recall \\",
+        r"Split & blocks & \shortstack{mean absolute\\recovery-onset error} & \shortstack{maximum absolute\\recovery-onset error} & precision & recall \\",
         r"\midrule",
     ]
     for mode, block in by_mode.items():
@@ -210,7 +210,7 @@ def plot(rows, out: Path) -> None:
         ax.set_title(title, fontsize=10)
         ax.set_xticks(range(len(vals)))
         ax.set_xticklabels(labels, rotation=75, ha="right", fontsize=7)
-        ax.set_ylabel(r"start error in $\sigma_{\max}^{\mathrm{train}}$")
+        ax.set_ylabel(r"recovery-onset error in $\sigma_{\max}^{\mathrm{train}}$")
         ax.grid(True, axis="y", alpha=0.25)
     fig.tight_layout()
     fig.savefig(out, dpi=220)

@@ -222,19 +222,19 @@ def fig2_sweep(out_path: Path):
         rows_by_task[row["task"]][float(row["stdmax"])] = row
 
     style = {
-        "font.size": 8.25,
-        "axes.titlesize": 9.25,
-        "axes.labelsize": 8.5,
-        "xtick.labelsize": 8.0,
-        "ytick.labelsize": 8.0,
-        "legend.fontsize": 8.1,
+        "font.size": 7.25,
+        "axes.titlesize": 8.0,
+        "axes.labelsize": 7.5,
+        "xtick.labelsize": 7.0,
+        "ytick.labelsize": 7.0,
+        "legend.fontsize": 7.25,
         "savefig.bbox": None,
     }
     with plt.rc_context(style):
-        # Render at the manuscript's native text width so labels are not
-        # downscaled from the former 13-inch, single-row layout.
-        fig, axes = plt.subplots(2, 2, figsize=(6.7, 4.85), sharex=True, sharey=True)
-        axes = axes.ravel()
+        # Keep the four-task comparison in one scan line while rendering at
+        # the manuscript's native text width (rather than downscaling a wide
+        # 13-inch canvas and its labels).
+        fig, axes = plt.subplots(1, 4, figsize=(6.7, 2.45), sharex=True, sharey=True)
         for index, (ax, task) in enumerate(zip(axes, tasks)):
             rows = rows_by_task[task]
             clean = [rows[std]["metrics"]["clean"]["mean"] for std in SWEEP_STDS]
@@ -248,9 +248,9 @@ def fig2_sweep(out_path: Path):
                 fmt="o-",
                 color="#4477AA",
                 label="Eval: unperturbed images",
-                linewidth=1.55,
-                markersize=4.2,
-                capsize=2.1,
+                linewidth=1.35,
+                markersize=3.5,
+                capsize=1.8,
                 capthick=0.85,
                 elinewidth=0.85,
                 zorder=3,
@@ -262,9 +262,9 @@ def fig2_sweep(out_path: Path):
                 fmt="s-",
                 color="#EE6677",
                 label=ROBUST_EVAL_LABEL,
-                linewidth=1.55,
-                markersize=4.2,
-                capsize=2.1,
+                linewidth=1.35,
+                markersize=3.5,
+                capsize=1.8,
                 capthick=0.85,
                 elinewidth=0.85,
                 zorder=3,
@@ -277,28 +277,27 @@ def fig2_sweep(out_path: Path):
             ax.set_yticks([0, 25, 50, 75, 100])
             ax.grid(color="#c7c7c7", alpha=0.42, linewidth=0.55)
             ax.set_axisbelow(True)
-            ax.tick_params(length=3.0, color="#666666")
+            ax.tick_params(length=2.5, color="#666666", pad=2.0)
 
         handles, labels = axes[0].get_legend_handles_labels()
         fig.legend(
             handles,
             labels,
             loc="upper center",
-            bbox_to_anchor=(0.5, 0.985),
+            bbox_to_anchor=(0.5, 0.99),
             ncol=2,
             frameon=False,
             handletextpad=0.55,
             columnspacing=1.45,
         )
-        fig.supxlabel(r"Train-time noise level $\sigma_{\max}$", y=0.025)
-        fig.supylabel("Success rate (%)", x=0.025)
+        fig.supxlabel(r"Train-time noise level $\sigma_{\max}$", y=0.035)
+        fig.supylabel("Success rate (%)", x=0.012)
         fig.subplots_adjust(
-            left=0.105,
-            right=0.985,
-            bottom=0.13,
-            top=0.86,
-            wspace=0.15,
-            hspace=0.28,
+            left=0.075,
+            right=0.992,
+            bottom=0.25,
+            top=0.78,
+            wspace=0.12,
         )
         fig.savefig(out_path, dpi=300, facecolor="white")
         plt.close(fig)

@@ -471,12 +471,12 @@ SMPR uses programmatic task-state proxy labels, not oracle semantic annotations:
 
 \subsubsection{Full-sweep and held-out validation}\label{sec:exp-full-sweep-diagnostics}
 
-Across all $4\times3\times9=108$ task--training-seed--checkpoint rows, recovered portions of the Gaussian sweep consistently occupy lower normalized ATR and lower SMPR failure than fragile rows. \Cref{fig:full-sweep-diagnostics} places the closed-loop observation-noise score above the two diagnostic-failure traces so behavioral recovery and diagnostic movement remain visually distinct. Fixed-pool top-1 disagreement and proxy-gap traces are kept in Appendix~\ref{sec:appendix-fixed-pool-details}, where they support the planner-side radius--margin audit.
+Across all $4\times3\times9=108$ task--training-seed--checkpoint rows, recovered portions of the Gaussian sweep consistently occupy lower normalized ATR and higher SMPR than fragile rows. \Cref{fig:full-sweep-diagnostics} places the closed-loop observation-noise score above the two diagnostic traces so behavioral recovery and diagnostic movement remain visually distinct. Fixed-pool top-1 disagreement and proxy-gap traces are kept in Appendix~\ref{sec:appendix-fixed-pool-details}, where they support the planner-side radius--margin audit.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{fig_full_sweep_diagnostics.png}
-\caption{Recovered rows align with lower radius and guard failures across the Gaussian training grid. Each task block averages training seeds 3072/3073/3074 at the same \stdmax{} value and separates the observation-noise score (upper axis) from normalized ATR tail and SMPR failure ($1-\mathrm{SMPR}$; lower axes). Continuous green bands mark training-noise ranges where a majority of seed rows meet the behavioral recovery criterion. Planner-side top-1 disagreement is separated into Appendix~\ref{sec:appendix-fixed-pool-details}.}
+\caption{Recovered rows align with lower ATR and stronger margin preservation across the Gaussian training grid. Each task block averages training seeds 3072/3073/3074 at the same \stdmax{} value and separates the observation-noise score (upper axis) from normalized ATR tail and direct SMPR at margin zero (lower axes; ATR $\downarrow$, SMPR $\uparrow$). Continuous green bands mark training-noise ranges where a majority of seed rows meet the behavioral recovery criterion. Planner-side top-1 disagreement is separated into Appendix~\ref{sec:appendix-fixed-pool-details}.}
 \label{fig:full-sweep-diagnostics}
 \end{figure}
 
@@ -750,7 +750,7 @@ Cube & 65 & $0.03$--$0.08$ & $0.03$--$0.08$ & proxy and recovery-band ranges ali
 \end{tabular}
 \end{table}
 
-The one-grid tolerance is $\tau_{\mathrm{grid}}=0.01$ in \stdmax{} units. Start-boundary error is defined as $\rho^{\mathrm{diag}}_{\mathrm{start}}-\rho^{\mathrm{beh}}_{\mathrm{start}}$, so positive values mean the diagnostic proxy is later and negative values mean it fires earlier.
+The one-grid tolerance is $\tau_{\mathrm{grid}}=0.01$ in \stdmax{} units. Recovery-onset error is defined as $\rho^{\mathrm{diag}}_{\mathrm{start}}-\rho^{\mathrm{beh}}_{\mathrm{start}}$, so positive values mean the diagnostic proxy is later and negative values mean it fires earlier.
 
 \begin{table}[H]
 \centering
@@ -760,7 +760,7 @@ The one-grid tolerance is $\tau_{\mathrm{grid}}=0.01$ in \stdmax{} units. Start-
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lccccp{0.31\linewidth}}
 \toprule
-Task & recovery band & proxy range & start error & within $\tau_{\mathrm{grid}}$? & interpretation \\
+Task & recovery band & proxy range & \shortstack{recovery-onset\\error} & within $\tau_{\mathrm{grid}}$? & interpretation \\
 \midrule
 TwoRoom & $0.01$--$0.08$ & $0.02$--$0.08$ & $+0.01$ & yes & proxy misses the first recovery-band checkpoint \\
 PushT & $0.03$--$0.08$ & $0.02$--$0.08$ & $-0.01$ & yes & proxy fires one grid step early \\
@@ -823,7 +823,7 @@ For each sampled state $h_i$, let $E_{\mathrm{pool}}(h_i)$ be the fixed-pool suf
 The sufficient-event interpretation is sample-level: whenever $E_{\mathrm{pool}}(h_i)$ holds for a sampled history, the deterministic fixed-pool top-1 stability condition rules out a top-1 flip for that history and candidate set. Thus $\hat p_{\mathrm{cert}}$ is a conservative estimate of the fraction of sampled histories certified stable by the sufficient condition, while $\hat p_{\mathrm{flip}}$ measures observed fixed-pool instability. This is why event rates remain informative even though the distribution-level q10/q95 gap is negative.
 The rates are computed over the full 108-row Gaussian sweep after splitting checkpoints by the closed-loop recovery-band label, and \Cref{tab:sample-level-event-rate-ci} reports Wilson 95\% intervals. The strict q10/q95 gap remains negative even at recovered checkpoints; this is a useful negative calibration result showing that the q10/q95 rule is too conservative for the current fixed-pool cost scale. We therefore use the paired event-rate calibration, especially $\hat p_{\mathrm{flip}\mid\mathrm{cert}}$, as the reported fixed-pool evidence instead of tuning a quantile threshold.
 
-In this interpretation, $\beta_{\mathrm{plan}}$ and $\beta_{\mathrm{disc}}$ name empirical failure components rather than calibrated probabilities. The planning component is represented by the fixed-pool cost-margin proxy, top-1 agreement analysis, and the sample-level event-rate recomputation; the discriminability component is represented by SMPR, equivalently its failure rate $1-\mathrm{SMPR}$. The closed-loop recovery band explains the fixed-pool radius--margin validation rather than converting the separate ATR/SMPR diagnostic-region validation into a threshold-classifier claim.
+In this interpretation, $\beta_{\mathrm{plan}}$ and $\beta_{\mathrm{disc}}$ name empirical failure components rather than calibrated probabilities. The planning component is represented by the fixed-pool cost-margin proxy, top-1 agreement analysis, and the sample-level event-rate recomputation; the discriminability component is represented directly by SMPR, where higher values indicate stronger margin preservation. The closed-loop recovery band explains the fixed-pool radius--margin validation rather than converting the separate ATR/SMPR diagnostic-region validation into a threshold-classifier claim.
 
 \input{tables/table_fixed_pool_tail_audit}
 

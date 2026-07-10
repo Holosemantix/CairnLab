@@ -144,25 +144,32 @@ def build_rows(rows):
 
 def write_table(rows, out: Path) -> None:
     ok = [r for r in rows if r["analysis"] == "recovery_threshold_clean_tolerance" and r["status"] == "ok"]
+    grouped = defaultdict(list)
+    for row in ok:
+        grouped[(float(row["recovery_fraction"]), float(row["clean_tolerance"]))].append(row)
+
     lines = [
-        r"\begin{table}[H]",
+        r"\begin{table}[!htbp]",
         r"\centering",
-        r"\caption{Threshold sensitivity for recovered-vs-fragile diagnostic separation. Entries count tasks for which recovered rows have lower median normalized ATR and higher median SMPR than fragile rows under the specified behavioral-label definition.}",
+        r"\caption{All nine behavioral-label settings preserve the expected ATR/SMPR directions in all four tasks. Each cell reports ATR-pass, SMPR-pass task counts for the indicated clean-score tolerance.}",
         r"\label{tab:threshold-quantile-sensitivity}",
         r"\small",
-        r"\setlength{\tabcolsep}{4pt}",
-        r"\begin{tabular}{ccccc}",
+        r"\setlength{\tabcolsep}{7pt}",
+        r"\begin{tabular}{lccc}",
         r"\toprule",
-        r"Recovery fraction & clean tolerance & ATR pass tasks & SMPR pass tasks & rows \\",
+        r"& \multicolumn{3}{c}{clean-score tolerance} \\",
+        r"\cmidrule(lr){2-4}",
+        r"Recovery fraction & 3 & 5 & 10 \\",
         r"\midrule",
     ]
-    grouped = defaultdict(list)
-    for r in ok:
-        grouped[(r["recovery_fraction"], r["clean_tolerance"])].append(r)
-    for (frac, tol), block in sorted(grouped.items()):
-        atr_pass = sum(1 for r in block if r["atr_direction_pass"] == "true")
-        smpr_pass = sum(1 for r in block if r["smpr_direction_pass"] == "true")
-        lines.append(f"${float(frac):.2f}$ & ${float(tol):.0f}$ & {atr_pass}/4 & {smpr_pass}/4 & {len(block)}" + " \\\\")
+    for frac in RECOVERY_FRACTIONS:
+        cells = []
+        for tol in CLEAN_TOLERANCES:
+            block = grouped[(frac, tol)]
+            atr_pass = sum(1 for row in block if row["atr_direction_pass"] == "true")
+            smpr_pass = sum(1 for row in block if row["smpr_direction_pass"] == "true")
+            cells.append(f"${atr_pass}/4,\;{smpr_pass}/4$")
+        lines.append(f"${frac:.2f}$ & " + " & ".join(cells) + " \\\\")
     lines.extend([r"\bottomrule", r"\end{tabular}", r"\end{table}"])
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n")

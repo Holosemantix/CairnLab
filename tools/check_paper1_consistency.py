@@ -225,7 +225,7 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Planner-side radius--margin audit",
     "mechanism proxy, not a calibrated planner-margin bound",
     "finite-sample empirical fixed-pool risk audit",
-    "normalized ATR tail and SMPR failure",
+    "lower normalized ATR and higher SMPR",
     "Planner-side top-1 disagreement is separated",
     "Qualitative ACPC neighborhood view",
     "fig_full_sweep_planner_guard.png",
@@ -580,6 +580,10 @@ def check_visual_text_structure() -> None:
         if forced_float in body:
             fail(f"main-text float must not use forced placement: {forced_float}")
 
+    for retired_visual_phrase in ("SMPR failure", "1-\\mathrm{SMPR}"):
+        if retired_visual_phrase in body:
+            fail(f"main text restored the retired Figure 3 encoding: {retired_visual_phrase}")
+
     include_re = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
     body_targets = include_re.findall(body)
     appendix_targets = include_re.findall(appendix)
@@ -624,9 +628,32 @@ def check_visual_text_structure() -> None:
     ]
     for path in paper_facing_tex:
         text = path.read_text(encoding="utf-8")
-        for token in ("Top1Agree", "std0.08"):
+        for token in ("Top1Agree", "std0.08", "$|$start err$|$"):
             if token in text:
                 fail(f"{path.relative_to(ROOT)} contains code-like paper terminology: {token}")
+        if re.search(r"\bstart(?:-boundary)? error\b", text, flags=re.IGNORECASE):
+            fail(f"{path.relative_to(ROOT)} restored retired start-error terminology")
+
+    full_sweep_plot = (ROOT / "paper1" / "scripts" / "plot_full_sweep_diagnostics.py").read_text(encoding="utf-8")
+    for token in ("1-SMPR", "smpr_fail"):
+        if token in full_sweep_plot:
+            fail(f"Figure 3 generator restored the failure-rate encoding: {token}")
+    if 'label=r"SMPR ($\\uparrow$)"' not in full_sweep_plot:
+        fail("Figure 3 generator must label direct SMPR as higher-is-better")
+    if not re.search(r"plt\.subplots\(1,\s*4,\s*figsize=\(6\.7,\s*2\.35\)", full_sweep_plot):
+        fail("Figure 7 generator must retain the compact native-width four-across layout")
+
+    sweep_plot = (ROOT / "tools" / "paper1_figs.py").read_text(encoding="utf-8")
+    if not re.search(r"plt\.subplots\(1,\s*4,\s*figsize=\(6\.7,\s*2\.45\)", sweep_plot):
+        fail("Figure 1 generator must retain the compact native-width four-across layout")
+
+    heldout_generator = (ROOT / "paper1" / "scripts" / "heldout_diagnostic_validation.py").read_text(encoding="utf-8")
+    if r"\shortstack{mean absolute\\recovery-onset error}" not in heldout_generator:
+        fail("Table 2 generator must use the full recovery-onset error label")
+
+    threshold_generator = (ROOT / "paper1" / "scripts" / "threshold_quantile_sensitivity.py").read_text(encoding="utf-8")
+    if "All nine behavioral-label settings" not in threshold_generator:
+        fail("Table 8 generator must retain the compact threshold-matrix summary")
 
     terminology_gates = {
         ROOT / "paper1" / "scripts" / "fixed_pool_tail_audit.py": ("Top1Agree",),

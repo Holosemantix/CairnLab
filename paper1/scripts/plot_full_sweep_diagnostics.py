@@ -125,10 +125,7 @@ def plot_dynamics(rows: list[dict[str, str]], out_fig: Path) -> None:
             x = _task_rhos(trs)
             score = _mean_by_rho(trs, "obs_sigma_008_score")
             atr = _mean_by_rho(trs, "atr_normalized_q90")
-            smpr_fail = [
-                1.0 - value if math.isfinite(value) else math.nan
-                for value in _mean_by_rho(trs, "smpr_delta0")
-            ]
+            smpr = _mean_by_rho(trs, "smpr_delta0")
             recovery = _rate_by_rho(trs, "recovery_label")
 
             _shade_recovery(score_ax, x, recovery)
@@ -136,7 +133,7 @@ def plot_dynamics(rows: list[dict[str, str]], out_fig: Path) -> None:
             score_ax.plot(x, score, color="#222222", marker="o", lw=1.6, ms=3.6, zorder=2)
             diagnostic_ax.plot(x, atr, color="#d95f02", marker="s", lw=1.35, ms=3.4, zorder=2)
             diagnostic_ax.plot(
-                x, smpr_fail, color="#7570b3", marker="^", lw=1.35, ms=3.5, ls="--", zorder=2
+                x, smpr, color="#7570b3", marker="^", lw=1.35, ms=3.5, ls="--", zorder=2
             )
 
             score_ax.set_title(f"({chr(97 + index)}) {task}", loc="left", fontweight="semibold")
@@ -149,23 +146,13 @@ def plot_dynamics(rows: list[dict[str, str]], out_fig: Path) -> None:
             diagnostic_ax.set_yticks([0, 0.5, 1.0])
             diagnostic_ax.set_xlim(-0.003, 0.083)
             diagnostic_ax.set_xticks([0.00, 0.02, 0.04, 0.06, 0.08])
-            diagnostic_ax.text(
-                0.98,
-                0.92,
-                "lower is better",
-                transform=diagnostic_ax.transAxes,
-                ha="right",
-                va="top",
-                fontsize=8,
-                color="#555555",
-            )
             _polish_axis(score_ax)
             _polish_axis(diagnostic_ax)
 
         legend_handles = [
             Line2D([], [], color="#222222", marker="o", lw=1.6, ms=3.6, label="Obs-noise score"),
-            Line2D([], [], color="#d95f02", marker="s", lw=1.35, ms=3.4, label="ATR rel"),
-            Line2D([], [], color="#7570b3", marker="^", lw=1.35, ms=3.5, ls="--", label="1-SMPR"),
+            Line2D([], [], color="#d95f02", marker="s", lw=1.35, ms=3.4, label=r"ATR rel ($\downarrow$)"),
+            Line2D([], [], color="#7570b3", marker="^", lw=1.35, ms=3.5, ls="--", label=r"SMPR ($\uparrow$)"),
             Patch(facecolor=RECOVERY_COLOR, edgecolor="none", alpha=0.50, label="Majority recovered"),
         ]
         fig.legend(handles=legend_handles, loc="upper center", ncol=4, frameon=False, bbox_to_anchor=(0.5, 0.985))
@@ -176,37 +163,58 @@ def plot_dynamics(rows: list[dict[str, str]], out_fig: Path) -> None:
 
 def plot_planner_guard(rows: list[dict[str, str]], out_fig: Path) -> None:
     out_fig.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(2, 2, figsize=(6.7, 4.8), sharex=True, sharey=True)
-    axes = axes.ravel()
-    by_task = _by_task(rows)
+    compact_style = {
+        **PLOT_STYLE,
+        "font.size": 7.25,
+        "axes.labelsize": 7.5,
+        "axes.titlesize": 8.0,
+        "xtick.labelsize": 7.0,
+        "ytick.labelsize": 7.0,
+        "legend.fontsize": 7.25,
+        "savefig.bbox": None,
+    }
+    with plt.rc_context(compact_style):
+        fig, axes = plt.subplots(1, 4, figsize=(6.7, 2.35), sharex=True, sharey=True)
+        by_task = _by_task(rows)
 
-    for index, (ax, task) in enumerate(zip(axes, TASKS)):
-        trs = by_task[task]
-        x = _task_rhos(trs)
-        top1_fail = [1.0 - v if math.isfinite(v) else math.nan for v in _mean_by_rho(trs, "top1_agree")]
-        proxy_pos = _proxy_positive_by_rho(trs)
-        recovery = _rate_by_rho(trs, "recovery_label")
-        _shade_recovery(ax, x, recovery)
-        ax.plot(x, top1_fail, color="#b2182b", marker="d", lw=1.5, ms=3.6, zorder=2)
-        ax.plot(x, proxy_pos, color="#2166ac", marker="s", lw=1.3, ms=3.5, ls="--", zorder=2)
-        ax.set_title(f"({chr(97 + index)}) {task}", loc="left", fontweight="semibold")
-        ax.set_ylim(-0.04, 1.04)
-        ax.set_xlim(-0.003, 0.083)
-        ax.set_xticks([0.00, 0.02, 0.04, 0.06, 0.08])
-        _polish_axis(ax)
+        for index, (ax, task) in enumerate(zip(axes, TASKS)):
+            trs = by_task[task]
+            x = _task_rhos(trs)
+            top1_fail = [
+                1.0 - value if math.isfinite(value) else math.nan
+                for value in _mean_by_rho(trs, "top1_agree")
+            ]
+            proxy_pos = _proxy_positive_by_rho(trs)
+            recovery = _rate_by_rho(trs, "recovery_label")
+            _shade_recovery(ax, x, recovery)
+            ax.plot(x, top1_fail, color="#b2182b", marker="d", lw=1.35, ms=3.2, zorder=2)
+            ax.plot(x, proxy_pos, color="#2166ac", marker="s", lw=1.2, ms=3.1, ls="--", zorder=2)
+            ax.set_title(f"({chr(97 + index)}) {task}", loc="left", fontweight="semibold")
+            ax.set_ylim(-0.04, 1.04)
+            ax.set_xlim(-0.003, 0.083)
+            ax.set_xticks([0.00, 0.02, 0.04, 0.06, 0.08])
+            ax.tick_params(length=2.5, pad=2.0)
+            _polish_axis(ax)
 
-    for ax in axes[::2]:
-        ax.set_ylabel("Event rate")
-    legend_handles = [
-        Line2D([], [], color="#b2182b", marker="d", lw=1.5, ms=3.6, label="Top-1 flip"),
-        Line2D([], [], color="#2166ac", marker="s", lw=1.3, ms=3.5, ls="--", label="Proxy gap > 0"),
-        Patch(facecolor=RECOVERY_COLOR, edgecolor="none", alpha=0.50, label="Majority recovered"),
-    ]
-    fig.legend(handles=legend_handles, loc="upper center", ncol=3, frameon=False, bbox_to_anchor=(0.5, 0.995))
-    fig.supxlabel(r"training noise $\sigma_{\max}^{\mathrm{train}}$", y=0.02)
-    fig.subplots_adjust(left=0.09, right=0.985, bottom=0.12, top=0.89, wspace=0.16, hspace=0.30)
-    fig.savefig(out_fig, dpi=230)
-    plt.close(fig)
+        legend_handles = [
+            Line2D([], [], color="#b2182b", marker="d", lw=1.35, ms=3.2, label="Top-1 flip"),
+            Line2D([], [], color="#2166ac", marker="s", lw=1.2, ms=3.1, ls="--", label="Proxy gap > 0"),
+            Patch(facecolor=RECOVERY_COLOR, edgecolor="none", alpha=0.50, label="Majority recovered"),
+        ]
+        fig.legend(
+            handles=legend_handles,
+            loc="upper center",
+            ncol=3,
+            frameon=False,
+            bbox_to_anchor=(0.5, 0.995),
+            handletextpad=0.5,
+            columnspacing=1.2,
+        )
+        fig.supxlabel(r"training noise $\sigma_{\max}^{\mathrm{train}}$", y=0.035)
+        fig.supylabel("Event rate", x=0.012)
+        fig.subplots_adjust(left=0.075, right=0.992, bottom=0.26, top=0.76, wspace=0.12)
+        fig.savefig(out_fig, dpi=230)
+        plt.close(fig)
 
 
 def plot_region(rows: list[dict[str, str]], out_fig: Path) -> None:

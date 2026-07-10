@@ -1,22 +1,18 @@
-\begin{table}[H]
+\begin{table}[!htbp]
 \centering
-\caption{Threshold sensitivity for recovered-vs-fragile diagnostic separation. Entries count tasks for which recovered rows have lower median normalized ATR and higher median SMPR than fragile rows under the specified behavioral-label definition.}
+\caption{All nine behavioral-label settings preserve the expected ATR/SMPR directions in all four tasks. Each cell reports ATR-pass, SMPR-pass task counts for the indicated clean-score tolerance.}
 \label{tab:threshold-quantile-sensitivity}
 \small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{ccccc}
+\setlength{\tabcolsep}{7pt}
+\begin{tabular}{lccc}
 \toprule
-Recovery fraction & clean tolerance & ATR pass tasks & SMPR pass tasks & rows \\
+& \multicolumn{3}{c}{clean-score tolerance} \\
+\cmidrule(lr){2-4}
+Recovery fraction & 3 & 5 & 10 \\
 \midrule
-$0.70$ & $3$ & 4/4 & 4/4 & 4 \\
-$0.70$ & $5$ & 4/4 & 4/4 & 4 \\
-$0.70$ & $10$ & 4/4 & 4/4 & 4 \\
-$0.80$ & $3$ & 4/4 & 4/4 & 4 \\
-$0.80$ & $5$ & 4/4 & 4/4 & 4 \\
-$0.80$ & $10$ & 4/4 & 4/4 & 4 \\
-$0.90$ & $3$ & 4/4 & 4/4 & 4 \\
-$0.90$ & $5$ & 4/4 & 4/4 & 4 \\
-$0.90$ & $10$ & 4/4 & 4/4 & 4 \\
+$0.70$ & $4/4,\;4/4$ & $4/4,\;4/4$ & $4/4,\;4/4$ \\
+$0.80$ & $4/4,\;4/4$ & $4/4,\;4/4$ & $4/4,\;4/4$ \\
+$0.90$ & $4/4,\;4/4$ & $4/4,\;4/4$ & $4/4,\;4/4$ \\
 \bottomrule
 \end{tabular}
 \end{table}

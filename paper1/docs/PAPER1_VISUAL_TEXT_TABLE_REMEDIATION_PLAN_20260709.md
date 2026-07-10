@@ -738,38 +738,55 @@ This minimum pass will remove the most visible top-conference polish problems.
 
 ### Paper structure
 
-- [ ] No internal-report-like heading remains in main text.
-- [ ] Theory headings are not redundant.
-- [ ] Full-sweep and held-out validation are visible in navigation.
-- [ ] Main figures follow the theory objects: radius, guard, planner margin, local sensitivity.
-- [ ] Qualitative t-SNE is either appendix-only or clearly secondary.
+- [x] No internal-report-like heading remains in main text.
+- [x] Theory headings are not redundant.
+- [x] Full-sweep and held-out validation are visible in navigation.
+- [x] Main figures follow the theory objects: radius, guard, planner margin, local sensitivity.
+- [x] Qualitative t-SNE is either appendix-only or clearly secondary.
 
 ### Figures
 
-- [ ] Endpoint ATR/SMPR figure has clear directionality.
-- [ ] Full-sweep figure has no more than three semantic objects per panel.
-- [ ] Fixed-pool event-rate figure uses two main panels and does not waste space on all-zero conditional rates.
-- [ ] Gaussian sensitivity main figure is not overloaded with decomposition heatmap.
-- [ ] Colors are consistent and colorblind-safe.
-- [ ] Text is readable at final PDF size.
-- [ ] Captions start with takeaways.
+- [x] Endpoint ATR/SMPR figure has clear directionality.
+- [x] Full-sweep figure has no more than three semantic objects per panel.
+- [x] Fixed-pool event-rate figure uses two main panels and does not waste space on all-zero conditional rates.
+- [x] Gaussian sensitivity main figure is not overloaded with decomposition heatmap.
+- [x] Colors are consistent and colorblind-safe.
+- [x] Text is readable at final PDF size.
+- [x] Captions start with takeaways.
 
 ### Tables
 
-- [ ] Exact values behind converted figures remain in appendix.
-- [ ] Non-Gaussian boundary table remains compact and interpretable.
-- [ ] Dense audit tables are not duplicated in main text.
+- [x] Exact values behind converted figures remain in appendix.
+- [x] Non-Gaussian boundary table remains compact and interpretable.
+- [x] Dense audit tables are not duplicated in main text.
 
 ### Claims
 
-- [ ] No calibrated closed-loop certificate claim.
-- [ ] No adaptive CEM/replanning guarantee claim.
-- [ ] SMPR remains proxy-level unless stronger labels are added.
-- [ ] Non-Gaussian rows remain scope-boundary evidence.
+- [x] No calibrated closed-loop certificate claim.
+- [x] No adaptive CEM/replanning guarantee claim.
+- [x] SMPR remains proxy-level unless stronger labels are added.
+- [x] Non-Gaussian rows remain scope-boundary evidence.
 
 ### Release
 
-- [ ] All figures referenced by `main.tex` are copied into arXiv and blind source bundles.
-- [ ] `python -m tools.check_paper1_consistency` passes.
-- [ ] `cd paper1 && bash build.sh --clean` passes.
-- [ ] No undefined citations/references or fatal LaTeX diagnostics.
+- [x] All figures referenced by `main.tex` are copied into arXiv and blind source bundles.
+- [x] `python -m tools.check_paper1_consistency` passes.
+- [x] `cd paper1 && bash build.sh --clean` passes.
+- [x] No undefined citations/references or fatal LaTeX diagnostics.
+
+---
+
+## 10. Completion record (2026-07-10)
+
+Phases 0--5 are complete. The final pass also replaced the undersized four-across Gaussian sweep with a native-width 2x2 figure and added subsection float barriers so the local-sensitivity figure and non-Gaussian boundary table cannot drift into the following result section.
+
+Validation evidence:
+
+- `bash paper1/scripts/run_all_paper1_diagnostics.sh` completed for the checked-in, training-free artifact path.
+- `python -m tools.check_paper1_consistency` passed, including the main/appendix figure-set, paper-facing terminology, and isolated-bundle gates.
+- `pytest -q` passed all 33 tests; the collector-specific regression shard passed all 3 tests.
+- `cd paper1 && bash build.sh --clean` produced a 28-page PDF with no undefined citation/reference, fatal, overfull, or underfull diagnostics.
+- The arXiv source bundle compiled in isolation to 28 pages; the blind bundle compiled in isolation to 29 pages because of anonymous front-matter layout. Each contains exactly the 9 figures referenced by its TeX entry point.
+- Final PDF inspection covered every main figure plus the t-SNE, planner-guard, radius--margin, and JVP decomposition appendix figures at actual page size.
+
+The remaining author placeholder in `paper1/arxiv_metadata.tex` is an intentional release-time human input and must be replaced before a public arXiv upload.

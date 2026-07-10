@@ -10,6 +10,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 from .utils_paper1_io import ROOT, TASKS, fnum, read_csv, safe_mean
@@ -18,6 +19,16 @@ DEFAULT_DIAGNOSTICS = ROOT / "paper1" / "results" / "full_sweep_diagnostics.csv"
 DEFAULT_FIG = ROOT / "assets" / "paper1_figs" / "fig_full_sweep_diagnostics.png"
 DEFAULT_REGION_FIG = ROOT / "assets" / "paper1_figs" / "fig_full_sweep_diagnostic_region.png"
 DEFAULT_PLANNER_FIG = ROOT / "assets" / "paper1_figs" / "fig_full_sweep_planner_guard.png"
+
+PLOT_STYLE = {
+    "font.size": 8,
+    "axes.labelsize": 8,
+    "axes.titlesize": 9,
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
+    "legend.fontsize": 8,
+}
+RECOVERY_COLOR = "#d9ead3"
 
 
 def _by_task(rows: list[dict[str, str]]):
@@ -58,93 +69,149 @@ def _proxy_positive_by_rho(task_rows: list[dict[str, str]]) -> list[float]:
     return out
 
 
+def _recovery_spans(
+    x: list[float], recovery: list[float], threshold: float = 0.5
+) -> list[tuple[float, float]]:
+    """Return cell-aligned spans for contiguous majority-recovered grid runs."""
+    if len(x) != len(recovery):
+        raise ValueError("x and recovery must have the same length")
+    if not x:
+        return []
+
+    edges = [x[0] - (x[1] - x[0]) / 2] if len(x) > 1 else [x[0] - 0.5]
+    edges.extend((left + right) / 2 for left, right in zip(x, x[1:]))
+    edges.append(x[-1] + (x[-1] - x[-2]) / 2 if len(x) > 1 else x[-1] + 0.5)
+
+    spans: list[tuple[float, float]] = []
+    run_start: int | None = None
+    for index, value in enumerate(recovery):
+        recovered = math.isfinite(value) and value >= threshold
+        if recovered and run_start is None:
+            run_start = index
+        if run_start is not None and (not recovered or index == len(recovery) - 1):
+            run_end = index if recovered else index - 1
+            spans.append((edges[run_start], edges[run_end + 1]))
+            run_start = None
+    return spans
+
+
 def _shade_recovery(ax: plt.Axes, x: list[float], recovery: list[float]) -> None:
-    for rho, rec in zip(x, recovery):
-        if rec >= 0.5:
-            ax.axvspan(rho - 0.0038, rho + 0.0038, color="#d9ead3", alpha=0.62, lw=0)
+    for start, end in _recovery_spans(x, recovery):
+        ax.axvspan(start, end, color=RECOVERY_COLOR, alpha=0.50, lw=0, zorder=0)
+
+
+def _polish_axis(ax: plt.Axes) -> None:
+    ax.grid(True, axis="y", color="#b0b0b0", alpha=0.22, lw=0.6)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
 
 
 def plot_dynamics(rows: list[dict[str, str]], out_fig: Path) -> None:
     out_fig.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(2, 2, figsize=(9.0, 6.35), sharex=True)
-    axes = axes.ravel()
-    by_task = _by_task(rows)
-    legend_handles = None
+    with plt.rc_context(PLOT_STYLE):
+        fig = plt.figure(figsize=(6.7, 5.8))
+        outer = fig.add_gridspec(
+            2, 2, left=0.09, right=0.985, bottom=0.09, top=0.90, wspace=0.27, hspace=0.34
+        )
+        by_task = _by_task(rows)
 
-    for ax, task in zip(axes, TASKS):
-        trs = by_task[task]
-        x = _task_rhos(trs)
-        score = _mean_by_rho(trs, "obs_sigma_008_score")
-        atr = _mean_by_rho(trs, "atr_normalized_q90")
-        smpr_fail = [1.0 - v if math.isfinite(v) else math.nan for v in _mean_by_rho(trs, "smpr_delta0")]
-        recovery = _rate_by_rho(trs, "recovery_label")
-
-        _shade_recovery(ax, x, recovery)
-        score_line, = ax.plot(x, score, color="#222222", marker="o", lw=1.8, ms=4.4, label="score")
-        ax.set_title(task, fontsize=10)
-        ax.set_ylabel("obs-noise score")
-        ax.set_ylim(0, 105)
-        ax.grid(True, alpha=0.22)
-
-        ax2 = ax.twinx()
-        atr_line, = ax2.plot(x, atr, color="#d95f02", marker="s", lw=1.35, ms=4.0, label="ATR rel")
-        smpr_line, = ax2.plot(x, smpr_fail, color="#7570b3", marker="^", lw=1.35, ms=4.0, ls="--", label="1-SMPR")
-        ax2.set_ylim(0, 1.10)
-        if ax in (axes[1], axes[3]):
-            ax2.set_ylabel("diagnostic failure")
-
-        if legend_handles is None:
-            legend_handles = [
-                Patch(facecolor="#d9ead3", edgecolor="none", alpha=0.62, label="recovered rows"),
-                score_line,
-                atr_line,
-                smpr_line,
+        for index, task in enumerate(TASKS):
+            block = outer[index // 2, index % 2].subgridspec(
+                2, 1, height_ratios=(0.92, 1.08), hspace=0.08
+            )
+            score_ax = fig.add_subplot(block[0])
+            diagnostic_ax = fig.add_subplot(block[1], sharex=score_ax)
+            trs = by_task[task]
+            x = _task_rhos(trs)
+            score = _mean_by_rho(trs, "obs_sigma_008_score")
+            atr = _mean_by_rho(trs, "atr_normalized_q90")
+            smpr_fail = [
+                1.0 - value if math.isfinite(value) else math.nan
+                for value in _mean_by_rho(trs, "smpr_delta0")
             ]
+            recovery = _rate_by_rho(trs, "recovery_label")
 
-    for ax in axes:
-        ax.set_xlabel(r"training noise $\sigma_{\max}^{\mathrm{train}}$")
-    if legend_handles is not None:
-        fig.legend(legend_handles, [h.get_label() for h in legend_handles], loc="upper center", ncol=4, fontsize=8, frameon=False)
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
-    fig.savefig(out_fig, dpi=230)
-    plt.close(fig)
+            _shade_recovery(score_ax, x, recovery)
+            _shade_recovery(diagnostic_ax, x, recovery)
+            score_ax.plot(x, score, color="#222222", marker="o", lw=1.6, ms=3.6, zorder=2)
+            diagnostic_ax.plot(x, atr, color="#d95f02", marker="s", lw=1.35, ms=3.4, zorder=2)
+            diagnostic_ax.plot(
+                x, smpr_fail, color="#7570b3", marker="^", lw=1.35, ms=3.5, ls="--", zorder=2
+            )
+
+            score_ax.set_title(f"({chr(97 + index)}) {task}", loc="left", fontweight="semibold")
+            score_ax.set_ylabel("Score (%)")
+            score_ax.set_ylim(0, 105)
+            score_ax.set_yticks([0, 50, 100])
+            score_ax.tick_params(axis="x", labelbottom=False, length=0)
+            diagnostic_ax.set_ylabel("Diagnostic value")
+            diagnostic_ax.set_ylim(-0.04, 1.06)
+            diagnostic_ax.set_yticks([0, 0.5, 1.0])
+            diagnostic_ax.set_xlim(-0.003, 0.083)
+            diagnostic_ax.set_xticks([0.00, 0.02, 0.04, 0.06, 0.08])
+            diagnostic_ax.text(
+                0.98,
+                0.92,
+                "lower is better",
+                transform=diagnostic_ax.transAxes,
+                ha="right",
+                va="top",
+                fontsize=8,
+                color="#555555",
+            )
+            _polish_axis(score_ax)
+            _polish_axis(diagnostic_ax)
+
+        legend_handles = [
+            Line2D([], [], color="#222222", marker="o", lw=1.6, ms=3.6, label="Obs-noise score"),
+            Line2D([], [], color="#d95f02", marker="s", lw=1.35, ms=3.4, label="ATR rel"),
+            Line2D([], [], color="#7570b3", marker="^", lw=1.35, ms=3.5, ls="--", label="1-SMPR"),
+            Patch(facecolor=RECOVERY_COLOR, edgecolor="none", alpha=0.50, label="Majority recovered"),
+        ]
+        fig.legend(handles=legend_handles, loc="upper center", ncol=4, frameon=False, bbox_to_anchor=(0.5, 0.985))
+        fig.supxlabel(r"training noise $\sigma_{\max}^{\mathrm{train}}$", y=0.015)
+        fig.savefig(out_fig, dpi=230)
+        plt.close(fig)
 
 
 def plot_planner_guard(rows: list[dict[str, str]], out_fig: Path) -> None:
     out_fig.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(2, 2, figsize=(8.9, 6.2), sharex=True)
+    fig, axes = plt.subplots(2, 2, figsize=(6.7, 4.8), sharex=True, sharey=True)
     axes = axes.ravel()
     by_task = _by_task(rows)
-    legend_handles = None
 
-    for ax, task in zip(axes, TASKS):
+    for index, (ax, task) in enumerate(zip(axes, TASKS)):
         trs = by_task[task]
         x = _task_rhos(trs)
         top1_fail = [1.0 - v if math.isfinite(v) else math.nan for v in _mean_by_rho(trs, "top1_agree")]
         proxy_pos = _proxy_positive_by_rho(trs)
         recovery = _rate_by_rho(trs, "recovery_label")
         _shade_recovery(ax, x, recovery)
-        flip_line, = ax.plot(x, top1_fail, color="#b2182b", marker="d", lw=1.55, ms=4.0, label="top-1 flip")
-        proxy_line, = ax.plot(x, proxy_pos, color="#2166ac", marker="s", lw=1.25, ms=3.8, ls="--", label="proxy gap > 0")
-        ax.set_title(task, fontsize=10)
+        ax.plot(x, top1_fail, color="#b2182b", marker="d", lw=1.5, ms=3.6, zorder=2)
+        ax.plot(x, proxy_pos, color="#2166ac", marker="s", lw=1.3, ms=3.5, ls="--", zorder=2)
+        ax.set_title(f"({chr(97 + index)}) {task}", loc="left", fontweight="semibold")
         ax.set_ylim(-0.04, 1.04)
-        ax.grid(True, alpha=0.22)
-        ax.set_ylabel("event rate")
-        if legend_handles is None:
-            legend_handles = [Patch(facecolor="#d9ead3", edgecolor="none", alpha=0.62, label="recovered rows"), flip_line, proxy_line]
+        ax.set_xlim(-0.003, 0.083)
+        ax.set_xticks([0.00, 0.02, 0.04, 0.06, 0.08])
+        _polish_axis(ax)
 
-    for ax in axes:
-        ax.set_xlabel(r"training noise $\sigma_{\max}^{\mathrm{train}}$")
-    if legend_handles is not None:
-        fig.legend(legend_handles, [h.get_label() for h in legend_handles], loc="upper center", ncol=3, fontsize=8, frameon=False)
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    for ax in axes[::2]:
+        ax.set_ylabel("Event rate")
+    legend_handles = [
+        Line2D([], [], color="#b2182b", marker="d", lw=1.5, ms=3.6, label="Top-1 flip"),
+        Line2D([], [], color="#2166ac", marker="s", lw=1.3, ms=3.5, ls="--", label="Proxy gap > 0"),
+        Patch(facecolor=RECOVERY_COLOR, edgecolor="none", alpha=0.50, label="Majority recovered"),
+    ]
+    fig.legend(handles=legend_handles, loc="upper center", ncol=3, frameon=False, bbox_to_anchor=(0.5, 0.995))
+    fig.supxlabel(r"training noise $\sigma_{\max}^{\mathrm{train}}$", y=0.02)
+    fig.subplots_adjust(left=0.09, right=0.985, bottom=0.12, top=0.89, wspace=0.16, hspace=0.30)
     fig.savefig(out_fig, dpi=230)
     plt.close(fig)
 
 
 def plot_region(rows: list[dict[str, str]], out_fig: Path) -> None:
     out_fig.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(2, 2, figsize=(8.6, 7.0), sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 2, figsize=(6.7, 5.3), sharex=True, sharey=True)
     axes = axes.ravel()
     by_task = _by_task(rows)
     for ax, task in zip(axes, TASKS):

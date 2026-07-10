@@ -94,6 +94,7 @@ REQUIRED_ARTIFACTS = [
     ROOT / "assets" / "paper1_data" / "base_noise_cliff_multistd_20260706.md",
     ROOT / "assets" / "paper1_data" / "three_seed_gaussian_sweep_summary_20260706.json",
     ROOT / "assets" / "paper1_data" / "three_seed_gaussian_sweep_summary_20260706.md",
+    ROOT / "assets" / "paper1_figs" / "fig2_sweep.png",
     ROOT / "assets" / "paper1_figs" / "fig_acpc_basin_tsne.png",
     ROOT / "assets" / "paper1_figs" / "fig_full_sweep_diagnostics.png",
     ROOT / "assets" / "paper1_figs" / "fig_full_sweep_diagnostic_region.png",
@@ -197,13 +198,12 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "It need not reduce the rollout-side Jacobian uniformly",
     "lower composed encoder--rollout response to actual noise-induced perturbations",
     "Low ATR without high SMPR is not interpreted as robustness",
-    "Three-training-seed LeWM Gaussian sweep",
+    "Full-sequence Gaussian noise training produces broad, task-dependent recovery bands",
     "Because \Cref{fig:sweep} already aggregates the full sweep across three training seeds",
     "fig:endpoint-atr-smpr",
-    "Qualitative PushT ACPC neighborhood t-SNE visualization",
     "fig_fixed_pool_event_rates.png",
     "fig_gaussian_sensitivity_main.png",
-    "stressor-specific ATR/SMPR diagnostics",
+    "Mixed blur/resize outcomes delimit the matched-Gaussian scope",
     "raw no-noise $\\to$ noise-trained diagnostic values under the row stressor",
     "We treat this as bounded behavior outside the matched Gaussian setting",
     "These rows therefore support only a bounded severe-stressor association rather than a general perturbation-transfer claim",
@@ -233,7 +233,7 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Those q10/q95 gaps remain negative",
     "aggregate grid-point F1 or interval IoU is not used as the primary validation criterion",
     "Full-sweep and held-out validation",
-    "full-sweep analysis over all $4\\times3\\times9=108$",
+    "Across all $4\\times3\\times9=108$",
     "mean absolute recovery-onset error $0.007$",
     "leave-one-task-out validation",
     "Threshold sensitivity is reported",
@@ -248,9 +248,9 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "Those q10/q95 gaps remain negative",
     "median cert-pass rises from $0.06$",
     "Local Gaussian sensitivity explains ATR contraction",
-    "endpoint/base reduction in this local slope",
+    "endpoint/base reductions under both local estimators",
     "using 100 sampled sequences and 5 noise draws per small $\sigma$ and checkpoint",
-    "exact-autograd JVP/Hutchinson Frobenius traces",
+    "an exact-autograd JVP/Hutchinson analysis estimates Frobenius traces",
     "using 100 sampled sequences and 8 Rademacher probes per checkpoint",
     "The two estimators are not expected to match numerically",
     "not as a cross-task scale or a shared threshold",
@@ -290,6 +290,21 @@ REQUIRED_MAIN_TEXT_SNIPPETS = [
     "The sufficient-event interpretation is sample-level",
     "event rates remain informative even though the distribution-level q10/q95 gap is negative",
 ]
+
+MAIN_TEXT_FIGURES = {
+    "fig2_sweep.png",
+    "fig_endpoint_atr_smpr.png",
+    "fig_full_sweep_diagnostics.png",
+    "fig_fixed_pool_event_rates.png",
+    "fig_gaussian_sensitivity_main.png",
+}
+
+APPENDIX_FIGURES = {
+    "fig_acpc_basin_tsne.png",
+    "fig_full_sweep_planner_guard.png",
+    "fig_radius_margin_overlap.png",
+    "fig_jvp_trace_decomposition_heatmap.png",
+}
 
 
 
@@ -533,6 +548,95 @@ def check_appendix_internal_heading_gate() -> None:
     hits = [snippet for snippet in forbidden if snippet in appendix]
     if hits:
         fail("Appendix contains internal Reading heading(s): " + ", ".join(hits))
+
+
+def check_visual_text_structure() -> None:
+    main_tex = (ROOT / "paper1" / "main.tex").read_text(encoding="utf-8")
+    marker = "\\appendix"
+    if marker not in main_tex:
+        fail("paper1/main.tex missing appendix marker")
+    body, appendix = main_tex.split(marker, 1)
+
+    required_headings = (
+        "\\subsection{Paired rollout consistency and discriminability}",
+        "\\subsection{Predictive tubes and planner margins}",
+        "\\subsubsection{Full-sweep and held-out validation}",
+    )
+    for heading in required_headings:
+        if heading not in body:
+            fail(f"paper1/main.tex missing required structural heading: {heading}")
+
+    retired_headings = (
+        "\\subsection{Same-state predictive consistency and selective margin}",
+        "\\subsection{Same-state predictive radius and selective margin}",
+        "\\paragraph{Full-sweep and held-out evidence.}",
+        "\\paragraph{Full-sweep and held-out evidence}",
+    )
+    for heading in retired_headings:
+        if heading in body:
+            fail(f"paper1/main.tex restored retired heading: {heading}")
+
+    for forced_float in ("\\begin{figure}[H]", "\\begin{table}[H]"):
+        if forced_float in body:
+            fail(f"main-text float must not use forced placement: {forced_float}")
+
+    include_re = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
+    body_targets = include_re.findall(body)
+    appendix_targets = include_re.findall(appendix)
+    if len(body_targets) != len(set(body_targets)):
+        fail(f"main text contains duplicate figure targets: {body_targets}")
+    if len(appendix_targets) != len(set(appendix_targets)):
+        fail(f"appendix contains duplicate figure targets: {appendix_targets}")
+
+    if set(body_targets) != MAIN_TEXT_FIGURES:
+        fail(
+            "main-text figure set changed: "
+            f"got {sorted(body_targets)}, want {sorted(MAIN_TEXT_FIGURES)}"
+        )
+    if set(appendix_targets) != APPENDIX_FIGURES:
+        fail(
+            "appendix figure set changed: "
+            f"got {sorted(appendix_targets)}, want {sorted(APPENDIX_FIGURES)}"
+        )
+
+    for target in body_targets + appendix_targets:
+        candidates = (
+            ROOT / "paper1" / "figures" / target,
+            ROOT / "assets" / "paper1_figs" / target,
+        )
+        if not any(path.is_file() for path in candidates):
+            fail(f"TeX-referenced figure is missing: {target}")
+
+    release_scripts = (
+        ROOT / "paper1" / "check_arxiv_ready.sh",
+        ROOT / "paper1" / "docs" / "check_blind_ready.sh",
+    )
+    for script in release_scripts:
+        text = script.read_text(encoding="utf-8")
+        if "collect_tex_figures.py" not in text:
+            fail(f"{script.relative_to(ROOT)} does not collect TeX figure dependencies")
+        if "tar -xzf" not in text:
+            fail(f"{script.relative_to(ROOT)} does not verify its packaged source in isolation")
+
+    paper_facing_tex = [
+        ROOT / "paper1" / "main.tex",
+        *sorted((ROOT / "paper1" / "tables").glob("*.tex")),
+    ]
+    for path in paper_facing_tex:
+        text = path.read_text(encoding="utf-8")
+        for token in ("Top1Agree", "std0.08"):
+            if token in text:
+                fail(f"{path.relative_to(ROOT)} contains code-like paper terminology: {token}")
+
+    terminology_gates = {
+        ROOT / "paper1" / "scripts" / "fixed_pool_tail_audit.py": ("Top1Agree",),
+        ROOT / "paper1" / "scripts" / "sample_level_certificate_summary.py": ("std0.08",),
+    }
+    for path, forbidden_tokens in terminology_gates.items():
+        text = path.read_text(encoding="utf-8")
+        for token in forbidden_tokens:
+            if token in text:
+                fail(f"{path.relative_to(ROOT)} contains code-like paper terminology: {token}")
 
 
 def approx_equal(a: float, b: float) -> bool:
@@ -2627,6 +2731,7 @@ def main() -> int:
         ("artifacts", check_artifacts),
         ("forbidden text", check_forbidden_text),
         ("appendix internal heading gate", check_appendix_internal_heading_gate),
+        ("visual and text structure", check_visual_text_structure),
         ("canonical json", check_canonical_json),
         ("pldm canonical json", check_pldm_canonical_json),
         ("canonical diagnostics json", check_canonical_diagnostics_json),

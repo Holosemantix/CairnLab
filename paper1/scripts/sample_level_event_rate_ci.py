@@ -69,7 +69,7 @@ def build_rows(samples: list[dict[str, str]], full_sweep: list[dict[str, str]]) 
                 successes = sum(1 for v in vals if v)
                 n = len(vals)
                 rate, low, high = _wilson(successes, n)
-                note = "Wilson interval over sampled fixed-pool anchors; not a calibrated theorem probability bound"
+                note = "Wilson interval over sampled fixed-pool audit anchors; not a calibrated theorem probability bound"
                 if metric == "top-1 flip | cert-pass":
                     note = "Wilson interval over cert-pass anchors only; empirical conditional flip risk, not a theorem probability bound"
                 out.append({
@@ -100,7 +100,7 @@ def write_table(path: Path, rows: list[dict[str, Any]]) -> None:
     lines = [
         r"\begin{table}[H]",
         r"\centering",
-        r"\caption{Empirical fixed-pool risk calibration. Each cell reports fragile $\to$ recovered rate [95\% Wilson interval] over sampled fixed-pool anchors. The conditional column restricts the denominator to cert-pass anchors, directly evaluating whether the sufficient event is associated with low fixed-pool candidate-flip risk. These intervals quantify event-rate estimation uncertainty and are not calibrated theorem probability bounds.}",
+        r"\caption{Finite-sample empirical fixed-pool risk audit. Each cell reports fragile $\to$ recovered rate [95\% Wilson interval] over sampled fixed-pool anchors. The conditional column restricts the denominator to cert-pass anchors, directly evaluating whether the sufficient event is associated with low fixed-pool candidate-flip risk. These intervals quantify event-rate estimation uncertainty and are not calibrated theorem probability bounds.}",
         r"\label{tab:sample-level-event-rate-ci}",
         r"\footnotesize",
         r"\setlength{\tabcolsep}{2.5pt}",

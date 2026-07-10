@@ -92,7 +92,7 @@ def build_summary(rows):
                 "margin_q90": "",
                 "proxy_gap_q50q90_mean": safe_mean(r["proxy_gap_q50q90"] for r in block),
                 "proxy_gap_positive_rate": safe_mean(1.0 if fnum(r["proxy_gap_q50q90"]) > 0 else 0.0 for r in block),
-                "notes": "Top1Agree is observed from measured flip-rate summaries; cert-pass requires sample-level fixed-pool traces.",
+                "notes": "Top-1 agreement is observed from measured flip-rate summaries; cert-pass requires sample-level fixed-pool traces.",
             })
     return out
 
@@ -109,13 +109,13 @@ def write_table(summary, out: Path) -> None:
     lines = [
         r"\begin{table}[H]",
         r"\centering",
-        r"\caption{Summary-level fixed-pool top-1 agreement analysis. Top1Agree is derived from the measured fixed-pool flip rate; cert-pass rates require sample-level maximum cost-drift traces.}",
+        r"\caption{Summary-level fixed-pool top-1 agreement rises as the q50/q90 proxy gap turns positive. Agreement is one minus the measured fixed-pool flip rate; cert-pass rates require sample-level maximum cost-drift traces.}",
         r"\label{tab:fixed-pool-tail-audit}",
         r"\small",
         r"\setlength{\tabcolsep}{4pt}",
         r"\begin{tabular}{llrrrr}",
         r"\toprule",
-        r"Task & row & $\sigma_{\max}^{\mathrm{train}}$ & Top1Agree & proxy gap & proxy pass rate \\",
+        r"Task & row & $\sigma_{\max}^{\mathrm{train}}$ & top-1 agreement & proxy gap & proxy pass rate \\",
         r"\midrule",
     ]
     for task, role, row in selected:
@@ -145,9 +145,9 @@ def plot(summary, out_fig: Path, top1_fig: Path) -> None:
         ax.set_ylabel("q50/q90 proxy gap")
         ax.grid(True, alpha=0.25)
         ax2 = ax.twinx()
-        ax2.plot(x, top1, color="#38761d", marker="s", lw=1.4, ls="--", label="Top1Agree")
+        ax2.plot(x, top1, color="#38761d", marker="s", lw=1.4, ls="--", label="top-1 agreement")
         ax2.set_ylim(0, 1.03)
-        ax2.set_ylabel("Top1Agree")
+        ax2.set_ylabel("top-1 agreement")
         if task == TASKS[0]:
             ax.legend(loc="lower right", fontsize=8)
             ax2.legend(loc="upper right", fontsize=8)
@@ -160,7 +160,7 @@ def plot(summary, out_fig: Path, top1_fig: Path) -> None:
         rows = [r for r in summary if r["task"] == task]
         ax.plot([fnum(r["rho"]) for r in rows], [fnum(r["top1_agree_mean"]) for r in rows], marker="o", lw=1.6, label=task)
     ax.set_xlabel(r"training noise $\sigma_{\max}^{\mathrm{train}}$")
-    ax.set_ylabel("fixed-pool Top1Agree")
+    ax.set_ylabel("fixed-pool top-1 agreement")
     ax.set_ylim(0, 1.03)
     ax.grid(True, alpha=0.25)
     ax.legend(fontsize=8)
@@ -174,7 +174,7 @@ def write_missing(path: Path) -> None:
         "# Missing raw fixed-pool tail data\n\n"
         "The available Paper1 summaries contain aggregate q50/q90 candidate-margin and paired-drift summaries plus fixed-pool flip rates. "
         "They do not contain sample-level candidate-cost traces, per-anchor maximum cost drift, q10 clean-margin tails, q95/q99 max-drift tails, or pool-level sufficient-event pass flags. "
-        "Accordingly, the fixed-pool analysis reports observed Top1Agree and q50/q90 proxy gaps, and leaves cert_pass_pool/cert_pass_rate fields empty rather than inferring them from summaries.\n"
+        "Accordingly, the fixed-pool analysis reports observed top-1 agreement and q50/q90 proxy gaps, and leaves cert_pass_pool/cert_pass_rate fields empty rather than inferring them from summaries.\n"
     )
 
 

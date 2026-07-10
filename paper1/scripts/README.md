@@ -38,9 +38,10 @@ python -m paper1.scripts.plot_gaussian_sensitivity_mechanism
 
 Plot output notes:
 
-- `plot_full_sweep_diagnostics` writes the main behavior+ACPC figure, the diagnostic-region scatter, and the appendix planner-guard figure.
-- `plot_gaussian_sensitivity_mechanism` writes `fig_gaussian_sensitivity_main.png` for the main text and `fig_jvp_trace_decomposition_heatmap.png` for the appendix.
-- `plot_fixed_pool_event_rates` writes the two-panel main event-rate figure; conditional flip-given-cert-pass rates remain in the appendix table.
+- `plot_full_sweep_diagnostics` writes a main figure with separate behavior and diagnostic axes per task, the diagnostic-region scatter, and an appendix planner-guard figure; recovery shading is rendered as continuous majority-recovered ranges.
+- `plot_endpoint_atr_smpr` writes the two-panel endpoint dumbbell figure with base-to-noise-trained movement arrows.
+- `plot_gaussian_sensitivity_mechanism` writes a two-panel endpoint/base lollipop figure for the main text and the trace-decomposition heatmap plus separate alignment panel for the appendix.
+- `plot_fixed_pool_event_rates` writes the two-panel paired event-rate figure; conditional flip-given-cert-pass rates remain in the appendix table.
 
 Important scope constraints:
 

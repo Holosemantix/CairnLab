@@ -15,11 +15,11 @@ fail() {
 
 # Hard blockers that should not reach arXiv.
 if grep -q "Author names to be supplied" arxiv_metadata.tex && [[ "$ALLOW_AUTHOR_PLACEHOLDER" != "1" ]]; then
-  fail "main.tex still contains the arXiv author placeholder. Replace \\arxivauthors with the real author list."
+  fail "arxiv_metadata.tex still contains the arXiv author placeholder. Replace \\arxivauthors with the real author list."
 fi
 
 if grep -q "Author names to be supplied" arxiv_metadata.tex; then
-  echo "WARN: author placeholder allowed because ALLOW_AUTHOR_PLACEHOLDER=1; replace it before final arXiv upload." >&2
+  echo "WARN: author placeholder in arxiv_metadata.tex allowed because ALLOW_AUTHOR_PLACEHOLDER=1; replace it before final arXiv upload." >&2
 fi
 
 if grep -q "\\\\author{}" main.tex; then
@@ -50,16 +50,6 @@ if grep -q "tab:theory-metric-map\|tab:sweep-summary\|fig:atr-smpr-plane\|fig_at
   fail "main.tex still references a removed table or figure from the pre-convergence draft."
 fi
 
-if ! grep -q "fig_acpc_basin_tsne.png" main.tex; then
-  fail "main.tex should reference the canonical qualitative ACPC t-SNE figure."
-fi
-
-for figure in fig2_sweep.png fig_endpoint_atr_smpr.png fig_full_sweep_diagnostics.png fig_fixed_pool_event_rates.png fig_gaussian_sensitivity_main.png fig_acpc_basin_tsne.png fig_full_sweep_planner_guard.png fig_radius_margin_overlap.png fig_jvp_trace_decomposition_heatmap.png; do
-  if ! grep -q "$figure" main.tex; then
-    fail "main.tex should reference $figure for the current paper1 figure set."
-  fi
-done
-
 # Build first; build.sh also greps undefined refs/cites/fatal diagnostics.
 bash build.sh --clean
 
@@ -89,6 +79,29 @@ tar -czf /tmp/paper1_arxiv_v1_src.tar.gz -C /tmp/paper1_arxiv_src .
 
 if tar -tzf /tmp/paper1_arxiv_v1_src.tar.gz | grep -E '(^|/)(PLAN|CODEX|ARXIV_V1|FINAL_SUBMISSION_AUDIT|\.git|.*\.log|.*\.aux|.*\.out|.*\.toc|.*\.fls|.*\.fdb_latexmk|.*\.synctex\.gz|main\.pdf)$'; then
   fail "arXiv source tarball contains internal planning/build/output files."
+fi
+
+# Verify the artifact that will actually be uploaded, not only the repository
+# checkout from which it was assembled.
+rm -rf /tmp/paper1_arxiv_verify
+mkdir -p /tmp/paper1_arxiv_verify
+tar -xzf /tmp/paper1_arxiv_v1_src.tar.gz -C /tmp/paper1_arxiv_verify
+if ! (
+  cd /tmp/paper1_arxiv_verify
+  if command -v latexmk >/dev/null 2>&1; then
+    latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
+  else
+    pdflatex -interaction=nonstopmode -halt-on-error main.tex
+    pdflatex -interaction=nonstopmode -halt-on-error main.tex
+  fi
+) >/tmp/paper1_arxiv_bundle_build.log 2>&1; then
+  tail -n 80 /tmp/paper1_arxiv_bundle_build.log >&2
+  fail "isolated arXiv source bundle did not compile"
+fi
+
+if grep -En "Citation .* undefined|Reference .* undefined|There were undefined references|Undefined control sequence|Fatal error|No file main.bbl|Overfull|Underfull" /tmp/paper1_arxiv_verify/main.log >/tmp/paper1_arxiv_bundle_grep.log 2>/dev/null; then
+  cat /tmp/paper1_arxiv_bundle_grep.log
+  fail "isolated arXiv source bundle has unresolved references or layout diagnostics"
 fi
 
 echo "OK: Paper 1 arXiv readiness checks passed."

@@ -221,36 +221,87 @@ def fig2_sweep(out_path: Path):
     for row in payload["summary_rows"]:
         rows_by_task[row["task"]][float(row["stdmax"])] = row
 
-    fig, axes = plt.subplots(1, 4, figsize=(13, 3.7), sharey=True)
-    for ax, t in zip(axes, tasks):
-        rows = rows_by_task[t]
-        clean = [rows[std]["metrics"]["clean"]["mean"] for std in SWEEP_STDS]
-        clean_std = [rows[std]["metrics"]["clean"]["pstdev"] for std in SWEEP_STDS]
-        px08 = [rows[std]["metrics"]["obs_sigma_0.08"]["mean"] for std in SWEEP_STDS]
-        px08_std = [rows[std]["metrics"]["obs_sigma_0.08"]["pstdev"] for std in SWEEP_STDS]
-        ax.errorbar(SWEEP_STDS, clean, yerr=clean_std,
-                    fmt="o-", color="#4477AA",
-                    label="Eval: unperturbed images",
-                    linewidth=1.7, markersize=4.5, capsize=2.2, elinewidth=0.85)
-        ax.errorbar(SWEEP_STDS, px08, yerr=px08_std,
-                    fmt="s-", color="#EE6677",
-                    label=ROBUST_EVAL_LABEL,
-                    linewidth=1.7, markersize=4.5, capsize=2.2, elinewidth=0.85)
-        ax.set_title(t, fontsize=11)
-        ax.set_xlabel(r"Train-time noise level $\sigma_{\max}$", fontsize=10)
-        ax.set_xticks([0, 0.02, 0.04, 0.06, 0.08])
-        ax.set_xticklabels(["0", "0.02", "0.04", "0.06", "0.08"])
-        ax.set_ylim(0, 105)
-        ax.grid(alpha=0.3, linewidth=0.5)
-        ax.tick_params(labelsize=9.5)
-    axes[0].set_ylabel("Success rate (%)", fontsize=10.5)
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center",
-               bbox_to_anchor=(0.5, 1.04), ncol=2,
-               frameon=False, fontsize=10)
-    fig.tight_layout(rect=[0, 0, 1, 0.92])
-    fig.savefig(out_path)
-    plt.close(fig)
+    style = {
+        "font.size": 8.25,
+        "axes.titlesize": 9.25,
+        "axes.labelsize": 8.5,
+        "xtick.labelsize": 8.0,
+        "ytick.labelsize": 8.0,
+        "legend.fontsize": 8.1,
+        "savefig.bbox": None,
+    }
+    with plt.rc_context(style):
+        # Render at the manuscript's native text width so labels are not
+        # downscaled from the former 13-inch, single-row layout.
+        fig, axes = plt.subplots(2, 2, figsize=(6.7, 4.85), sharex=True, sharey=True)
+        axes = axes.ravel()
+        for index, (ax, task) in enumerate(zip(axes, tasks)):
+            rows = rows_by_task[task]
+            clean = [rows[std]["metrics"]["clean"]["mean"] for std in SWEEP_STDS]
+            clean_std = [rows[std]["metrics"]["clean"]["pstdev"] for std in SWEEP_STDS]
+            px08 = [rows[std]["metrics"]["obs_sigma_0.08"]["mean"] for std in SWEEP_STDS]
+            px08_std = [rows[std]["metrics"]["obs_sigma_0.08"]["pstdev"] for std in SWEEP_STDS]
+            ax.errorbar(
+                SWEEP_STDS,
+                clean,
+                yerr=clean_std,
+                fmt="o-",
+                color="#4477AA",
+                label="Eval: unperturbed images",
+                linewidth=1.55,
+                markersize=4.2,
+                capsize=2.1,
+                capthick=0.85,
+                elinewidth=0.85,
+                zorder=3,
+            )
+            ax.errorbar(
+                SWEEP_STDS,
+                px08,
+                yerr=px08_std,
+                fmt="s-",
+                color="#EE6677",
+                label=ROBUST_EVAL_LABEL,
+                linewidth=1.55,
+                markersize=4.2,
+                capsize=2.1,
+                capthick=0.85,
+                elinewidth=0.85,
+                zorder=3,
+            )
+            ax.set_title(f"({chr(97 + index)}) {task}", loc="left", fontweight="semibold")
+            ax.set_xlim(-0.003, 0.083)
+            ax.set_xticks([0, 0.02, 0.04, 0.06, 0.08])
+            ax.set_xticklabels(["0", "0.02", "0.04", "0.06", "0.08"])
+            ax.set_ylim(0, 105)
+            ax.set_yticks([0, 25, 50, 75, 100])
+            ax.grid(color="#c7c7c7", alpha=0.42, linewidth=0.55)
+            ax.set_axisbelow(True)
+            ax.tick_params(length=3.0, color="#666666")
+
+        handles, labels = axes[0].get_legend_handles_labels()
+        fig.legend(
+            handles,
+            labels,
+            loc="upper center",
+            bbox_to_anchor=(0.5, 0.985),
+            ncol=2,
+            frameon=False,
+            handletextpad=0.55,
+            columnspacing=1.45,
+        )
+        fig.supxlabel(r"Train-time noise level $\sigma_{\max}$", y=0.025)
+        fig.supylabel("Success rate (%)", x=0.025)
+        fig.subplots_adjust(
+            left=0.105,
+            right=0.985,
+            bottom=0.13,
+            top=0.86,
+            wspace=0.15,
+            hspace=0.28,
+        )
+        fig.savefig(out_path, dpi=300, facecolor="white")
+        plt.close(fig)
     print(f"  wrote {out_path}")
 
 

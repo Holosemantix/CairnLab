@@ -15,7 +15,8 @@ paper1/
 ├── figures/          # symlink → ../assets/paper1_figs/
 ├── build.sh          # `bash build.sh` (uses latexmk if available, else pdflatex + bibtex)
 ├── .gitignore        # ignores LaTeX intermediates; main.pdf is tracked intentionally
-└── README.md         # this file
+├── docs/README.md    # this file
+└── docs/main_blind.tex
 ```
 
 ## Build
@@ -53,11 +54,11 @@ Paper-specific tool usage is documented in `../tools/README_paper1.md`.
 
 ## Submitting to arXiv
 
-The current source is configured as an arXiv-style non-anonymous draft. Before submitting, replace the `\arxivauthors` placeholder in `main.tex` with the real author list and verify the public code/data URL printed after the abstract.
+The current source is configured as an arXiv-style non-anonymous draft. Before submitting, replace the `\arxivauthors` placeholder in `arxiv_metadata.tex` with the real author list and verify the public code/data URL printed after the abstract.
 
 Current public companion repository: `https://github.com/Anguo-star/lewm-acpc-diagnostics`.
 
-For a double-blind conference variant, use `main_blind.tex` and run `bash paper1/docs/check_blind_ready.sh` from the repository root. The blind path compiles the same paper with anonymous authors, hides the public code URL and acknowledgements, and creates `/tmp/paper1_blind_src.tar.gz` without `arxiv_metadata.tex` or `arxiv_release_notes.tex`.
+For a double-blind conference variant, use `docs/main_blind.tex` and run `bash paper1/docs/check_blind_ready.sh` from the repository root. The blind path compiles the same paper with anonymous authors, hides the public code URL and acknowledgements, and creates `/tmp/paper1_blind_src.tar.gz` without `arxiv_metadata.tex` or `arxiv_release_notes.tex`.
 
 arXiv source upload should contain only files required to compile the paper. Do not upload `PLAN.md`, `CODEX_SUBMISSION_READINESS.md`, `ARXIV_V1_READINESS_PLAN.md`, checker logs, old PDFs, raw experiment JSON, or other internal planning files.
 
@@ -76,4 +77,4 @@ cd paper1
 python scripts/collect_tex_figures.py --tex main.tex --base-dir . --out-dir /tmp/paper1_arxiv_src/figures
 ```
 
-The source package intentionally excludes `main.pdf`, unused figures, and local build products; the TeX source path includes `main.bbl`, whose basename matches `main.tex`.
+The source package intentionally excludes `main.pdf`, unused figures, and local build products; the TeX source path includes `main.bbl`, whose basename matches `main.tex`. Both readiness scripts extract their generated tarballs into a fresh `/tmp` directory and compile there, so missing packaged inputs or figures fail the release gate.

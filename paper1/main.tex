@@ -23,6 +23,7 @@
 \usepackage{graphicx}
 \graphicspath{{figures/}{../assets/paper1_figs/}{assets/paper1_figs/}}
 \usepackage{float}
+\usepackage{placeins}
 \usepackage{lscape}
 % TinyTeX in this environment lacks pdflscape; add the PDF rotation attribute
 % that makes lscape pages open upright in standard PDF viewers.
@@ -71,6 +72,7 @@
 \setlength{\textfloatsep}{9pt plus 2pt minus 2pt}
 \setlength{\floatsep}{8pt plus 2pt minus 2pt}
 \setlength{\intextsep}{8pt plus 2pt minus 2pt}
+\renewcommand{\floatpagefraction}{0.75}
 \makeatletter
 \setlength{\@fptop}{0pt}
 \setlength{\@fpsep}{8pt plus 2pt}
@@ -102,7 +104,7 @@
 \maketitle
 
 \begin{abstract}
-Latent predictive world models avoid pixel reconstruction, but pixel-free prediction is not a robustness definition for closed-loop control. We study this gap with action-conditioned predictive consistency (ACPC), a no-retraining diagnostic for JEPA-style control checkpoints. The diagnostic combines ACPC Tail Risk (ATR), which measures high-quantile clean/noisy rollout disagreement for the same state under the same action sequence, with Selective Margin Pass Rate (SMPR), which evaluates whether task-grounded near-boundary distinctions remain separated. Across three independent LeWM training seeds and four control tasks, no-noise checkpoints are fragile under observation-only Gaussian noise, while input-side noise training yields broad matched-Gaussian recovery bands under the specified stressor. Across the full training-noise sweep, recovered rows occupy low-ATR/high-SMPR regions, and held-out seed/task validations keep recovery-onset errors within two grid steps. These results support ATR and SMPR as bounded ACPC diagnostics for matched-Gaussian recovery bands in fixed JEPA world-model checkpoints.
+Latent predictive world models avoid pixel reconstruction, but pixel-free prediction is not a robustness definition for closed-loop control. We study this gap with action-conditioned predictive consistency (ACPC), a no-retraining diagnostic for JEPA-style control checkpoints. The diagnostic combines ACPC Tail Risk (ATR), which measures high-quantile clean/noisy rollout disagreement for the same state under the same action sequence, with Selective Margin Pass Rate (SMPR), which evaluates whether task-grounded near-boundary distinctions remain separated. Across three independent LeWM training seeds and four control tasks, no-noise checkpoints are fragile under observation-only Gaussian noise, while input-side noise training yields broad matched-Gaussian recovery bands under the specified stressor. Across the full training-noise sweep, recovered rows occupy low-ATR/high-SMPR regions, and held-out seed/task validations keep recovery-onset errors within two grid steps. These results support ATR and SMPR as empirical ACPC diagnostics for matched-Gaussian recovery bands in fixed JEPA world-model checkpoints.
 
 \smallskip
 \noindent\textbf{Keywords:} visual world models; JEPA; action-conditioned predictive consistency; visual robustness; predictive-dynamics diagnostics.
@@ -280,7 +282,7 @@ K\alpha + \Pr_{\mathcal A}[\Delta_{\mathcal A}\le 2L_J\epsilon] + \gamma.
 \]
 \end{theorem}
 
-This is a fixed-pool diagnostic bound for a matched perturbation distribution. It says that a checkpoint is in the safe radius--margin regime only when the high-probability same-state predictive radius is below the relevant planner margin and task-grounded separations remain outside the perturbation tube.
+This is a fixed-pool diagnostic bound for a matched perturbation distribution. It places a checkpoint in the bound's sufficient-condition regime only when the high-probability same-state predictive radius is below the relevant planner margin and task-grounded separations remain outside the perturbation tube.
 
 \begin{definition}[Matched-perturbation diagnostic region]\label{def:robust-interval}
 For a checkpoint family indexed by training perturbation level $\rho$ and evaluated at observation noise $\sigma$, define the empirical radius--margin pass event
@@ -414,11 +416,11 @@ All results use the protocol in Section~\ref{sec:bg}: LeWM-base denotes the no-n
 
 \subsection{Gaussian observation noise breaks no-noise checkpoints}\label{sec:exp-cliff}
 
-\Cref{tab:noise-cliff} reports LeWM-base success rates under observation-only Gaussian evaluation noise. Each training-seed value is first averaged over the three evaluation seeds; the table reports mean $\pm$ population std across the three training seeds. The goal image is kept clean in every column.
+Observation-only Gaussian noise sharply degrades all four no-noise checkpoints, with the largest losses on PushT and Reacher. \Cref{tab:noise-cliff} reports the success rates: each training-seed value is first averaged over the three evaluation seeds, and the table then reports mean $\pm$ population std across the three training seeds. The goal image is kept clean in every column.
 
-\begin{table}[H]
+\begin{table}[htbp]
 \centering
-\caption{LeWM-base under observation-only Gaussian evaluation noise. Values are mean $\pm$ population std across training seeds 3072/3073/3074; each training-seed value averages evaluation seeds 42/43/44 with 100 trajectories per evaluation seed. The goal image is kept clean.}
+\caption{Observation-only Gaussian noise sharply degrades no-noise LeWM checkpoints across all four tasks. Values are mean $\pm$ population std across training seeds 3072/3073/3074; each training-seed value averages evaluation seeds 42/43/44 with 100 trajectories per evaluation seed. The goal image is kept clean.}
 \label{tab:noise-cliff}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -438,12 +440,12 @@ LeWM-base is strong on unperturbed images, but observation noise alone produces 
 
 \subsection{Full-sequence Gaussian augmentation yields task-dependent recovery bands}\label{sec:exp-sweep}
 
-\Cref{fig:sweep} shows the full LeWM Gaussian sweep aggregated across training seeds 3072/3073/3074. Each plotted point first averages evaluation seeds 42/43/44 within a training seed and then reports mean and population std across the three training seeds. The main qualitative pattern is a broad, task-dependent recovery band rather than a stable universal checkpoint ranking.
+Full-sequence Gaussian noise training produces broad, task-dependent recovery bands rather than a stable universal checkpoint ranking. \Cref{fig:sweep} shows the full sweep aggregated across training seeds 3072/3073/3074; each plotted point first averages evaluation seeds 42/43/44 within a training seed and then reports mean and population std across the three training seeds.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{fig2_sweep.png}
-\caption{Three-training-seed LeWM Gaussian sweep across four tasks. Each point averages evaluation seeds 42/43/44 within each training seed and then reports mean across training seeds 3072/3073/3074; error bars show population std across training seeds. Blue circles: unperturbed evaluation; red squares: observation-only Gaussian noise $\sigma=0.08$ with an unperturbed goal. The curves document broad task-dependent recovery bands rather than checkpoint rankings.}
+\caption{Full-sequence Gaussian noise training produces broad, task-dependent recovery bands rather than a universal checkpoint ranking. Each point averages evaluation seeds 42/43/44 within each training seed and then reports mean across training seeds 3072/3073/3074; error bars show population std across training seeds. Blue circles show unperturbed evaluation; red squares show observation-only Gaussian noise $\sigma=0.08$ with an unperturbed goal.}
 \label{fig:sweep}
 \end{figure}
 
@@ -456,10 +458,10 @@ A three-seed blur/resize evaluation later in this section serves as an auxiliary
 Recovered checkpoints move in both parts of the selective ACPC diagnostic: the same-state predictive-radius tail contracts and the task-grounded guard improves. ATR is the 90th percentile of same-state clean/noisy ACPC-H rollout distance normalized by the clean transition scale. SMPR is the task-grounded near-boundary selective-margin pass rate at margin zero. Both are computed without retraining on the fixed no-noise and \stdmax{} $=0.08$ checkpoints for training seeds 3072/3073/3074. \Cref{fig:endpoint-atr-smpr} shows the paired endpoint movement, with exact population mean/std values reported in Appendix~\ref{sec:appendix-supplementary-diagnostics}.
 
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
-\includegraphics[width=0.96\linewidth]{fig_endpoint_atr_smpr.png}
-\caption{Endpoint selective-ACPC diagnostics over training seeds 3072/3073/3074. ATR is the q90 same-state clean/noisy action-conditioned rollout disagreement; lower is better. SMPR is the task-grounded near-boundary selective-margin pass rate; higher is better. Points report means across training seeds and horizontal bars report population standard deviations. Exact values are in Appendix~\ref{sec:appendix-supplementary-diagnostics}.}
+\includegraphics[width=\linewidth]{fig_endpoint_atr_smpr.png}
+\caption{Noise-trained endpoints contract the ATR radius tail and improve the SMPR guard on all four tasks. ATR is the q90 same-state clean/noisy action-conditioned rollout disagreement normalized by the clean transition scale; SMPR is the task-grounded near-boundary selective-margin pass rate. Points report means across training seeds 3072/3073/3074 and horizontal bars report population standard deviations. Exact values are in Appendix~\ref{sec:appendix-supplementary-diagnostics}.}
 \label{fig:endpoint-atr-smpr}
 \end{figure}
 
@@ -469,12 +471,12 @@ SMPR uses programmatic task-state proxy labels, not oracle semantic annotations:
 
 \subsubsection{Full-sweep and held-out validation}\label{sec:exp-full-sweep-diagnostics}
 
-Endpoint diagnostics are supplemented by a training-free full-sweep analysis over all $4\times3\times9=108$ task--training-seed--checkpoint rows. \Cref{fig:full-sweep-diagnostics} overlays the closed-loop observation-noise score with normalized ATR tail and SMPR failure ($1-\mathrm{SMPR}$). The recovered portions of the Gaussian sweep consistently occupy lower normalized ATR and lower SMPR failure than fragile rows. This keeps the ACPC evidence focused on recovered-vs-fragile radius/guard separation; fixed-pool top-1 disagreement and proxy-gap traces are kept in Appendix~\ref{sec:appendix-fixed-pool-details}, where they support the planner-side radius--margin audit.
+Across all $4\times3\times9=108$ task--training-seed--checkpoint rows, recovered portions of the Gaussian sweep consistently occupy lower normalized ATR and lower SMPR failure than fragile rows. \Cref{fig:full-sweep-diagnostics} places the closed-loop observation-noise score above the two diagnostic-failure traces so behavioral recovery and diagnostic movement remain visually distinct. Fixed-pool top-1 disagreement and proxy-gap traces are kept in Appendix~\ref{sec:appendix-fixed-pool-details}, where they support the planner-side radius--margin audit.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{fig_full_sweep_diagnostics.png}
-\caption{Recovered rows align with lower radius and guard failures across the Gaussian training grid. Each task panel averages training seeds 3072/3073/3074 at the same \stdmax{} value. Green bands mark behavioral recovery-band points; the black curve is the observation-noise score, and the right-axis curves are normalized ATR tail and SMPR failure ($1-\mathrm{SMPR}$), both lower-is-better diagnostics. Planner-side top-1 disagreement is separated into Appendix~\ref{sec:appendix-fixed-pool-details}.}
+\caption{Recovered rows align with lower radius and guard failures across the Gaussian training grid. Each task block averages training seeds 3072/3073/3074 at the same \stdmax{} value and separates the observation-noise score (upper axis) from normalized ATR tail and SMPR failure ($1-\mathrm{SMPR}$; lower axes). Continuous green bands mark training-noise ranges where a majority of seed rows meet the behavioral recovery criterion. Planner-side top-1 disagreement is separated into Appendix~\ref{sec:appendix-fixed-pool-details}.}
 \label{fig:full-sweep-diagnostics}
 \end{figure}
 
@@ -486,7 +488,7 @@ Threshold sensitivity is reported in Appendix~\ref{sec:appendix-supplementary-di
 
 \subsection{Planner-side radius--margin audit}\label{sec:exp-radius-margin}
 
-The radius--margin theory predicts that a checkpoint should remain diagnostically stable under the matched stressor when the high-tail same-state predictive radius is contained within the relevant planner or task-discriminability margin. We therefore add a training-free full-sweep validation using existing three-training-seed evaluation and diagnostic summaries. The behavioral recovery band is defined only from closed-loop observation-noise scores: a checkpoint is marked as inside the recovery band if its observation-only $\sigma=0.08$ success is at least 80\% of the way from the no-noise baseline to the maximum grid value for that task, while clean success stays within 5 points of the no-noise clean score. Planner-side top-1 flip and proxy-gap traces are shown in Appendix~\ref{sec:appendix-fixed-pool-details}; the main figure in this subsection reports the sample-level event rates. The diagnostic proxy is computed independently from fixed-pool diagnostic summaries as
+Recovered rows satisfy the fixed-pool sufficient event more often and exhibit substantially fewer top-1 flips than fragile rows. This tests the radius--margin prediction that matched-stressor stability improves when the high-tail same-state predictive radius is contained within the relevant planner or task-discriminability margin. The training-free full-sweep validation uses existing three-training-seed evaluation and diagnostic summaries. The behavioral recovery band is defined only from closed-loop observation-noise scores: a checkpoint is marked as inside the recovery band if its observation-only $\sigma=0.08$ success is at least 80\% of the way from the no-noise baseline to the maximum grid value for that task, while clean success stays within 5 points of the no-noise clean score. Planner-side top-1 flip and proxy-gap traces are shown in Appendix~\ref{sec:appendix-fixed-pool-details}; the main figure in this subsection reports the sample-level event rates. The diagnostic proxy is computed independently from fixed-pool diagnostic summaries as
 \[
 \widehat\Gamma_{\rho,0.08}
 =\widehat Q_{0.50}(\Delta_{\mathcal A})
@@ -495,7 +497,7 @@ The radius--margin theory predicts that a checkpoint should remain diagnosticall
 A positive proxy gap is the available summary-level counterpart of the fixed-pool margin condition. The summary-level overlay is kept as a mechanism proxy, not a calibrated planner-margin bound: it uses median clean candidate margin and q90 paired cost drift. The separate sample-level recomputation evaluates the sufficient event directly over the fixed 65-candidate pool for all 108 rows and also reports strict q10/q95 gaps. Those q10/q95 gaps remain negative even on recovered rows, indicating that q10/q95 is too conservative for the current fixed-pool cost scale and should not be used as the paper's claimed threshold. The reported fixed-pool evidence is event-rate based: across all tasks, median cert-pass rises from $0.06$ on fragile rows to $0.61$ on recovered rows, median top-1 flip falls from $0.54$ to $0.04$, and \Cref{fig:fixed-pool-event-rates} reports Wilson intervals for $\hat p_{\mathrm{cert}}$ and $\hat p_{\mathrm{flip}}$; Appendix~\ref{sec:appendix-fixed-pool-risk-calibration} reports $\hat p_{\mathrm{flip}\mid\mathrm{cert}}$. In the sampled anchors, observed top-1 flips conditioned on cert-pass are zero in both fragile and recovered splits, so the sufficient event is empirically conservative rather than overfit. Thus this analysis instantiates the radius--margin mechanism as a finite-sample empirical fixed-pool risk audit, not as a calibrated probability bound or checkpoint-ranking rule. Because the Gaussian sweep uses equal $\stdmax{}$ increments while the tasks have unequal visual and dynamical sensitivity, aggregate grid-point F1 or interval IoU is not used as the primary validation criterion. Appendix~\ref{sec:appendix-radius-margin-params} reports boundary-aware recovery/proxy alignment, and Appendix~\ref{sec:appendix-fixed-pool-risk-calibration} reports the finite-sample risk-audit details.
 
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{fig_fixed_pool_event_rates.png}
 \caption{Recovered rows certify more fixed-pool histories and flip fewer top candidates. Cert-pass denotes sampled histories where the maximum paired cost drift over the shared 65-candidate pool is below one half of the clean top-1/top-2 margin; top-1 flip is the observed clean/noisy fixed-pool top-candidate disagreement. Intervals are Wilson 95\% intervals over sampled anchors and quantify event-rate uncertainty, not calibrated theorem probabilities. Exact rates, including conditional flip given cert-pass, are in Appendix~\ref{sec:appendix-fixed-pool-risk-calibration}.}
@@ -508,24 +510,25 @@ The summary-level fixed-pool overlap proxy aligns with the broad recovery band b
 
 \subsection{Local Gaussian sensitivity explains ATR contraction}\label{sec:exp-gaussian-sensitivity}
 
-The ATR contraction is accompanied by a large drop in local composed encoder--rollout sensitivity under two checkpoint-local analyses on the base, recovery-onset, and endpoint checkpoints. First, a finite-difference analysis perturbs the same observation histories with small Gaussian noise levels and estimates $\mathbb E[R_\sigma^2]/\sigma^2$ from the action-conditioned rollout radius, using 100 sampled sequences and 5 noise draws per small $\sigma$ and checkpoint. Second, an exact-autograd JVP/Hutchinson analysis estimates exact-autograd JVP/Hutchinson Frobenius traces for the encoder map, the rollout map, and their composition using 100 sampled sequences and 8 Rademacher probes per checkpoint.
+The ATR contraction is accompanied by a large drop in local composed encoder--rollout sensitivity under two checkpoint-local analyses on the base, recovery-onset, and endpoint checkpoints. First, a finite-difference analysis perturbs the same observation histories with small Gaussian noise levels and estimates $\mathbb E[R_\sigma^2]/\sigma^2$ from the action-conditioned rollout radius, using 100 sampled sequences and 5 noise draws per small $\sigma$ and checkpoint. Second, an exact-autograd JVP/Hutchinson analysis estimates Frobenius traces for the encoder map, the rollout map, and their composition using 100 sampled sequences and 8 Rademacher probes per checkpoint.
 
-\begin{figure}[H]
+\begin{figure}[tbp]
 \centering
-\includegraphics[width=0.96\linewidth]{fig_gaussian_sensitivity_main.png}
+\includegraphics[width=\linewidth]{fig_gaussian_sensitivity_main.png}
 \caption{Both local sensitivity estimators drop below their no-noise baselines at the noise-trained endpoint. Finite-difference slopes estimate small-noise rollout-radius response along sampled Gaussian perturbations; exact-autograd JVP/Hutchinson traces estimate local Frobenius averages of the composed encoder--rollout map. Values are endpoint/base ratios within each task; ratios below one support reduced local composed sensitivity, not a global robustness guarantee.}
 \label{fig:gaussian-sensitivity-mechanism}
 \end{figure}
 
-\Cref{fig:gaussian-sensitivity-mechanism} shows an endpoint/base reduction in this local slope: finite-difference endpoint/base ratios fall to $0.002$--$0.008$, and exact-JVP/Hutchinson composed-trace ratios fall to $0.003$, $0.010$, $0.006$, and $0.026$ for TwoRoom, PushT, Reacher, and Cube. The two estimators are not expected to match numerically: finite differences measure responses along sampled Gaussian perturbations, whereas JVP/Hutchinson estimates a local Frobenius-trace average over random input directions. We therefore use them as complementary same-direction evidence that the noise-trained endpoint reduces each task's composed encoder--rollout sensitivity relative to its own no-noise baseline, not as a cross-task scale or a shared threshold. In this sweep, the decomposition attributes the composed-trace reduction mainly to encoder-side sensitivity reduction; the rollout-side trace is task-dependent rather than uniformly smaller, so we do not claim a standalone predictor-Jacobian repair. Appendix~\ref{sec:appendix-local-sensitivity} shows the JVP/Hutchinson decomposition heatmap. This distinction also clarifies the qualitative ACPC-basin plot: tighter post-rollout feature clouds measure the composed response to the actual perturbation directions, not $J_G$ alone. Exact numeric tables are in Appendix~\ref{sec:appendix-local-sensitivity}.
+\Cref{fig:gaussian-sensitivity-mechanism} shows endpoint/base reductions under both local estimators: finite-difference ratios fall to $0.002$--$0.008$, and exact-JVP/Hutchinson composed-trace ratios fall to $0.003$, $0.010$, $0.006$, and $0.026$ for TwoRoom, PushT, Reacher, and Cube. The two estimators are not expected to match numerically: finite differences measure responses along sampled Gaussian perturbations, whereas JVP/Hutchinson estimates a local Frobenius-trace average over random input directions. We therefore use them as complementary same-direction evidence that the noise-trained endpoint reduces each task's composed encoder--rollout sensitivity relative to its own no-noise baseline, not as a cross-task scale or a shared threshold. In this sweep, the decomposition attributes the composed-trace reduction mainly to encoder-side sensitivity reduction; the rollout-side trace is task-dependent rather than uniformly smaller, so we do not claim a standalone predictor-Jacobian repair. Appendix~\ref{sec:appendix-local-sensitivity} shows the JVP/Hutchinson decomposition heatmap. This distinction also clarifies the qualitative ACPC-basin plot: tighter post-rollout feature clouds measure the composed response to the actual perturbation directions, not $J_G$ alone. Exact numeric tables are in Appendix~\ref{sec:appendix-local-sensitivity}.
 
+\FloatBarrier
 \subsection{Boundary check outside the matched Gaussian stressor}\label{sec:exp-unseen-scope}
 
-The main evidence remains the matched Gaussian-noise endpoint. After freezing the Gaussian grid, we ran strongest-severity non-Gaussian stressor evaluations to test how the fixed \stdmax{} $=0.08$ endpoint transfers outside the training perturbation family. \Cref{tab:unseen-scope-main} reports the non-Gaussian behavior together with stressor-specific ATR/SMPR diagnostics recomputed under the same blur or resize perturbation. TwoRoom and Reacher improve under strongest blur, whereas PushT and Cube do not show a clear resize gain at the scale of training-seed and evaluation variance. We treat this as bounded behavior outside the matched Gaussian setting.
+The non-Gaussian boundary result is mixed: TwoRoom and Reacher improve under strongest blur, whereas PushT and Cube show no clear resize gain at the scale of training-seed and evaluation variance. After freezing the Gaussian grid, we evaluated the fixed \stdmax{} $=0.08$ endpoint under these strongest-severity stressors; \Cref{tab:unseen-scope-main} reports behavior together with ATR/SMPR recomputed under the same blur or resize perturbation. We treat this as bounded behavior outside the matched Gaussian setting, while the main evidence remains the matched Gaussian-noise endpoint.
 
-\begin{table}[H]
+\begin{table}[htbp]
 \centering
-\caption{Boundary stressor evaluation with stressor-specific ATR/SMPR diagnostics. Score values are mean $\pm$ population std across LeWM training seeds 3072/3073/3074; each seed point averages evaluation seeds 42/43/44 from strongest-severity non-Gaussian runs. The ATR and SMPR columns report raw no-noise $\to$ noise-trained diagnostic values under the row stressor; lower ATR and higher SMPR are better.}
+\caption{Mixed blur/resize outcomes delimit the matched-Gaussian scope. Score values are mean $\pm$ population std across LeWM training seeds 3072/3073/3074; each seed point averages evaluation seeds 42/43/44 from strongest-severity non-Gaussian runs. The ATR and SMPR columns report raw no-noise $\to$ noise-trained diagnostic values under the row stressor; lower ATR and higher SMPR are better.}
 \label{tab:unseen-scope-main}
 \small
 \setlength{\tabcolsep}{3.5pt}
@@ -543,6 +546,7 @@ Cube & resize $0.25$ & $57.00 \pm 1.96$ & $56.11 \pm 0.57$ & $1.35 \to 1.59$ & $
 
 The raw unseen diagnostics co-move with behavior at this severe-stressor scale. The blur rows combine large behavior gains with lower ATR and higher SMPR after noise training; PushT resize has only small score and diagnostic movement; Cube resize is neutral to slightly negative on behavior and also moves in the wrong diagnostic direction. These rows therefore support only a bounded severe-stressor association rather than a general perturbation-transfer claim.
 
+\FloatBarrier
 %% ===========================================================================
 \section{Discussion and limitations}\label{sec:disc}
 
@@ -718,7 +722,7 @@ These details support the selective-ACPC diagnostic interpretation used in the m
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_acpc_basin_tsne.png}
-\caption{Qualitative PushT ACPC neighborhood t-SNE visualization for the Origin LeWM versus \stdmax{} $=0.08$ noise-trained contrast. The four panels show encoder features and 8-step rollout predicted features for repeated same-state perturbation views; colored clusters mark fixed random anchors. The t-SNE projection is qualitative and is not used for quantitative claims; ATR and SMPR are computed in the original projected-rollout diagnostic space.}
+\caption{The PushT t-SNE view provides qualitative intuition only and is not used for quantitative claims. The four panels compare LeWM-base with the \stdmax{} $=0.08$ noise-trained checkpoint in encoder features and 8-step rollout predicted features for repeated same-state perturbation views; colored clusters mark fixed random anchors. ATR and SMPR are computed in the original projected-rollout diagnostic space.}
 \label{fig:acpc-basin-tsne}
 \end{figure}
 
@@ -771,7 +775,7 @@ The measured fixed-pool flip rate is the clean/noisy top-1 disagreement rate und
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_full_sweep_planner_guard.png}
-\caption{Planner-side fixed-pool traces are reported separately from the main ACPC full-sweep figure. Green bands mark behavioral recovery-band points; top-1 flip is observed clean/noisy fixed-pool top-candidate disagreement, and proxy gap $>0$ marks rows where the retained q50/q90 summary-level radius--margin proxy is positive. These traces support the planner-side mechanism audit but are not a checkpoint-selection rule.}
+\caption{Planner-side fixed-pool traces are reported separately from the main ACPC full-sweep figure. Continuous green bands mark training-noise ranges where a majority of seed rows meet the behavioral recovery criterion; top-1 flip is observed clean/noisy fixed-pool top-candidate disagreement, and proxy gap $>0$ marks rows where the retained q50/q90 summary-level radius--margin proxy is positive. These traces support the planner-side mechanism audit but are not a checkpoint-selection rule.}
 \label{fig:full-sweep-planner-guard}
 \end{figure}
 
@@ -783,7 +787,7 @@ The measured fixed-pool flip rate is the clean/noisy top-1 disagreement rate und
 \setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{llrrrr}
 \toprule
-Task & checkpoint & cost drift q90 & clean margin q50 & proxy gap & Top1Agree \\
+Task & checkpoint & cost drift q90 & clean margin q50 & proxy gap & top-1 agreement \\
 \midrule
 TwoRoom & base $0.00$ & $180.33$ & $94.14$ & $-266.52$ & $0.207$ \\
 TwoRoom & onset $0.01$ & $85.42$ & $100.56$ & $-70.28$ & $0.510$ \\
@@ -831,7 +835,7 @@ In this interpretation, $\beta_{\mathrm{plan}}$ and $\beta_{\mathrm{disc}}$ name
 
 \section{Local Sensitivity Details}\label{sec:appendix-local-sensitivity}
 
-These tables give the numeric values behind \Cref{fig:gaussian-sensitivity-mechanism}. The finite-difference audit and exact-JVP/Hutchinson audit use different local estimators, so their scales need not match; the paper interprets their within-task endpoint/base directions rather than a shared cross-task threshold. \Cref{fig:jvp-trace-decomposition-heatmap} separates the JVP/Hutchinson trace ratios from the alignment coefficient so the main-text figure remains focused on composed local sensitivity.
+This figure and the following tables give the decomposition and numeric values behind \Cref{fig:gaussian-sensitivity-mechanism}. The finite-difference audit and exact-JVP/Hutchinson audit use different local estimators, so their scales need not match; the paper interprets their within-task endpoint/base directions rather than a shared cross-task threshold. \Cref{fig:jvp-trace-decomposition-heatmap} separates the JVP/Hutchinson trace ratios from the alignment coefficient so the main-text figure remains focused on composed local sensitivity.
 
 \begin{figure}[H]
 \centering

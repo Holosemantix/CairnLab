@@ -1,12 +1,12 @@
 \begin{table}[H]
 \centering
-\caption{Summary-level fixed-pool top-1 agreement analysis. Top1Agree is derived from the measured fixed-pool flip rate; cert-pass rates require sample-level maximum cost-drift traces.}
+\caption{Summary-level fixed-pool top-1 agreement rises as the q50/q90 proxy gap turns positive. Agreement is one minus the measured fixed-pool flip rate; cert-pass rates require sample-level maximum cost-drift traces.}
 \label{tab:fixed-pool-tail-audit}
 \small
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{llrrrr}
 \toprule
-Task & row & $\sigma_{\max}^{\mathrm{train}}$ & Top1Agree & proxy gap & proxy pass rate \\
+Task & row & $\sigma_{\max}^{\mathrm{train}}$ & top-1 agreement & proxy gap & proxy pass rate \\
 \midrule
 TwoRoom & base & $0.00$ & $0.207$ & $-266.52$ & $0.00$ \\
 TwoRoom & proxy onset & $0.02$ & $0.763$ & $34.93$ & $1.00$ \\

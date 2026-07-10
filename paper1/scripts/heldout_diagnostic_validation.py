@@ -171,9 +171,9 @@ def write_table(rows, out: Path) -> None:
     for row in rows:
         by_mode[row["mode"]].append(row)
     lines = [
-        r"\begin{table}[H]",
+        r"\begin{table}[htbp]",
         r"\centering",
-        r"\caption{Held-out diagnostic-region validation. Gates are selected on calibration seeds or tasks and evaluated on held-out sweeps. Start error is in $\sigma_{\max}^{\mathrm{train}}$ units; positive means the diagnostic starts later than the behavioral recovery band.}",
+        r"\caption{Held-out seeds and tasks preserve the recovered-vs-fragile diagnostic separation within two training-noise grid steps. Gates are selected on calibration seeds or tasks and evaluated on held-out sweeps. Start error is in $\sigma_{\max}^{\mathrm{train}}$ units; positive means the diagnostic starts later than the behavioral recovery band.}",
         r"\label{tab:heldout-diagnostic-validation}",
         r"\small",
         r"\setlength{\tabcolsep}{4pt}",

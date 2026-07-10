@@ -39,5 +39,6 @@ else
   fi
 fi
 
+PDF_BYTES="$(wc -c < main.pdf | tr -d '[:space:]')"
 echo
-echo "OK: paper1/main.pdf built ($(stat -c '%s' main.pdf 2>/dev/null || stat -f '%z' main.pdf) bytes)"
+echo "OK: paper1/main.pdf built ($PDF_BYTES bytes)"

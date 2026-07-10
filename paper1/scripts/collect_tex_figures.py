@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy figures referenced by a Paper1 TeX entry point.
+r"""Copy figures referenced by a Paper1 TeX entry point.
 
 The script parses \includegraphics targets after recursively expanding simple
 \input{...} files. It is intentionally narrow: it is a source-packaging helper,
@@ -16,7 +16,7 @@ from pathlib import Path
 GRAPHIC_EXTS = (".pdf", ".png", ".jpg", ".jpeg")
 INCLUDE_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
 INPUT_RE = re.compile(r"\\input\{([^}]+)\}")
-GRAPHICSPATH_RE = re.compile(r"\\graphicspath\{(.+?)\}")
+GRAPHICSPATH_RE = re.compile(r"\\graphicspath\{((?:\{[^{}]*\})+)\}")
 GRAPHICSPATH_ENTRY_RE = re.compile(r"\{([^{}]+)\}")
 
 
@@ -36,7 +36,7 @@ def strip_comments(text: str) -> str:
     return "\n".join(lines)
 
 
-def resolve_input(name: str, current: Path, base_dir: Path) -> Path | None:
+def resolve_input(name: str, current: Path, base_dir: Path) -> Path:
     candidates = []
     raw = Path(name)
     names = [raw]
@@ -46,9 +46,10 @@ def resolve_input(name: str, current: Path, base_dir: Path) -> Path | None:
         candidates.append((current.parent / item).resolve())
         candidates.append((base_dir / item).resolve())
     for candidate in candidates:
-        if candidate.exists():
+        if candidate.exists() and candidate.is_file():
             return candidate
-    return None
+    searched = "\n  ".join(str(path) for path in candidates)
+    raise FileNotFoundError(f"missing TeX input {name!r}; searched:\n  {searched}")
 
 
 def collect_tex(tex_path: Path, base_dir: Path, seen: set[Path]) -> tuple[str, list[str]]:
@@ -63,10 +64,9 @@ def collect_tex(tex_path: Path, base_dir: Path, seen: set[Path]) -> tuple[str, l
     pieces = [text]
     for name in INPUT_RE.findall(text):
         child = resolve_input(name, tex_path, base_dir)
-        if child is not None:
-            child_text, child_paths = collect_tex(child, base_dir, seen)
-            pieces.append(child_text)
-            graphic_paths.extend(child_paths)
+        child_text, child_paths = collect_tex(child, base_dir, seen)
+        pieces.append(child_text)
+        graphic_paths.extend(child_paths)
     return "\n".join(pieces), graphic_paths
 
 
@@ -102,6 +102,24 @@ def find_figure(target: str, base_dir: Path, graphic_paths: list[str]) -> Path:
     raise FileNotFoundError(f"missing figure for {target!r}; searched:\n  {searched}")
 
 
+def output_relative_path(target: str, source: Path) -> Path:
+    """Return the safe path for a collected figure inside the output directory.
+
+    Paper1 currently uses basename-only include targets. Reject directory-bearing
+    targets instead of silently flattening them into a bundle that TeX cannot
+    compile. Supporting nested target paths later should be an explicit contract
+    change with matching bundle-layout tests.
+    """
+
+    raw = Path(target)
+    if raw.is_absolute() or raw.parent != Path("."):
+        raise ValueError(
+            f"figure target {target!r} contains a directory; "
+            "collect_tex_figures currently requires basename-only targets"
+        )
+    return raw if raw.suffix else raw.with_suffix(source.suffix)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tex", required=True, help="TeX entry point to parse")
@@ -123,25 +141,33 @@ def main() -> int:
     if not targets:
         raise SystemExit(f"no includegraphics targets found in {tex_path}")
 
-    resolved: list[tuple[str, Path]] = []
-    used_names: dict[str, Path] = {}
+    resolved: list[tuple[str, Path, Path]] = []
+    used_paths: dict[Path, Path] = {}
     for target in targets:
-        source = find_figure(target, base_dir, graphic_paths)
-        name = source.name
-        if name in used_names and used_names[name] != source:
-            raise SystemExit(f"duplicate output basename {name}: {used_names[name]} and {source}")
-        used_names[name] = source
-        resolved.append((target, source))
+        try:
+            source = find_figure(target, base_dir, graphic_paths)
+            relative_path = output_relative_path(target, source)
+        except (FileNotFoundError, ValueError) as exc:
+            raise SystemExit(str(exc)) from exc
+        if relative_path in used_paths and used_paths[relative_path] != source:
+            raise SystemExit(
+                f"duplicate output path {relative_path}: "
+                f"{used_paths[relative_path]} and {source}"
+            )
+        used_paths[relative_path] = source
+        resolved.append((target, source, relative_path))
 
     if args.dry_run:
-        for target, source in resolved:
+        for target, source, _ in resolved:
             print(f"{target}\t{source}")
         return 0
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    for _, source in resolved:
-        shutil.copy2(source, out_dir / source.name)
-        print(f"copied {source} -> {out_dir / source.name}")
+    for _, source, relative_path in resolved:
+        destination = out_dir / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        print(f"copied {source} -> {destination}")
     return 0
 
 

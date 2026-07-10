@@ -112,7 +112,7 @@ def write_table(path: Path, rows: list[dict[str, object]]) -> None:
         r'\setlength{\tabcolsep}{3.5pt}',
         r'\begin{tabular}{lccc}',
         r'\toprule',
-        r'Task & cert-pass base $\to$ std0.08 & top-1 flip base $\to$ std0.08 & q10/q95 gap base $\to$ std0.08 \\',
+        r'Task & cert-pass base $\to$ $\stdmax=0.08$ & top-1 flip base $\to$ $\stdmax=0.08$ & q10/q95 gap base $\to$ $\stdmax=0.08$ \\',
         r'\midrule',
     ]
     for row in rows:

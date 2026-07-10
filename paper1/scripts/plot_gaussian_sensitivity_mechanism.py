@@ -31,9 +31,16 @@ def _log10_ratio(value: float) -> float:
     return math.log10(max(value, 1e-6))
 
 
+def _contrast_text_color(image: object, value: float) -> str:
+    """Return a readable annotation color for a scalar-mapped cell."""
+    red, green, blue, _alpha = image.cmap(image.norm(value))
+    luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+    return "white" if luminance < 0.52 else "#1a1a1a"
+
+
 def plot_main(fd_rows: list[dict[str, str]], jvp_rows: list[dict[str, str]], out_fig: Path) -> None:
     out_fig.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(1, 2, figsize=(8.4, 3.75), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(6.7, 2.75), sharey=True)
     y = list(range(len(TASKS)))
     panels = [
         (
@@ -48,27 +55,46 @@ def plot_main(fd_rows: list[dict[str, str]], jvp_rows: list[dict[str, str]], out
         ),
     ]
     for ax, vals, title in panels:
-        ax.barh(y, vals, color="#1f77b4", alpha=0.82)
-        ax.axvline(1.0, color="#555555", lw=1.0, ls="--")
+        ax.hlines(y, vals, 1.0, color="#aab7c4", lw=1.4, zorder=1)
+        ax.scatter([1.0] * len(y), y, s=24, facecolor="white", edgecolor="#7b8794", lw=0.9, zorder=2)
+        ax.scatter(vals, y, s=42, color="#0072b2", edgecolor="white", lw=0.7, zorder=3)
+        ax.axvline(1.0, color="#68737d", lw=1.0, ls=(0, (3, 2)), zorder=0)
         ax.set_xscale("log")
-        ax.set_xlim(1e-3, 1.6)
-        ax.set_title(title, fontsize=10)
-        ax.set_xlabel("endpoint/base ratio (lower is better)")
-        ax.grid(True, axis="x", alpha=0.24)
+        ax.set_xlim(1e-3, 1.35)
+        ax.set_xticks([1e-3, 1e-2, 1e-1, 1.0])
+        ax.set_xticklabels(["0.001", "0.01", "0.1", "1"])
+        ax.set_title(title, fontsize=9.2, pad=7)
+        ax.set_xlabel("Endpoint / base ratio  (\u2193 less sensitivity)", fontsize=8.3, labelpad=5)
+        ax.grid(True, axis="x", which="major", color="#d9dfe5", lw=0.7)
+        ax.tick_params(axis="both", which="major", labelsize=8.1)
+        ax.tick_params(axis="x", which="minor", bottom=False)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.spines[["left", "bottom"]].set_color("#a6adb4")
+        ax.text(
+            1.0, 0.76, "base = 1", transform=ax.get_xaxis_transform(), ha="right", va="center",
+            fontsize=8.0, color="#59636d",
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.86, "pad": 0.4},
+        )
         for yi, val in zip(y, vals):
-            ax.text(max(val * 1.18, 1.35e-3), yi, f"{val:.3f}", va="center", fontsize=7.5)
+            ax.annotate(
+                f"{val:.3g}\u00d7", (val, yi), xytext=(5, 0), textcoords="offset points",
+                ha="left", va="center", fontsize=8.0, color="#174b6b",
+                bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.78, "pad": 0.35},
+            )
     axes[0].set_yticks(y)
-    axes[0].set_yticklabels(TASKS)
+    axes[0].set_yticklabels(TASKS, fontsize=8.3)
     axes[0].invert_yaxis()
     axes[1].tick_params(axis="y", labelleft=False)
-    fig.tight_layout()
+    fig.tight_layout(pad=0.55, w_pad=0.75)
     fig.savefig(out_fig, dpi=240)
     plt.close(fig)
 
 
 def plot_decomposition(jvp_rows: list[dict[str, str]], out_fig: Path) -> None:
     out_fig.parent.mkdir(parents=True, exist_ok=True)
-    fig, (ax_heat, ax_align) = plt.subplots(1, 2, figsize=(8.8, 3.65), gridspec_kw={"width_ratios": [1.45, 0.95]})
+    fig, (ax_heat, ax_align) = plt.subplots(
+        1, 2, figsize=(6.7, 3.05), gridspec_kw={"width_ratios": [1.6, 1.0]}, constrained_layout=True
+    )
     y = list(range(len(TASKS)))
     trace_cols = [
         ("encoder", "encoder_trace_per_pixel_dim_vs_base"),
@@ -86,29 +112,49 @@ def plot_decomposition(jvp_rows: list[dict[str, str]], out_fig: Path) -> None:
 
     im = ax_heat.imshow(matrix, cmap="coolwarm", norm=TwoSlopeNorm(vmin=-3.0, vcenter=0.0, vmax=0.5), aspect="auto")
     ax_heat.set_xticks(range(len(trace_cols)))
-    ax_heat.set_xticklabels([label for label, _key in trace_cols], rotation=25, ha="right")
+    ax_heat.set_xticklabels([label.title() for label, _key in trace_cols], fontsize=8.2)
     ax_heat.set_yticks(y)
-    ax_heat.set_yticklabels(TASKS)
-    ax_heat.set_title("(a) Trace ratios", fontsize=10)
+    ax_heat.set_yticklabels(TASKS, fontsize=8.2)
+    ax_heat.set_title("(a) Trace decomposition ratios", fontsize=9.2, pad=7)
+    ax_heat.tick_params(length=0)
     for i, row in enumerate(labels):
         for j, val in enumerate(row):
-            ax_heat.text(j, i, f"{val:.3g}", ha="center", va="center", fontsize=7.5)
-    cbar = fig.colorbar(im, ax=ax_heat, fraction=0.046, pad=0.03)
-    cbar.set_label(r"$\log_{10}$ endpoint/base", fontsize=8)
+            mapped_value = matrix[i][j]
+            ax_heat.text(j, i, f"{val:.3g}", ha="center", va="center", fontsize=8.1, color=_contrast_text_color(im, mapped_value))
+    cbar = fig.colorbar(im, ax=ax_heat, orientation="horizontal", fraction=0.14, pad=0.12, aspect=24)
+    cbar.set_ticks([-3.0, -2.0, -1.0, 0.0])
+    cbar.set_ticklabels(["0.001", "0.01", "0.1", "1"])
+    cbar.ax.tick_params(labelsize=8.0, length=2.5, pad=2)
+    cbar.set_label("Endpoint / base trace ratio (log color scale)", fontsize=8.0, labelpad=3)
+    cbar.outline.set_linewidth(0.6)
 
-    ax_align.barh(y, align_vals, color="#4c78a8", alpha=0.82)
-    ax_align.axvline(1.0, color="#555555", lw=1.0, ls="--")
+    ax_align.hlines(y, 1.0, align_vals, color="#b4a8c7", lw=1.4, zorder=1)
+    ax_align.scatter([1.0] * len(y), y, s=24, facecolor="white", edgecolor="#7b8794", lw=0.9, zorder=2)
+    ax_align.scatter(align_vals, y, s=42, color="#6f5aa8", edgecolor="white", lw=0.7, zorder=3)
+    ax_align.axvline(1.0, color="#68737d", lw=1.0, ls=(0, (3, 2)), zorder=0)
     ax_align.set_yticks(y)
     ax_align.set_yticklabels([])
-    ax_align.invert_yaxis()
-    ax_align.set_title("(b) Alignment coefficient", fontsize=10)
-    ax_align.set_xlabel("endpoint/base ratio")
-    ax_align.grid(True, axis="x", alpha=0.24)
+    ax_align.set_ylim(len(TASKS) - 0.5, -0.5)
+    ax_align.set_title("(b) Alignment coefficient ratio", fontsize=9.2, pad=7)
+    ax_align.set_xlabel("Endpoint / base (diagnostic)", fontsize=8.1, labelpad=5)
+    ax_align.grid(True, axis="x", color="#d9dfe5", lw=0.7)
+    ax_align.tick_params(axis="x", labelsize=8.0)
+    ax_align.tick_params(axis="y", length=0)
+    ax_align.spines[["top", "right", "left"]].set_visible(False)
+    ax_align.spines["bottom"].set_color("#a6adb4")
+    ax_align.text(
+        1.0, 0.76, "base = 1", transform=ax_align.get_xaxis_transform(), ha="right", va="center",
+        fontsize=8.0, color="#59636d",
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.86, "pad": 0.4},
+    )
     for yi, val in zip(y, align_vals):
-        ax_align.text(val + 0.03, yi, f"{val:.2f}", va="center", fontsize=7.5)
-    ax_align.set_xlim(0.0, max(1.35, max(align_vals) * 1.18))
+        x_offset = 5 if val >= 1.0 else -5
+        ax_align.annotate(
+            f"{val:.2f}\u00d7", (val, yi), xytext=(x_offset, 0), textcoords="offset points",
+            ha="left" if val >= 1.0 else "right", va="center", fontsize=8.0, color="#493b70",
+        )
+    ax_align.set_xlim(0.4, max(2.45, max(align_vals) * 1.1))
 
-    fig.tight_layout()
     fig.savefig(out_fig, dpi=240)
     plt.close(fig)
 

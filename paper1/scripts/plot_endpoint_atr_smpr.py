@@ -21,84 +21,98 @@ def _endpoint_stats(rows: list[dict[str, str]], task: str, rho: str, key: str) -
     return safe_mean(vals), safe_pstdev(vals)
 
 
-def _direction_arrow(ax: plt.Axes, direction: str, text: str) -> None:
-    if direction == "left":
-        xy, xytext = (0.18, 0.91), (0.50, 0.91)
-    else:
-        xy, xytext = (0.82, 0.91), (0.50, 0.91)
-    ax.annotate(
-        "",
-        xy=xy,
-        xytext=xytext,
-        xycoords="axes fraction",
-        arrowprops=dict(arrowstyle="->", color="#333333", lw=1.1),
+def _direction_cue(ax: plt.Axes, direction: str) -> None:
+    """Place the better-direction cue outside the data region."""
+    text = "← better" if direction == "left" else "better →"
+    ax.text(
+        0.99,
+        1.025,
+        text,
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        color="#4d4d4d",
+        fontsize=8.0,
+        clip_on=False,
     )
-    ax.text(0.50, 0.925, text, transform=ax.transAxes, ha="center", va="bottom", fontsize=8)
 
 
 def plot(rows: list[dict[str, str]], out_fig: Path) -> None:
     out_fig.parent.mkdir(parents=True, exist_ok=True)
     y = list(range(len(TASKS)))
-    fig, axes = plt.subplots(1, 2, figsize=(8.9, 3.75), sharey=True)
     specs = [
-        ("atr_q90", "(a) Radius tail contracts: ATR q90", "lower is better", "log", "left"),
-        ("smpr_delta0", "(b) Guard improves: SMPR", "higher is better", "linear", "right"),
+        ("atr_q90", "(a) Radius tail (ATR q90)", "log", "left"),
+        ("smpr_delta0", "(b) Guard pass rate (SMPR)", "linear", "right"),
     ]
-    colors = {"0.00": "#6c757d", "0.08": "#1f77b4"}
+    colors = {"0.00": "#777777", "0.08": "#0072B2"}
     labels = {"0.00": "base", "0.08": "noise-trained"}
+    style = {
+        "font.size": 8.25,
+        "axes.titlesize": 9.25,
+        "axes.labelsize": 8.5,
+        "xtick.labelsize": 8.0,
+        "ytick.labelsize": 8.5,
+        "legend.fontsize": 8.25,
+    }
 
-    for ax, (key, title, direction_text, scale, direction) in zip(axes, specs):
-        for i, task in enumerate(TASKS):
-            base_mean, base_std = _endpoint_stats(rows, task, "0.00", key)
-            end_mean, end_std = _endpoint_stats(rows, task, "0.08", key)
-            ax.plot([base_mean, end_mean], [i, i], color="#b7b7b7", lw=1.35, zorder=1)
-            ax.errorbar(
-                base_mean,
-                i,
-                xerr=base_std,
-                fmt="o",
-                color=colors["0.00"],
-                ecolor=colors["0.00"],
-                elinewidth=1.0,
-                capsize=2.0,
-                ms=5.0,
-                zorder=2,
-                label=labels["0.00"] if i == 0 else None,
-            )
-            ax.errorbar(
-                end_mean,
-                i,
-                xerr=end_std,
-                fmt="s",
-                color=colors["0.08"],
-                ecolor=colors["0.08"],
-                elinewidth=1.0,
-                capsize=2.0,
-                ms=5.0,
-                zorder=3,
-                label=labels["0.08"] if i == 0 else None,
-            )
-        ax.set_title(title, fontsize=10)
-        ax.set_xlabel(direction_text)
-        ax.grid(True, axis="x", alpha=0.24)
-        _direction_arrow(ax, direction, direction_text)
-        if scale == "log":
-            ax.set_xscale("log")
-            ax.set_xlim(0.05, 5.0)
-            ax.set_xticks([0.05, 0.1, 0.3, 1.0, 3.0])
-            ax.set_xticklabels(["0.05", "0.1", "0.3", "1", "3"])
-        else:
-            ax.set_xlim(-0.03, 1.04)
+    with plt.rc_context(style):
+        # Native full-text width avoids shrinking labels in LaTeX.
+        fig, axes = plt.subplots(1, 2, figsize=(6.7, 2.9), sharey=True)
+        for ax, (key, title, scale, direction) in zip(axes, specs):
+            for i, task in enumerate(TASKS):
+                base_mean, base_std = _endpoint_stats(rows, task, "0.00", key)
+                end_mean, end_std = _endpoint_stats(rows, task, "0.08", key)
+                ax.annotate(
+                    "",
+                    xy=(end_mean, i),
+                    xytext=(base_mean, i),
+                    arrowprops=dict(
+                        arrowstyle="-|>", color="#b9b9b9", lw=1.25,
+                        mutation_scale=8.0, shrinkA=5.5, shrinkB=5.5,
+                    ),
+                    zorder=1,
+                )
+                for rho, mean, std, marker, zorder in (
+                    ("0.00", base_mean, base_std, "o", 2),
+                    ("0.08", end_mean, end_std, "s", 3),
+                ):
+                    ax.errorbar(
+                        mean, i, xerr=std, fmt=marker,
+                        color=colors[rho], ecolor=colors[rho],
+                        markeredgecolor="#ffffff", markeredgewidth=0.65,
+                        elinewidth=1.05, capsize=2.1, capthick=1.0, ms=6.0,
+                        zorder=zorder, label=labels[rho] if i == 0 else None,
+                    )
 
-    axes[0].set_yticks(y)
-    axes[0].set_yticklabels(TASKS)
-    axes[0].invert_yaxis()
-    axes[1].tick_params(axis="y", labelleft=False)
-    handles, legend_labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, legend_labels, loc="upper center", ncol=2, fontsize=8, frameon=False, bbox_to_anchor=(0.5, 1.015))
-    fig.tight_layout(rect=[0, 0, 1, 0.93])
-    fig.savefig(out_fig, dpi=240)
-    plt.close(fig)
+            ax.set_title(title, loc="left", pad=8, fontweight="semibold")
+            ax.grid(True, axis="x", color="#d9d9d9", lw=0.65, alpha=0.7)
+            ax.set_axisbelow(True)
+            ax.spines[["top", "right"]].set_visible(False)
+            ax.tick_params(axis="both", length=3.0, color="#666666")
+            _direction_cue(ax, direction)
+            if scale == "log":
+                ax.set_xscale("log")
+                ax.set_xlim(0.05, 5.0)
+                ax.set_xticks([0.05, 0.1, 0.3, 1.0, 3.0])
+                ax.set_xticklabels(["0.05", "0.1", "0.3", "1", "3"])
+                ax.set_xlabel("ATR q90 (log scale)")
+            else:
+                ax.set_xlim(0.0, 1.035)
+                ax.set_xticks([0.0, 0.25, 0.5, 0.75, 1.0])
+                ax.set_xlabel("SMPR pass rate")
+
+        axes[0].set_yticks(y)
+        axes[0].set_yticklabels(TASKS)
+        axes[0].set_ylim(len(TASKS) - 0.55, -0.55)
+        axes[1].tick_params(axis="y", labelleft=False)
+        handles, legend_labels = axes[0].get_legend_handles_labels()
+        fig.legend(
+            handles, legend_labels, loc="upper center", ncol=2, frameon=False,
+            handletextpad=0.5, columnspacing=1.6, bbox_to_anchor=(0.5, 0.985),
+        )
+        fig.subplots_adjust(left=0.115, right=0.985, bottom=0.20, top=0.77, wspace=0.22)
+        fig.savefig(out_fig, dpi=300, facecolor="white")
+        plt.close(fig)
 
 
 def main() -> int:

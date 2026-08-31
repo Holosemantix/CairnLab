@@ -4,7 +4,7 @@ description: Use this skill to maintain a multi-facet survey map of AutoResearch
 license: Apache-2.0
 allowed-tools: Read Write Edit Bash WebSearch WebFetch
 metadata:
-  version: "0.2.8"
+  version: "0.2.9"
   skill-author: Holosemantix research mapping workflow
 ---
 
@@ -138,7 +138,11 @@ fresh submission through `references/paper-review-remediation-protocol.md`. The
 protocol is intentionally broader than numerical consistency: it covers writing
 quality, contribution framing, claim strength, theory-to-experiment alignment,
 figures/tables/formulas, sampling variance, reference auditing, and independent
-multi-round scoring. Do not inflate scores because earlier rounds improved the
+multi-round scoring. Every round must also score the protocol's ten generic
+manuscript gates for progressive disclosure, concrete exposition, unit-level
+focus, evidence identity, conceptual precision, display accessibility, table
+semantics, manuscript/provenance separation, numeric traceability, and the final
+reader test. Do not inflate scores because earlier rounds improved the
 paper. Do not over-fit the manuscript into a pile of defensive caveats. Every
 round must judge the current artifact on its own evidence. If a fresh
 external/user review is much lower than a prior internal score, first produce

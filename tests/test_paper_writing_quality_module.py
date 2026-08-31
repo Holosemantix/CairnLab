@@ -29,7 +29,7 @@ PROTOCOL = (
 def test_skill_routes_paper_writing_to_quality_module() -> None:
     text = SKILL.read_text(encoding="utf-8")
 
-    assert 'version: "0.2.8"' in text
+    assert 'version: "0.2.9"' in text
     assert "paper-writing-quality-module.md" in text
     assert "writing-quality ledgers" in text.lower()
     assert "non-authoritative evidence" in text
@@ -54,7 +54,7 @@ def test_standalone_skill_routes_to_quality_checklist() -> None:
     missing_skill = [phrase for phrase in required_skill_phrases if phrase not in skill_text]
 
     required_reference_phrases = [
-        "Project-Specific Writing Constraints",
+        "Reusable Evidence-Pattern Constraints",
         "The screen enriches plateau members, but does not rank inside plateau",
         "Precision/recall are the primary measurements; presence is reported for block coverage",
         "not paper-facing evidence",

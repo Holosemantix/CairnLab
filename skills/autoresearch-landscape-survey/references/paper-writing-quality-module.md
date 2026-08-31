@@ -234,10 +234,38 @@ Every section must satisfy:
 
 Use these section-specific gates.
 
-## Project-Specific Writing Constraints
+## Generic Manuscript Gates
 
-These constraints come from CairnLab paper-writing experience and should be
-treated as default checklist items for future papers.
+Ten venue- and domain-independent gates apply to every paper handled by this
+module. They are defined once, with their operational detail and configurable
+thresholds, in
+`skills/paper-writing-quality/references/writing-quality-checklist.md` under
+`Generic Manuscript Gates`. Read them there and cite them by name here:
+
+- `G1. Progressive Disclosure Gate`;
+- `G2. Concrete-Before-Abstract Gate`;
+- `G3. One-Job Gate`;
+- `G4. Claim-Evidence Identity Gate`;
+- `G5. Conceptual And Statistical Precision Gate`;
+- `G6. Self-Contained Display Gate`;
+- `G7. Table Semantics Gate`;
+- `G8. Public-Manuscript Boundary Gate`;
+- `G9. Single-Source-Of-Truth Numbers Gate`;
+- `G10. Reader-Test Review Pass`.
+
+The gate statements are policy. Their numeric limits live in the checklist's
+`Configurable Gate Thresholds` block and may be overridden per venue or audience
+in the writing contract, with the override recorded in the writing-quality
+ledger. `G8` keeps dates, run identifiers, hashes, manifests, and decision logs
+in CairnLab evidence and provenance records rather than in the manuscript.
+
+## Reusable Evidence-Pattern Constraints
+
+The constraints below recur across scientific manuscripts, but they are
+conditional rather than universal. Apply a subsection only when the named
+evidence pattern occurs; do not import its vocabulary or assumptions into an
+unrelated paper. Project-specific terminology and thresholds belong in the
+writing contract, not in this shared reference.
 
 ### A. Claim Framing Constraints
 

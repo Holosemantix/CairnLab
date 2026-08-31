@@ -293,10 +293,268 @@ Every section must satisfy:
 
 Use these section-specific gates.
 
-## Project-Specific Writing Constraints
+## Generic Manuscript Gates
 
-These constraints come from CairnLab paper-writing experience and should be
-treated as default checklist items for future papers.
+These gates are venue-independent and domain-independent. They apply to any
+paper or technical manuscript regardless of field, task, metric, or system under
+study. Each gate has a stable name so plans, reviews, and ledgers can cite it.
+
+Policy and thresholds are separated on purpose: the requirements below are
+policy and do not change per project, while every number lives in
+`Configurable Gate Thresholds` at the end of this section and may be overridden
+in the writing contract.
+
+### G1. Progressive Disclosure Gate
+
+A reader should be able to stop at any layer and still hold a correct, smaller
+version of the paper.
+
+Require:
+
+- after the title and abstract, a newcomer can state the problem, the
+  contribution, and the boundary of the contribution;
+- after the introduction and the main figures, a reader can state the argument
+  and the evidence chain without reading the methods;
+- exact protocols, parameter grids, derivations, and per-condition values come
+  later, in later sections or the appendix;
+- technical completeness never requires every internal log, run, or intermediate
+  result to appear in the main narrative. Completeness is reached by pointing to
+  reproducible artifacts, not by transcribing them;
+- each layer stays consistent with the layers above it. A later section may
+  refine or bound an earlier claim, but must not silently contradict it;
+- if a claim can only be understood after reading an appendix, either lift the
+  minimal statement into the main text or narrow the claim.
+
+### G2. Concrete-Before-Abstract Gate
+
+Notation compresses something the reader already understands. Introduce the
+thing, then the symbol.
+
+Require:
+
+- every formal object is motivated by one plain-language example, minimal
+  instance, or concrete failure case before or immediately after its definition;
+- every nonstandard term, symbol, and acronym is defined exactly once, at first
+  use, where a reader will look for it;
+- one concept has one stable name across text, equations, figures, tables,
+  captions, and appendix. Synonyms used for prose variety are a defect, not
+  style;
+- a term that exists only to name an internal component is either promoted to a
+  reader-facing scientific object or removed;
+- when notation density is unavoidable, add a notation table and keep the same
+  symbol from denoting unrelated objects;
+- abstraction runs concrete, then general, then formal, not the reverse.
+
+### G3. One-Job Gate
+
+Every unit of the manuscript answers one question.
+
+Require:
+
+- one job per section, per paragraph, and per display;
+- the topic sentence comes first and names that job;
+- paragraph order is claim or reason, then evidence, then boundary or
+  transition;
+- a paragraph carrying two claims is split; a display answering two questions is
+  split or re-scoped;
+- project chronology is removed. The paper reports what is true, not the order
+  in which it was discovered or repaired;
+- reviewer-response prose is removed. If a concern is scientifically real, state
+  it as a limitation or boundary check, not as a reply;
+- section titles name the scientific job, so the table of contents alone reads
+  as the argument.
+
+### G4. Claim-Evidence Identity Gate
+
+Absence of a result and a negative result are different scientific statements.
+So are two numbers produced under different conditions.
+
+Require:
+
+- distinguish and label these states wherever they matter:
+  - `not-run`: the experiment was never executed;
+  - `unavailable`: it exists or was run, but cannot be reported here;
+  - `inconclusive`: it was run and does not separate the hypotheses;
+  - `failed`: it was run and contradicts the expectation;
+- never let "we do not report X" stand where the honest statement is "X was not
+  run", "X is unavailable", or "X did not work";
+- whenever it could change interpretation, a reported quantity identifies its
+  split or subset, the distinction between training seeds and evaluation
+  episodes or trials, the budget and checkpoint-selection rule, the comparator
+  identity, the aggregation function, and the uncertainty semantics;
+- comparisons are matched: compared conditions differ only in the factor under
+  study, or the mismatch is stated in the same sentence as the number;
+- never convert absolute endpoint performance into a method effect without a
+  matched comparator. "A reaches v" is not "A improves by v" and is not "A
+  improves over B";
+- a difference measured against a comparator trained, tuned, selected, or
+  evaluated differently is labeled a scope check, not an effect estimate;
+- a selection rule that used outcome values is never described as held-out,
+  prospective, or pre-registered.
+
+### G5. Conceptual And Statistical Precision Gate
+
+Require:
+
+- keep property-of-the-setup claims separate from behavior-of-the-model claims.
+  Identifiability, realizability, sufficiency, and well-posedness are properties
+  of assumptions, data, and the estimator class. They are not established by a
+  model scoring well, and not refuted by a model scoring poorly;
+- keep four evidence roles distinct and labeled: diagnostics that localize or
+  explain, endpoints that establish the phenomenon, mechanism evidence that
+  identifies why, and condition claims that assert necessity or sufficiency;
+- a necessary condition is not a sufficient condition. Do not report a satisfied
+  necessary condition as if the conclusion followed;
+- correlation, ablation, intervention, and proof license different verbs. Match
+  the verb to the evidence: observe, is consistent with, localizes, predicts,
+  causes, guarantees;
+- statistical vocabulary is used in its technical sense. Significant, unbiased,
+  robust, converged, calibrated, and stationary require the corresponding test
+  or definition, or must be replaced with plain description;
+- an assumption the paper cannot check is stated inside the claim, not buried in
+  a limitations paragraph.
+
+### G6. Self-Contained Display Gate
+
+A figure or table must survive being read alone, out of order, by a reader who
+skipped the body text.
+
+Every caption states:
+
+- the question the display answers;
+- what is compared against what;
+- protocol and scope: split, condition, budget, and selection rule as far as
+  they matter;
+- units and axis meaning;
+- sample, seed, or episode count and the aggregation, when material;
+- uncertainty semantics: what the interval, band, or error bar means;
+- one bounded takeaway, plus the reading it does not support when the display is
+  easy to over-read.
+
+Require also:
+
+- symbols, line styles, and abbreviations are decodable from the display and its
+  caption, never only from body text;
+- no color-only encoding. Pair color with shape, line style, position, direct
+  labels, or annotation;
+- check every display in grayscale and under a color-vision-deficiency
+  simulation before submission;
+- type is legible at final printed size, not only when zoomed;
+- labels, legends, and annotations do not occlude data;
+- comparable panels keep stable axes, panel order, and legend placement;
+- every display traces to actual data through a named source artifact or
+  generating script. Schematic or illustrative displays are labeled as such.
+
+### G7. Table Semantics Gate
+
+Require:
+
+- one row and one column carry one comparison identity: the same split, budget,
+  comparator, and aggregation along that axis;
+- do not mix absolute endpoints with matched deltas in the same visual grammar.
+  Separate them into different tables, separated blocks, or explicitly labeled
+  column groups;
+- group rows or columns explicitly whenever splits, budgets, checkpoints, or
+  seed sets differ. An unlabeled mixture is a defect even when every number is
+  correct;
+- no interpretation or status columns such as reading, decision, verdict, or
+  claim status. Interpretation belongs in the caption or adjacent prose;
+- no table that must be resized below the body text's readable size to fit.
+  Split it, transpose it, promote the discriminative subset, or move the full
+  grid to the appendix;
+- numeric precision is consistent within a column and justified by the
+  measurement's uncertainty;
+- dense exact-value grids belong in the appendix. Main text keeps the subset
+  that changes the reader's decision.
+
+### G8. Public-Manuscript Boundary Gate
+
+The manuscript is a reader-facing argument. The repository is the record.
+
+Keep out of the paper, main text and appendix alike:
+
+- run dates, run identifiers, job names, and internal ticket numbers;
+- artifact hashes, file paths, storage locations, and artifact manifests;
+- TODO ledgers, remediation history, and decision logs;
+- reviewer-response bookkeeping and internal status vocabulary.
+
+An item may appear only when it is genuinely required for reproducibility or
+attribution, such as a dataset version, a released code or model identifier, or
+a protocol constant a replicator must match. Prefer one reproducibility
+subsection or artifact note over scattering such details through result
+paragraphs.
+
+The appendix is still reader-facing paper, not storage. Appendix material must
+extend evidence, prove or calibrate a claim, document essential protocol, or
+support reproduction. Everything else stays in repository evidence and
+provenance records, which remain the authoritative location under CairnLab
+governance.
+
+### G9. Single-Source-Of-Truth Numbers Gate
+
+Require:
+
+- every quantitative table and figure is generated from, or mechanically checked
+  against, a machine-readable artifact. Hand-transcribed numbers are a defect;
+- each number appearing in more than one place, including duplicated Markdown
+  and LaTeX renderings of the same manuscript, names one source of truth and one
+  rerunnable consistency check;
+- rounding, units, and normalization conventions are defined once and applied
+  everywhere;
+- when the source artifact changes, the check fails loudly instead of leaving
+  stale numbers in prose;
+- if no check exists yet, record the duplication as a known risk in the writing
+  ledger rather than asserting consistency.
+
+### G10. Reader-Test Review Pass
+
+Run this pass on the compiled artifact before calling a draft ready. It is a
+reading exercise, not a source review.
+
+1. Unfamiliar-reader summary test: someone who has not seen the work reads only
+   the title and abstract, then states problem, contribution, and boundary.
+   Failing to recover all three is an abstract defect, not a reader defect.
+2. Acronym and notation scan: list every acronym, symbol, and named concept in
+   order of first appearance, then check single definition, single name, and
+   defined before use.
+3. Claim-evidence audit: for every claim sentence, name the display or artifact
+   that supports it and test it against G4. Mark unsupported sentences blocked.
+4. Display-only scan: read figures, tables, and captions in order with the body
+   text covered. The evidence chain should still be followable.
+5. Compiled-PDF inspection at normal zoom, plus a grayscale pass and a
+   color-vision-deficiency pass over every display.
+6. Cross-reference and link validation: every section, figure, table, equation,
+   citation, and external link resolves to the intended target.
+
+Record each step as pass, warn, or fail in the writing-quality ledger.
+
+### Configurable Gate Thresholds
+
+The gates above are policy. The values below are defaults that a venue,
+audience, or host project may override in the writing contract. Record every
+override and its rationale in the contract and the ledger.
+
+```yaml
+audience_level: newcomer_to_subfield
+abstract_max_nonstandard_acronyms: 3
+new_symbols_or_acronyms_per_paragraph_max: 3
+caveat_repetition_budget: 3
+main_text_must_read_evidence_layers_max: 4
+uncertainty_reporting: required_when_sampling_changes_interpretation
+display_accessibility_checks: [grayscale, color_vision_deficiency, final_size_legibility]
+numeric_source_of_truth: required_for_every_quantitative_display
+```
+
+Do not hard-code other numeric budgets into prose. If a limit matters, name it
+here so it can be reviewed and changed deliberately.
+
+## Reusable Evidence-Pattern Constraints
+
+The constraints below recur across scientific manuscripts, but they are
+conditional rather than universal. Apply a subsection only when the named
+evidence pattern occurs; do not import its vocabulary or assumptions into an
+unrelated paper. Project-specific terminology and thresholds belong in the
+writing contract, not in this shared reference.
 
 ### A. Claim Framing Constraints
 
@@ -621,6 +879,10 @@ Require:
 
 Inspect the compiled PDF. Source review is insufficient.
 
+Caption self-containment, display accessibility, and table comparison identity
+are defined once in `G6. Self-Contained Display Gate` and `G7. Table Semantics
+Gate`. Apply them here rather than restating them.
+
 Require:
 
 - no overfull text or formulas that visibly collide with margins or columns;
@@ -655,7 +917,8 @@ Require:
 ## Phase 6: Independent Writing Review
 
 After drafting and compiling, run a fresh review that did not write the section.
-The reviewer must judge the current artifact, not the improvement delta.
+The reviewer must judge the current artifact, not the improvement delta. Begin
+with `G10. Reader-Test Review Pass` on the compiled artifact.
 
 The review output must include:
 
@@ -694,6 +957,21 @@ The module is incomplete if it does not catch:
 - related work is a citation dump;
 - prose sounds like an internal diagnostic engineering document or internal
   review ledger instead of reader-facing scientific prose;
+- a newcomer cannot state problem, contribution, and boundary after the title
+  and abstract;
+- notation or formalism arrives before any concrete instance of what it denotes;
+- one concept carries several names, or one name carries several concepts;
+- a missing experiment is reported in wording that reads like a negative result;
+- an absolute endpoint is presented as a method effect without a matched
+  comparator;
+- a display cannot be read without the body text, or encodes its comparison in
+  color alone;
+- a table mixes splits, budgets, or absolute and delta quantities in one
+  unlabeled grammar;
+- run identifiers, hashes, paths, dates, or remediation history appear in the
+  manuscript instead of repository provenance;
+- the same number appears in several places with no named source artifact or
+  consistency check;
 - venue style, page limit, anonymization, or citation format is ignored.
 
 ## Interaction With Review And Remediation
@@ -737,6 +1015,20 @@ appendix_provenance_split_gate: pass | warn | fail
 appendix_reading_gate: pass | warn | fail
 pdf_layout_gate: pass | warn | fail
 citation_source_gate: pass | warn | fail
+progressive_disclosure_gate: pass | warn | fail
+concrete_before_abstract_gate: pass | warn | fail
+one_job_gate: pass | warn | fail
+claim_evidence_identity_gate: pass | warn | fail
+conceptual_precision_gate: pass | warn | fail
+display_self_containment_gate: pass | warn | fail
+table_semantics_gate: pass | warn | fail
+public_manuscript_boundary_gate: pass | warn | fail
+numeric_source_of_truth_gate: pass | warn | fail
+reader_test_gate: pass | warn | fail
+threshold_overrides:
+  - parameter: ""
+    value: ""
+    rationale: ""
 remove_merge_demote:
   - location: ""
     action: remove | merge | demote | move_to_appendix

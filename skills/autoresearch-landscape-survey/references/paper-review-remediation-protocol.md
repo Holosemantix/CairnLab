@@ -292,6 +292,67 @@ If this gate fails, first restructure the manuscript and main/appendix split.
 New figures, converted tables, and extra appendix sections should wait until the
 argument order is stable.
 
+## Generic Manuscript Gate Review Pass
+
+Every review round must also score the ten venue- and domain-independent gates
+defined in `skills/paper-writing-quality/references/writing-quality-checklist.md`
+under `Generic Manuscript Gates`. Do not restate their text here; cite the gate
+name and the failing evidence.
+
+Report pass, warn, or fail for each, with the specific location that fails:
+
+- `G1. Progressive Disclosure Gate`: does title plus abstract deliver problem,
+  contribution, and boundary, and does intro plus figures deliver the argument
+  before any protocol detail is needed?
+- `G2. Concrete-Before-Abstract Gate`: is every formalism motivated by a
+  concrete instance, every nonstandard term defined once, and every concept
+  named the same way throughout?
+- `G3. One-Job Gate`: does each section, paragraph, and display do one job, with
+  topic sentence first and no project chronology or reviewer-response prose?
+- `G4. Claim-Evidence Identity Gate`: are not-run, unavailable, inconclusive,
+  and failed distinguished, and does every material number identify its split,
+  training seeds versus evaluation episodes, budget and checkpoint, comparator,
+  aggregation, and uncertainty? Flag every absolute endpoint that is written as
+  a method effect without a matched comparator.
+- `G5. Conceptual And Statistical Precision Gate`: are properties of the
+  assumptions and data kept separate from observed model behavior, are
+  diagnostics, endpoints, mechanism evidence, and necessary or sufficient
+  conditions labeled distinctly, and do the verbs match the evidence?
+- `G6. Self-Contained Display Gate`: can each display be read alone from its
+  caption, and does it pass the grayscale, color-vision, final-size, and
+  non-occlusion checks?
+- `G7. Table Semantics Gate`: does each row and column carry one comparison
+  identity, are absolute endpoints and matched deltas kept out of the same
+  visual grammar, and are resize-to-fit tables and interpretation or status
+  columns removed?
+- `G8. Public-Manuscript Boundary Gate`: are dates, run identifiers, hashes,
+  paths, manifests, TODO ledgers, remediation history, and decision logs in
+  repository evidence and provenance rather than in the paper, with the appendix
+  still written as reader-facing paper?
+- `G9. Single-Source-Of-Truth Numbers Gate`: does every quantitative display
+  trace to a machine-readable artifact, and does every duplicated number name a
+  source and a rerunnable consistency check?
+- `G10. Reader-Test Review Pass`: has the round actually run the
+  unfamiliar-reader summary test, acronym and notation scan, claim-evidence
+  audit, display-only scan, compiled-PDF inspection at normal zoom with
+  grayscale and color-vision passes, and cross-reference and link validation?
+
+Classification rules for this pass:
+
+- `G1`, `G2`, `G3`, `G6`, `G7`, `G8`, and `G10` failures are normally
+  `writing-only` or `no-retraining` work. Fix them in the current round rather
+  than deferring them.
+- `G4` and `G5` failures are claim-calibration failures. Narrow the claim or
+  mark it blocked. Do not resolve them by adding hedging language.
+- `G9` failures block the numeric claims they touch until the source artifact
+  and consistency check exist.
+- Numeric limits used by this pass are the configurable thresholds in the
+  writing checklist. If a venue or audience overrides one, record the override
+  and its rationale rather than silently scoring against a different bar.
+
+A round that reports these gates as passing without naming where each was
+checked is not a completed pass.
+
 ## Writing And Structure Audit
 
 Review every section, paragraph, sentence, figure, table, formula, and caption.
@@ -642,6 +703,8 @@ Each round should produce:
 - concrete remediation items grouped as no-retraining, new evaluation/diagnostic
   with fixed checkpoints, retraining-required, writing-only, and
   remove/merge/demote;
+- pass, warn, or fail for `G1` through `G10` from the generic manuscript gate
+  review pass, each with the location that was checked;
 - artifact or source references for every numeric concern;
 - current over-claim and under-claim risks;
 - updated acceptance estimate after verification.

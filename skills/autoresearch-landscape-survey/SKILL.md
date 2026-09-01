@@ -4,7 +4,7 @@ description: Use this skill to maintain a multi-facet survey map of AutoResearch
 license: Apache-2.0
 allowed-tools: Read Write Edit Bash WebSearch WebFetch
 metadata:
-  version: "0.2.9"
+  version: "0.2.10"
   skill-author: Holosemantix research mapping workflow
 ---
 
@@ -28,6 +28,11 @@ paper, and read `references/paper-review-remediation-protocol.md` before
 judging or editing a paper. Writing-quality ledgers, reviewer notes, LLM
 critiques, and manuscript scores remain non-authoritative evidence; they do not
 decide CairnLab claim lifecycle transitions.
+
+For revisions of an existing manuscript, the review protocol also requires an
+accepted-abstract baseline and reversion check. An explicit restore request
+requires exact restoration and a source diff; supporting experiments do not
+automatically justify abstract expansion.
 
 ## Core Principle
 

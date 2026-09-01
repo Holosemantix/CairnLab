@@ -190,6 +190,26 @@ def test_ledger_exposes_generic_gate_status_keys():
         assert key in text
 
 
+def test_accepted_abstract_baseline_gate_is_operational():
+    text = CHECKLIST.read_text(encoding="utf-8")
+
+    for phrase in (
+        "### Accepted-Abstract Baseline And Reversion Gate",
+        "exact-restoration task",
+        "source diff",
+        "rejected candidate",
+        "supporting experiment",
+        "factorial analysis",
+        "defensive boundary",
+        "analysis plumbing",
+        "accepted_abstract_baseline_gate:",
+        "abstract_revision_decision:",
+        "abstract_baseline_source:",
+        "abstract_exact_reversion:",
+    ):
+        assert phrase in text
+
+
 def test_skill_advertises_generic_gates_and_reader_test_step():
     text = SKILL.read_text(encoding="utf-8")
     assert "## Generic Manuscript Gates" in text

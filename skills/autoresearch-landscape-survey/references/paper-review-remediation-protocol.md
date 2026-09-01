@@ -246,6 +246,34 @@ especially duplicated appendix tables, internal-sounding abstract phrases,
 internal diagnostic-engineering prose, ambiguous table headers, and
 external-family artifacts that do not meet the current core-evidence standard.
 
+## Accepted-Abstract Baseline And Reversion Gate
+
+For an existing manuscript, review the candidate against the last accepted
+abstract. Do not judge it in isolation. More complete is not automatically
+better.
+
+An explicit restore, revert, or return-to-version request takes precedence over
+ordinary rewriting. The reviewer must verify that the requested baseline was
+resolved from version control, released source, or the accepted artifact; that
+wording and sentence order match it; and that every remaining difference is an
+authorized mechanical exception. A hybrid, polished, or partially preserved
+candidate fails even if it is scientifically accurate.
+
+When no reversion was requested, choose and record `preserve`, `compress`,
+`replace`, or `expand`. Default to preserving the accepted baseline unless
+verified evidence changes the central contribution, the strongest headline
+result, or a material boundary. Do not credit supporting experiments, factorial
+analysis, protocol refinements, adjustments, or defensive scope language as an
+abstract improvement merely because they make it more complete. Reject a
+candidate that replaces the scientific takeaway with analysis plumbing,
+flattens contribution hierarchy, inflates reviewer expectations, or enlarges
+claim surface without a new primary contribution.
+
+Passing this gate prevents a writing regression; it does not raise the paper's
+evidence ceiling or acceptance score. The review output must record the baseline
+source, exact-match result, decision, and evidence change, if any, that justified
+a non-reversion edit.
+
 ## Structure-First Manuscript Remediation Gate
 
 Before adding experiments, converting tables to figures, or expanding the
@@ -401,6 +429,7 @@ Require:
 - a checkable writing contract before major drafting;
 - an explicit claim-frame sentence in the form "This paper is X, not Y";
 - both a positive claim and a boundary claim in the abstract;
+- the Accepted-Abstract Baseline And Reversion Gate when a baseline exists;
 - plateau/range results described with plateau, range, membership, region, or
   screen language rather than point-best selector language;
 - one central thesis and one section job per section;
@@ -708,6 +737,8 @@ Each round should produce:
 - artifact or source references for every numeric concern;
 - current over-claim and under-claim risks;
 - updated acceptance estimate after verification.
+- for abstract revisions, the baseline source, exact-match result when a
+  reversion was requested, and the evidence-based revision decision.
 
 The final recommendation must stay objective. Do not make the score drift upward
 because the paper has been through many rounds.

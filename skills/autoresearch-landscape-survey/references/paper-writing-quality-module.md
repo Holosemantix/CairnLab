@@ -133,6 +133,8 @@ The contract must name:
 - required evidence-bearing figures and tables;
 - abstract obligations: problem, contribution, evidence scale, key result,
   key limitation, and target word count;
+- for revisions, the last accepted abstract and the evidence change that could
+  justify preserving, compressing, replacing, or expanding it;
 - section order and the one job of each section;
 - notation/acronym budget;
 - page budget for main text, appendix, and references;
@@ -501,6 +503,26 @@ Require:
   unavoidable;
 - all numbers trace to current result artifacts.
 
+### Accepted-Abstract Baseline And Reversion Gate
+
+Treat the last accepted abstract as a versioned baseline. If the user asks to
+restore, revert, or return to a named version, resolve that baseline from version
+control, released source, or the accepted artifact; restore it verbatim except
+for explicitly authorized mechanical metadata changes; and verify the result
+with a source diff. Do not merge in rejected clauses, opportunistically polish
+the baseline, or turn the request into a compromise rewrite.
+
+Without an explicit reversion request, choose and record `preserve`, `compress`,
+`replace`, or `expand`; default to `preserve` unless verified evidence changes
+the central contribution, strongest headline result, or a material boundary.
+Supporting experiments, factorial analyses, protocol refinements, adjustments,
+robustness checks, and defensive boundaries do not automatically earn abstract
+space. Adding them can flatten the contribution hierarchy, replace the
+scientific takeaway with analysis plumbing, inflate reviewer expectations, and
+enlarge the claim surface without adding a new primary contribution. Prefer a
+length-neutral or shorter revision; expansion requires an explicit
+writing-contract rationale.
+
 ### Introduction Gate
 
 Require:
@@ -676,6 +698,9 @@ The module is incomplete if it does not catch:
 
 - abstract contains irrelevant setup, misses the central result, or reads like
   a status report;
+- an accepted abstract is expanded to inventory supporting experiments or
+  analysis without changing the central contribution, strongest headline
+  result, or a material boundary;
 - paragraphs repeat the same claim or exist only as reviewer-defense text;
 - too many acronyms, symbols, or named diagnostics are introduced together;
 - section titles expose artifact bookkeeping instead of the paper's argument;
@@ -724,6 +749,10 @@ writing_readiness: ready | minor_revision | major_revision | blocked
 contract_status: accepted | contested | missing
 claim_evidence_matrix_checked: true
 abstract_gate: pass | warn | fail
+accepted_abstract_baseline_gate: pass | warn | fail | not_applicable
+abstract_revision_decision: preserve | compress | replace | expand | not_applicable
+abstract_baseline_source: ""
+abstract_exact_reversion: true | false | not_applicable
 claim_frame_gate: pass | warn | fail
 paragraph_gate: pass | warn | fail
 terminology_gate: pass | warn | fail

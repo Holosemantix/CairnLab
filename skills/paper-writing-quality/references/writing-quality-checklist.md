@@ -133,6 +133,8 @@ The contract must name:
 - required evidence-bearing figures and tables;
 - abstract obligations: problem, contribution, evidence scale, key result,
   key limitation, and target word count;
+- for revisions, the last accepted abstract and the evidence change that could
+  justify preserving, compressing, replacing, or expanding it;
 - section order and the one job of each section;
 - notation/acronym budget;
 - page budget for main text, appendix, and references;
@@ -773,6 +775,47 @@ Require:
   unavoidable;
 - all numbers trace to current result artifacts.
 
+### Accepted-Abstract Baseline And Reversion Gate
+
+Treat an accepted abstract as a versioned baseline, not as a draft that must be
+refreshed whenever the paper gains a supporting experiment. More complete is
+not automatically better.
+
+If the user asks to restore, revert, or return to a named version, this is an
+exact-restoration task:
+
+1. resolve the requested baseline from version control, released source, or the
+   accepted artifact;
+2. restore its wording and sentence order verbatim, except for mechanical
+   metadata changes that the user explicitly keeps;
+3. do not merge in clauses from the rejected candidate, opportunistically
+   polish the baseline, or reinterpret the request as a compromise rewrite;
+4. verify the restored abstract against the baseline with a source diff and
+   record any authorized exception.
+
+Without an explicit reversion request, choose and record `preserve`, `compress`,
+`replace`, or `expand`. Default to `preserve` unless verified new evidence
+changes the central contribution, the strongest headline result, or a material
+boundary needed to interpret that result correctly.
+
+A supporting experiment, factorial analysis, protocol refinement, adjustment,
+robustness check, or defensive boundary does not automatically earn abstract
+space. Such material usually belongs in the main text or appendix when it
+strengthens an existing claim without changing the abstract's decision path.
+Adding it can make an abstract worse even when every sentence is accurate: it
+can flatten the contribution hierarchy, replace the scientific takeaway with
+analysis plumbing, inflate reviewer expectations, and enlarge the claim surface
+without adding a new primary contribution.
+
+For a proposed non-reversion edit, compare baseline and candidate side by side.
+Check sentence roles, word count, new acronyms, new numbers, protocol terms,
+statistical terms, and caveats. Every added or replaced clause must satisfy a
+previously unmet abstract obligation. Prefer a length-neutral or shorter
+revision; expansion requires a genuinely new primary contribution or material
+boundary plus an explicit writing-contract rationale. If the candidate weakens
+concision, contribution hierarchy, or first-read comprehension, restore the
+accepted baseline.
+
 ### Introduction Gate
 
 Require:
@@ -943,6 +986,11 @@ The module is incomplete if it does not catch:
 
 - abstract contains irrelevant setup, misses the central result, or reads like
   a status report;
+- an explicit request to restore an accepted abstract produces a hybrid,
+  polished, or partially preserved candidate instead of an exact restoration;
+- an accepted abstract is expanded to inventory supporting experiments,
+  protocol details, statistics, or caveats without changing the central
+  contribution, strongest headline result, or a material boundary;
 - paragraphs repeat the same claim or exist only as reviewer-defense text;
 - too many acronyms, symbols, or named diagnostics are introduced together;
 - section titles expose artifact bookkeeping instead of the paper's argument;
@@ -1002,6 +1050,10 @@ writing_readiness: ready | minor_revision | major_revision | blocked
 contract_status: accepted | contested | missing
 claim_evidence_matrix_checked: true
 abstract_gate: pass | warn | fail
+accepted_abstract_baseline_gate: pass | warn | fail | not_applicable
+abstract_revision_decision: preserve | compress | replace | expand | not_applicable
+abstract_baseline_source: ""
+abstract_exact_reversion: true | false | not_applicable
 claim_frame_gate: pass | warn | fail
 paragraph_gate: pass | warn | fail
 terminology_gate: pass | warn | fail

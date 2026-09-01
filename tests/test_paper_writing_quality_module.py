@@ -29,7 +29,7 @@ PROTOCOL = (
 def test_skill_routes_paper_writing_to_quality_module() -> None:
     text = SKILL.read_text(encoding="utf-8")
 
-    assert 'version: "0.2.9"' in text
+    assert 'version: "0.2.10"' in text
     assert "paper-writing-quality-module.md" in text
     assert "writing-quality ledgers" in text.lower()
     assert "non-authoritative evidence" in text
@@ -176,6 +176,36 @@ def test_writing_module_requires_checkable_contract_and_ledger() -> None:
     missing = [phrase for phrase in required if phrase not in text]
 
     assert missing == []
+
+
+def test_write_and_review_skills_enforce_accepted_abstract_reversion() -> None:
+    skill_text = STANDALONE_SKILL.read_text(encoding="utf-8")
+    checklist_text = STANDALONE_REFERENCE.read_text(encoding="utf-8")
+    module_text = MODULE.read_text(encoding="utf-8")
+    protocol_text = PROTOCOL.read_text(encoding="utf-8")
+
+    for text in (checklist_text, module_text, protocol_text):
+        normalized = " ".join(text.split())
+        assert "Accepted-Abstract Baseline And Reversion Gate" in normalized
+        assert "supporting experiment" in normalized.lower()
+        assert "central contribution" in normalized
+        assert "strongest headline result" in normalized
+        assert "analysis plumbing" in normalized
+
+    for phrase in (
+        "exact-restoration task",
+        "restore its wording and sentence order verbatim",
+        "do not merge in clauses from the rejected candidate",
+        "verify the restored abstract against the baseline with a source diff",
+        "inflate reviewer expectations",
+        "enlarge the claim surface",
+    ):
+        assert phrase in checklist_text
+
+    assert "exact restoration" in skill_text.lower()
+    normalized_protocol = " ".join(protocol_text.split())
+    assert "A hybrid, polished, or partially preserved candidate fails" in normalized_protocol
+    assert "does not raise the paper's" in normalized_protocol
 
 
 def test_writing_module_codifies_claim_framing_and_plateau_language() -> None:

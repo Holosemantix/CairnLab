@@ -74,3 +74,20 @@ def test_paper_review_protocol_covers_required_review_gates() -> None:
     missing = [phrase for phrase in required_phrases if phrase not in text]
 
     assert missing == []
+
+
+def test_review_protocol_requires_exact_accepted_abstract_reversion() -> None:
+    text = PROTOCOL.read_text(encoding="utf-8")
+    normalized = " ".join(text.split())
+
+    for phrase in (
+        "## Accepted-Abstract Baseline And Reversion Gate",
+        "More complete is not automatically better",
+        "An explicit restore, revert, or return-to-version request",
+        "wording and sentence order match it",
+        "authorized mechanical exception",
+        "A hybrid, polished, or partially preserved candidate fails",
+        "inflates reviewer expectations",
+        "enlarges claim surface",
+    ):
+        assert phrase in normalized

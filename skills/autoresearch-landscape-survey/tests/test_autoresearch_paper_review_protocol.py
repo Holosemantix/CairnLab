@@ -63,11 +63,22 @@ def test_protocol_prevents_large_unverified_score_jump():
 
 def test_skill_entry_mentions_score_disagreement_gate():
     text = SKILL.read_text(encoding="utf-8")
-    assert 'version: "0.2.9"' in text
+    assert 'version: "0.2.10"' in text
     assert "score-disagreement ledger" in text
     assert "separate main-track and diagnostic" in text
     assert "corrected score ceiling" in text
     assert "Weak-Reject Diagnostic-Paper Calibration Gate" in text
+
+
+def test_protocol_requires_accepted_abstract_reversion_gate():
+    skill_text = SKILL.read_text(encoding="utf-8")
+    protocol_text = PROTOCOL.read_text(encoding="utf-8")
+    normalized_protocol = " ".join(protocol_text.split())
+
+    assert "explicit restore request" in skill_text
+    assert "exact restoration and a source diff" in skill_text
+    assert "## Accepted-Abstract Baseline And Reversion Gate" in normalized_protocol
+    assert "A hybrid, polished, or partially preserved candidate fails" in normalized_protocol
 
 
 def test_protocol_has_weak_reject_diagnostic_paper_calibration_gate():

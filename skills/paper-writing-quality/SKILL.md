@@ -1,6 +1,6 @@
 ---
 name: paper-writing-quality
-description: Use this skill when drafting, rewriting, polishing, or reviewing scientific manuscripts, LaTeX papers, abstracts, introductions, experiment sections, tables/captions, appendices, section headings, table-of-contents structure, or top-conference papers. Applies when Codex must enforce paper-writing constraints for paper-facing claim framing, evidence compression, metric scope control, theory-to-metric mapping, positive and boundary claims, plateau/range language, terminology consistency, acronym expansion, experiment narrative, caveat discipline, table attack-surface review, reader-facing section/caption structure, appendix/provenance separation, citation/source grounding, compiled-PDF layout checks, progressive disclosure and layered readability, concrete-before-abstract exposition, claim/evidence identity, display self-containment and accessibility, table comparison semantics, public-manuscript versus internal-record separation, single-source-of-truth numbers, and a final reader-test pass.
+description: Use this skill when drafting, rewriting, polishing, or reviewing scientific manuscripts, LaTeX papers, abstracts, introductions, experiment sections, tables/captions, appendices, section headings, table-of-contents structure, or top-conference papers. Applies when Codex must enforce paper-writing constraints for paper-facing claim framing, evidence compression, exact restoration to an accepted abstract baseline, abstract revision regression, metric scope control, theory-to-metric mapping, positive and boundary claims, plateau/range language, terminology consistency, acronym expansion, experiment narrative, caveat discipline, table attack-surface review, reader-facing section/caption structure, appendix/provenance separation, citation/source grounding, compiled-PDF layout checks, progressive disclosure and layered readability, concrete-before-abstract exposition, claim/evidence identity, display self-containment and accessibility, table comparison semantics, public-manuscript versus internal-record separation, single-source-of-truth numbers, and a final reader-test pass.
 ---
 
 # Paper Writing Quality
@@ -32,6 +32,7 @@ Use it as the checklist for:
 - theory-to-evidence mapping: connect theoretical quantities to empirical
   audits, observed results, and explicit limitations;
 - abstract positive claim plus boundary claim;
+- accepted-abstract baseline and exact-reversion checks;
 - plateau/range language instead of point-best selector language;
 - terminology consistency: score, screen, view;
 - acronym expansion and removal of internal engineering terms from main text;
@@ -116,14 +117,21 @@ in the writing contract, with the override recorded in the ledger.
    - any override of the configurable gate thresholds, with rationale.
 3. Draft or edit section by section. Keep final manuscript prose flowing except
    where the venue or methods section expects lists.
-4. Rebuild or inspect the compiled PDF when LaTeX/PDF artifacts are available.
-5. Run `G10. Reader-Test Review Pass` on the compiled artifact.
-6. Produce a writing-quality ledger with pass/warn/fail status for the gates in
+4. When revising an existing paper, compare any candidate abstract against the
+   last accepted abstract. If the user requests a reversion, restore that
+   baseline exactly and verify the source diff before doing any further edit.
+5. Rebuild or inspect the compiled PDF when LaTeX/PDF artifacts are available.
+6. Run `G10. Reader-Test Review Pass` on the compiled artifact.
+7. Produce a writing-quality ledger with pass/warn/fail status for the gates in
    the reference checklist, including `G1` through `G10`.
 
 ## Do Not Do
 
 - Do not inflate a claim because the prose is polished.
+- Do not expand an accepted abstract merely to inventory a supporting
+  experiment, protocol refinement, or additional analysis.
+- Do not turn an explicit restore or revert request into a new rewrite,
+  compromise draft, or opportunistic polishing pass.
 - Do not use caveats to hide a weak or confused main claim.
 - Do not treat reviewer scores, LLM critique, or a clean PDF as scientific
   release authority.

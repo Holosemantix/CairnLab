@@ -677,6 +677,9 @@ Inspect the compiled PDF, not just source.
 Require:
 
 - no stale labels, old terminology, or implementation strings in figure text;
+- axis labels name the measured quantity rather than only the evaluation split,
+  protocol, aggregation, normalization, or transformation. A shortened label
+  must preserve what is measured; procedural detail belongs in the caption;
 - axes, legends, captions, and table headers that are interpretable without
   reading scripts;
 - table headers name the compared checkpoint, method, condition, or evaluation

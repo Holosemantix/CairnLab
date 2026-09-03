@@ -51,6 +51,8 @@ Use it as the checklist for:
   reproducible script, and source bundles must include referenced displays;
 - table headers that name the checkpoint, method, condition, or evaluation
   stressor without internal shorthand;
+- axis labels that name the measured quantity rather than substituting an
+  evaluation split, protocol, aggregation, normalization, or transformation;
 - no interpretation-only table columns such as "reading" or "claim status";
 - reader-facing appendix orientation sentences and `not paper-facing evidence` markings when scoped provenance must remain visible;
 - deletion or merge of appendix tables that duplicate main-text rows and

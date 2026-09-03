@@ -234,3 +234,15 @@ def test_generic_gate_names_are_consistent_across_files():
     # The operational detail lives in one file; the others point at it.
     for pointer_text in (module, protocol):
         assert "writing-quality-checklist.md" in pointer_text
+
+
+def test_display_labels_preserve_the_measured_quantity():
+    checklist = CHECKLIST.read_text(encoding="utf-8")
+    protocol = PROTOCOL.read_text(encoding="utf-8")
+    skill = SKILL.read_text(encoding="utf-8")
+
+    assert "axis labels that name the measured quantity" in skill
+    assert "axis labels name the measured quantity" in checklist
+    assert "preserve what is measured" in checklist
+    assert "A shortened label" in protocol
+    assert "procedural detail belongs in the caption" in protocol

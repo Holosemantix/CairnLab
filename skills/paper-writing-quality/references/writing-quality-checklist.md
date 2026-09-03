@@ -435,6 +435,11 @@ Every caption states:
 
 Require also:
 
+- axis labels name the measured quantity. Evaluation-split, protocol,
+  aggregation, normalization, or transformation terms such as `held-out`,
+  `cross-task`, or `normalized` may qualify that quantity when needed, but must
+  not replace it. When shortening a label, preserve what is measured and move
+  procedural detail to the caption;
 - symbols, line styles, and abbreviations are decodable from the display and its
   caption, never only from body text;
 - no color-only encoding. Pair color with shape, line style, position, direct
@@ -949,6 +954,8 @@ Require:
   reproducibility question;
 - figure text does not contain stale implementation names, old terminology, or
   unexpanded acronyms;
+- shortened axis labels still say what is measured; do not introduce a split or
+  protocol adjective merely as a shorter substitute for the metric or target;
 - line breaks do not separate symbols from definitions in a confusing way;
 - every promoted figure/table is generated from an existing artifact or
   reproducible script, not hand-entered numbers;
